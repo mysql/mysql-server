@@ -5050,6 +5050,58 @@ longlong Item_func_numpoints::val_int() {
   return (longlong)num;
 }
 
+double Item_func_coordinate_observer::val_real() {
+  DBUG_ASSERT(fixed);
+  String tmp_str;
+  String *swkb = args[0]->val_str(&tmp_str);
+
+  if ((null_value = (args[0]->null_value))) {
+    DBUG_ASSERT(maybe_null);
+    return 0.0;
+  }
+
+  if (!swkb) {
+    /* purecov: begin inspected */
+    DBUG_ASSERT(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_real();
+    /* purecov: end */
+  }
+
+  const dd::Spatial_reference_system *srs = nullptr;
+  std::unique_ptr<gis::Geometry> g;
+  dd::cache::Dictionary_client::Auto_releaser m_releaser(
+      current_thd->dd_client());
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+    return error_real();
+
+  if (g->type() != gis::Geometry_type::kPoint) {
+    my_error(ER_UNEXPECTED_GEOMETRY_TYPE, MYF(0), "POINT",
+             gis::type_to_name(g->type()), func_name());
+    return error_real();
+  }
+
+  if (m_geographic_only &&
+      g->coordinate_system() != gis::Coordinate_system::kGeographic) {
+    DBUG_ASSERT(g->coordinate_system() == gis::Coordinate_system::kCartesian);
+    my_error(ER_SRS_NOT_GEOGRAPHIC, MYF(0), func_name(),
+             srs == nullptr ? 0 : srs->id());
+    return error_real();
+  }
+
+  gis::Point &point = static_cast<gis::Point &>(*g);
+  if (srs != nullptr && srs->is_geographic()) {
+    if (coordinate_number(srs) == 0)
+      return srs->from_normalized_longitude(point.x());
+    DBUG_ASSERT(coordinate_number(srs) == 1);
+    return srs->from_normalized_latitude(point.y());
+  }
+  DBUG_ASSERT(srs == nullptr || srs->is_cartesian());
+  if (coordinate_number(srs) == 0) return point.x();
+  DBUG_ASSERT(coordinate_number(srs) == 1);
+  return point.y();
+}
+
 String *Item_func_set_x::val_str(String *str) {
   DBUG_ASSERT(fixed);
   String *swkb = args[0]->val_str(str);

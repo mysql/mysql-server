@@ -8476,6 +8476,9 @@ ER_SRS_INVALID_CHARACTER_IN_ATTRIBUTE SR006
 ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
   eng "Attribute %s is too long. The maximum length is %u characters."
 
+ER_SRS_NOT_GEOGRAPHIC 22S00
+  eng "Function %s is only defined for geographic spatial reference systems, but one of its arguments is in SRID %u, which is not geographic."
+
 #
 #  End of 8.0 error messages.
 #

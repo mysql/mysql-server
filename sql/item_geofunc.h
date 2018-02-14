@@ -37,6 +37,7 @@
 #include "prealloced_array.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
+#include "sql/gis/geometries.h"
 #include "sql/gis/srid.h"
 /* This file defines all spatial functions */
 #include "sql/inplace_vector.h"
@@ -1429,6 +1430,31 @@ class Item_func_dimension : public Item_int_func {
     maybe_null = true;
     return false;
   }
+};
+
+/// The abstract superclass for all geometry coordinate oberserver functions
+/// (ST_X, ST_Y, ST_Latitude, ST_Longitude with one parameter).
+///
+/// @see Item_func_coordinate_mutator
+class Item_func_coordinate_observer : public Item_real_func {
+ public:
+  Item_func_coordinate_observer(const POS &pos, Item *a, bool geographic_only)
+      : Item_real_func(pos, a), m_geographic_only(geographic_only) {}
+  double val_real() override;
+
+ protected:
+  const char *func_name() const override = 0;
+  /// Returns the coordinate number accessed by this item.
+  ///
+  /// @param[in] srs The spatial reference system of the point.
+  ///
+  /// @return The coordinate number to access.
+  virtual int coordinate_number(
+      const dd::Spatial_reference_system *srs) const = 0;
+
+ private:
+  /// Whether this item will accept only geographic geometries/SRSs.
+  bool m_geographic_only;
 };
 
 /**
