@@ -1,7 +1,7 @@
-#ifndef SQL_GIS_WKB_PARSER_H_INCLUDED
-#define SQL_GIS_WKB_PARSER_H_INCLUDED
+#ifndef SQL_GIS_WKB_H_INCLUDED
+#define SQL_GIS_WKB_H_INCLUDED
 
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,17 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
                     const dd::Spatial_reference_system **srs,
                     std::unique_ptr<Geometry> *geometry);
 
+/// Writes a little-endian geometry string (SRID + WKB).
+///
+/// @param[in] srs The SRS of the geometry.
+/// @param[in] geometry The geometry.
+/// @param[out] str The string to write the geometry to.
+///
+/// @retval false Success.
+/// @retval true Error. my_error() has been called.
+bool write_geometry(const dd::Spatial_reference_system *srs, Geometry &geometry,
+                    String *str);
+
 }  // namespace gis
 
-#endif  // SQL_GIS_WKB_PARSER_H_INCLUDED
+#endif  // SQL_GIS_WKB_H_INCLUDED

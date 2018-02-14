@@ -67,7 +67,7 @@
 #include "sql/gis/is_valid.h"
 #include "sql/gis/length.h"
 #include "sql/gis/srid.h"
-#include "sql/gis/wkb_parser.h"
+#include "sql/gis/wkb.h"
 #include "sql/gstream.h"  // Gis_read_stream
 #include "sql/item_geofunc_internal.h"
 #include "sql/json_dom.h"  // Json_wrapper

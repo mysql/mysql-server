@@ -20,18 +20,20 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
-#include "sql/gis/wkb_parser.h"
+#include "sql/gis/wkb.h"
 
 #include <cmath>  // M_PI, M_PI_2
 #include <exception>
 
-#include "my_byteorder.h"
-#include "my_sys.h"  // my_error()
+#include "my_byteorder.h"  // float8get, int4store, uint4korr
+#include "my_sys.h"        // my_error()
 #include "mysqld_error.h"
 #include "sql/gis/coordinate_range_visitor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/ring_flip_visitor.h"
+#include "sql/gis/wkb_size_visitor.h"
+#include "sql/gis/wkb_visitor.h"
 #include "sql/sql_error.h"
 #include "sql/srs_fetcher.h"
 #include "sql_string.h"
@@ -483,6 +485,29 @@ bool parse_geometry(THD *thd, const char *func_name, const String *str,
       return true;
     }
   }
+
+  return false;
+}
+
+bool write_geometry(const dd::Spatial_reference_system *srs, Geometry &geometry,
+                    String *str) {
+  Wkb_size_visitor wkb_size;
+  geometry.accept(&wkb_size);
+  size_t geometry_size =
+      sizeof(std::uint32_t) + wkb_size.size();  // SRID + WKB.
+  str->set_charset(&my_charset_bin);
+  if (str->reserve(geometry_size)) {
+    /* purecov: begin inspected */
+    my_error(ER_OUTOFMEMORY, MYF(0));
+    return true;
+    /* purecov: end */
+  }
+  str->length(geometry_size);
+  char *buffer = &((*str)[0]);
+  int4store(buffer, srs == nullptr ? 0 : srs->id());
+  buffer += sizeof(std::uint32_t);
+  Wkb_visitor wkb(srs, buffer, wkb_size.size());
+  geometry.accept(&wkb);
 
   return false;
 }

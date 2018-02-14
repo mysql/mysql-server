@@ -46,7 +46,7 @@
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/mbr_utils.h"
 #include "sql/gis/srid.h"
-#include "sql/gis/wkb_parser.h"
+#include "sql/gis/wkb.h"
 #include "sql/spatial.h"    // SRID_SIZE
 #include "sql/sql_class.h"  // THD
 #include "sql/srs_fetcher.h"
