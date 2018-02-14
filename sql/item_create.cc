@@ -854,6 +854,28 @@ class Latitude_instantiator {
   }
 };
 
+class Longitude_instantiator {
+ public:
+  static const uint Min_argcount = 1;
+  static const uint Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    switch (args->elements()) {
+      case 1:
+        return new (thd->mem_root)
+            Item_func_st_longitude_observer(POS(), (*args)[0]);
+      case 2:
+        return new (thd->mem_root)
+            Item_func_st_longitude_mutator(POS(), (*args)[0], (*args)[1]);
+      default:
+        /* purecov: begin deadcode */
+        DBUG_ASSERT(false);
+        return nullptr;
+        /* purecov: end */
+    }
+  }
+};
+
 class X_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -1534,7 +1556,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
     {"ST_LINESTRINGFROMWKB", SQL_FACTORY(Linestringfromwkb_instantiator)},
     {"ST_LONGFROMGEOHASH", SQL_FN(Item_func_longfromgeohash, 1)},
-    {"ST_LONGITUDE", SQL_FN(Item_func_st_longitude_observer, 1)},
+    {"ST_LONGITUDE", SQL_FACTORY(Longitude_instantiator)},
     {"ST_MAKEENVELOPE", SQL_FN(Item_func_make_envelope, 2)},
     {"ST_MLINEFROMTEXT", SQL_FACTORY(Mlinefromtext_instantiator)},
     {"ST_MLINEFROMWKB", SQL_FACTORY(Mlinefromwkb_instantiator)},
