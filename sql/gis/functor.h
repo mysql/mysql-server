@@ -92,28 +92,6 @@ class not_implemented_exception : public std::exception {
 
   std::string m_typenames;
 
-  const char *type_to_name(Geometry_type type) const {
-    switch (type) {
-      case Geometry_type::kPoint:
-        return "POINT";
-      case Geometry_type::kLinestring:
-        return "LINESTRING";
-      case Geometry_type::kPolygon:
-        return "POLYGON";
-      case Geometry_type::kGeometrycollection:
-        return "GEOMCOLLECTION";
-      case Geometry_type::kMultipoint:
-        return "MULTIPOINT";
-      case Geometry_type::kMultilinestring:
-        return "MULTILINESTRING";
-      case Geometry_type::kMultipolygon:
-        return "MULTIPOLYGON";
-      default:
-        DBUG_ASSERT(false); /* purecov: inspected */
-        return "UNKNOWN";
-    }
-  }
-
   not_implemented_exception(Srs_type srs_type, const Geometry &g) {
     m_srs_type = srs_type;
     m_typenames = std::string(type_to_name(g.type()));
