@@ -1457,6 +1457,21 @@ class Item_func_coordinate_observer : public Item_real_func {
   bool m_geographic_only;
 };
 
+/// This class implements the one-parameter ST_Latitude function which returns
+/// the latitude coordinate of a geographic point.
+class Item_func_st_latitude_observer final
+    : public Item_func_coordinate_observer {
+ public:
+  Item_func_st_latitude_observer(const POS &pos, Item *a)
+      : Item_func_coordinate_observer(pos, a, true) {}
+
+ protected:
+  const char *func_name() const override { return "st_latitude"; }
+  int coordinate_number(const dd::Spatial_reference_system *) const override {
+    return 1;
+  }
+};
+
 /**
   This class updates the x coordinate of geometry class POINT.
   The class handles the SQL function @<geometry@>= ST_X(@<point@>, @<double@>).
