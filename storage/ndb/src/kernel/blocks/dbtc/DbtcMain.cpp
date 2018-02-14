@@ -2748,11 +2748,11 @@ Dbtc::handle_special_hash(Uint32 dstHash[4],
   if(hasCharAttr || (compute_distkey && hasVarKeys))
   {
     keyPartLenPtr = keyPartLen;
-    inputLen = xfrm_key(tabPtrI, 
-                        src, 
-                        workspace, 
-                        sizeof(alignedWorkspace) >> 2, 
-                        keyPartLenPtr);
+    inputLen = xfrm_key_hash(tabPtrI,
+                             src,
+                             workspace,
+                             sizeof(alignedWorkspace) >> 2,
+                             keyPartLenPtr);
     if (unlikely(inputLen == 0))
     {
       goto error;

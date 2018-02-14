@@ -6952,7 +6952,7 @@ Dblqh::readPrimaryKeys(Uint32 opPtrI, Uint32 * dst, bool xfrm)
   {
     jam();
     Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-    return xfrm_key(tableId, (Uint32*)Tmp, dst, ~0, keyPartLen);
+    return xfrm_key_hash(tableId, (Uint32*)Tmp, dst, ~0, keyPartLen);
   }
   
   return keyLen;
@@ -14434,8 +14434,9 @@ Dblqh::calculateHash(Uint32 tableId, const Uint32* src)
   jam();
   Uint64 Tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX];
-  Uint32 keyLen = xfrm_key(tableId, src, (Uint32*)Tmp, sizeof(Tmp) >> 2, 
-			   keyPartLen);
+  Uint32 keyLen = xfrm_key_hash(tableId, src,
+                                (Uint32*)Tmp, sizeof(Tmp) >> 2,
+                                keyPartLen);
   ndbrequire(keyLen);
   
   return md5_hash(Tmp, keyLen);

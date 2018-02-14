@@ -749,17 +749,19 @@ Dbtup::xfrm_reader(Uint8* dstPtr,
   CHARSET_INFO* cs = regTabPtr->charsetArray[i];
 
   Uint32 lb, len;
-  bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
-  Uint32 xmul = cs->strxfrm_multiply;
-  if (xmul == 0)
-    xmul = 1;
-  Uint32 dstLen = xmul * (maxBytes - lb);
-  Uint32 maxIndexBuf = indexBuf + (dstLen >> 2);
+  const bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
+  const unsigned defLen = maxBytes - lb;
+  const Uint32 maxDstLen = NdbSqlUtil::strnxfrm_hash_len(cs, defLen);
+  const Uint32 maxIndexBuf = indexBuf + (maxDstLen >> 2);
   if (maxIndexBuf <= maxRead && ok) 
   {
     thrjamDebug(req_struct->jamBuffer);
-    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, 
-                                         (const Uint8*)srcPtr + lb, len);
+    // len:    Actual length of 'src'
+    // defLen: Max defined length of src data 
+    const unsigned defLen = maxBytes - lb;
+    const int n = NdbSqlUtil::strnxfrm_hash(cs,
+                                       dstPtr, maxRead-indexBuf, 
+                                       (const uchar*)srcPtr + lb, len, defLen);
     ndbrequire(n != -1);
     zero32(dstPtr, n);
     ahOut->setByteSize(n);
@@ -1881,7 +1883,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
                                Uint32* updateBuffer,
                                Tablerec* const regTabPtr)
 {
-  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
+  Uint32 keyReadBuffer[MAX_KEY_SIZE_IN_WORDS];
   TableDescriptor* attr_descr = req_struct->attr_descr;
   AttributeHeader ahIn(*updateBuffer);
   Uint32 attributeId = ahIn.getAttributeId();
@@ -1889,20 +1891,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   Uint32 attrDescriptor = attr_descr[attrDescriptorIndex].tabDescr;
   Uint32 attributeOffset = attr_descr[attrDescriptorIndex + 1].tabDescr;
 
-  Uint32 xfrmBuffer[1 + MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY];
   Uint32 charsetFlag = AttributeOffset::getCharsetFlag(attributeOffset);
-  if (charsetFlag) {
-    Uint32 csIndex = AttributeOffset::getCharsetPos(attributeOffset);
-    CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
-    Uint32 srcPos = 0;
-    Uint32 dstPos = 0;
-    xfrm_attr(attrDescriptor, cs, &updateBuffer[1], srcPos,
-              &xfrmBuffer[1], dstPos, MAX_KEY_SIZE_IN_WORDS * MAX_XFRM_MULTIPLY);
-    ahIn.setDataSize(dstPos);
-    xfrmBuffer[0] = ahIn.m_value;
-    updateBuffer = xfrmBuffer;
-  }
-
   ReadFunction f = regTabPtr->readFunctionArray[attributeId];
 
   AttributeHeader attributeHeader(attributeId, 0);
@@ -1910,9 +1899,8 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   req_struct->out_buf_bits = 0;
   req_struct->max_read = sizeof(keyReadBuffer);
   req_struct->attr_descriptor = attrDescriptor;
-  
   bool tmp = req_struct->xfrm_flag;
-  req_struct->xfrm_flag = true;
+  req_struct->xfrm_flag = false;
   ndbrequire((this->*f)((Uint8*)keyReadBuffer,
                         req_struct,
                         &attributeHeader,
@@ -1924,9 +1912,33 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
     jam();
     return true;
   }
-  if (memcmp(&keyReadBuffer[0], 
-             &updateBuffer[1],
-             req_struct->out_buf_index) != 0) {
+
+  if (charsetFlag)
+  {
+    /**
+     * Need to use the 'cmp_attr' functions as a 'normalized' compare
+     * is needed.
+     */
+    const Uint32 csIndex = AttributeOffset::getCharsetPos(attributeOffset);
+    const CHARSET_INFO* cs = regTabPtr->charsetArray[csIndex];
+    const int res = cmp_attr(attrDescriptor, cs,
+                             &updateBuffer[1], ahIn.getByteSize(),
+                             &keyReadBuffer[0], attributeHeader.getByteSize());
+    if (res != 0)
+    {
+      jam();
+      return true;
+    }
+  }
+  /**
+   * As we are only testing for equal / not-equal, we can memcmp() any
+   * non-character column. (Little endian format would have required
+   * 'cmp_attr' to correctly compare '>' or '<')
+   */
+  else if (memcmp(&keyReadBuffer[0], 
+                  &updateBuffer[1],
+                  req_struct->out_buf_index) != 0)
+  {
     jam();
     return true;
   }

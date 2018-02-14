@@ -1211,18 +1211,39 @@ protected:
   Uint32 change_and_get_io_laggers(int change);
   /**********************
    * Xfrm stuff
+   *
+   * xfrm the attr / key for **hash** generation.
+   * - Keys being equal should generate identical xfrm'ed strings.
+   * - Uniquenes of two non equal keys are preferred, but not required.
    */
   
   /**
    * @return length
    */
-  Uint32 xfrm_key(Uint32 tab, const Uint32* src, 
-		  Uint32 *dst, Uint32 dstSize,
-		  Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
+  Uint32 xfrm_key_hash(Uint32 tab, const Uint32* src,
+		       Uint32 *dst, Uint32 dstSize,
+		       Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const;
 
-  Uint32 xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
-                   const Uint32* src, Uint32 & srcPos,
-                   Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+  Uint32 xfrm_attr_hash(Uint32 attrDesc, const CHARSET_INFO* cs,
+                        const Uint32* src, Uint32 & srcPos,
+                        Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const;
+
+
+  /*******************
+   * Compare either a full (non-NULL) key, or a single attr.
+   *
+   * Character strings are compared taking their normalized
+   * 'weight' into considderation, as defined by their collation.
+   *
+   * No intermediate xfrm'ed string are produced during the compare.
+   *
+   * return '<0', '==0' or '>0' for 's1<s2', s1==s2, 's2>s2' resp.
+   */
+  int cmp_key(Uint32 tab, const Uint32* s1, const Uint32 *s2) const;
+
+  int cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+	       const Uint32 *s1, Uint32 s1Len,
+	       const Uint32 *s2, Uint32 s2Len) const;
   
   /**
    *

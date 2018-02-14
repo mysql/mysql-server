@@ -3988,8 +3988,52 @@ SimulatedBlock::init_globals_list(void ** tmp, size_t cnt){
 
 #endif
 
+int
+SimulatedBlock::cmp_key(Uint32 tab, const Uint32 *s1, const Uint32 *s2) const
+{
+  const KeyDescriptor * desc = g_key_descriptor_pool.getPtr(tab);
+  const Uint32 noOfKeyAttr = desc->noOfKeyAttr;
+
+  for (Uint32 i = 0; i < noOfKeyAttr; i++)
+  {
+    const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
+    const Uint32 attrDesc = keyAttr.attributeDescriptor;
+    const Uint32 srcBytes = AttributeDescriptor::getSizeInBytes(attrDesc);
+
+    const int res = cmp_attr(attrDesc, keyAttr.charsetInfo,
+			     s1, srcBytes, s2, srcBytes);    
+    if (res != 0)
+      return res;
+
+    if (i+1 < noOfKeyAttr) //Optimization; skip if last keyAttr
+    {
+      const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+      Uint32 lb, len;
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s1, srcBytes, lb, len));
+      s1 += ((len+lb+3) >> 2);
+
+      ndbrequire(NdbSqlUtil::get_var_length(typeId, s2, srcBytes, lb, len));
+      s2 += ((len+lb+3) >> 2);
+    }
+  }
+  // Fall through: Compared equal
+  return 0;
+}
+
+int
+SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
+			 const Uint32 *s1, Uint32 s1Len,
+			 const Uint32 *s2, Uint32 s2Len) const
+{
+  const Uint32 typeId = AttributeDescriptor::getType(attrDesc);
+  const NdbSqlUtil::Cmp *cmp = NdbSqlUtil::getType(typeId).m_cmp;
+  return (*cmp)(cs, s1, s1Len, s2, s1Len);
+}
+
+
 Uint32
-SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src, 
+SimulatedBlock::xfrm_key_hash(
+                         Uint32 tab, const Uint32* src,
 			 Uint32 *dst, Uint32 dstSize,
 			 Uint32 keyPartLen[MAX_ATTRIBUTES_IN_INDEX]) const
 {
@@ -4003,7 +4047,7 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
   {
     const KeyDescriptor::KeyAttr& keyAttr = desc->keyAttr[i];
     Uint32 dstWords =
-      xfrm_attr(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
+      xfrm_attr_hash(keyAttr.attributeDescriptor, keyAttr.charsetInfo,
                 src, srcPos, dst, dstPos, dstSize);
     keyPartLen[i++] = dstWords;
     if (unlikely(dstWords == 0))
@@ -4022,7 +4066,8 @@ SimulatedBlock::xfrm_key(Uint32 tab, const Uint32* src,
 }
 
 Uint32
-SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
+SimulatedBlock::xfrm_attr_hash(
+                          Uint32 attrDesc, const CHARSET_INFO* cs,
                           const Uint32* src, Uint32 & srcPos,
                           Uint32* dst, Uint32 & dstPos, Uint32 dstSize) const
 {
@@ -4077,16 +4122,16 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
     bool ok = NdbSqlUtil::get_var_length(typeId, srcPtr, srcBytes, lb, len);
     if (unlikely(!ok))
       return 0;
-    Uint32 xmul = cs->strxfrm_multiply;
-    if (xmul == 0)
-      xmul = 1;
-    /*
-     * Varchar end-spaces are ignored in comparisons.  To get same hash
-     * we blank-pad to maximum length via strnxfrm.
-     */
-    Uint32 dstLen = xmul * (srcBytes - lb);
-    ndbrequire(dstLen <= ((dstSize - dstPos) << 2));
-    int n = NdbSqlUtil::strnxfrm_bug7284(cs, dstPtr, dstLen, srcPtr + lb, len);
+
+    // remLen: Remaining dst-buffer length
+    // len:    Actual length of 'src'
+    // defLen: Max defined length of src data 
+    const unsigned remLen = ((dstSize - dstPos) << 2);
+    const unsigned defLen = srcBytes - lb;
+    int n = NdbSqlUtil::strnxfrm_hash(cs,
+                                 dstPtr, remLen, 
+                                 srcPtr + lb, len, defLen);
+    
     if (unlikely(n == -1))
       return 0;
     while ((n & 3) != 0) 
