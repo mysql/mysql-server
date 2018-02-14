@@ -3433,15 +3433,16 @@ Dbacc::readTablePk(Uint32 localkey1,
                    Uint32 localkey2,
                    Uint32 eh,
                    Ptr<Operationrec> opPtr,
-                   Uint32 *keys)
+                   Uint32 *keys,
+                   bool xfrm)
 {
   int ret;
   Uint32 tableId = fragrecptr.p->myTableId;
   Uint32 fragId = fragrecptr.p->myfid;
-  bool xfrm = fragrecptr.p->hasCharAttr;
 
 #ifdef VM_TRACE
-  memset(keys, 0x1f, (fragrecptr.p->keyLength * MAX_XFRM_MULTIPLY) << 2);
+  const int xfrm_multiply = (xfrm) ? MAX_XFRM_MULTIPLY : 1;
+  memset(keys, 0x1f, (fragrecptr.p->keyLength * xfrm_multiply) << 2);
 #endif
   
   if (likely(! Local_key::isInvalid(localkey1, localkey2)))
@@ -3451,7 +3452,7 @@ Dbacc::readTablePk(Uint32 localkey1,
                            localkey1,
                            localkey2,
                            keys,
-                           true);
+                           xfrm);
   }
   else
   {
@@ -3476,7 +3477,7 @@ Dbacc::readTablePk(Uint32 localkey1,
  * Find element.
  *
  * Method scan the bucket given by hashValue from operationRecPtr and look for
- * the element with primary key given in signal.  If element found return
+ * the element with primary key given in signal.  If element found, return
  * pointer to element, if not found return only bucket information.
  *
  * @param[in]   signal         Signal containing primary key to look for.
@@ -3587,11 +3588,13 @@ Dbacc::getElement(const AccKeyReq* signal,
           bool found;
           if (! searchLocalKey) 
 	  {
+            const bool xfrm = fragrecptr.p->hasCharAttr;
             Uint32 len = readTablePk(localkey.m_page_no,
                                      localkey.m_page_idx,
                                      tgeElementHeader,
                                      lockOwnerPtr,
-                                     &keys[0]);
+                                     &keys[0],
+                                     xfrm);
             found = (len == operationRecPtr.p->xfrmtupkeylen) &&
 	      (memcmp(Tkeydata, &keys[0], len << 2) == 0);
           } else {
@@ -5669,11 +5672,13 @@ LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
     (void)keys_align;
     Local_key localkey;
     localkey = oprec.p->localdata;
+    const bool xfrm = fragrecptr.p->hasCharAttr;
     Uint32 len = readTablePk(localkey.m_page_no,
                               localkey.m_page_idx,
                               ElementHeader::setLocked(oprec.i),
                               oprec,
-                              &keys[0]);
+                              &keys[0],
+                              xfrm);
     if (len > 0)
       oprec.p->hashValue = LHBits32(md5_hash((Uint64*)&keys[0], len));
   }
@@ -5698,11 +5703,13 @@ LHBits32 Dbacc::getElementHash(Uint32 const* elemptr)
   localkey.m_page_idx = ElementHeader::getPageIdx(elemhead);
   OperationrecPtr oprec;
   oprec.i = RNIL;
+  const bool xfrm = fragrecptr.p->hasCharAttr;
   Uint32 len = readTablePk(localkey.m_page_no,
                            localkey.m_page_idx,
                            elemhead,
                            oprec,
-                           &keys[0]);
+                           &keys[0],
+                           xfrm);
   if (len > 0)
   {
     jam();
@@ -7705,7 +7712,7 @@ void Dbacc::initScanOpRec(Page8Ptr pageptr,
   ndbrequire(localkeylen == 1)
   operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
-  operationRecPtr.p->xfrmtupkeylen = 0; // not used
+  operationRecPtr.p->xfrmtupkeylen = 0; // not used for a scanOp
   NdbTick_Invalidate(&operationRecPtr.p->m_lockTime);
 }//Dbacc::initScanOpRec()
 
