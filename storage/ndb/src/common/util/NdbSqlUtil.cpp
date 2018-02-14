@@ -991,8 +991,8 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
 }
 
 /**
- * Normalize string for **hash**. To compare strings,
- * use the NdbSqlUtil::cmp*() methods.
+ * Normalize string for **hashing**. 
+ * To compare strings, use the NdbSqlUtil::cmp*() methods.
  *
  * xfrm'ed strings are guaranteed to be binary equal for
  * strings defined as equal by the specified charset collation.
@@ -1018,14 +1018,12 @@ NdbSqlUtil::get_var_length(Uint32 typeId, const void* p, unsigned attrlen, Uint3
  * So we still have to handle the 'unlikely' case 'n3 < (int)dstLen'.
  */
 
-#ifndef NDEBUG
 /**
  * Used to verify that the strnxfrm is only used for hashing:
  * zero-fill xfrm'ed string, which will give a valid hash pattern,
  * but break any misuse in strings compare
  */
 static const bool verify_hash_only_usage = false;
-#endif
 
 static inline int
 strnxfrm_bug7284(const CHARSET_INFO* cs,
@@ -1066,10 +1064,8 @@ strnxfrm_bug7284(const CHARSET_INFO* cs,
     }
   }
 
-#ifndef NDEBUG
   if (verify_hash_only_usage)
     memset(dst, 0, dstLen);
-#endif
 
   // no check for partial last
   return dstLen;

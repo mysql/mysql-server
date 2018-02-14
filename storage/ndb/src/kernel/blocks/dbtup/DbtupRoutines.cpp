@@ -1932,7 +1932,7 @@ Dbtup::checkUpdateOfPrimaryKey(KeyReqStruct* req_struct,
   }
   /**
    * As we are only testing for equal / not-equal, we can memcmp() any
-   * non-character column. (big- / little endian would have required
+   * non-character column. (Little endian format would have required
    * 'cmp_attr' to correctly compare '>' or '<')
    */
   else if (memcmp(&keyReadBuffer[0], 
