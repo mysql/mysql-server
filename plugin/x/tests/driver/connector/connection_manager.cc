@@ -157,11 +157,13 @@ void Connection_manager::connect_default(
     session->set_capability(xcl::XSession::Capability_client_interactive, true);
   }
 
-  session->set_mysql_option(xcl::XSession::Mysqlx_option::Compatibility_mode,
-                            m_connection_options.compatible);
-
   session->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
                             auth_methods);
+
+  if (m_connection_options.compatible) {
+    session->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method, "FALLBACK");
+  }
 
   session->set_mysql_option(xcl::XSession::Mysqlx_option::Hostname_resolve_to,
                             text_ip_mode);
@@ -220,13 +222,14 @@ void Connection_manager::create(const std::string &name,
       xcl::XSession::Mysqlx_option::Hostname_resolve_to,
       details::get_ip_mode_to_text(m_connection_options.ip_mode));
 
-  holder->get_session()->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Compatibility_mode,
-      m_connection_options.compatible);
-
   if (!auth_methods.empty())
     holder->get_session()->set_mysql_option(
         xcl::XSession::Mysqlx_option::Authentication_method, auth_methods);
+
+  if (m_connection_options.compatible) {
+    holder->get_session()->set_mysql_option(
+        xcl::XSession::Mysqlx_option::Authentication_method, "FALLBACK");
+  }
 
   holder->setup_ssl(co);
   holder->setup_msg_callbacks(co.trace_protocol);
