@@ -1,0 +1,54 @@
+# === Purpose ===
+#
+# Verify 'mysqlbinlog --read-from-remote-server --hexdump' works for
+# USER_VAR, RAND_LOG and INTVAR log events.
+#
+# === References ===
+#
+# Bug #24674276 MYSQLBINLOG -R --HEXDUMP CRASHES FOR INTVAR, USER_VAR, OR
+#               RAND EVENTS
+
+# USER_VAR, RAND_LOG_EVENT and INTVAR_LOG_EVENT work with binlog_format
+# statement.
+--source include/have_binlog_format_statement.inc
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. *");
+
+# Initial setup
+# Purge the existing binlog.
+RESET MASTER;
+--let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+
+CREATE TABLE t1 (i INT);
+CREATE TABLE t2 (j INT PRIMARY KEY AUTO_INCREMENT);
+
+# USER_VAR EVENT
+SET @foo = 1;
+INSERT INTO t1 VALUES (@foo);
+
+# RAND_LOG_EVENT
+INSERT INTO t1 VALUES (rand() * 10);
+
+# INTVAR_LOG_EVENT
+INSERT INTO t2 VALUES();
+--exec $MYSQL_BINLOG --hexdump --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file > $MYSQLTEST_VARDIR/tmp/binlog_data.sql
+
+DROP TABLE t1;
+DROP TABLE t2;
+RESET MASTER;
+
+# Load the file and verify the inserted data.
+--exec $MYSQL --user=root --host=127.0.0.1 --port=$MASTER_MYPORT < $MYSQLTEST_VARDIR/tmp/binlog_data.sql
+
+--let $assert_text= The t1 table should have two entries.
+--let $assert_cond= [SELECT count(*) FROM t1] = 2
+--source include/assert.inc
+
+--let $assert_text= The t2 table should have one entry.
+--let $assert_cond= [SELECT count(*) FROM t2] = 1
+--source include/assert.inc
+
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/binlog_data.sql
+RESET MASTER;
