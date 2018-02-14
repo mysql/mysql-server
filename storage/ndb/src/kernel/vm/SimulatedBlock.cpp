@@ -4020,7 +4020,7 @@ SimulatedBlock::cmp_key(Uint32 tab, const Uint32 *s1, const Uint32 *s2) const
   return 0;
 }
 
-inline int
+int
 SimulatedBlock::cmp_attr(Uint32 attrDesc, const CHARSET_INFO* cs,
 			 const Uint32 *s1, Uint32 s1Len,
 			 const Uint32 *s2, Uint32 s2Len) const
