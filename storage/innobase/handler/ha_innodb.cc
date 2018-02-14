@@ -15679,6 +15679,7 @@ int ha_innobase::start_stmt(THD *thd, thr_lock_type lock_type) {
       case SQLCOM_INSERT:
       case SQLCOM_UPDATE:
       case SQLCOM_DELETE:
+      case SQLCOM_REPLACE:
         init_table_handle_for_HANDLER();
         m_prebuilt->select_lock_type = LOCK_X;
         m_stored_select_lock_type = LOCK_X;
