@@ -3190,7 +3190,7 @@ static my_option *construct_help_options(MEM_ROOT *mem_root, st_plugin_int *p) {
   memset(opts, 0, sizeof(my_option) * count);
 
   /**
-    some plugin variables (those that don't have PLUGIN_VAR_NOSYSVAR flag)
+    some plugin variables (those that don't have PLUGIN_VAR_EXPERIMENTAL flag)
     have their names prefixed with the plugin name. Restore the names here
     to get the correct (not double-prefixed) help text.
     We won't need @@sysvars anymore and don't care about their proper names.
@@ -3340,7 +3340,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   for (opt = tmp->plugin->system_vars; opt && *opt; opt++) {
     SYS_VAR *o;
     const my_option **optp = (const my_option **)&opts;
-    if (((o = *opt)->flags & PLUGIN_VAR_NOSYSVAR)) continue;
+    if (((o = *opt)->flags & PLUGIN_VAR_EXPERIMENTAL)) continue;
     if ((var = find_bookmark(plugin_name.str, o->name, o->flags)))
       v = new (mem_root) sys_var_pluginvar(&chain, var->key + 1, o);
     else {

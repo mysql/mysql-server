@@ -129,9 +129,13 @@ SET(INNOBASE_SOURCES
 	lock/lock0prdt.cc
 	lock/lock0lock.cc
 	lock/lock0wait.cc
+	log/log0buf.cc
+	log/log0chkp.cc
+	log/log0ddl.cc
 	log/log0log.cc
 	log/log0recv.cc
-	log/log0ddl.cc
+	log/log0test.cc
+	log/log0write.cc
 	mach/mach0data.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc

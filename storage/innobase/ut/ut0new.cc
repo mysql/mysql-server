@@ -124,3 +124,12 @@ void ut_new_boot() {
   PSI_MEMORY_CALL(register_memory)("innodb", pfs_info_auto, n_auto);
 #endif /* UNIV_PFS_MEMORY */
 }
+
+void ut_new_boot_safe() {
+  static bool ut_new_boot_called = false;
+
+  if (!ut_new_boot_called) {
+    ut_new_boot();
+    ut_new_boot_called = true;
+  }
+}

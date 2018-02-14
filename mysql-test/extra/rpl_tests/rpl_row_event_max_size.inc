@@ -55,11 +55,6 @@ SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 1;
 SELECT LENGTH(data1), LENGTH(data2) FROM t1 WHERE a = 2;
 
 connection master;
---disable_query_log
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
---enable_query_log
 DROP TABLE t1;
 
 --source include/sync_slave_sql_with_master.inc

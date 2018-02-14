@@ -7,9 +7,6 @@
 --source include/have_debug.inc
 
 CALL mtr.add_suppression("Native table .* has the wrong structure");
-CALL mtr.add_suppression("InnoDB: Resizing redo log from .*");
-CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-CALL mtr.add_suppression("InnoDB: New log files created, LSN=.*");
 
 --echo # Case 1:
 --echo # Restart server with the actual P_S version number differed

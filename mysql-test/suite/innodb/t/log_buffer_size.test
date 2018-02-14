@@ -1,0 +1,77 @@
+let buffer_size=`SELECT @@GLOBAL.innodb_log_buffer_size`;
+
+--echo '#-----------------------------------------------------------#'
+--echo 'Test what happens when the innodb_log_buffer_size is changed'
+--echo ' in runtime (both decreased and increased).'
+
+--disable_query_log
+CREATE TABLE t (a INT NOT NULL PRIMARY KEY, b BLOB);
+DELIMITER |;
+
+CREATE PROCEDURE insert_rows()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  DECLARE no INT DEFAULT 0;
+  SET no = (SELECT @conn_counter);
+  WHILE i < 99 DO
+    INSERT INTO t VALUES (no*100+i, REPEAT('.', 5000));
+    SET i = i + 1;
+  END WHILE;
+END|
+
+DELIMITER ;|
+--enable_query_log
+
+INSERT INTO t VALUES (1000, 'a');
+SET GLOBAL innodb_log_buffer_size = 1024*1024;
+SELECT @@innodb_log_buffer_size;
+INSERT INTO t VALUES (2000, 'b');
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+INSERT INTO t VALUES (3000, 'c');
+SET GLOBAL innodb_log_buffer_size = 2048*1024;
+SELECT @@innodb_log_buffer_size;
+INSERT INTO t VALUES (4000, 'd');
+
+
+let $n = 9;
+let $i = 0;
+while ($n) {
+  connect(con$n, localhost, root,,);
+  eval SET @conn_counter = $n;
+  send CALL insert_rows();
+  inc $i;
+  dec $n;
+}
+
+let $n = 9;
+let $i = 0;
+while ($n) {
+--connection con$n
+--reap
+--disconnect con$n
+  inc $i;
+  dec $n;
+}
+
+
+--connection default
+
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+SET GLOBAL innodb_log_buffer_size = 256*1024 + 1024;
+SELECT @@innodb_log_buffer_size;
+SET GLOBAL innodb_log_buffer_size = 4096*1024;
+SELECT @@innodb_log_buffer_size;
+SET GLOBAL innodb_log_buffer_size = 256*1024 + 1024;
+SELECT @@innodb_log_buffer_size;
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+
+--disable_query_log
+DROP TABLE t;
+DROP PROCEDURE insert_rows;
+--enable_query_log
+
+eval SET @@GLOBAL.innodb_log_buffer_size=$buffer_size;
+SELECT @@innodb_log_buffer_size;

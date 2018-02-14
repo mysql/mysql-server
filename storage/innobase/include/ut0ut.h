@@ -30,6 +30,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
  Created 1/20/1994 Heikki Tuuri
  ***********************************************************************/
 
+/**************************************************/ /**
+ @page PAGE_INNODB_UTILS Innodb utils
+
+ Useful data structures:
+ - @ref Link_buf - to track concurrent operations
+ - @ref Sharded_rw_lock - sharded rw-lock (very fast s-lock, slow x-lock)
+
+ *******************************************************/
+
 #ifndef ut0ut_h
 #define ut0ut_h
 
@@ -103,7 +112,9 @@ independent way by using YieldProcessor. */
       os_thread_sleep(2000 /* 2 ms */);                              \
     }                                                                \
   } while (0)
-#endif /* !UNIV_HOTBACKUP */
+#else                  /* !UNIV_HOTBACKUP */
+#define UT_RELAX_CPU() /* No op */
+#endif                 /* !UNIV_HOTBACKUP */
 
 #define ut_max std::max
 #define ut_min std::min
@@ -473,6 +484,23 @@ replaced by '_'.
 @param[in]	buf	buffer where to sprintf */
 void meb_sprintf_timestamp_without_extra_chars(char *buf);
 #endif /* UNIV_HOTBACKUP */
+
+struct Wait_stats {
+  uint64_t wait_loops;
+
+  explicit Wait_stats(uint64_t wait_loops = 0) : wait_loops(wait_loops) {}
+
+  Wait_stats &operator+=(const Wait_stats &rhs) {
+    wait_loops += rhs.wait_loops;
+    return (*this);
+  }
+
+  Wait_stats operator+(const Wait_stats &rhs) const {
+    return (Wait_stats{wait_loops + rhs.wait_loops});
+  }
+
+  bool any_waits() const { return (wait_loops != 0); }
+};
 
 #include "ut0ut.ic"
 

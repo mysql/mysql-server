@@ -43,9 +43,8 @@ void mtr_t::memo_push(void *object, mtr_memo_type_t type) {
   ut_ad(ut_is_2pow(type));
 
   /* If this mtr has x-fixed a clean page then we set
-  the made_dirty flag. This tells us if we need to
-  grab log_flush_order_mutex at mtr_commit so that we
-  can insert the dirtied page to the flush list. */
+  the made_dirty flag. This tells us if we need
+  insert the dirtied page to the flush list in mtr_commit. */
 
   if ((type == MTR_MEMO_PAGE_X_FIX || type == MTR_MEMO_PAGE_SX_FIX) &&
       !m_impl.m_made_dirty) {

@@ -32,7 +32,7 @@ Pattern "Creating UNDO Tablespace .*undo_002" found
 Pattern "Only one log file found" found
 Pattern "\[ERROR\] \[[^]]*\] Aborting" found
 # 11. Start mysqld without ib_logfile2
-Pattern "Resizing redo log from \d+\*\d+ to \d+\*\d+ pages, LSN=\d+" found
+Pattern "Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+" found
 # 12. Add new datafile at the end
 Pattern "\[Note\] \[[^]]*\] InnoDB: File.*ibdata3. size is now 20 MB" found
 # Cleanup

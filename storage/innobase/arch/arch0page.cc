@@ -710,7 +710,31 @@ void Arch_Page_Sys::track_initial_pages() {
       }
 
       /* There cannot be any more IO fixed pages. */
-      if (bpage->oldest_modification > buf_pool->max_lsn_io) {
+
+      /* Check if we could finish traversing flush list
+      earlier. Order of pages in flush list became relaxed,
+      but the distortion is limited by the flush_order_lag.
+
+      You can think about this in following way: pages
+      start to travel to flush list when they have the
+      oldest_modification field assigned. They start in
+      proper order, but they can be delayed when traveling
+      and they can finish their travel in different order.
+
+      However page is disallowed to finish its travel,
+      if there is other page, which started much much
+      earlier its travel and still haven't finished.
+      The "much much" part is defined by the maximum
+      allowed lag - log_buffer_flush_order_lag(). */
+      if (bpage->oldest_modification >
+          buf_pool->max_lsn_io + log_buffer_flush_order_lag(*log_sys)) {
+        /* All pages with oldest_modification
+        smaller than bpage->oldest_modification
+        minus the flush_order_lag have already
+        been traversed. So there is no page which:
+                - we haven't traversed
+                - and has oldest_modification
+                  smaller than buf_pool->max_lsn_io. */
         break;
       }
 
@@ -808,9 +832,9 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
       }
 
       if (!attach_to_current) {
-        log_mutex_enter();
+        log_buffer_x_lock_enter(*log_sys);
 
-        log_sys_lsn = log_sys->lsn;
+        log_sys_lsn = log_get_lsn(*log_sys);
 
         /* Enable/Reset buffer pool page tracking. */
         set_tracking_buf_pool(log_sys_lsn);
@@ -820,7 +844,7 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
         tracked. */
         arch_oper_mutex_enter();
 
-        log_mutex_exit();
+        log_buffer_x_lock_exit(*log_sys);
       }
       break;
 
@@ -919,7 +943,7 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
   arch_mutex_exit();
 
   /* Make sure all written pages are synced to disk. */
-  log_checkpoint(false, false);
+  log_request_checkpoint(*log_sys, false);
 
   return (DB_SUCCESS);
 }
@@ -938,9 +962,10 @@ dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
   uint count = 0;
 
   arch_mutex_enter();
-  log_mutex_enter();
 
-  *stop_lsn = log_sys->lsn;
+  log_buffer_x_lock_enter(*log_sys);
+
+  *stop_lsn = log_get_lsn(*log_sys);
 
   count = group->detach(*stop_lsn);
 
@@ -952,7 +977,8 @@ dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
     set_tracking_buf_pool(LSN_MAX);
 
     arch_oper_mutex_enter();
-    log_mutex_exit();
+
+    log_buffer_x_lock_exit(*log_sys);
 
     m_state = ARCH_STATE_PREPARE_IDLE;
 
@@ -968,7 +994,8 @@ dberr_t Arch_Page_Sys::stop(Arch_Group *group, lsn_t *stop_lsn,
 
     os_event_set(archiver_thread_event);
   } else {
-    log_mutex_exit();
+    log_buffer_x_lock_exit(*log_sys);
+
     arch_oper_mutex_enter();
 
     *stop_pos = m_write_pos;

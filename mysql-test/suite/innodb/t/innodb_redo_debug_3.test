@@ -1,0 +1,50 @@
+#------------------------------------------------------------------------------
+# Redo log optimization
+# Test aims to verify recovery works when server is stopped in debug point
+# 1) log_writer_write_end
+# 2) log_writer_before_write_from_log_buffer
+# 3) log_writer_before_copy_to_write_ahead_buffer
+# 4) log_writer_before_write_ahead
+#------------------------------------------------------------------------------
+
+# Test uses debug binary
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/not_valgrind.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--echo # Test with log_writer_write_end
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_writer_write_end;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_writer_before_write_from_log_buffer
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_writer_before_write_from_log_buffer;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_writer_before_copy_to_write_ahead_buffer
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_writer_before_copy_to_write_ahead_buffer;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_writer_before_write_ahead
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_writer_before_write_ahead;
+--source suite/innodb/include/innodb_redo_debug.inc
+
+--echo # Test with log_writer_before_lsn_update
+--source include/expect_crash.inc
+# No. of parallel client running load
+let client_cnt=5;
+let debug_point=log_writer_before_lsn_update;
+--source suite/innodb/include/innodb_redo_debug.inc

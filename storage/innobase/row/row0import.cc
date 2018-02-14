@@ -2063,7 +2063,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_cleanup(
 
   DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   return (err);
 }

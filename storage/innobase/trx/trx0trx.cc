@@ -1590,6 +1590,8 @@ static void trx_flush_log_if_needed_low(
   bool flush = srv_unix_file_flush_method != SRV_UNIX_NOSYNC;
 #endif /* _WIN32 */
 
+  Wait_stats wait_stats;
+
   switch (srv_flush_log_at_trx_commit) {
     case 2:
       /* Write the log but do not flush it to disk */
@@ -1597,14 +1599,15 @@ static void trx_flush_log_if_needed_low(
       /* fall through */
     case 1:
       /* Write the log and optionally flush it to disk */
-      log_write_up_to(lsn, flush);
+      wait_stats = log_write_up_to(*log_sys, lsn, flush);
+
+      MONITOR_INC_WAIT_STATS(MONITOR_TRX_ON_LOG_, wait_stats);
+
       return;
     case 0:
       /* Do nothing */
       return;
   }
-
-  ut_error;
 }
 
 /** If required, flushes the log to disk based on the value of
@@ -1617,7 +1620,7 @@ static void trx_flush_log_if_needed(
   trx->op_info = "flushing log";
 
   if (trx->ddl_operation || trx->ddl_must_flush) {
-    log_write_up_to(lsn, true);
+    log_write_up_to(*log_sys, lsn, true);
   } else {
     trx_flush_log_if_needed_low(lsn);
   }
@@ -1946,7 +1949,7 @@ void trx_commit_low(
 
     DBUG_EXECUTE_IF("ib_crash_during_trx_commit_in_mem",
                     if (trx_is_rseg_updated(trx)) {
-                      log_make_checkpoint_at(LSN_MAX, TRUE);
+                      log_make_latest_checkpoint();
                       DBUG_SUICIDE();
                     });
     /*--------------*/
@@ -1986,6 +1989,7 @@ void trx_commit(trx_t *trx) /*!< in/out: transaction */
     DBUG_EXECUTE_IF("ib_trx_commit_crash_rseg_updated", DBUG_SUICIDE(););
 
     mtr_start_sync(mtr);
+
   } else {
     mtr = NULL;
   }

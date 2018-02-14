@@ -36,14 +36,22 @@ SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
 #   Check if Value can set                                         #
 ####################################################################
 
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.innodb_log_buffer_size=1;
---echo Expected error 'Read only variable'
+let buffer_size=`SELECT @@GLOBAL.innodb_log_buffer_size`;
+
+--echo Invalid value
+SET GLOBAL innodb_log_buffer_size = -1;
+SELECT @@innodb_log_buffer_size;
+
+--echo Invalid value
+SET GLOBAL innodb_log_buffer_size = 0;
+SELECT @@innodb_log_buffer_size;
+
+--echo Too small value
+SET GLOBAL innodb_log_buffer_size = 1;
+SELECT @@innodb_log_buffer_size;
 
 SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
 --echo 1 Expected
-
-
 
 
 --echo '#---------------------BS_STVARS_033_03----------------------#'
@@ -100,6 +108,21 @@ SELECT COUNT(@@GLOBAL.innodb_log_buffer_size);
 
 --Error ER_BAD_FIELD_ERROR
 SELECT innodb_log_buffer_size = @@SESSION.innodb_log_buffer_size;
---echo Expected error 'Readonly variable'
 
+################################################################################
+#   Check simple modifications                                                 #
+################################################################################
 
+SELECT @@innodb_log_buffer_size;
+
+SET GLOBAL innodb_log_buffer_size = 1024*1024;
+SELECT @@innodb_log_buffer_size;
+
+SET GLOBAL innodb_log_buffer_size = 256*1024;
+SELECT @@innodb_log_buffer_size;
+
+SET GLOBAL innodb_log_buffer_size = 2048*1024;
+SELECT @@innodb_log_buffer_size;
+
+eval SET @@GLOBAL.innodb_log_buffer_size=$buffer_size;
+SELECT @@innodb_log_buffer_size;

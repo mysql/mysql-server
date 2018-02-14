@@ -40,14 +40,7 @@ class C {
   int m_x;
 };
 
-static void start() {
-  static bool ut_new_boot_called = false;
-
-  if (!ut_new_boot_called) {
-    ut_new_boot();
-    ut_new_boot_called = true;
-  }
-}
+static void start() { ut_new_boot_safe(); }
 
 /* test UT_NEW*() */
 TEST(ut0new, utnew) {

@@ -187,13 +187,7 @@ struct fil_space_t {
   /** Tablespace ID */
   space_id_t id;
 
-  /** LSN of the most recent fil_names_write_if_was_clean().
-  Reset to 0 by fil_names_clear().  Protected by log_sys->mutex.
-  If and only if this is nonzero, the tablespace will be in
-  named_spaces. */
-  lsn_t max_lsn;
-
-  /** True if we want to rename the .ibd file of tablespace and
+  /** true if we want to rename the .ibd file of tablespace and
   want to stop temporarily posting of new i/o requests on the file */
   bool stop_ios;
 
@@ -1618,10 +1612,12 @@ void test_make_filepath();
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply the log if true
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes)
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Redo a tablespace drop
@@ -1629,10 +1625,12 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply the log if true
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes)
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Redo a tablespace rename
@@ -1640,10 +1638,12 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply the log if true
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes)
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Parse and process an encryption redo record.

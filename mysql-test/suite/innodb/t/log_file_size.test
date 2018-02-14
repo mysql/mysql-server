@@ -10,9 +10,6 @@ if (`SELECT @@innodb_log_file_size = 1048576`) {
   --skip Test requires innodb_log_file_size>1M.
 }
 
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
@@ -76,7 +73,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --exec $MYSQLD_CMD $crash=4 --log-error-verbosity=3
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=5
@@ -84,7 +81,7 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --exec $MYSQLD_CMD $crash=5 --log-error-verbosity=3
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 
@@ -99,7 +96,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --exec $MYSQLD_CMD $crash=6 --log-error-verbosity=3
 let SEARCH_PATTERN= InnoDB: Apply batch completed;
 --source include/search_pattern.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ bytes;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=7

@@ -453,8 +453,6 @@ void lock_wait_timeout_thread() {
 
   ut_ad(!srv_read_only_mode);
 
-  lock_sys->timeout_thread_active = true;
-
   do {
     srv_slot_t *slot;
 
@@ -490,5 +488,6 @@ void lock_wait_timeout_thread() {
 
   } while (srv_shutdown_state < SRV_SHUTDOWN_CLEANUP);
 
-  lock_sys->timeout_thread_active = false;
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_timeout_thread_active = false;
 }

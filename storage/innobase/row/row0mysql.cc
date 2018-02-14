@@ -3014,6 +3014,9 @@ static dberr_t row_drop_table_for_mysql_in_background(
 
   trx->check_foreigns = false;
 
+  /* Check that there is enough reusable space in redo log files. */
+  log_free_check();
+
   /* Try to drop the table in InnoDB */
 
   error = row_drop_table_for_mysql(name, trx, FALSE);
@@ -3301,11 +3304,10 @@ static dberr_t row_discard_tablespace_end(trx_t *trx, dict_table_t *table,
   }
 
   DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
-                  log_make_checkpoint_at(LSN_MAX, TRUE);
+                  log_make_latest_checkpoint();
                   DBUG_SUICIDE(););
 
-  DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
-                  log_make_checkpoint_at(LSN_MAX, TRUE);
+  DBUG_EXECUTE_IF("ib_discard_after_commit_crash", log_make_latest_checkpoint();
                   DBUG_SUICIDE(););
 
   row_mysql_unlock_data_dictionary(trx);
@@ -3836,7 +3838,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx,
   ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
   if (!table->is_temporary() && !table->is_fts_aux()) {
-    if (srv_dict_stats_thread_active) {
+    if (srv_threads.m_dict_stats_thread_active) {
       dict_stats_recalc_pool_del(table);
     }
 

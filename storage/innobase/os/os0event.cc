@@ -87,6 +87,20 @@ struct os_event {
     mutex.exit();
   }
 
+  bool try_set() UNIV_NOTHROW {
+    if (mutex.try_lock()) {
+      if (!m_set) {
+        broadcast();
+      }
+
+      mutex.exit();
+
+      return (true);
+    }
+
+    return (false);
+  }
+
   int64_t reset() UNIV_NOTHROW {
     mutex.enter();
 
@@ -449,6 +463,8 @@ void os_event_set(os_event_t event) /*!< in/out: event to set */
 {
   event->set();
 }
+
+bool os_event_try_set(os_event_t event) { return (event->try_set()); }
 
 /**
 Resets an event semaphore to the nonsignaled state. Waiting threads will

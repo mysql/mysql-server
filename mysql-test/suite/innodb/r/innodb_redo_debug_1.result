@@ -1,0 +1,385 @@
+# Test with log_buffer_write_completed_before_store
+DROP DATABASE IF EXISTS dbredoopt;
+CREATE DATABASE dbredoopt;
+USE dbredoopt;
+CREATE TABLE  dbredoopt.t1
+(col1 INT, col2 INT, c1 LONGBLOB, c2 LONGBLOB,
+PRIMARY KEY(col1), INDEX `idx2` (col2),
+INDEX `idx3` (c1(300),c2(200))
+);
+CREATE PROCEDURE dbredoopt.populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 500) DO
+INSERT INTO dbredoopt.t1 values (i, i,REPEAT('a',5000), REPEAT('b',5000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE USER 'redo_wl_user'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'redo_wl_user'@'localhost' WITH GRANT OPTION;
+START TRANSACTION;
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+0
+call dbredoopt.populate_t1();
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+500
+SELECT col1 FROM dbredoopt.t1 LIMIT 10;
+col1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+COMMIT;
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Wait till all mysql clients are connected
+# Singal all mysql clients since each one is waiting for signal go_ahead
+# with 'go_ahead' signal , all client suppose to resume in parallel
+# Wait till all clients are over or server is gone
+# restart
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Check rows which are updated by parallel load
+SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEEN 1 AND 501 ) AS A WHERE (A.col1+A.col2) != 0 ;
+count(*)=0
+1
+DROP DATABASE dbredoopt;
+DROP USER 'redo_wl_user'@'localhost';
+# Test with log_buffer_write_before_memcpy
+DROP DATABASE IF EXISTS dbredoopt;
+CREATE DATABASE dbredoopt;
+USE dbredoopt;
+CREATE TABLE  dbredoopt.t1
+(col1 INT, col2 INT, c1 LONGBLOB, c2 LONGBLOB,
+PRIMARY KEY(col1), INDEX `idx2` (col2),
+INDEX `idx3` (c1(300),c2(200))
+);
+CREATE PROCEDURE dbredoopt.populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 500) DO
+INSERT INTO dbredoopt.t1 values (i, i,REPEAT('a',5000), REPEAT('b',5000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE USER 'redo_wl_user'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'redo_wl_user'@'localhost' WITH GRANT OPTION;
+START TRANSACTION;
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+0
+call dbredoopt.populate_t1();
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+500
+SELECT col1 FROM dbredoopt.t1 LIMIT 10;
+col1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+COMMIT;
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Wait till all mysql clients are connected
+# Singal all mysql clients since each one is waiting for signal go_ahead
+# with 'go_ahead' signal , all client suppose to resume in parallel
+# Wait till all clients are over or server is gone
+# restart
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Check rows which are updated by parallel load
+SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEEN 1 AND 501 ) AS A WHERE (A.col1+A.col2) != 0 ;
+count(*)=0
+1
+DROP DATABASE dbredoopt;
+DROP USER 'redo_wl_user'@'localhost';
+# Test with log_buffer_set_first_record_group_before_update
+DROP DATABASE IF EXISTS dbredoopt;
+CREATE DATABASE dbredoopt;
+USE dbredoopt;
+CREATE TABLE  dbredoopt.t1
+(col1 INT, col2 INT, c1 LONGBLOB, c2 LONGBLOB,
+PRIMARY KEY(col1), INDEX `idx2` (col2),
+INDEX `idx3` (c1(300),c2(200))
+);
+CREATE PROCEDURE dbredoopt.populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 500) DO
+INSERT INTO dbredoopt.t1 values (i, i,REPEAT('a',5000), REPEAT('b',5000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE USER 'redo_wl_user'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'redo_wl_user'@'localhost' WITH GRANT OPTION;
+START TRANSACTION;
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+0
+call dbredoopt.populate_t1();
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+500
+SELECT col1 FROM dbredoopt.t1 LIMIT 10;
+col1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+COMMIT;
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Wait till all mysql clients are connected
+# Singal all mysql clients since each one is waiting for signal go_ahead
+# with 'go_ahead' signal , all client suppose to resume in parallel
+# Wait till all clients are over or server is gone
+# restart
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Check rows which are updated by parallel load
+SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEEN 1 AND 501 ) AS A WHERE (A.col1+A.col2) != 0 ;
+count(*)=0
+1
+DROP DATABASE dbredoopt;
+DROP USER 'redo_wl_user'@'localhost';
+# Test with log_advance_ready_for_write_before_update
+DROP DATABASE IF EXISTS dbredoopt;
+CREATE DATABASE dbredoopt;
+USE dbredoopt;
+CREATE TABLE  dbredoopt.t1
+(col1 INT, col2 INT, c1 LONGBLOB, c2 LONGBLOB,
+PRIMARY KEY(col1), INDEX `idx2` (col2),
+INDEX `idx3` (c1(300),c2(200))
+);
+CREATE PROCEDURE dbredoopt.populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 500) DO
+INSERT INTO dbredoopt.t1 values (i, i,REPEAT('a',5000), REPEAT('b',5000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE USER 'redo_wl_user'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'redo_wl_user'@'localhost' WITH GRANT OPTION;
+START TRANSACTION;
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+0
+call dbredoopt.populate_t1();
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+500
+SELECT col1 FROM dbredoopt.t1 LIMIT 10;
+col1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+COMMIT;
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Wait till all mysql clients are connected
+# Singal all mysql clients since each one is waiting for signal go_ahead
+# with 'go_ahead' signal , all client suppose to resume in parallel
+# Wait till all clients are over or server is gone
+# restart
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Check rows which are updated by parallel load
+SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEEN 1 AND 501 ) AS A WHERE (A.col1+A.col2) != 0 ;
+count(*)=0
+1
+DROP DATABASE dbredoopt;
+DROP USER 'redo_wl_user'@'localhost';
+# Test with log_advance_ready_for_write_before_reclaim
+DROP DATABASE IF EXISTS dbredoopt;
+CREATE DATABASE dbredoopt;
+USE dbredoopt;
+CREATE TABLE  dbredoopt.t1
+(col1 INT, col2 INT, c1 LONGBLOB, c2 LONGBLOB,
+PRIMARY KEY(col1), INDEX `idx2` (col2),
+INDEX `idx3` (c1(300),c2(200))
+);
+CREATE PROCEDURE dbredoopt.populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 500) DO
+INSERT INTO dbredoopt.t1 values (i, i,REPEAT('a',5000), REPEAT('b',5000));
+SET i = i + 1;
+END WHILE;
+END|
+CREATE USER 'redo_wl_user'@'localhost';
+GRANT ALL PRIVILEGES ON *.* TO 'redo_wl_user'@'localhost' WITH GRANT OPTION;
+START TRANSACTION;
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+0
+call dbredoopt.populate_t1();
+SELECT count(*) FROM dbredoopt.t1;
+count(*)
+500
+SELECT col1 FROM dbredoopt.t1 LIMIT 10;
+col1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+COMMIT;
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Wait till all mysql clients are connected
+# Singal all mysql clients since each one is waiting for signal go_ahead
+# with 'go_ahead' signal , all client suppose to resume in parallel
+# Wait till all clients are over or server is gone
+# restart
+# Check rows which are not modified by parallel load
+SELECT col1 FROM dbredoopt.t1 WHERE col1%50=0 AND (col1 < 501 AND col1 > 0 );
+col1
+50
+100
+150
+200
+250
+300
+350
+400
+450
+500
+# Check rows which are updated by parallel load
+SELECT count(*)=0 FROM (SELECT col1,col2 FROM dbredoopt.t1 WHERE col1 NOT BETWEEN 1 AND 501 ) AS A WHERE (A.col1+A.col2) != 0 ;
+count(*)=0
+1
+DROP DATABASE dbredoopt;
+DROP USER 'redo_wl_user'@'localhost';

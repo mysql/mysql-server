@@ -146,7 +146,7 @@ let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] Aborting;
 --remove_file $bugdir/data/ib_logfile2
 --error 1,3,42
 --exec $MYSQLD $args --innodb-unknown-parameter-11
-let SEARCH_PATTERN=Resizing redo log from \d+\*\d+ to \d+\*\d+ pages, LSN=\d+;
+let SEARCH_PATTERN=Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 

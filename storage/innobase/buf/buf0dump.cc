@@ -680,8 +680,6 @@ void buf_dump_thread() {
 
   my_thread_init();
 
-  srv_buf_dump_thread_active = TRUE;
-
   buf_dump_status(STATUS_VERBOSE, "Dumping of buffer pool not started");
   buf_load_status(STATUS_VERBOSE, "Loading of buffer pool not started");
 
@@ -710,7 +708,8 @@ void buf_dump_thread() {
 		keep going even if we are in a shutdown state */);
   }
 
-  srv_buf_dump_thread_active = FALSE;
-
   my_thread_end();
+
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_buf_dump_thread_active = false;
 }

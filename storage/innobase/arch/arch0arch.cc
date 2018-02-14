@@ -474,6 +474,8 @@ bool start_archiver_background() {
   ret = os_file_create_directory(ARCH_DIR, false);
 
   if (ret) {
+    archiver_is_active = true;
+
     os_thread_create(archiver_thread_key, archiver_thread);
   } else {
     my_error(ER_CANT_CREATE_FILE, MYF(0), ARCH_DIR, errno,
@@ -494,8 +496,6 @@ void archiver_thread() {
 
   bool page_abort = false;
   bool page_wait = false;
-
-  archiver_is_active = true;
 
   while (true) {
     if (!log_abort) {

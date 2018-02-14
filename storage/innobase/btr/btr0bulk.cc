@@ -651,7 +651,7 @@ dberr_t BtrBulk::pageCommit(PageBulk *page_bulk, PageBulk *next_page_bulk,
 
 /** Log free check */
 void BtrBulk::logFreeCheck() {
-  if (log_sys->check_flush_or_checkpoint) {
+  if (log_needs_free_check()) {
     release();
 
     log_free_check();

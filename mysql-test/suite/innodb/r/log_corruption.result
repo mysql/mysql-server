@@ -48,4 +48,4 @@ Pattern "len 22. hex 38000000000012860cb7809781e80006626f67757300. asc 8        
 Pattern "InnoDB: Set innodb_force_recovery to ignore this error" found
 # Upgrade: valid 5.7.9 header, valid checkpoint 1, logically empty
 # redo log
-Pattern "InnoDB: Upgrading redo log: 2\*.* pages, LSN=1319985" found
+Pattern "InnoDB: Upgrading redo log: 2\*.* bytes, LSN=1319985" found

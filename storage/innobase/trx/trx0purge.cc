@@ -1079,7 +1079,7 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
   /* After truncate if server crashes then redo logging done for this
   undo tablespace might not stand valid as tablespace has been
   truncated. */
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   ib::info() << "Truncating UNDO tablespace number "
              << undo::id2num(undo_trunc->get_marked_space_id());
@@ -1128,7 +1128,7 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
                   ib::info() << "ib_undo_trunc_before_ddl_log_end";
                   DBUG_SUICIDE(););
 
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   undo::done_logging(undo_trunc->get_marked_space_id());
 

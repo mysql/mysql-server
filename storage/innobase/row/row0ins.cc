@@ -2549,7 +2549,7 @@ and return. don't execute actual insert. */
       row_ins_index_entry_big_rec() will write log. */
 
       DBUG_EXECUTE_IF("row_ins_extern_checkpoint",
-                      log_make_checkpoint_at(LSN_MAX, TRUE););
+                      log_make_latest_checkpoint(););
       err = row_ins_index_entry_big_rec(thr_get_trx(thr), entry, big_rec,
                                         offsets, &offsets_heap, index,
                                         thr_get_trx(thr)->mysql_thd);

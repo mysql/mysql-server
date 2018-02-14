@@ -297,7 +297,7 @@ start_again:
   mtr_commit(&mtr);
 
   /* Flush the modified pages to disk and make a checkpoint */
-  log_make_checkpoint_at(LSN_MAX, TRUE);
+  log_make_latest_checkpoint();
 
   /* Remove doublewrite pages from LRU */
   buf_pool_invalidate();
