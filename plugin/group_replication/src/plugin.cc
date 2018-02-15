@@ -507,7 +507,7 @@ int initialize_plugin_and_join(
   bool read_only_mode = false, super_read_only_mode = false;
 
   st_server_ssl_variables server_ssl_variables = {false, NULL, NULL, NULL, NULL,
-                                                  NULL,  NULL, NULL, NULL};
+                                                  NULL,  NULL, NULL, NULL, 0};
 
   char *hostname, *uuid;
   uint port;
