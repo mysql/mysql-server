@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -102,7 +102,9 @@ const char *join_type_str[] = {
 static const enum_query_type cond_print_flags =
     enum_query_type(QT_ORDINARY | QT_SHOW_SELECT_NUMBER);
 
-static const char plan_not_ready[] = "Plan isn't ready yet";
+/// First string: for regular EXPLAIN; second: for EXPLAIN CONNECTION
+static const char *plan_not_ready[] = {"Not optimized, outer query is empty",
+                                       "Plan isn't ready yet"};
 
 /**
   A base for all Explain_* classes
@@ -551,7 +553,7 @@ enum_parsing_context Explain_no_table::get_subquery_context(
   if (context == CTX_OPTIMIZED_AWAY_SUBQUERY) return context;
   if (context == CTX_DERIVED)
     return context;
-  else if (message != plan_not_ready)
+  else if (message != plan_not_ready[explain_other])
     /*
       When zero result is given all subqueries are considered as optimized
       away.
@@ -578,7 +580,6 @@ bool Explain::explain_subqueries() {
 
   for (SELECT_LEX_UNIT *unit = select_lex->first_inner_unit(); unit;
        unit = unit->next_unit()) {
-    DBUG_ASSERT(explain_other || unit->is_optimized());
     SELECT_LEX *sl = unit->first_select();
     enum_parsing_context context = get_subquery_context(unit);
     if (context == CTX_NONE) context = CTX_OPTIMIZED_AWAY_SUBQUERY;
@@ -1804,7 +1805,8 @@ bool explain_single_table_modification(THD *ethd, const Modification_plan *plan,
   }
 
   if (!plan || plan->zero_result) {
-    ret = Explain_no_table(ethd, select, plan ? plan->message : plan_not_ready,
+    ret = Explain_no_table(ethd, select,
+                           plan ? plan->message : plan_not_ready[other],
                            CTX_JOIN, HA_POS_ERROR)
               .send();
   } else {
@@ -1843,11 +1845,11 @@ bool explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   JOIN *join = select_lex->join;
+  const bool other = (select_lex->master_unit()->thd != ethd);
 
   if (!join || join->get_plan_state() == JOIN::NO_PLAN)
-    return explain_no_table(ethd, select_lex, plan_not_ready, ctx);
+    return explain_no_table(ethd, select_lex, plan_not_ready[other], ctx);
 
-  const bool other = (join->thd != ethd);
   THD::Query_plan const *query_plan = &join->thd->query_plan;
 
   // Check access rights for views

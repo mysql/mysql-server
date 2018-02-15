@@ -372,9 +372,9 @@ EXPLAIN SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <not>((NULL <= <max>(/* select#2 */ select NULL from `test`.`t1` join `test`.`t1` `t`)))
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where <not>((NULL <= <max>(/* select#2 */ select `test`.`t`.`f1` from `test`.`t1` join `test`.`t1` `t`)))
 SET SESSION sql_mode=@old_sql_mode;
 DROP TABLE t1;
 End of 5.0 tests.
@@ -461,10 +461,9 @@ FLUSH TABLES;
 EXPLAIN SELECT 1 FROM t1 WHERE a = (SELECT 1 FROM t1 t JOIN t2 WHERE b <= 1 AND t.a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and NULL)), NULL)
+Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where multiple equal((/* select#2 */ select 1 from `test`.`t1` `t` join `test`.`t2` where ((`test`.`t2`.`b` <= 1) and `test`.`t`.`a`)), NULL)
 DROP TABLE t1, t2;
 #
 # Bug #48573: difference of index selection between rpm binary and

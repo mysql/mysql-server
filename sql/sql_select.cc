@@ -1487,6 +1487,8 @@ bool SELECT_LEX::optimize(THD *thd) {
 
   if (join->optimize()) DBUG_RETURN(true);
 
+  if (join->zero_result_cause && !is_implicitly_grouped()) DBUG_RETURN(false);
+
   for (SELECT_LEX_UNIT *unit = first_inner_unit(); unit;
        unit = unit->next_unit()) {
     // Derived tables and const subqueries are already optimized

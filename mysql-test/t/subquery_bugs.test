@@ -84,3 +84,164 @@ eval EXPLAIN $query;
 eval $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug#24713879 ASSERTION `MAYBE_NULL' FAILED. HANDLE_FATAL_SIGNAL IN TEM_FUNC_CONCAT::VAL_STR
+--echo #
+
+CREATE TABLE t1(k VARCHAR(10) PRIMARY KEY);
+CREATE TABLE t2(k VARCHAR(10) PRIMARY KEY);
+
+SET SQL_MODE='';
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SET SQL_MODE=ONLY_FULL_GROUP_BY;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+SET SQL_MODE=STRICT_TRANS_TABLES;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+eval EXPLAIN $query;
+eval $query;
+
+SET SQL_MODE=DEFAULT;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+
+eval EXPLAIN $query;
+eval $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+       SUM(k)
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+let $query=
+SELECT (SELECT 'X' FROM t2
+        WHERE t2.k = CONCAT(t1.k, 'X')
+        AND SUM(t1.k)) = 'XXX'
+FROM t1;
+
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+eval EXPLAIN $query;
+
+DROP TABLE t1,t2;

@@ -4978,11 +4978,11 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
 }
 
 /**
-  Check if the column reference that is currently being resolved, will be NULL
-  if there are no qualifying rows.
+  Check if the column reference that is currently being resolved, will be set
+  to NULL if its qualifying query returns zero rows.
 
-  This is true for non-aggregated (1) column references in the SELECT list (2),
-  if the query block uses aggregation (3) without grouping (4). For example:
+  This is true for non-aggregated column references in the SELECT list,
+  if the query block uses aggregation without grouping. For example:
 
       SELECT COUNT(*), col FROM t WHERE some_condition
 
@@ -4991,21 +4991,65 @@ int Item_field::fix_outer_field(THD *thd, Field **from_field,
   not-nullable column.
 
   Such column references are rejected if the ONLY_FULL_GROUP_BY SQL mode is
-  enabled.
+  enabled, in a later resolution phase.
 */
-static bool is_null_on_empty_table(const LEX *lex) {
-  const SELECT_LEX *current_select = lex->current_select();
-  return lex->in_sum_func == nullptr &&  // 1
-         current_select->resolve_place ==
-             SELECT_LEX::RESOLVE_SELECT_LIST &&  // 2
-         /*
-           It maybe be over-cautious to check for "with_sum_func" here, as it
-           denotes that the query block contains an aggregate function even
-           though this function may later be found to aggregate in an outer
-           query block.
-         */
-         current_select->with_sum_func &&           // 3
-         current_select->group_list.elements == 0;  // 4
+bool is_null_on_empty_table(THD *thd, Item_field *i) {
+  /*
+    Nullability of a column item 'i' is normally determined from table's or
+    view's definition. Additionally, an item may be nullable because its table
+    is on the right side of a left join; but this has been handled by
+    propagate_nullability() before coming here (@see TABLE::set_nullable() and
+    Field::maybe_null()).
+    If the table is in the left part of a left join, or is in an inner join, a
+    non-nullable item may be set to NULL (table->set_null_row()) if, during
+    optimization, its table is found to be empty (e.g. in read_system()) or the
+    FROM clause of the qualifying query QQ of its table is found to return no
+    rows. This makes a case where a non-nullable 'i' is set to NULL. Certain
+    expressions containing the item, if evaluated, may find this abnormal
+    behaviour. Fortunately, in the scenario described above, QQ's result is
+    generally empty and so no expression is evaluated. Then we don't even
+    optimize subquery expressions as their optimization may lead to evaluation
+    of the item (e.g. in create_ref_for_key()).
+    However there is one exception where QQ's result is not empty even though
+    FROM clause's result is: when QQ is implicitely aggregated. In that case,
+    return_zero_rows() sets all tables' columns to NULL and any expression in
+    QQ's SELECT list is evaluated; to prepare for this, we mark the item 'i'
+    as nullable below.
+    - If item is not outer reference, we can reliably know if QQ is
+    aggregated by testing QQ->with_sum_func
+    - if it's outer reference, QQ->with_sum_func may not yet be set, e.g. if
+    there is single set function referenced later in subquery and not yet
+    resolved; but then context.select_lex->with_sum_func is surely set (it's set
+    at parsing time), so we test both members.
+    - in_sum_func is the innermost set function SF containing the item;
+    - if item is not an outer reference, and in_sum_func is set, SF is
+    necessarily aggregated in QQ, and will not be evaluated (just be replaced
+    with its "clear" value 0 or NULL), so we needn't mark 'i' as nullable;
+    - if item is an outer reference and in_sum_func is set, we cannot yet know
+    where SF is aggregated, it depends on other arguments of SF, so make a
+    pessimistic assumption.
+    Finally we test resolve_place; indeed, when QQ's result is empty, we only
+    evaluate:
+    - SELECT list
+    - or HAVING, but columns of HAVING are always also present in SELECT list
+    so are Item_ref to SELECT list and get nullability from that,
+    - or ORDER BY but actually no as it's optimized away in such single-row
+    query.
+    Note: we test with_sum_func (== references a set function);
+    agg_func_used() (== is aggregation query) would be better but is not
+    reliable yet at this stage.
+  */
+  SELECT_LEX *sl = i->context->select_lex;
+  SELECT_LEX *qsl = i->depended_from;
+
+  if (qsl != nullptr)
+    return qsl->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&
+           (sl->with_sum_func || qsl->with_sum_func) &&
+           qsl->group_list.elements == 0;
+  else
+    return sl->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST &&
+           sl->with_sum_func && sl->group_list.elements == 0 &&
+           thd->lex->in_sum_func == nullptr;
 }
 
 /**
@@ -5178,8 +5222,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
 
     // If view column reference, Item in *reference is completely resolved:
     if (from_field == view_ref_found) {
-      if (!outer_fixed && is_null_on_empty_table(thd->lex))
-        (*reference)->maybe_null = true;
+      if (is_null_on_empty_table(thd, this)) (*reference)->maybe_null = true;
       return false;
     }
 
@@ -5214,7 +5257,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
     }
   }
   fixed = 1;
-  if (!outer_fixed && is_null_on_empty_table(thd->lex)) maybe_null = true;
+  if (is_null_on_empty_table(thd, this)) maybe_null = true;
   return false;
 
 error:

@@ -147,7 +147,19 @@ STATUS: EQUAL
 QUERY: SELECT (SELECT 1 FROM  t1 WHERE t1.a=t2.a ORDER BY t1.b LIMIT 1) AS d1 FROM t2 
 STATUS: EQUAL
 QUERY: SELECT t1.pk FROM t1 WHERE t1.col_varchar_key < ALL ( SELECT * FROM v1 ) 
-STATUS: EQUAL
+STATUS:NOT_EQUAL
+SYNC_POINT:before_reset_query_plan
+Diff: EXPLAIN NORMAL vs OTHER
+@@ -2,5 +2,5 @@
+ 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+-5	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
++2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++3	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++4	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
++5	UNION RESULT	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Plan isn't ready yet
 QUERY: SELECT t1.a, (SELECT 1 FROM t2 WHERE t2.b=t3.c AND t2.c=t1.a ORDER BY t2.d LIMIT 1) AS incorrect FROM t1, t3 WHERE t3.b=t1.a 
 STATUS: EQUAL
 QUERY: SELECT alias2.col_varchar_nokey FROM v1 AS alias1 RIGHT JOIN t1 AS alias2 ON 1 WHERE alias2.col_varchar_key IN ( SELECT sq2_alias1.col_varchar_nokey FROM v1 AS sq2_alias1 LEFT JOIN t1 AS sq2_alias2 ON (sq2_alias2.col_int_key = sq2_alias1.pk) WHERE sq2_alias1.pk != alias1.col_int_key AND sq2_alias1.col_varchar_key > alias1.col_varchar_key ) 
