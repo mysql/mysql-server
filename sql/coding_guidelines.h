@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -41,294 +41,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   developer can assist you.
 
   - @subpage CODING_GUIDELINES_OF_SERVER
-  - @subpage INDENTATION_SPACING
   - @subpage NAMING_CONVENTION
   - @subpage COMMENTING_CODE
   - @subpage HEADER_FILE
-  - @subpage SUGGESTED_MODE_IN_EMACS
-  - @subpage BASIC_VIM_SETUP
-  - @subpage ANOTHER_VIM_SETUP
   - @subpage EXAMPLE_SETUP_FOR_CTAGS
 */
 
 /**
-  @page CODING_GUIDELINES_OF_SERVER C/C++ Coding Guidelines of MySQL Server
+  @page CODING_GUIDELINES_OF_SERVER Legacy C++ Coding Guidelines of MySQL Server
 
-  This section covers guidelines for C/C++ code for the MySQL
-  server. The guidelines do not necessarily apply for other
+  This section covers guidelines for C++ code for the MySQL
+  server, old code only. (New code should follow Google C++ coding style.)
+  The guidelines do not necessarily apply for other
   projects such as MySQL Connector/J or Connector/ODBC.
 */
 
 /**
-  @page INDENTATION_SPACING Indentation and Spacing
-
-  - For indentation, use space characters, not tab (\\t)
-    characters. See the editor configuration tips at the end
-    of this section for instructions on configuring a vim or
-    emacs editor to use spaces instead of tabs.
-
-  - Avoid trailing whitespace, in code and comments.
-
-  Correct:
-  ~~~~~~~~~~~~~~~~
-  if (a)
-  ~~~~~~~~~~~~~~~~
-
-  Incorrect:
-  ~~~~~~~~~~~~~~~~
-  if (a)<SP><SP><TAB><SP>
-  ~~~~~~~~~~~~~~~~
-
-  Remove trailing spaces if you are already changing a line,
-  otherwise leave existing code intact.
-
-  - Use line feed (\\n) for line breaks. Do not use carriage
-    return + line feed (\\r\\n); that can cause problems for
-    other users and for builds. This rule is particularly
-    important if you use a Windows editor.
-
-  - To begin indenting, add two spaces. To end indenting,
-    subtract two spaces. For example:
-
-  ~~~~~~~~~~~~~~~~
-  {
-    code, code, code
-    {
-      code, code, code
-    }
-  }
-  ~~~~~~~~~~~~~~~~
-
-
-  - An exception to the preceding rule: namespaces (named or
-    unnamed) do not introduce a new level of indentation.
-    Example:
-
-  ~~~~~~~~~~~~~~~~
-  namespace foo
-  {
-  class Bar
-  {
-    Bar();
-  };
-  }  // namespace foo
-  ~~~~~~~~~~~~~~~~
-
-  - The maximum line width is 80 characters. If you are
-    writing a longer line, try to break it at a logical point
-    and continue on the next line with the same indenting.
-    Use of backslash is okay; however, multi-line literals
-    might cause less confusion if they are defined before the
-    function start.
-
-  - You may use empty lines (two line breaks in a row)
-    wherever it seems helpful for readability. But never use
-    two or more empty lines in a row. The only exception is
-    after a function definition (see below).
-
-  - To separate two functions, use three line breaks (two
-    empty lines). To separate a list of variable declarations
-    from executable statements, use two line breaks (one
-    empty line). For example:
-
-  ~~~~~~~~~~~~~~~~
-  int function_1()
-  {
-    int i;
-    int j;
-
-    function0();
-  }
-
-
-  int function2()
-  {
-    return;
-  }
-  ~~~~~~~~~~~~~~~~
-
-
-  - Align matching '{}' (left and right braces) in the
-    same column; that is, the closing '}' should be directly
-    below the opening '{'. Do not put any non-space
-    characters on the same line as a brace, not even a
-    comment. Indent within braces. Exception: if there is
-    nothing between two braces, that is, '{}', they should
-    appear together. For example:
-
-  ~~~~~~~~~~~~~~~~
-  if (code, code, code)
-  {
-    code, code, code;
-  }
-
-
-  for (code, code, code)
-  {}
-  ~~~~~~~~~~~~~~~~
-
-  - Indent switch like this:
-
-  ~~~~~~~~~~~~~~~~
-  switch (condition)
-  {
-  case XXX:
-    statements;
-  case YYY:
-    {
-      statements;
-    }
-  }
-  ~~~~~~~~~~~~~~~~
-
-  - Align variable declarations like this:
-
-  ~~~~~~~~~~~~~~~~
-  Type      value;
-  int       var2;
-  ulonglong var3;
-  ~~~~~~~~~~~~~~~~
-
-
-  - Assignment: For new projects, follow Google style.
-    Traditional assignment rules for MySQL are
-    listed here. For old projects/components, use the old MySQL
-    style for the time being.
-
-  - When assigning to a variable, put zero spaces after the
-    target variable name, then the assignment operator
-    ('=', '+=', etc.), then space(s). For single assignments,
-    there should be only one space after the equal sign. For
-    multiple assignments, add additional spaces so that the
-    source values line up. For example:
-
-  ~~~~~~~~~~~~~~~~
-  a/= b;
-  return_value= my_function(arg1);
-  ...
-  int x=          27;
-  int new_var=    18;
-  ~~~~~~~~~~~~~~~~
-
-  Align assignments from one structure to another, like this:
-
-  ~~~~~~~~~~~~~~~~
-  foo->member=      bar->member;
-  foo->name=        bar->name;
-  foo->name_length= bar->name_length;
-  ~~~~~~~~~~~~~~~~
-
-  - Put separate statements on separate lines. This applies
-    for both variable declarations and executable statements.
-    For example, this is wrong:
-
-  ~~~~~~~~~~~~~~~~
-  int x= 11; int y= 12;
-
-  z= x; y+= x;
-  ~~~~~~~~~~~~~~~~
-
-  This is right:
-  ~~~~~~~~~~~~~~~~
-  int x= 11;
-  int y= 12;
-
-  z= x;
-  y+= x;
-  ~~~~~~~~~~~~~~~~
-
-  - Put spaces both before and after binary comparison
-    operators ('>', '==', '>=', etc.), binary arithmetic
-    operators ('+', etc.), and binary Boolean operators ('||',
-    etc.). Do not put spaces around unary operators like '!'
-    or '++'. Do not put spaces around [de-]referencing
-    operators like '->' or '[]'. Do not put space after '*'
-    when '*' introduces a pointer. Do not put spaces after
-    '('. Put one space after ')' if it ends a condition, but
-    not if it ends a list of function arguments. For example:
-
-  ~~~~~~~~~~~~~~~~
-  int *var;
-
-  if ((x == y + 2) && !param->is_signed)
-    function_call();
-  ~~~~~~~~~~~~~~~~
-
-  - When a function has multiple arguments separated by
-    commas (','), put one space after each comma. For
-    example:
-
-  ~~~~~~~~~~~~~~~~
-  ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
-  ~~~~~~~~~~~~~~~~
-
-  - Put one space after a keyword which introduces a
-    condition, such as if or for or while.
-
-  - After if or else or while, when there is only one
-    instruction after the condition, braces are not necessary
-    and the instruction goes on the next line, indented.
-
-  ~~~~~~~~~~~~~~~~
-  if (sig != MYSQL_KILL_SIGNAL && sig != 0)
-    unireg_abort(1);
-  else
-    unireg_end();
-  while (*val && my_isspace(mysqld_charset, *val))
-    *val++;
-  ~~~~~~~~~~~~~~~~
-
-  - In function declarations and invocations: There is no
-    space between function name and '('. There is no space or
-    line break between '(' and the first argument. If the
-    arguments do not fit on one line, align them.
-    Examples:
-
-  ~~~~~~~~~~~~~~~~
-  Return_value_type *Class_name::method_name(const char *arg1,
-                                             size_t arg2, Type *arg3)
-  return_value= function_name(argument1, argument2, long_argument3,
-                              argument4,
-                              function_name2(long_argument5,
-                                             long_argument6));
-  return_value=
-    long_long_function_name(long_long_argument1, long_long_argument2,
-                            long_long_long_argument3,
-                            long_long_argument4,
-                            long_function_name2(long_long_argument5,
-                                                long_long_argument6));
-  Long_long_return_value_type *
-  Long_long_class_name::
-  long_long_method_name(const char *long_long_arg1, size_t long_long_arg2,
-                        Long_long_type *arg3)
-  ~~~~~~~~~~~~~~~~
-  (You may but need not split Class_name::method_name into
-  two lines.) When arguments do not fit on one line, consider
-  renaming them.
-
-  - Format constructors in the following way:
-
-  ~~~~~~~~~~~~~~~~
-  Item::Item(int a_arg, int b_arg, int c_arg)
-    :a(a_arg), b(b_arg), c(c_arg)
-  {}
-  ~~~~~~~~~~~~~~~~
-  But keep lines short to make them more readable:
-  ~~~~~~~~~~~~~~~~
-  Item::Item(int longer_arg, int more_longer_arg)
-    :longer(longer_arg),
-    more_longer(more_longer_arg)
-  {}
-  ~~~~~~~~~~~~~~~~
-
-  If a constructor can fit into one line:
-  ~~~~~~~~~~~~~~~~
-  Item::Item(int a_arg) :a(a_arg) {}
-  ~~~~~~~~~~~~~~~~
-*/
-
-/**
-  @page NAMING_CONVENTION Naming Conventions
+  @page NAMING_CONVENTION Legacy Naming Conventions
 
   - For identifiers formed from multiple words, separate each
     component with underscore rather than capitalization.
@@ -355,7 +84,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   - We used to have the rule: "Structure types are typedef'ed
     to an all-upper-case identifier." That rule has been
     deprecated for C++ code. Do not add typedefs for
-    structs/classes in C++
+    structs/classes in C++.
 
   - All \#define declarations should be in upper case.
 
@@ -367,14 +96,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   - Function declarations (forward declarations) have
     parameter names in addition to parameter types.
-
-  - Member variable names: Do not use foo_. Instead, use
-    m_foo (non-static) and s_foo (static), which
-    are improvements over the Google style.
 */
 
 /**
-  @page COMMENTING_CODE Commenting Code
+  @page COMMENTING_CODE Legacy Commenting Style
 
   - Comment your code when you do something that someone else
     may think is not trivial.
@@ -438,30 +163,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   <div style="margin-left:30px">
   <table style="background-color:#E0E0E0"><tr><td style="width:670px">
   { qc*= 2; /<em>*</em> double the estimation <em>*</em>/ }
-  </td></tr></table></div>
-
-  - When commenting members of a structure or a class, align
-    comments by 48th column. If a comment does not fit into
-    one line, move it to a separate line. Do not create
-    multiline comments aligned by 48th column.
-
-  <div style="margin-left:30px">
-  <table style="background-color:#E0E0E0"><tr><td style="width:670px"><pre>
-  MYSQL_STMT
-  {
-  ...
-    MYSQL_ROWS     *data_cursor;         /<em>**</em>< current row in cached
- result <em>*</em>/
-    /<em>*</em> copy of mysql->affected_rows after statement execution
- <em>*</em>/ my_ulonglong   affected_rows; my_ulonglong   insert_id;
- /<em>**</em>< copy of mysql->insert_id *<em></em>/
-    /<em>*</em>
-      mysql_stmt_fetch() calls this function to fetch one row (it's different
-      for buffered, unbuffered and cursor fetch).
-    <em>*</em>/
-    int            (*read_row_func)(MYSQL_STMT *stmt,
-  ...
-  };</pre>
   </td></tr></table></div>
 
   - All comments should be in English.
@@ -570,84 +271,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   An exception is made for generated files; for example, those
   generated by Yacc and Lex, because it is not possible to
   rewrite the generators to produce "correct" files.
-*/
-
-/**
-  @page SUGGESTED_MODE_IN_EMACS Suggested Mode in emacs
-  @verbatim
-  (require 'font-lock)
-  (require 'cc-mode)
-  (setq global-font-lock-mode t) ;;colors in all buffers that support it
-  (setq font-lock-maximum-decoration t) ;;maximum color
-  (c-add-style "MY"
-   '("K&R"
-       (c-basic-offset . 2)
-       (c-comment-only-line-offset . 0)
-       (c-offsets-alist . ((statement-block-intro . +)
-                           (knr-argdecl-intro . 0)
-                           (substatement-open . 0)
-                           (label . -)
-                           (statement-cont . +)
-                           (arglist-intro . c-lineup-arglist-intro-after-paren)
-                           (arglist-close . c-lineup-arglist)
-                           (innamespace . 0)
-                           (inline-open . 0)
-                           (statement-case-open . +)
-                           ))
-       ))
-
-  (defun mysql-c-mode-hook ()
-    (interactive)
-    (require 'cc-mode)
-    (c-set-style "MY")
-    (setq indent-tabs-mode nil)
-    (setq comment-column 48))
-
-  (add-hook 'c-mode-common-hook 'mysql-c-mode-hook)
-  @endverbatim
-*/
-
-/**
-  @page BASIC_VIM_SETUP Basic vim Setup
-  @verbatim
-  set tabstop=8
-  set shiftwidth=2
-  set backspace=2
-  set softtabstop
-  set smartindent
-  set cindent
-  set cinoptions=g0:0t0c2C1(0f0l1
-  set expandtab
-  @endverbatim
-*/
-
-/**
-  @page ANOTHER_VIM_SETUP Another vim Setup
-  @verbatim
-  set tabstop=8
-  set shiftwidth=2
-  set bs=2
-  set et
-  set sts=2
-  set tw=78
-  set formatoptions=cqroa1
-  set cinoptions=g0:0t0c2C1(0f0l1
-  set cindent
-
-  function InsertShiftTabWrapper()
-    let num_spaces = 48 - virtcol('.')
-    let line = ' '
-    while (num_spaces > 0)
-      let line = line . ' '
-      let num_spaces = num_spaces - 1
-    endwhile
-    return line
-  endfunction
-  " jump to 48th column by Shift-Tab - to place a comment there
-  inoremap <S-tab> <c-r>=InsertShiftTabWrapper()<cr>
-  " highlight trailing spaces as errors
-  let c_space_errors=1
-  @endverbatim
 */
 
 /**
