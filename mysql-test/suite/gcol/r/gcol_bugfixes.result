@@ -536,7 +536,7 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS ((`a` or `b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
@@ -557,7 +557,7 @@ t1	CREATE TABLE `t1` (
   `a` char(1) DEFAULT NULL,
   `b` char(1) DEFAULT NULL,
   `c` char(2) GENERATED ALWAYS AS (concat(`a`,`b`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 (a,b) VALUES('1','1');
 SELECT * FROM t1;
 a	b	c
@@ -730,7 +730,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX(b) FROM t1;
 HEX(b)
 004100420043006100620063
@@ -746,7 +746,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET utf16 COLLATE utf16_general_ci,
   `b` blob GENERATED ALWAYS AS (concat(_utf16'\0A\0B\0C',`a`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT
 length( convert( b USING utf8 ) ),
 char_length ( convert( b USING utf8 ) )

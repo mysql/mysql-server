@@ -763,21 +763,21 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET latin2 COLLATE latin2_general_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 select max(a),min(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `max(a)` char(1) CHARACTER SET latin2 DEFAULT NULL,
   `min(a)` char(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t2 select concat(a) from t1;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `concat(a)` varchar(1) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t1;
 create table t1 (a int);
 insert into t1 values (1);
@@ -870,7 +870,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `MAX(b)` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1, t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 create table t1(f1 datetime);
@@ -1115,14 +1115,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `variance(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 select stddev(0);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `stddev(0)` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table bug22555 (i smallint primary key auto_increment, s1 smallint, s2 smallint, e decimal(30,10), o double);
 insert into bug22555 (s1, s2, e, o) values (53, 78, 11.4276528, 6.828112), (17, 78, 5.916793, 1.8502951), (18, 76, 2.679231, 9.17975591), (31, 62, 6.07831, 0.1), (19, 41, 5.37463, 15.1), (83, 73, 14.567426, 7.959222), (92, 53, 6.10151, 13.1856852), (7, 12, 13.92272, 3.442007), (92, 35, 11.95358909, 6.01376678), (38, 84, 2.572, 7.904571);

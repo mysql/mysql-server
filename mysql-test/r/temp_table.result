@@ -109,7 +109,7 @@ show create table v1;
 Table	Create Table
 v1	CREATE TEMPORARY TABLE `v1` (
   `A` varchar(19) NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create view v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	utf8mb4	utf8mb4_0900_ai_ci

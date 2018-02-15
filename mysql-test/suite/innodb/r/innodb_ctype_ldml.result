@@ -526,7 +526,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` char(1) CHARACTER SET ucs2 COLLATE ucs2_vn_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (0x0061);
 set @@character_set_results=NULL;
 select * from t1;

@@ -11,7 +11,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `c2` char(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(0, "aaaaa");
 INSERT INTO t1 VALUES(1, "bbbbb");
 INSERT INTO t1 VALUES(2, "ccccc");

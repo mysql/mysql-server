@@ -9,7 +9,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(10) CHARACTER SET cp1251 DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT a FROM t1;
 a
 –“œ¬¡
@@ -35,7 +35,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET cp1251
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX(a) FROM t1;
 HEX(a)
 EFF0EEE1E0
@@ -55,7 +55,7 @@ SHOW CREATE TABLE ‘¡¬Ã…√¡;
 Table	Create Table
 ‘¡¬Ã…√¡	CREATE TABLE `‘¡¬Ã…√¡` (
   `–œÃ≈` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'ÀœÕÕ≈Œ‘¡“…  –œÃ—'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='ÀœÕÕ≈Œ‘¡“…  ‘¡¬Ã…√Ÿ'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ÀœÕÕ≈Œ‘¡“…  ‘¡¬Ã…√Ÿ'
 SHOW FIELDS FROM ‘¡¬Ã…√¡;
 Field	Type	Null	Key	Default	Extra
 –œÃ≈	char(32)	NO		NULL	
@@ -67,7 +67,7 @@ SHOW CREATE TABLE Ú‡·ÎËˆ‡;
 Table	Create Table
 Ú‡·ÎËˆ‡	CREATE TABLE `Ú‡·ÎËˆ‡` (
   `ÔÓÎÂ` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'ÍÓÏÏÂÌÚ‡ËÈ ÔÓÎˇ'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='ÍÓÏÏÂÌÚ‡ËÈ Ú‡·ÎËˆ˚'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='ÍÓÏÏÂÌÚ‡ËÈ Ú‡·ÎËˆ˚'
 SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 Field	Type	Null	Key	Default	Extra
 ÔÓÎÂ	char(32)	NO		NULL	
@@ -79,7 +79,7 @@ SHOW CREATE TABLE —Ç–∞–±–ª–∏—Ü–∞;
 Table	Create Table
 —Ç–∞–±–ª–∏—Ü–∞	CREATE TABLE `—Ç–∞–±–ª–∏—Ü–∞` (
   `–ø–æ–ª–µ` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT '–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π –ø–æ–ª—è'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π —Ç–∞–±–ª–∏—Ü—ã'
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='–∫–æ–º–º–µ–Ω—Ç–∞—Ä–∏–π —Ç–∞–±–ª–∏—Ü—ã'
 SHOW FIELDS FROM —Ç–∞–±–ª–∏—Ü–∞;
 Field	Type	Null	Key	Default	Extra
 –ø–æ–ª–µ	char(32)	NO		NULL	
@@ -126,7 +126,7 @@ SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
   `—Ç–µ—Å—Ç` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -134,7 +134,7 @@ SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 Table	Create Table
 —Ç–µ—Å—Ç	CREATE TABLE `—Ç–µ—Å—Ç` (
   `—Ç–µ—Å—Ç` int(11) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `—Ç–µ—Å—Ç`;
 SET NAMES binary;
 SET character_set_connection=utf8;
@@ -155,7 +155,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `‰` char(128) DEFAULT '‰',
   `‰1` enum('‰1','‰2') DEFAULT '‰2'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 ‰	char(128)	YES		‰	
@@ -166,7 +166,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `√§` char(128) DEFAULT '√§',
   `√§1` enum('√§1','√§2') DEFAULT '√§2'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 √§	char(128)	YES		√§	
@@ -278,7 +278,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(1) CHARACTER SET cp1251 COLLATE cp1251_general_ci DEFAULT 'ˇ'
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a char character set latin1 default _cp1251 0xFF);
 ERROR 42000: Invalid default value for 'a'

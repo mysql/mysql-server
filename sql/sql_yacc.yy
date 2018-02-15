@@ -1454,11 +1454,9 @@ void warn_about_deprecated_national(THD *thd)
 %type <charset>
         opt_collate
         charset_name
-        charset_name_or_default
         old_or_new_charset_name
         old_or_new_charset_name_or_default
         collation_name
-        collation_name_or_default
         opt_load_data_charset
         UNDERSCORE_CHARSET
         ascii unicode
@@ -1778,7 +1776,7 @@ void warn_about_deprecated_national(THD *thd)
 
 %type <on_duplicate> duplicate opt_duplicate
 
-%type <col_attr> column_attribute opt_collate_explicit
+%type <col_attr> column_attribute
 
 %type <column_format> column_format
 
@@ -3269,6 +3267,7 @@ sp_fdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $2->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
+                                      $3 != nullptr,
                                       $2->get_uint_geom_type(), nullptr, {}))
             {
               MYSQL_YYABORT;
@@ -3328,6 +3327,7 @@ sp_pdparam:
                                       NULL, NULL, &NULL_STR, 0,
                                       $3->get_interval_list(),
                                       cs ? cs : thd->variables.collation_database,
+                                      $4 != nullptr,
                                       $3->get_uint_geom_type(), nullptr, {}))
             {
               MYSQL_YYABORT;
@@ -3456,6 +3456,7 @@ sp_decl:
                                         NULL, NULL, &NULL_STR, 0,
                                         $3->get_interval_list(),
                                         cs ? cs : thd->variables.collation_database,
+                                        $4 != nullptr,
                                         $3->get_uint_geom_type(), nullptr, {}))
               {
                 MYSQL_YYABORT;
@@ -5993,11 +5994,11 @@ ternary_option:
         ;
 
 default_charset:
-          opt_default charset opt_equal charset_name_or_default { $$= $4; }
+          opt_default character_set opt_equal charset_name { $$ = $4; }
         ;
 
 default_collation:
-          opt_default COLLATE_SYM opt_equal collation_name_or_default { $$= $4;}
+          opt_default COLLATE_SYM opt_equal collation_name { $$ = $4;}
         ;
 
 row_types:
@@ -6131,7 +6132,7 @@ field_def:
           {
             $$= NEW_PTN PT_field_def($1, $2);
           }
-        | type opt_collate_explicit opt_generated_always
+        | type opt_collate opt_generated_always
           AS '(' expr ')'
           opt_stored_attribute opt_column_attribute_list
           {
@@ -6142,10 +6143,10 @@ field_def:
               {
                 opt_attrs= NEW_PTN
                   Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
-                if (opt_attrs == NULL)
-                  MYSQL_YYABORT; // OOM
               }
-              if (opt_attrs->push_back($2))
+              auto *collation= NEW_PTN PT_collate_column_attr($2);
+              if (opt_attrs == nullptr || collation == nullptr ||
+                  opt_attrs->push_back(collation))
                 MYSQL_YYABORT; // OOM
             }
             $$= NEW_PTN PT_generated_field_def($1, $6, $8, opt_attrs);
@@ -6603,7 +6604,7 @@ now_or_signed_literal:
         | signed_literal
         ;
 
-charset:
+character_set:
           CHAR_SYM SET_SYM
         | CHARSET
         ;
@@ -6622,14 +6623,9 @@ charset_name:
         | BINARY_SYM { $$= &my_charset_bin; }
         ;
 
-charset_name_or_default:
-          charset_name { $$=$1;   }
-        | DEFAULT_SYM    { $$=NULL; }
-        ;
-
 opt_load_data_charset:
           /* Empty */ { $$= NULL; }
-        | charset charset_name_or_default { $$= $2; }
+        | character_set charset_name { $$ = $2; }
         ;
 
 old_or_new_charset_name:
@@ -6659,19 +6655,8 @@ collation_name:
         ;
 
 opt_collate:
-          /* empty */ { $$=NULL; }
-        | COLLATE_SYM collation_name_or_default { $$=$2; }
-        ;
-
-opt_collate_explicit:
-          /* empty */ { $$= NULL; }
-        | COLLATE_SYM collation_name
-          { $$= NEW_PTN PT_collate_column_attr($2); }
-        ;
-
-collation_name_or_default:
-          collation_name { $$=$1; }
-        | DEFAULT_SYM    { $$=NULL; }
+          /* empty */                { $$ = nullptr; }
+        | COLLATE_SYM collation_name { $$ = $2; }
         ;
 
 opt_default:
@@ -6728,7 +6713,7 @@ opt_charset_with_opt_binary:
             $$.charset= &my_charset_bin;
             $$.force_binary= false;
           }
-        | charset charset_name opt_bin_mod
+        | character_set charset_name opt_bin_mod
           {
             $$.charset= $3 ? get_bin_collation($2) : $2;
             if ($$.charset == NULL)
@@ -6740,7 +6725,7 @@ opt_charset_with_opt_binary:
             $$.charset= NULL;
             $$.force_binary= true;
           }
-        | BINARY_SYM charset charset_name
+        | BINARY_SYM character_set charset_name
           {
             $$.charset= get_bin_collation($3);
             if ($$.charset == NULL)
@@ -7847,7 +7832,7 @@ alter_list_item:
           {
             $$= NEW_PTN PT_alter_table_rename_column($3.str, $5.str);
           }
-        | CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
+        | CONVERT_SYM TO_SYM character_set charset_name opt_collate
           {
             $$= NEW_PTN PT_alter_table_convert_to_charset($4, $5);
           }
@@ -12382,7 +12367,7 @@ show_param:
                 MYSQL_YYABORT;
             }
           }
-        | charset opt_wild_or_where_for_show
+        | character_set opt_wild_or_where_for_show
           {
             Lex->sql_command= SQLCOM_SHOW_CHARSETS;
             if (Lex->set_wild($2.wild))
@@ -14272,7 +14257,7 @@ option_value_no_option_type:
           {
             $$= NEW_PTN PT_option_value_no_option_type_sys_var($3, $4, $6);
           }
-        | charset old_or_new_charset_name_or_default
+        | character_set old_or_new_charset_name_or_default
           {
             $$= NEW_PTN PT_option_value_no_option_type_charset($2);
           }
@@ -14283,9 +14268,13 @@ option_value_no_option_type:
             */
             $$= NEW_PTN PT_option_value_no_option_type_names(@2);
           }
-        | NAMES_SYM charset_name_or_default opt_collate
+        | NAMES_SYM charset_name opt_collate
           {
-            $$= NEW_PTN PT_option_value_no_option_type_names_charset($2, $3);
+            $$= NEW_PTN PT_set_names($2, $3);
+          }
+        | NAMES_SYM DEFAULT_SYM
+          {
+            $$ = NEW_PTN PT_set_names(nullptr, nullptr);
           }
         ;
 
@@ -15591,6 +15580,7 @@ sf_tail:
                                             $9->get_type_flags(), NULL, NULL, &NULL_STR, 0,
                                             $9->get_interval_list(),
                                             cs ? cs : YYTHD->variables.collation_database,
+                                            $10 != nullptr,
                                             $9->get_uint_geom_type(), nullptr,
                                             {}))
             {

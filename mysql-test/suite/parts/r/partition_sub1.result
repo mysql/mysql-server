@@ -44,7 +44,7 @@ t1	CREATE TABLE `t1` (
   `c1` tinyint(4) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2
@@ -99,7 +99,7 @@ t1	CREATE TABLE `t1` (
   `c1` smallint(6) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2
@@ -154,7 +154,7 @@ t1	CREATE TABLE `t1` (
   `c1` mediumint(9) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2
@@ -209,7 +209,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2
@@ -264,7 +264,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2
@@ -319,7 +319,7 @@ t1	CREATE TABLE `t1` (
   `c1` bigint(20) DEFAULT NULL,
   `name` varchar(30) DEFAULT NULL,
   `purchased` date DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (year(`purchased`))
 SUBPARTITION BY HASH (to_days(`purchased`))
 SUBPARTITIONS 2

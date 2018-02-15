@@ -12,7 +12,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(16) DEFAULT 'Filler...',
   PRIMARY KEY (`a`),
   KEY `b` (`b`(4),`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (`a`)
 PARTITIONS 3 */
 INSERT INTO t1 (a, b) VALUES (1, 0xdeadbeef), (2, "text filler"),

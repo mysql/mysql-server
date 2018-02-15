@@ -294,7 +294,7 @@ t1	CREATE TABLE `t1` (
   `c36` varchar(3) CHARACTER SET latin2 DEFAULT NULL,
   `c37` varchar(10) CHARACTER SET latin2 DEFAULT NULL,
   `c38` varchar(10) CHARACTER SET latin2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select 
 case 'str' when 'STR' then 'str' when null then 'null' end as c01,
@@ -331,21 +331,21 @@ bug19145a	CREATE TABLE `bug19145a` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145b;
 Table	Create Table
 bug19145b	CREATE TABLE `bug19145b` (
   `e` enum('a','b','c') DEFAULT NULL,
   `s` set('x','y','z') DEFAULT NULL,
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table bug19145c;
 Table	Create Table
 bug19145c	CREATE TABLE `bug19145c` (
   `e` enum('a','b','c') NOT NULL DEFAULT 'b',
   `s` set('x','y','z') NOT NULL DEFAULT 'y',
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug19145a;
 drop table bug19145b;
 drop table bug19145c;

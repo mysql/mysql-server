@@ -3287,7 +3287,7 @@ class Lex_input_stream {
 
     NOTE: this member must be used within MYSQLlex() function only.
   */
-  CHARSET_INFO *m_underscore_cs;
+  const CHARSET_INFO *m_underscore_cs;
 
   /**
     Current statement digest instrumentation.

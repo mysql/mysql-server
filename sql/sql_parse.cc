@@ -5089,6 +5089,7 @@ bool mysql_test_parse_for_slave(THD *thd) {
   @param change                 The old column name (if renaming) or NULL.
   @param interval_list          The list of ENUM/SET values or NULL.
   @param cs                     The character set of the field.
+  @param has_explicit_collation Column has an explicit COLLATE attribute.
   @param uint_geom_type         The GIS type of the field.
   @param gcol_info              The generated column data or NULL.
   @param opt_after              The name of the field to add after or
@@ -5106,8 +5107,9 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
                            Item *default_value, Item *on_update_value,
                            LEX_STRING *comment, const char *change,
                            List<String> *interval_list, const CHARSET_INFO *cs,
-                           uint uint_geom_type, Generated_column *gcol_info,
-                           const char *opt_after, Nullable<gis::srid_t> srid) {
+                           bool has_explicit_collation, uint uint_geom_type,
+                           Generated_column *gcol_info, const char *opt_after,
+                           Nullable<gis::srid_t> srid) {
   Create_field *new_field;
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -5202,8 +5204,8 @@ bool Alter_info::add_field(THD *thd, const LEX_STRING *field_name,
   if (!(new_field = new (*THR_MALLOC) Create_field()) ||
       new_field->init(thd, field_name->str, type, length, decimals,
                       type_modifier, default_value, on_update_value, comment,
-                      change, interval_list, cs, uint_geom_type, gcol_info,
-                      srid))
+                      change, interval_list, cs, has_explicit_collation,
+                      uint_geom_type, gcol_info, srid))
     DBUG_RETURN(1);
 
   create_list.push_back(new_field);

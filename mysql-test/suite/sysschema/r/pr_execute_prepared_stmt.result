@@ -6,7 +6,7 @@ SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @sql := CONCAT('INSERT INTO test.t1 VALUES (', 1, ')');
 CALL sys.execute_prepared_stmt(@sql);
 SELECT * FROM test.t1;

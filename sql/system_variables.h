@@ -332,6 +332,8 @@ struct System_variables {
 
   ulong
       internal_tmp_mem_storage_engine;  // enum_internal_tmp_mem_storage_engine
+
+  const CHARSET_INFO *default_collation_for_utf8mb4;
 };
 
 /**

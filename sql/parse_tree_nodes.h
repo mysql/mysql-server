@@ -1113,17 +1113,15 @@ class PT_option_value_no_option_type_names
   virtual bool contextualize(Parse_context *pc);
 };
 
-class PT_option_value_no_option_type_names_charset
-    : public PT_option_value_no_option_type {
+class PT_set_names : public PT_option_value_no_option_type {
   typedef PT_option_value_no_option_type super;
 
   const CHARSET_INFO *opt_charset;
   const CHARSET_INFO *opt_collation;
 
  public:
-  PT_option_value_no_option_type_names_charset(
-      const CHARSET_INFO *opt_charset_arg,
-      const CHARSET_INFO *opt_collation_arg)
+  PT_set_names(const CHARSET_INFO *opt_charset_arg,
+               const CHARSET_INFO *opt_collation_arg)
       : opt_charset(opt_charset_arg), opt_collation(opt_collation_arg) {}
 
   virtual bool contextualize(Parse_context *pc);
@@ -3110,7 +3108,9 @@ class PT_create_table_default_charset : public PT_create_table_option {
 
  public:
   explicit PT_create_table_default_charset(const CHARSET_INFO *value)
-      : value(value) {}
+      : value(value) {
+    DBUG_ASSERT(value != nullptr);
+  }
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 };
@@ -3122,7 +3122,9 @@ class PT_create_table_default_collation : public PT_create_table_option {
 
  public:
   explicit PT_create_table_default_collation(const CHARSET_INFO *value)
-      : value(value) {}
+      : value(value) {
+    DBUG_ASSERT(value != nullptr);
+  }
 
   bool contextualize(Table_ddl_parse_context *pc) override;
 };

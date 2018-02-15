@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,6 +97,21 @@ bool Select_lex_builder::add_select_item(const LEX_STRING field_name,
   PTI_expr_with_alias *expr;
   expr = new (m_thd->mem_root)
       PTI_expr_with_alias(*m_pos, ident_field, m_pos->cpp, alias);
+  if (expr == nullptr) return true;
+
+  return add_to_select_item_list(expr);
+}
+
+/**
+  Add expression item representing a column as,
+  "SELECT <expr> AS <alias>, ...".
+*/
+bool Select_lex_builder::add_select_expr(Item *select_list_item,
+                                         const LEX_STRING alias) {
+  /* ... FIELD_NAME as alias ... */
+  PTI_expr_with_alias *expr;
+  expr = new (m_thd->mem_root)
+      PTI_expr_with_alias(*m_pos, select_list_item, m_pos->cpp, alias);
   if (expr == nullptr) return true;
 
   return add_to_select_item_list(expr);

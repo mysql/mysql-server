@@ -367,7 +367,7 @@ t1	CREATE TABLE `t1` (
   `i2` int(11) NOT NULL,
   UNIQUE KEY `i1idx` (`i1`),
   UNIQUE KEY `i2idx` (`i2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (
 c1 int,
@@ -393,7 +393,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify b varchar(20);
 show create table t1;
 Table	Create Table
@@ -401,7 +401,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(10) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify a varchar(20);
 show create table t1;
 Table	Create Table
@@ -409,7 +409,7 @@ t1	CREATE TABLE `t1` (
   `a` varchar(20) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL,
   KEY `a` (`a`,`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null primary key, b varchar(20) not null unique);
 desc t1;
@@ -466,7 +466,7 @@ t1	CREATE TABLE `t1` (
   KEY `i3` (`c3`),
   KEY `i5` (`c1`,`c2`,`c3`,`c4`),
   KEY `c2` (`c2`,`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop index c1;
 alter table t1 add index (c1);
 Warnings:
@@ -505,7 +505,7 @@ t1	CREATE TABLE `t1` (
   KEY `i2` (`c2`),
   KEY `i4` (`c4`),
   KEY `c2` (`c2`(4),`c3`(7))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values(1, 'a', 'a', NOW()), (1, 'b', 'b', NOW());
 alter table t1 drop index i3, drop index i2, drop index i1;
 alter table t1 add index i3 (c3), add index i2 (c2), add unique index i1 (c1);
@@ -571,7 +571,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1(a int not null, key aa(a), 
 b char(10) not null, unique key bb(b(1)),
@@ -596,7 +596,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `cc` (`c`),
   UNIQUE KEY `bb` (`b`(1)),
   KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 End of 5.0 tests
 DROP TABLE IF EXISTS t1;
@@ -683,19 +683,19 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # But visible in I_S.STATISTICS
 #
@@ -718,7 +718,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -726,7 +726,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
@@ -734,7 +734,7 @@ th	CREATE TABLE `th` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -765,7 +765,7 @@ tm	CREATE TABLE `tm` (
   `p` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -773,7 +773,7 @@ ti	CREATE TABLE `ti` (
   `p` point NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # But visible in I_S.STATISTICS
 #
@@ -797,7 +797,7 @@ tm	CREATE TABLE `tm` (
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -807,7 +807,7 @@ ti	CREATE TABLE `ti` (
   PRIMARY KEY (`pk`),
   SPATIAL KEY `p` (`p`),
   SPATIAL KEY `q` (`q`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'q'
   order by table_name;
@@ -832,7 +832,7 @@ tm	CREATE TABLE `tm` (
   `v` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -840,7 +840,7 @@ ti	CREATE TABLE `ti` (
   `v` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'v'
   order by table_name;
@@ -861,7 +861,7 @@ tm	CREATE TABLE `tm` (
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`),
   FULLTEXT KEY `w` (`w`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -871,7 +871,7 @@ ti	CREATE TABLE `ti` (
   PRIMARY KEY (`pk`),
   FULLTEXT KEY `v` (`v`),
   FULLTEXT KEY `w` (`w`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'w'
   order by table_name;
@@ -894,19 +894,19 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # Also visible in I_S.STATISTICS
 #
@@ -931,7 +931,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -939,7 +939,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table th;
 Table	Create Table
 th	CREATE TABLE `th` (
@@ -947,7 +947,7 @@ th	CREATE TABLE `th` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE,
   KEY `l` (`l`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -977,13 +977,13 @@ Table	Create Table
 tm	CREATE TABLE `tm` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 #
 # But visible in I_S.STATISTICS
 #
@@ -1008,7 +1008,7 @@ tm	CREATE TABLE `tm` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table ti;
 Table	Create Table
 ti	CREATE TABLE `ti` (
@@ -1016,7 +1016,7 @@ ti	CREATE TABLE `ti` (
   `l` int(11) DEFAULT NULL,
   KEY `k` (`k`),
   KEY `l` (`l`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'l'
   order by table_name;
@@ -1035,7 +1035,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1049,7 +1049,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # But in I_S.STATISTICS we see that algorithm has changed.
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1067,7 +1067,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1081,7 +1081,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In I_S.STATISTICS we also see that algorithm is the same
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1100,7 +1100,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
   order by table_name;
@@ -1116,7 +1116,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # In I_S.STATISTICS we see that algorithm has changed.
 select table_name, index_type from information_schema.statistics
 where table_schema = 'test' and table_name like 't%' and index_name = 'k'
@@ -1156,21 +1156,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key k, add index using btree (k), algorithm=inplace;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key k, add index (k), algorithm=inplace;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Note that below statement doesn't really change algorithm.
 alter table t1 drop key k, add index using hash (k), algorithm=inplace;
 Warnings:
@@ -1183,7 +1183,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key k, add index using btree (k), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show create table t1;
@@ -1191,14 +1191,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 drop key k, add index using btree (k), algorithm=copy;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `k` int(11) DEFAULT NULL,
   KEY `k` (`k`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 #
 # Bug 25647413 "ASSERTION FAILURE: HA_INNODB.CC:NNN:(TABLE->INDEXES).

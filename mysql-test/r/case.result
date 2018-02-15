@@ -115,7 +115,7 @@ t1	CREATE TABLE `t1` (
   `c10` double NOT NULL DEFAULT '0',
   `c11` double NOT NULL DEFAULT '0',
   `c12` varchar(22) CHARACTER SET latin1 NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SELECT CASE 
 WHEN 1 
@@ -162,7 +162,7 @@ t1	CREATE TABLE `t1` (
   `COALESCE(1,'1')` varchar(1) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE(1.1,'1')` varchar(4) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `COALESCE('a' COLLATE latin1_bin,'b')` varchar(1) CHARACTER SET latin1 COLLATE latin1_bin NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 SELECT IFNULL('a' COLLATE latin1_swedish_ci, 'b' COLLATE latin1_bin);
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'ifnull'
@@ -257,7 +257,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT IF(bt,i8u,i8s) AS u, IF(bf,i8u,i8s) AS s
 FROM source;
 u	s
@@ -277,7 +277,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT CASE WHEN bt THEN i8u ELSE i8s END AS u,
 CASE WHEN bf THEN i8u ELSE i8s END AS s
 FROM source;
@@ -298,7 +298,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT CASE bt WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS u,
 CASE bf WHEN TRUE THEN i8u WHEN FALSE THEN i8s END AS s
 FROM source;
@@ -318,7 +318,7 @@ Table	Create Table
 target	CREATE TABLE `target` (
   `u` decimal(20,0) DEFAULT NULL,
   `s` decimal(20,0) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT COALESCE(i8u, i8s) AS u, COALESCE(i8s, i8u) AS s
 FROM source;
 u	s
@@ -377,7 +377,7 @@ u	CREATE TABLE `u` (
   `d` bigint(6) unsigned DEFAULT NULL,
   `e` bigint(6) unsigned DEFAULT NULL,
   `f` bigint(6) unsigned DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t, u;
 # Bug#26389402: Outer join optimized away with user-defined functions
 CREATE TABLE t00(a INTEGER);

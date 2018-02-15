@@ -3,7 +3,7 @@ show create table t;
 Table	Create Table
 t	CREATE TABLE `t` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 start transaction;
 # Insert data
 set session debug='+d,crash_endof_lob_rollback';

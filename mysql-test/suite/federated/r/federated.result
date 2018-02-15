@@ -2170,7 +2170,7 @@ CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 CREATE TABLE `t1` (
   `id` varchar(20) NOT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=FEDERATED DEFAULT CHARSET=utf8mb4 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+) ENGINE=FEDERATED DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
 /*!40101 SET character_set_client = @saved_cs_client */;
 DROP TABLE t1;
 #Switch to Connection Slave

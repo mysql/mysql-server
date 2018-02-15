@@ -11,7 +11,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `a_asc_b_desc` (`a`,`b` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values(1,6),(1,5),(2,5),(2,4),(3,4),(3,3),
 (4,3),(4,2),(5,2),(5,1),(6,1),(NULL,NULL);
 analyze table t1;
@@ -260,14 +260,14 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a_desc_b_asc` (`a` DESC,`b`),
   KEY `i1` (`a` DESC,`b` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 (a int auto_increment, primary key (a desc)) engine= innodb;
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a` DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert ignore into t2 select a from t1;
 Warnings:
 Warning	1062	Duplicate entry '5' for key 'PRIMARY'
@@ -291,7 +291,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` varchar(10) DEFAULT NULL,
   KEY `i1` (`a`(5) DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create index i2 on t3(a(6));
 flush tables;
 show create table t3;
@@ -300,7 +300,7 @@ t3	CREATE TABLE `t3` (
   `a` varchar(10) DEFAULT NULL,
   KEY `i1` (`a`(5) DESC),
   KEY `i2` (`a`(6))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t3 add fulltext index fts_idx(a desc);
 ERROR HY000: Incorrect usage of spatial/fulltext/hash index and explicit index order
 alter table t3 add fulltext index fts_idx(a asc);

@@ -204,13 +204,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 rename t2;
 show create table t2;
 Table	Create Table
 t2	CREATE TEMPORARY TABLE `t2` (
   `a` int(11) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 create table t1 (
 test_set set( 'val1', 'val2', 'val3' ) not null default '',
@@ -227,7 +227,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL COMMENT 'int column',
   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='it''s a table'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='it''s a table'
 set sql_quote_show_create=0;
 show create table t1;
 Table	Create Table
@@ -237,7 +237,7 @@ t1	CREATE TABLE t1 (
   c int(11) NOT NULL COMMENT 'int column',
   `c-b` int(11) DEFAULT NULL COMMENT 'name with a minus',
   `space 2` int(11) DEFAULT NULL COMMENT 'name with a space'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='it''s a table'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='it''s a table'
 set sql_quote_show_create=1;
 show full columns from t1;
 Field	Type	Collation	Null	Key	Default	Extra	Privileges	Comment
@@ -253,7 +253,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   UNIQUE KEY `aa` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, primary key (a));
 show create table t1;
@@ -261,7 +261,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 flush tables;
 show open tables;
@@ -298,7 +298,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=100 AVG_ROW_LENGTH=10 PACK_KEYS=1 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=FIXED COMMENT='test'
 alter table t1 MAX_ROWS=200 ROW_FORMAT=dynamic PACK_KEYS=0;
 show create table t1;
 Table	Create Table
@@ -306,7 +306,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci MIN_ROWS=10 MAX_ROWS=200 AVG_ROW_LENGTH=10 PACK_KEYS=0 CHECKSUM=1 DELAY_KEY_WRITE=1 ROW_FORMAT=DYNAMIC COMMENT='test'
 ALTER TABLE t1 AVG_ROW_LENGTH=0 CHECKSUM=0 COMMENT="" MIN_ROWS=0 MAX_ROWS=0 PACK_KEYS=DEFAULT DELAY_KEY_WRITE=0 ROW_FORMAT=default;
 show create table t1;
 Table	Create Table
@@ -314,7 +314,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` varchar(10) DEFAULT NULL,
   KEY `b` (`b`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a decimal(9,2), b decimal (9,0), e double(9,2), f double(5,0), h float(3,2), i float(3,0));
 show columns from t1;
@@ -420,28 +420,28 @@ SHOW CREATE TABLE ```ab``cd```;
 Table	Create Table
 `ab`cd`	CREATE TABLE ```ab``cd``` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE ```ab``cd```;
 CREATE TABLE ```ab````cd``` (i INT);
 SHOW CREATE TABLE ```ab````cd```;
 Table	Create Table
 `ab``cd`	CREATE TABLE ```ab````cd``` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE ```ab````cd```;
 CREATE TABLE ```a` (i INT);
 SHOW CREATE TABLE ```a`;
 Table	Create Table
 `a	CREATE TABLE ```a` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE ```a`;
 CREATE TABLE `a.1` (i INT);
 SHOW CREATE TABLE `a.1`;
 Table	Create Table
 a.1	CREATE TABLE `a.1` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `a.1`;
 SET sql_mode= 'ANSI_QUOTES';
 CREATE TABLE """a" (i INT);
@@ -449,7 +449,7 @@ SHOW CREATE TABLE """a";
 Table	Create Table
 "a	CREATE TABLE """a" (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE """a";
 SET sql_mode= '';
 SET sql_quote_show_create= OFF;
@@ -458,14 +458,14 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE t1 (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE `table` (i INT);
 SHOW CREATE TABLE `table`;
 Table	Create Table
 table	CREATE TABLE `table` (
   i int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE `table`;
 SET sql_quote_show_create= @old_sql_quote_show_create;
 SET sql_mode= @old_sql_mode;
@@ -581,7 +581,7 @@ drop table t1, t2, t3;
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 create user mysqltest_1@localhost, mysqltest_2@localhost, mysqltest_3@localhost;
@@ -593,7 +593,7 @@ a
 1
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 drop table t1;
 ERROR 42000: DROP command denied to user 'mysqltest_1'@'localhost' for table 't1'
 drop database mysqltest;
@@ -610,7 +610,7 @@ select * from mysqltest.t1;
 ERROR 42000: SELECT command denied to user 'mysqltest_3'@'localhost' for table 't1'
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 drop table mysqltest.t1;
 drop database mysqltest;
 set names binary;
@@ -625,7 +625,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING HASH (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
@@ -633,7 +633,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
@@ -641,7 +641,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -649,7 +649,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -657,7 +657,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -665,14 +665,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1 (i int, KEY USING BTREE (i)) ENGINE=MyISAM;
 SHOW CREATE TABLE t1;
@@ -680,14 +680,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ENGINE=MEMORY;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `i` (`i`) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE t1(
 field1 text NOT NULL,
@@ -727,7 +727,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`) USING BTREE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 
 # Bug#12183 SHOW OPEN TABLES behavior doesn't match grammar.
@@ -891,9 +891,9 @@ latin1_bin	latin1	47		Yes	1	PAD SPACE
 SHOW CREATE DATABASE mysqltest1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Database	253	192	10	N	1	31	33
-def					Create Database	253	3072	70	N	1	31	33
+def					Create Database	253	3072	97	N	1	31	33
 Database	Create Database
-mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest1	CREATE DATABASE `mysqltest1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 ----------------------------------------------------------------
 SHOW DATABASES LIKE 'mysqltest1';
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -904,12 +904,12 @@ mysqltest1
 SHOW CREATE TABLE t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					Table	253	192	2	N	1	31	33
-def					Create Table	253	3072	103	N	1	31	33
+def					Create Table	253	3072	130	N	1	31	33
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`c`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ----------------------------------------------------------------
 SHOW INDEX FROM t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1222,7 +1222,7 @@ SHOW CREATE TABLE mysqltest1.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `колонка1` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP DATABASE mysqltest1;
 use test;
 flush status;
@@ -1316,14 +1316,14 @@ End of 5.0 tests
 create database mysqltest;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
 create user mysqltest_4@localhost;
 grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
 show create database mysqltest;
 Database	Create Database
-mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 */
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 delete from mysql.tables_priv where user='mysqltest_4';
@@ -1523,7 +1523,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) NOT NULL,
   PRIMARY KEY (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Switching to connection 'default'.
 UNLOCK TABLES;
 DROP TABLE t1;
@@ -1541,7 +1541,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Connection con1
 ALTER TABLE t1 CHARACTER SET = utf8;
 Warnings:
@@ -1646,7 +1646,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` char(3) DEFAULT NULL,
   `n` char(20) CHARACTER SET utf8 COLLATE utf8_general_ci GENERATED ALWAYS AS (md5(`i`)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 CREATE TABLE `t1` (
 `i` char(3) DEFAULT NULL,
@@ -1791,7 +1791,7 @@ t1	CREATE TABLE `t1` (
   `f2` char(1) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
   `f3` char(1) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
 ALTER TABLE t1 ADD COLUMN f6 CHAR(1) CHARSET UTF8MB4;
 # The SHOW command should show the utf8mb4 charset for f6 after ALTER.
@@ -1804,7 +1804,7 @@ t1	CREATE TABLE `t1` (
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Check if we retain the property after CREATE SELECT.
 CREATE TABLE t2 AS SELECT * FROM t1;
 SHOW CREATE TABLE t2;
@@ -1816,7 +1816,7 @@ t2	CREATE TABLE `t2` (
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Check if we retain the property after CREATE LIKE.
 CREATE TABLE t3 LIKE t1;
 SHOW CREATE TABLE t3;
@@ -1828,7 +1828,7 @@ t3	CREATE TABLE `t3` (
   `f4` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `f5` char(1) DEFAULT NULL,
   `f6` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

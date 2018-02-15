@@ -380,7 +380,7 @@ worklog5743	CREATE TABLE `worklog5743` (
   `a` text NOT NULL,
   KEY `idx1` (`a`(384)),
   KEY `idx2` (`a`(384))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 drop table worklog5743;
 create table worklog5743(a TEXT not null) charset latin1 ROW_FORMAT=REDUNDANT;
 create index idx on worklog5743(a(768));

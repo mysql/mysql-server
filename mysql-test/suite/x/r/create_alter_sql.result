@@ -199,7 +199,7 @@ t2	CREATE TABLE `t2` (
   `col6` json DEFAULT NULL,
   `col8` json DEFAULT NULL,
   `col9` varchar(100) DEFAULT 'testdata'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SELECT * FROM t6
 val	col2
@@ -249,7 +249,7 @@ t2	CREATE TABLE `t2` (
   `col8` json DEFAULT NULL,
   `col9` varchar(100) DEFAULT 'testdata',
   FULLTEXT KEY `idx_fulltext` (`col9`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN DROP DATABASE IF EXISTS xplugintest
 

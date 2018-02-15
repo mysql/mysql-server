@@ -13965,6 +13965,9 @@ ER_VALIDATE_PWD_VARIABLE_UNREGISTRATION_FAILED
 ER_KEYRING_MIGRATION_EXTRA_OPTIONS
   eng "Please specify options specific to keyring migration. Any additional options can be ignored. NOTE: Although some options are valid, migration tool can still report error example: plugin variables for which plugin is not loaded yet."
 
+ER_INVALID_DEFAULT_UTF8MB4_COLLATION
+  eng "Invalid default collation %s: utf8mb4_0900_ai_ci or utf8mb4_general_ci expected"
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

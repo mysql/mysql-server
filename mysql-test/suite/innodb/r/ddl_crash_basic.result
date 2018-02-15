@@ -24,7 +24,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 Expected as 0
@@ -41,7 +41,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 Expected as 0
@@ -69,7 +69,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 SET SESSION debug= '+d,skip_dd_table_access_check';
@@ -88,7 +88,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 ERROR 42S02: Table 'test.t2' doesn't exist
 SET SESSION debug= '+d,skip_dd_table_access_check';
@@ -109,7 +109,7 @@ t2	CREATE TABLE `t2` (
   `c` int(11) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET SESSION debug= '+d,skip_dd_table_access_check';
 SELECT count(*) AS `Expected as 0` FROM mysql.innodb_ddl_log;
 Expected as 0

@@ -128,7 +128,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `date_format("2004-01-19 10:10:10", "%Y-%m-%d")` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1;
 date_format("2004-01-19 10:10:10", "%Y-%m-%d")
 2004-01-19
@@ -283,7 +283,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=utf8mb4
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');
@@ -326,7 +326,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('aaaa','проба') CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('проба');
 select * from t1;
 a
@@ -336,7 +336,7 @@ show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `ifnull(a,a)` varchar(5) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t2;
 ifnull(a,a)
 проба
@@ -463,7 +463,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -499,7 +499,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -621,7 +621,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING HASH
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -657,7 +657,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
-) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
 insert into t1 values ('aa');
 ERROR 23000: Duplicate entry 'a' for key 'a'
@@ -861,7 +861,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` varchar(5) DEFAULT NULL,
   `b` varchar(15) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2;
 drop table t1;
 select 'c' like '\_' as want0;
@@ -1031,7 +1031,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES (_utf8mb4 0xEFBE9D),(_utf8mb4 0xF0908E84);
 INSERT INTO t1 VALUES (_utf8mb4 0xCE85),(_utf8mb4 0xF4808080);
 SELECT HEX(a), HEX(CONVERT(a USING utf8mb4)) FROM t1 ORDER BY a;
@@ -2219,7 +2219,7 @@ t1	CREATE TABLE `t1` (
   `Tape` tinytext,
   PRIMARY KEY (`clipid`),
   KEY `tape` (`Tape`(63))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET sql_mode = default;
 #
@@ -2388,7 +2388,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int(11) NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 42856	EA9DA8
@@ -2508,7 +2508,7 @@ t3	CREATE TEMPORARY TABLE `t3` (
   `utf8mb4` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `utf8mb3` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
   `concat(utf8mb4,utf8mb3)` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TEMPORARY TABLE t3;
 SELECT * FROM t1, t2 WHERE t1.utf8mb4 > t2.utf8mb3;
 utf8mb4	utf8mb3
@@ -2638,7 +2638,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `CONCAT(s1)` varchar(255) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t2;
 #
 # Bug#13581962 HIGH MEMORY USAGE ATTEMPT, THEN CRASH WITH LONGTEXT, UNION, USER VARIABLE

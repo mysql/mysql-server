@@ -1191,7 +1191,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -1199,7 +1199,7 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
@@ -1207,7 +1207,7 @@ t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -1215,7 +1215,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -1223,7 +1223,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table t1 modify t varchar(10);
 Warnings:
 Note	1265	Data truncated for column 't' at row 2
@@ -1233,7 +1233,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
@@ -1745,7 +1745,7 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v char(10) character set utf8);
 Warnings:
@@ -1754,7 +1754,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
@@ -1762,7 +1762,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 ROW_FORMAT=FIXED
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
 concat('*',v,'*',c,'*')
@@ -1797,7 +1797,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
@@ -1807,7 +1807,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (v varchar(65535)) charset latin1;
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
@@ -2051,7 +2051,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=2048);
 show create table t1;
@@ -2059,7 +2059,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=2048
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a));
 Warnings:
@@ -2069,7 +2069,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(250))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1024);
 Warnings:
@@ -2079,7 +2079,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(250)) KEY_BLOCK_SIZE=4096
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
 Warnings:
@@ -2091,7 +2091,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=1024
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=1024
 alter table t1 key_block_size=2048;
 show create table t1;
 Table	Create Table
@@ -2100,7 +2100,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=2048
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=2048
 alter table t1 add c int, add key (c);
 show create table t1;
 Table	Create Table
@@ -2111,7 +2111,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096,
   KEY `c` (`c`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=2048
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=2048
 alter table t1 key_block_size=0;
 alter table t1 add d int, add key (d);
 show create table t1;
@@ -2125,7 +2125,7 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`(250)) KEY_BLOCK_SIZE=4096,
   KEY `c` (`c`) KEY_BLOCK_SIZE=2048,
   KEY `d` (`d`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=8192;
 Warnings:
@@ -2137,7 +2137,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(250))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=8192
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a) key_block_size=1024, key(b)) key_block_size=8192;
 Warnings:
@@ -2149,7 +2149,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`(250))
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=8192
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
 show create table t1;
@@ -2159,7 +2159,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024,
   KEY `b` (`b`) KEY_BLOCK_SIZE=8192
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 KEY_BLOCK_SIZE=16384
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci KEY_BLOCK_SIZE=16384
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=512);
 show create table t1;
@@ -2167,7 +2167,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=1024
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
@@ -2177,7 +2177,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(250)) KEY_BLOCK_SIZE=4096
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
 show create table t1;
@@ -2185,7 +2185,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=2048
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1

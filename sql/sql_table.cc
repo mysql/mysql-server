@@ -5677,9 +5677,25 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
     let's fetch the database default character set and
     apply it to the table.
   */
-  if (!create_info->default_table_charset &&
-      get_default_db_collation(schema, &create_info->default_table_charset))
-    return true;
+  if (create_info->default_table_charset == nullptr) {
+    if (get_default_db_collation(schema, &create_info->default_table_charset))
+      return true;
+  } else {
+    DBUG_ASSERT((create_info->used_fields & HA_CREATE_USED_CHARSET) == 0 ||
+                create_info->default_table_charset ==
+                    create_info->table_charset);
+
+    if (!(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
+        create_info->default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
+      create_info->default_table_charset =
+          thd->variables.default_collation_for_utf8mb4;
+
+      // ALTER TABLE ... CONVERT TO CHARACTER SET ...
+      if (create_info->used_fields & HA_CREATE_USED_CHARSET) {
+        create_info->table_charset = create_info->default_table_charset;
+      }
+    }
+  }
 
   if (create_info->default_table_charset == NULL)
     create_info->default_table_charset = thd->collation();
@@ -9931,7 +9947,7 @@ static bool upgrade_old_temporal_types(THD *thd, Alter_info *alter_info) {
         temporal_field->init(thd, def->field_name, sql_type, NULL, NULL,
                              (def->flags & NOT_NULL_FLAG), default_value,
                              update_value, &def->comment, def->change, NULL,
-                             NULL, 0, NULL, def->m_srid))
+                             NULL, false, 0, NULL, def->m_srid))
       DBUG_RETURN(true);
 
     temporal_field->field = def->field;

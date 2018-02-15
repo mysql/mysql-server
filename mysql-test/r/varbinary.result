@@ -36,13 +36,13 @@ show create table table_28127_a;
 Table	Create Table
 table_28127_a	CREATE TABLE `table_28127_a` (
   `0b02` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 create table table_28127_b(0b2 int);
 show create table table_28127_b;
 Table	Create Table
 table_28127_b	CREATE TABLE `table_28127_b` (
   `0b2` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table table_28127_a;
 drop table table_28127_b;
 select 0b01000001;

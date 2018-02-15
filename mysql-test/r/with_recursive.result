@@ -209,7 +209,7 @@ u	CREATE TABLE `u` (
   `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
   `literal_b` varbinary(3) NOT NULL DEFAULT '',
   `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t,u;
 # if it used char the 'x' would fall off due to spaces.
 with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;
@@ -1518,7 +1518,7 @@ u	CREATE TABLE `u` (
   `cast("abc" as char(4))` varchar(4) DEFAULT NULL,
   `literal_b` varbinary(3) NOT NULL DEFAULT '',
   `cast(_binary "abc" as binary(4))` varbinary(4) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t,u;
 # if it used char the 'x' would fall off due to spaces.
 with recursive qn as (select 1 as n, cast('x' as char(100)) as un union all select 1+n, concat(un,'x') from qn where n<10) select * from qn;

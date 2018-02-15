@@ -10,7 +10,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `s1` varchar(64) CHARACTER SET latin1 DEFAULT NULL,
   `s2` varchar(64) CHARACTER SET latin1 DEFAULT NULL
-) ENGINE=default_engine DEFAULT CHARSET=utf8mb4
+) ENGINE=default_engine DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 delete from t1;
 insert into t1 values('aaa','aaa');
 insert into t1 values('aaa|qqq','qqq');

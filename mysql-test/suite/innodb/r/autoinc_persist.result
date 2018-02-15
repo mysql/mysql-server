@@ -380,7 +380,7 @@ Table	Create Table
 t13	CREATE TABLE `t13` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=1234 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=1234 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t13 VALUES(0);
 SELECT a AS `Expect 1234` FROM t13;
 Expect 1234
@@ -721,7 +721,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=201 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
 SELECT MAX(a) AS `Expect 201` FROM t3;
 Expect 201
@@ -734,7 +734,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=500 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=500 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
 SELECT MAX(a) AS `Expect 500` FROM t3;
 Expect 500
@@ -746,7 +746,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=100 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0), (0);
 SELECT * FROM t3;
 a
@@ -762,7 +762,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=221 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t3 VALUES(0);
 SELECT MAX(a) AS `Expect 221` FROM t3;
 Expect 221
@@ -774,7 +774,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=120 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Kill and restart
 INSERT INTO t3 VALUES(0);
 SELECT MAX(a) AS `Expect 120` FROM t3;
@@ -799,7 +799,7 @@ Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This will keep the autoinc counter
 ALTER TABLE t_inplace AUTO_INCREMENT = 250, ALGORITHM = INPLACE;
 # We expect the counter to be 250
@@ -808,7 +808,7 @@ Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should keep the autoinc counter as well
 ALTER TABLE t_inplace ADD COLUMN b INT, ALGORITHM = INPLACE;
 # We expect the counter to be 250
@@ -818,7 +818,7 @@ t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_inplace WHERE a > 150;
 SELECT * FROM t_inplace;
 a	b
@@ -838,7 +838,7 @@ t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should reset the autoinc counter to the next value of
 # current max counter in the table, since the specified value
 # is smaller than the existing biggest value(50 < 123)
@@ -849,7 +849,7 @@ Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t_inplace VALUES(0), (0);
 SELECT MAX(a) AS `Expect 124` FROM t_inplace;
 Expect 124
@@ -863,7 +863,7 @@ Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
 # We expect the counter to still be 125
 SHOW CREATE TABLE t_inplace;
@@ -871,7 +871,7 @@ Table	Create Table
 t_inplace	CREATE TABLE `t_inplace` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_inplace WHERE a >= 123;
 CREATE UNIQUE INDEX idx_aa ON t_inplace(a);
 # restart
@@ -896,7 +896,7 @@ Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=211 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This will keep the autoinc counter
 ALTER TABLE t_copy AUTO_INCREMENT = 250, ALGORITHM = COPY;
 # We expect the counter to be 250
@@ -905,7 +905,7 @@ Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should keep the autoinc counter as well
 ALTER TABLE t_copy ADD COLUMN b INT, ALGORITHM = COPY;
 # We expect the counter to be 250
@@ -915,7 +915,7 @@ t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=250 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_copy WHERE a > 150;
 SELECT * FROM t_copy;
 a	b
@@ -935,7 +935,7 @@ t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=180 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # This should reset the autoinc counter to the next value of
 # current max counter in the table, since the specified value
 # is smaller than the existing biggest value(50 < 123)
@@ -946,7 +946,7 @@ Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=123 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t_copy VALUES(0), (0);
 SELECT MAX(a) AS `Expect 124` FROM t_copy;
 Expect 124
@@ -960,7 +960,7 @@ Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # restart
 # We expect the counter to still be 125
 SHOW CREATE TABLE t_copy;
@@ -968,7 +968,7 @@ Table	Create Table
 t_copy	CREATE TABLE `t_copy` (
   `a` smallint(6) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=125 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DELETE FROM t_copy WHERE a >= 123;
 CREATE UNIQUE INDEX idx_aa ON t_copy(a);
 # restart
@@ -1192,7 +1192,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 AUTO_INCREMENT = 20, CHANGE COLUMN b b INT, ALGORITHM DEFAULT;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1200,7 +1200,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL, 10);
 SELECT MAX(a) FROM t1;
 MAX(a)
@@ -1212,7 +1212,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL AUTO_INCREMENT,
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB AUTO_INCREMENT=21 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 INSERT INTO t1 VALUES(NULL, 12);
 SELECT MAX(a) FROM t1;
 MAX(a)

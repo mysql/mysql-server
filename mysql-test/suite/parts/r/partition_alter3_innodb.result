@@ -55,7 +55,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 t1.ibd
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -78,7 +78,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -97,7 +97,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (dayofyear(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -114,7 +114,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`)) */
 t1#P#p0.ibd
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -137,7 +137,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -163,7 +163,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -188,7 +188,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -233,7 +233,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -263,7 +263,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -291,7 +291,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -317,7 +317,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -341,7 +341,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -363,7 +363,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB) */
@@ -383,7 +383,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY HASH (year(`f_date`))
 (PARTITION p0 ENGINE = InnoDB) */
 t1#P#p0.ibd
@@ -405,7 +405,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f_date` date DEFAULT NULL,
   `f_varchar` varchar(30) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 t1.ibd
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -447,7 +447,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 t1.ibd
 EXPLAIN SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -471,7 +471,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1) */
 t1#P#p0.ibd
 EXPLAIN SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -497,7 +497,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -523,7 +523,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -551,7 +551,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -594,7 +594,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -627,7 +627,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -658,7 +658,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -687,7 +687,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -714,7 +714,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
@@ -739,7 +739,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB) */
@@ -762,7 +762,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB) */
 t1#P#p0.ibd
@@ -787,7 +787,7 @@ t1	CREATE TABLE `t1` (
   `f_char1` char(20) DEFAULT NULL,
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 t1.ibd
 EXPLAIN SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

@@ -312,12 +312,12 @@ SHOW CREATE TABLE tt;
 Table	Create Table
 tt	CREATE TABLE `tt` (
   `c` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE ts;
 Table	Create Table
 ts	CREATE TABLE `ts` (
   `c` varchar(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t, tt, ts;
 Defaults: check non obvious type pairs, comparing with IFNULL
 whose type reconciliation behavior we emulate when combining

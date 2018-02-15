@@ -29,7 +29,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 drop table if exists t_illegal;
 create table t_illegal (a int, b int, check a>b);
