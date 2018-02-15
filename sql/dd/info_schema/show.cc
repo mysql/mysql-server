@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 #include "sql/dd/info_schema/table_stats.h"
 #include "sql/dd/string_type.h"
+#include "sql/item_cmpfunc.h"  // Item_func_case
 #include "sql/key.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/sql_class.h"
@@ -77,10 +78,49 @@ SELECT_LEX *build_show_character_set_query(const POS &pos, THD *thd,
   */
   Select_lex_builder sub_query(&pos, thd);
   if (sub_query.add_select_item(field_charset, alias_charset) ||
-      sub_query.add_select_item(field_desc, alias_desc) ||
-      sub_query.add_select_item(field_collate, alias_collate) ||
-      sub_query.add_select_item(field_maxlen, alias_maxlen))
+      sub_query.add_select_item(field_desc, alias_desc))
     return nullptr;
+
+  if (thd->variables.default_collation_for_utf8mb4 ==
+      &my_charset_utf8mb4_0900_ai_ci) {
+    if (sub_query.add_select_item(field_collate, alias_collate)) return nullptr;
+  } else {
+    MEM_ROOT *const mem_root = thd->mem_root;
+
+    // ... CHARACTER_SETS ...
+    Item *charset_item =
+        new (mem_root) Item_field(pos, NullS, NullS, field_charset.str);
+    if (charset_item == nullptr) return nullptr;
+
+    // ... 'utf8mb4' ...
+    Item *utf8mb4_item = new (mem_root)
+        Item_string(STRING_WITH_LEN("utf8mb4"), system_charset_info);
+    if (utf8mb4_item == nullptr) return nullptr;
+
+    // ... = ...
+    Item *if_cond =
+        new (mem_root) Item_func_eq(pos, charset_item, utf8mb4_item);
+    if (if_cond == nullptr) return nullptr;
+
+    // ... 'utf8mb4_general_ci' ...
+    Item *if_then = new (mem_root)
+        Item_string(STRING_WITH_LEN("utf8mb4_general_ci"), system_charset_info);
+    if (if_then == nullptr) return nullptr;
+
+    // ... DEFAULT_COLLATE_NAME ...
+    Item *if_else =
+        new (mem_root) Item_field(pos, NullS, NullS, field_collate.str);
+    if (if_else == nullptr) return nullptr;
+
+    /*
+      IF(CHARACTER_SETS = 'utf8mb4', 'utf8mb4_general_ci', DEFAULT_COLLATE_NAME)
+    */
+    Item *if_func = new (mem_root) Item_func_if(pos, if_cond, if_then, if_else);
+    if (if_func == nullptr || sub_query.add_select_expr(if_func, alias_collate))
+      return nullptr;
+  }
+
+  if (sub_query.add_select_item(field_maxlen, alias_maxlen)) return nullptr;
 
   // ... FROM information_schema.<table_name> ...
   if (sub_query.add_from_item(INFORMATION_SCHEMA_NAME, system_view_name))
@@ -155,6 +195,7 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
       SELECT COLLATION_NAME as `Collation`,
              CHARACTER_SET_NAME as `Charset`,
              ID as `Id`,
+             IS_DEFAULT as `Default`,
              IS_COMPILED as `Compiled`,
              SORTLEN as `Sortlen`,
              PAD_ATTRIBUTE AS `Pad_attribute`
@@ -163,9 +204,67 @@ SELECT_LEX *build_show_collation_query(const POS &pos, THD *thd,
   Select_lex_builder sub_query(&pos, thd);
   if (sub_query.add_select_item(field_collation, alias_collation) ||
       sub_query.add_select_item(field_charset, alias_charset) ||
-      sub_query.add_select_item(field_id, alias_id) ||
-      sub_query.add_select_item(field_default, alias_default) ||
-      sub_query.add_select_item(field_compiled, alias_compiled) ||
+      sub_query.add_select_item(field_id, alias_id))
+    return nullptr;
+
+  if (thd->variables.default_collation_for_utf8mb4 ==
+      &my_charset_utf8mb4_0900_ai_ci) {
+    if (sub_query.add_select_item(field_default, alias_default)) return nullptr;
+  } else {
+    MEM_ROOT *const mem_root = thd->mem_root;
+
+    // ... `ID` ...
+    Item *case_value_item =
+        new (mem_root) Item_field(pos, NullS, NullS, field_id.str);
+    if (case_value_item == nullptr) return nullptr;  // OOM
+
+    List<Item> case_when_list;
+
+    // ... WHEN <ID of utf8mb4_general_ci> ...
+    Item *old_default_collation =
+        new (mem_root) Item_uint(my_charset_utf8mb4_general_ci.number);
+    if (old_default_collation == nullptr ||
+        case_when_list.push_back(old_default_collation))
+      return nullptr;  // OOM
+
+    // ... THEN 'Yes' ...
+    Item *force_old_default_collation =
+        new (mem_root) Item_string(STRING_WITH_LEN("Yes"), system_charset_info);
+    if (force_old_default_collation == nullptr ||
+        case_when_list.push_back(force_old_default_collation))
+      return nullptr;  // OOM
+
+    // ... WHEN <ID of utf8mb4_0900_ai_ci> ...
+    Item *new_default_collation =
+        new (mem_root) Item_uint(my_charset_utf8mb4_0900_ai_ci.number);
+    if (new_default_collation == nullptr ||
+        case_when_list.push_back(new_default_collation))
+      return nullptr;  // OOM
+
+    // ... THEN '' ...
+    Item *suppress_new_default_collation =
+        new (mem_root) Item_string(STRING_WITH_LEN(""), system_charset_info);
+    if (suppress_new_default_collation == nullptr ||
+        case_when_list.push_back(suppress_new_default_collation))
+      return nullptr;  // OOM
+
+    // ... ELSE IS_DEFAULT ...
+    Item *case_else_item =
+        new (mem_root) Item_field(pos, NullS, NullS, field_default.str);
+    if (case_else_item == nullptr) return nullptr;
+
+    // CASE `ID`
+    //   WHEN <ID of utf8mb4_general_ci> THEN TRUE
+    //   WHEN <ID of utf8mb4_0900_ai_ci> THEN FALSE
+    //   ELSE `IS_DEFAULT`
+    Item *case_func = new (mem_root)
+        Item_func_case(pos, case_when_list, case_value_item, case_else_item);
+    if (case_func == nullptr ||
+        sub_query.add_select_expr(case_func, alias_default))
+      return nullptr;
+  }
+
+  if (sub_query.add_select_item(field_compiled, alias_compiled) ||
       sub_query.add_select_item(field_sortlen, alias_sortlen) ||
       sub_query.add_select_item(field_pad_attribute, alias_pad_attribute))
     return nullptr;

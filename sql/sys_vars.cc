@@ -6093,3 +6093,27 @@ static Sys_var_bool Sys_keyring_operations(
     NON_PERSIST GLOBAL_VAR(opt_keyring_operations), NO_CMD_LINE, DEFAULT(true),
     &PLock_keyring_operations, NOT_IN_BINLOG, ON_CHECK(check_keyring_access),
     ON_UPDATE(0));
+
+static bool check_default_collation_for_utf8mb4(sys_var *self, THD *thd,
+                                                set_var *var) {
+  if (check_collation_not_null(self, thd, var)) {
+    return true;
+  }
+
+  auto cs = static_cast<const CHARSET_INFO *>(var->save_result.ptr);
+  if (cs == &my_charset_utf8mb4_0900_ai_ci ||
+      cs == &my_charset_utf8mb4_general_ci)
+    return check_has_super(self, thd, var);
+
+  my_error(ER_INVALID_DEFAULT_UTF8MB4_COLLATION, MYF(0), cs->name);
+  return true;
+}
+
+static Sys_var_struct<CHARSET_INFO, Get_name> Sys_default_collation_for_utf8mb4(
+    "default_collation_for_utf8mb4",
+    "Controls default collation for utf8mb4 while replicating implicit "
+    "utf8mb4 collations.",
+    SESSION_VAR(default_collation_for_utf8mb4), NO_CMD_LINE,
+    DEFAULT(&my_charset_utf8mb4_0900_ai_ci), NO_MUTEX_GUARD, IN_BINLOG,
+    ON_CHECK(check_default_collation_for_utf8mb4),
+    ON_UPDATE(update_deprecated));

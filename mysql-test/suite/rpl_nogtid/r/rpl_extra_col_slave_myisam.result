@@ -510,7 +510,7 @@ t16	CREATE TABLE `t16` (
   `c4` blob,
   `c5` char(5) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 *** Show table on Slave ****
 SHOW CREATE TABLE t16;
 Table	Create Table
@@ -523,7 +523,7 @@ t16	CREATE TABLE `t16` (
   `c6` int(11) DEFAULT '1',
   `c7` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`c1`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 *** DROP TABLE t16 ***
 DROP TABLE t16;
 *** Alter Master End ***

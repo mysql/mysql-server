@@ -39,13 +39,13 @@ t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `created` datetime DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t5;
 Table	Create Table
 t5	CREATE TABLE `t5` (
   `id` int(11) NOT NULL DEFAULT '0',
   `created` datetime DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t2,t3,t5;
 drop temporary table if exists t4;
 include/sync_slave_sql_with_master.inc

@@ -16,7 +16,7 @@ bug51378	CREATE TABLE `bug51378` (
   UNIQUE KEY `idx3` (`col1`,`col3`),
   UNIQUE KEY `idx` (`col1`,`col2`(31)),
   UNIQUE KEY `idx2` (`col1`,`col2`(31))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop index idx3 on bug51378;
 SHOW CREATE TABLE bug51378;
 Table	Create Table
@@ -26,7 +26,7 @@ bug51378	CREATE TABLE `bug51378` (
   `col3` time NOT NULL,
   UNIQUE KEY `idx` (`col1`,`col2`(31)),
   UNIQUE KEY `idx2` (`col1`,`col2`(31))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table bug51378 add primary key idx3(col1, col2(31));
 SHOW CREATE TABLE bug51378;
 Table	Create Table
@@ -37,7 +37,7 @@ bug51378	CREATE TABLE `bug51378` (
   PRIMARY KEY (`col1`,`col2`(31)),
   UNIQUE KEY `idx` (`col1`,`col2`(31)),
   UNIQUE KEY `idx2` (`col1`,`col2`(31))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug51378;
 create table bug51378 (
 col1 int not null,
@@ -52,7 +52,7 @@ bug51378	CREATE TABLE `bug51378` (
   `col3` time NOT NULL,
   PRIMARY KEY (`col1`,`col2`(31)),
   UNIQUE KEY `idx` (`col1`,`col2`(31))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug51378;
 create table bug51378 (
 col1 int not null,
@@ -64,5 +64,5 @@ bug51378	CREATE TABLE `bug51378` (
   `col1` int(11) NOT NULL,
   `col2` int(11) DEFAULT NULL,
   UNIQUE KEY `idx` (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table bug51378;

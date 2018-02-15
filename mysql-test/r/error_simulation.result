@@ -43,7 +43,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(100) NOT NULL,
   KEY `a` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 a
 0

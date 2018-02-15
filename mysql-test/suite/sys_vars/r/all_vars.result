@@ -17,6 +17,8 @@ activate_all_roles_on_login
 activate_all_roles_on_login
 cte_max_recursion_depth
 cte_max_recursion_depth
+default_collation_for_utf8mb4
+default_collation_for_utf8mb4
 disabled_storage_engines
 disabled_storage_engines
 innodb_dedicated_server

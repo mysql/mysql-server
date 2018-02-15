@@ -37,7 +37,7 @@ t1	CREATE TABLE `t1` (
   `c2` int(11) DEFAULT NULL,
   `c3` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=0
 BEGIN;
 INSERT INTO t1 VALUES(7,4,2);
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL scanned WAIT_FOR rollback_done';
@@ -176,7 +176,7 @@ t1	CREATE TABLE `t1` (
   `c3` text,
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2e_created WAIT_FOR dml2_done';
 SET lock_wait_timeout = 10;
 ALTER TABLE t1 CHANGE c2 c22 INT, DROP INDEX c2d, ADD INDEX c2e(c22),
@@ -308,7 +308,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`c1`),
   KEY `c2d` (`c22f`),
   KEY `c2f` (`c22f`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
 subsystem = 'ddl' and count > 0;

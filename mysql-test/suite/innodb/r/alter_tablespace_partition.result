@@ -23,7 +23,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -49,7 +49,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -88,7 +88,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -108,7 +108,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -141,7 +141,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_file_per_table` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -161,7 +161,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -194,7 +194,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -214,7 +214,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL,
   `col2` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `s1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1)
 PARTITIONS 3 */
 === information_schema.innodb_tables  and innodb_tablespaces ===
@@ -242,7 +242,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE innodb_system;
@@ -250,7 +250,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 TRUNCATE TABLE t1;
@@ -258,7 +258,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 ALTER TABLE t1 ENGINE = InnoDB TABLESPACE gt1;
@@ -266,7 +266,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `col1` int(11) DEFAULT NULL
-) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `gt1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE ((`col1` * 2))
 (PARTITION p3 VALUES LESS THAN MAXVALUE TABLESPACE = `gt1` ENGINE = InnoDB) */
 DROP TABLE t1;

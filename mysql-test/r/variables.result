@@ -696,7 +696,7 @@ t1	CREATE TABLE `t1` (
   `c3` mediumint(9) DEFAULT NULL,
   `c4` int(11) DEFAULT NULL,
   `c5` bigint(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 set @arg00= 8, @arg01= 8.8, @arg02= 'a string', @arg03= 0.2e0;
 create table t1 as select @arg00 as c1, @arg01 as c2, @arg02 as c3, @arg03 as c4;
@@ -707,7 +707,7 @@ t1	CREATE TABLE `t1` (
   `c2` decimal(65,30) DEFAULT NULL,
   `c3` longtext,
   `c4` double DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET GLOBAL MYISAM_DATA_POINTER_SIZE= 7;
 SHOW VARIABLES LIKE 'MYISAM_DATA_POINTER_SIZE';
@@ -1550,7 +1550,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(1) unsigned NOT NULL DEFAULT '0'
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 SET @@global.max_binlog_cache_size=DEFAULT;
 SET @@global.binlog_cache_size=DEFAULT;

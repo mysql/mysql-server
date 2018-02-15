@@ -156,7 +156,7 @@ table2	CREATE TABLE `table2` (
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SELECT * FROM xplugintest.table2
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
@@ -220,7 +220,7 @@ table2	CREATE TABLE `table2` (
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 0 rows affected
 RUN SELECT JSON_EXTRACT(doc,'$.name') FROM xplugintest.table2
 JSON_EXTRACT(doc,'$.name')
@@ -352,7 +352,7 @@ table2	CREATE TABLE `table2` (
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM xplugintest.table2;
 doc	_id	$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1	Omar Bras

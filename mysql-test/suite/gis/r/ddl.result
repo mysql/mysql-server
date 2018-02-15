@@ -327,7 +327,7 @@ t1	CREATE TABLE `t1` (
   `col_srid_2000` point NOT NULL,
   `col_srid_4326_generated` point GENERATED ALWAYS AS (st_srid(`col_srid_2000`,4326)) VIRTUAL /*!80003 SRID 4326 */,
   SPATIAL KEY `idx_0` (`col_srid_0`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP COLUMN col_srid_4326_generated;
 DROP TABLE t1;
 #

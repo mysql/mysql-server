@@ -18,7 +18,7 @@ t3	CREATE TABLE `t3` (
   PRIMARY KEY (`a`),
   KEY `b` (`b`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
 WHERE fk.table_id = t.id AND t.name = 't3';
 name
@@ -35,7 +35,7 @@ t3	CREATE TABLE `t3` (
   KEY `c` (`c`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
 WHERE fk.table_id = t.id AND t.name = 't3';
 name
@@ -54,7 +54,7 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
 WHERE fk.table_id = t.id AND t.name = 't3';
 name
@@ -73,7 +73,7 @@ t3	CREATE TABLE `t3` (
   KEY `b` (`b`),
   CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
 WHERE fk.table_id = t.id AND t.name = 't3';
 name
@@ -92,7 +92,7 @@ t3	CREATE TABLE `t3` (
   CONSTRAINT `t3_ibfk_2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_3` FOREIGN KEY (`b`) REFERENCES `t1` (`a`),
   CONSTRAINT `t3_ibfk_4` FOREIGN KEY (`b`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT fk.name FROM mysql.foreign_keys AS fk, mysql.tables AS t
 WHERE fk.table_id = t.id AND t.name = 't3';
 name

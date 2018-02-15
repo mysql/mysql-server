@@ -137,7 +137,7 @@ To COMPRESSED
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
 EXPLAIN
 {
   "query_block": {
@@ -184,7 +184,7 @@ test.tab	analyze	status	OK
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=DYNAMIC
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
 EXPLAIN
 {
   "query_block": {
@@ -231,7 +231,7 @@ DYNAMIC to REDUNDANT
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=REDUNDANT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
 EXPLAIN
 {
   "query_block": {
@@ -276,7 +276,7 @@ REDUNDANT to COMPACT
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 EXPLAIN
@@ -370,7 +370,7 @@ JSON_STORAGE_FREE(j1)
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT COMPRESSION='ZLIB'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT COMPRESSION='ZLIB'
 # Check partial update through procedure
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
@@ -386,7 +386,7 @@ JSON_STORAGE_FREE(j1)
 Table	Create Table
 tab	CREATE TABLE `tab` (
   `j1` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPACT COMPRESSION='LZ4'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT COMPRESSION='LZ4'
 # Check partial update through procedure
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
@@ -401,7 +401,7 @@ tab1	CREATE TABLE `tab1` (
   `id` int(11) NOT NULL,
   `j1` blob,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
 ERROR 22032: Cannot create a JSON value from a string with CHARACTER SET 'binary'.
@@ -415,7 +415,7 @@ tab3	CREATE TABLE `tab3` (
   `a` int(11) DEFAULT NULL,
   `j1` json DEFAULT NULL,
   `j2` json DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY LINEAR HASH (`a`)
 PARTITIONS 3 */
 a	j1	j2

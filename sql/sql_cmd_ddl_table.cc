@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -161,19 +161,6 @@ bool Sql_cmd_create_table::execute(THD *thd) {
                                       &create_info.index_file_name,
                                       create_table->table_name))
     return true;
-
-  /*
-    If we are using SET CHARSET without DEFAULT, add an implicit
-    DEFAULT to not confuse old users. (This may change).
-  */
-  if ((create_info.used_fields &
-       (HA_CREATE_USED_DEFAULT_CHARSET | HA_CREATE_USED_CHARSET)) ==
-      HA_CREATE_USED_CHARSET) {
-    create_info.used_fields &= ~HA_CREATE_USED_CHARSET;
-    create_info.used_fields |= HA_CREATE_USED_DEFAULT_CHARSET;
-    create_info.default_table_charset = create_info.table_charset;
-    create_info.table_charset = 0;
-  }
 
   {
     partition_info *part_info = thd->lex->part_info;

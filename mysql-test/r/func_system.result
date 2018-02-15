@@ -56,7 +56,7 @@ t1	CREATE TABLE `t1` (
   `database()` varchar(34) CHARACTER SET utf8 DEFAULT NULL,
   `user()` varchar(93) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `version` char(60) DEFAULT NULL
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select charset(charset(_utf8'a')), charset(collation(_utf8'a'));
 charset(charset(_utf8'a'))	charset(collation(_utf8'a'))
@@ -79,7 +79,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `charset(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `collation(_utf8'a')` varchar(64) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
+) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select TRUE,FALSE,NULL;
 TRUE	FALSE	NULL

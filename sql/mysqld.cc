@@ -3903,6 +3903,8 @@ int init_common_variables() {
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server = default_charset_info;
   global_system_variables.collation_database = default_charset_info;
+  global_system_variables.default_collation_for_utf8mb4 =
+      &my_charset_utf8mb4_0900_ai_ci;
 
   if (is_supported_parser_charset(default_charset_info)) {
     global_system_variables.collation_connection = default_charset_info;

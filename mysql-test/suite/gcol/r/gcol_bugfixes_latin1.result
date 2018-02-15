@@ -9,7 +9,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci GENERATED ALWAYS AS (_latin1'?') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX( gc ) FROM t1;
 HEX( gc )
 C5
@@ -24,7 +24,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci GENERATED ALWAYS AS (_latin1'?') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES utf8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -32,7 +32,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci GENERATED ALWAYS AS (_latin1'Å') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT HEX( gc ) FROM t1;
 HEX( gc )
 C5
@@ -47,12 +47,12 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci GENERATED ALWAYS AS (_latin1'Å') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES latin1;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `gc` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci GENERATED ALWAYS AS (_latin1'?') VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET NAMES DEFAULT;
 DROP TABLE t1;

@@ -12,21 +12,21 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   PRIMARY KEY (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `f1` int(11) NOT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `c1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 show create table t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
   `f1` int(11) NOT NULL,
   PRIMARY KEY (`f1`),
   CONSTRAINT `c2` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1);
 insert into t1 values (2);
 insert into t1 values (3);

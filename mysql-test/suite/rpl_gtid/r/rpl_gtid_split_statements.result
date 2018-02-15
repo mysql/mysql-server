@@ -241,26 +241,26 @@ SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/rpl_sync.inc
 # base_3_a and base_4_a should still be there on master
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 CREATE TABLE base_1_n (a INT) ENGINE = MyISAM;
 CREATE TABLE base_2_n (a INT) ENGINE = MyISAM;
 include/rpl_sync.inc
@@ -277,26 +277,26 @@ SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 include/rpl_sync.inc
 # base_3_a and base_4_a should still be there on master
 SHOW CREATE TABLE base_3_a;
 Table	Create Table
 base_3_a	CREATE TABLE `base_3_a` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE base_4_a;
 Table	Create Table
 base_4_a	CREATE TABLE `base_4_a` (
   `pk` int(11) NOT NULL,
   PRIMARY KEY (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ---- Clean up ----
 DROP TABLE base_5_a, base_4_a, base_3_a;
 include/rpl_sync.inc

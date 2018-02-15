@@ -20,14 +20,14 @@ tab1	CREATE TABLE `tab1` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`) USING BTREE
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE tab2;
 Table	Create Table
 tab2	CREATE TABLE `tab2` (
   `c1` int(11) DEFAULT NULL,
   `c2` varchar(10) DEFAULT NULL,
   KEY `ix1` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ## Check with DML and DDL
 SELECT * FROM tab1;
 c1	c2

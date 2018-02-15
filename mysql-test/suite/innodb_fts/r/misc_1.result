@@ -187,7 +187,7 @@ t2	CREATE TABLE `t2` (
   KEY `FTS_DOC_ID` (`FTS_DOC_ID`),
   FULLTEXT KEY `idx` (`s2`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`FTS_DOC_ID`) REFERENCES `t1` (`s1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,'Sunshine'),(2,'Lollipops');
 insert into t2 values (1,'Sunshine'),(2,'Lollipops');
 update t1 set s1 = 3 where s1=1;

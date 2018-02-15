@@ -7,7 +7,7 @@ abs	CREATE TABLE `abs` (
   `col2` int(11) NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
@@ -20,7 +20,7 @@ bug21114_child	CREATE TABLE `bug21114_child` (
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `abs` (`col1`, `col2`),
   CONSTRAINT `fk_fct_space` FOREIGN KEY (`fk_col3`, `fk_col4`) REFERENCES `abs` (`col1`, `col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE bug21114_child;
 DROP TABLE abs;
 drop table if exists field;
@@ -32,7 +32,7 @@ field	CREATE TABLE `field` (
   `col2` int(11) NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
@@ -45,7 +45,7 @@ bug21114_child	CREATE TABLE `bug21114_child` (
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `field` (`col1`, `col2`),
   CONSTRAINT `fk_fct_space` FOREIGN KEY (`fk_col3`, `fk_col4`) REFERENCES `field` (`col1`, `col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE bug21114_child;
 DROP TABLE field;
 drop table if exists format;
@@ -57,7 +57,7 @@ format	CREATE TABLE `format` (
   `col2` int(11) NOT NULL,
   `col3` varchar(10) DEFAULT NULL,
   PRIMARY KEY (`col1`,`col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE bug21114_child;
 Table	Create Table
 bug21114_child	CREATE TABLE `bug21114_child` (
@@ -70,7 +70,7 @@ bug21114_child	CREATE TABLE `bug21114_child` (
   KEY `fk_fct_space` (`fk_col3`,`fk_col4`),
   CONSTRAINT `fk_fct` FOREIGN KEY (`fk_col1`, `fk_col2`) REFERENCES `format` (`col1`, `col2`),
   CONSTRAINT `fk_fct_space` FOREIGN KEY (`fk_col3`, `fk_col4`) REFERENCES `format` (`col1`, `col2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE bug21114_child;
 DROP TABLE format;
 drop table if exists acos;

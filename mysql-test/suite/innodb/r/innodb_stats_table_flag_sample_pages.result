@@ -4,7 +4,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	
@@ -15,7 +15,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_SAMPLE_PAGES=12345
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_SAMPLE_PAGES=12345
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	stats_sample_pages=12345
@@ -27,7 +27,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	
@@ -54,7 +54,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_SAMPLE_PAGES=65535
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_SAMPLE_PAGES=65535
 DROP TABLE test_ps_sample_pages;
 CREATE TABLE test_ps_sample_pages (a INT, PRIMARY KEY (a)) ENGINE=INNODB
 STATS_SAMPLE_PAGES=1;
@@ -64,7 +64,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_SAMPLE_PAGES=1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_SAMPLE_PAGES=1
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	stats_sample_pages=1
@@ -77,7 +77,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 STATS_SAMPLE_PAGES=5678
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci STATS_SAMPLE_PAGES=5678
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	stats_sample_pages=5678
@@ -88,7 +88,7 @@ Table	test_ps_sample_pages
 Create Table	CREATE TABLE `test_ps_sample_pages` (
   `a` int(11) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT create_options FROM information_schema.tables
 WHERE table_name='test_ps_sample_pages';
 CREATE_OPTIONS	

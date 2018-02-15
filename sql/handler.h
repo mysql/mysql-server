@@ -703,6 +703,13 @@ given at all. */
 /** COMPRESSION="zlib|lz4|none" used during table create. */
 #define HA_CREATE_USED_COMPRESS (1L << 26)
 
+/**
+  CREATE|ALTER SCHEMA|DATABASE|TABLE has an explicit COLLATE clause.
+
+  Implies HA_CREATE_USED_DEFAULT_CHARSET.
+*/
+#define HA_CREATE_USED_DEFAULT_COLLATE (1L << 27)
+
 /*
   Structure to hold list of database_name.table_name.
   This is used at both mysqld and storage engine layer.

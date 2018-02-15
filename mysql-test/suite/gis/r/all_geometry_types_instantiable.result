@@ -440,7 +440,7 @@ tab2	CREATE TABLE `tab2` (
   `c6` multipolygon DEFAULT NULL,
   `c7` geomcollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Create a tigger and populate the values into tab2
 CREATE TRIGGER geom_trigger AFTER INSERT ON tab
 FOR EACH ROW
@@ -538,7 +538,7 @@ geom_index	CREATE TABLE `geom_index` (
   `g` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`fid`),
   SPATIAL KEY `g` (`g`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SET @polygon = ST_GEOMFROMTEXT('POLYGON((0 0,0 10,10 10,10 0,0 0))');
 # Sptail index query
 SELECT fid, ST_ASTEXT(g) FROM geom_index WHERE MBRCONTAINS(@polygon, g) ORDER BY fid;

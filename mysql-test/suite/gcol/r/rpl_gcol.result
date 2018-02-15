@@ -10,7 +10,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) GENERATED ALWAYS AS ((`a` + 1)) VIRTUAL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t1 values (1,default);
 insert into t1 values (2,default);
 select * from t1;
@@ -59,7 +59,7 @@ gtable	CREATE TABLE `gtable` (
   `doc` json DEFAULT NULL,
   `gtext` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL,
   UNIQUE KEY `name_index` (`gtext`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Connection:slave - Row with value 3 is expected on slave.
 SELECT * FROM gtable ORDER BY gtext;
 doc	gtext

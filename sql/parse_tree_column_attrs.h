@@ -71,7 +71,11 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual void apply_default_value(Item **) const {}
   virtual void apply_on_update_value(Item **) const {}
   virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
-  virtual bool apply_collation(const CHARSET_INFO **) const { return false; }
+  virtual bool apply_collation(const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
+                               bool *has_explicit_collation) const {
+    *has_explicit_collation = false;
+    return false;
+  }
 };
 
 /**
@@ -157,13 +161,15 @@ class PT_collate_column_attr : public PT_column_attr_base {
   explicit PT_collate_column_attr(const CHARSET_INFO *collation)
       : collation(collation) {}
 
-  virtual bool apply_collation(const CHARSET_INFO **cs) const {
-    if (*cs == NULL) {
-      *cs = collation;
+  bool apply_collation(const CHARSET_INFO **to,
+                       bool *has_explicit_collation) const override {
+    *has_explicit_collation = true;
+    if (*to == nullptr) {
+      *to = collation;
       return false;
     }
-    *cs = merge_charset_and_collation(*cs, collation);
-    return *cs == NULL;
+    *to = merge_charset_and_collation(*to, collation);
+    return *to == nullptr;
   }
 };
 
@@ -677,6 +683,7 @@ class PT_field_def_base : public Parse_tree_node {
   const char *length;
   const char *dec;
   const CHARSET_INFO *charset;
+  bool has_explicit_collation;
   uint uint_geom_type;
   List<String> *interval_list;
   alter_info_flags_t alter_info_flags;
@@ -690,7 +697,8 @@ class PT_field_def_base : public Parse_tree_node {
   PT_type *type_node;
 
   explicit PT_field_def_base(PT_type *type_node)
-      : alter_info_flags(0),
+      : has_explicit_collation(false),
+        alter_info_flags(0),
         comment(EMPTY_STR),
         default_value(NULL),
         on_update_value(NULL),
@@ -724,7 +732,8 @@ class PT_field_def_base : public Parse_tree_node {
         attr->apply_default_value(&default_value);
         attr->apply_on_update_value(&on_update_value);
         attr->apply_srid_modifier(&m_srid);
-        if (attr->apply_collation(&charset)) return true;
+        if (attr->apply_collation(&charset, &has_explicit_collation))
+          return true;
       }
     }
     return false;
