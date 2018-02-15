@@ -8479,6 +8479,9 @@ ER_SRS_ATTRIBUTE_STRING_TOO_LONG SR006
 ER_SRS_NOT_GEOGRAPHIC 22S00
   eng "Function %s is only defined for geographic spatial reference systems, but one of its arguments is in SRID %u, which is not geographic."
 
+ER_POLYGON_TOO_LARGE 22023
+  eng "Function %s encountered a polygon that was too large. Polygons must cover less than half the planet."
+
 #
 #  End of 8.0 error messages.
 #

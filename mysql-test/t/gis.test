@@ -3967,3 +3967,30 @@ SELECT ST_GEOMETRYTYPE(GEOMETRYCOLLECTION(POINT(0, 0)));
 
 EXPLAIN SELECT GEOMCOLLECTION();
 EXPLAIN SELECT GEOMETRYCOLLECTION();
+
+--echo #
+--echo # Bug #26174808 BG::UNION_(MPY, PY) RETURNS EMPTY RESULT
+--echo #
+
+--error ER_POLYGON_TOO_LARGE
+SELECT ST_Contains(
+  ST_GeomFromText('LINESTRING(79 63,65 -51)', '4326','axis-order=long-lat'),
+  ST_GeomFromText(
+    'GEOMETRYCOLLECTION(POLYGON((16 -15,-132 -22,-56 89,67 -29,16 -15)),
+     POLYGON((101 49,117 -61,-164 -21,12 40,101 49)))',
+    '4326', 'axis-order=long-lat'
+  )
+) AS result;
+
+--error ER_POLYGON_TOO_LARGE
+SELECT ST_Touches(
+  ST_GeomFromText(
+    'GEOMETRYCOLLECTION(POLYGON((-31 144,-74 -125,60 -89,53 60,-31 144)),
+     POLYGON((1 23,23 105,14 -134,1 23)))',
+    '4326'
+  ),
+  ST_GeomFromText(
+    'MULTIPOLYGON(((-12 -12,-17 -157,-77 -132,-12 -12)))',
+    '4326'
+  )
+) AS result;

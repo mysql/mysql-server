@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -130,6 +130,18 @@ void typed_gc_union(double semi_major, double semi_minor,
   std::unique_ptr<MPy> polygons(new MPy());
   for (auto &py : *down_cast<MPy *>(mpy->get())) {
     polygons.reset(down_cast<MPy *>(union_(polygons.get(), &py)));
+    if (polygons->coordinate_system() == Coordinate_system::kGeographic &&
+        polygons->is_empty()) {
+      // The result of a union between a geographic multipolygon and a
+      // geographic polygon is empty. There are two reasons why this may happen:
+      //
+      // 1. One of the polygons involved are invalid.
+      // 2. One of the polygons involved covers half the globe, or more.
+      //
+      // Since invalid input is only reported to the extent it is explicitly
+      // detected, we can simply return a too large polygon error in both cases.
+      throw too_large_polygon_exception();
+    }
   }
 
   std::unique_ptr<MLs> linestrings(new MLs());
