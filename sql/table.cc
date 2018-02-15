@@ -4769,15 +4769,13 @@ Item *Field_iterator_table::create_item(THD *thd) {
   SELECT_LEX *select = thd->lex->current_select();
 
   Item_field *item = new Item_field(thd, &select->context, *ptr);
+  if (!item) return nullptr;
   /*
     This function creates Item-s which don't go through fix_fields(); see same
     code in Item_field::fix_fields().
     */
-  if (item && !thd->lex->in_sum_func &&
-      select->resolve_place == SELECT_LEX::RESOLVE_SELECT_LIST) {
-    if (select->with_sum_func && !select->group_list.elements)
-      item->maybe_null = true;
-  }
+  if (is_null_on_empty_table(thd, item)) item->maybe_null = true;
+
   return item;
 }
 

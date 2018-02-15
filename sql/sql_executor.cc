@@ -6083,8 +6083,10 @@ bool change_refs_to_tmp_fields(THD *thd, Ref_item_array ref_item_array,
   Result fields can be fields from input tables, field values generated
   by sum functions and literal values.
 
-  This is used when no rows are found during grouping and a result row
-  of all NULL values will be output.
+  This is used when no rows are found during grouping: for FROM clause, a
+  result row of all NULL values will be output; then SELECT list expressions
+  get evaluated. E.g. SUM() will be NULL (the special "clear" value) and thus
+  SUM() IS NULL will be true.
 
   @note Setting field values for input tables is a destructive operation,
         since it overwrite the NULL value flags with 1 bits. Rows from

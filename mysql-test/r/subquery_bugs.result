@@ -115,3 +115,223 @@ NULL
 NULL
 NULL
 DROP TABLE t1, t2, t3;
+#
+# Bug#24713879 ASSERTION `MAYBE_NULL' FAILED. HANDLE_FATAL_SIGNAL IN TEM_FUNC_CONCAT::VAL_STR
+#
+CREATE TABLE t1(k VARCHAR(10) PRIMARY KEY);
+CREATE TABLE t2(k VARCHAR(10) PRIMARY KEY);
+SET SQL_MODE='';
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(NULL,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'` from `test`.`t1` where multiple equal('X', NULL)
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'`,sum(`test`.`t1`.`k`) AS `SUM(k)` from `test`.`t1`
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'	SUM(k)
+NULL	NULL
+EXPLAIN SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`k`) AS `SUM(k)`,`test`.`t1`.`k` AS `k` from `test`.`t1` having ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX')
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+SUM(k)	k
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and sum(`test`.`t1`.`k`))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'` from `test`.`t1`
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+NULL
+SET SQL_MODE=ONLY_FULL_GROUP_BY;
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(NULL,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'` from `test`.`t1` where multiple equal('X', NULL)
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+SET SQL_MODE=STRICT_TRANS_TABLES;
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(NULL,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'` from `test`.`t1` where multiple equal('X', NULL)
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'`,sum(`test`.`t1`.`k`) AS `SUM(k)` from `test`.`t1`
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'	SUM(k)
+NULL	NULL
+EXPLAIN SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select sum(`test`.`t1`.`k`) AS `SUM(k)`,`test`.`t1`.`k` AS `k` from `test`.`t1` having ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X'))) = 'XXX')
+SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+SUM(k)	k
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	index	NULL	PRIMARY	42	NULL	1	100.00	Using index
+2	DEPENDENT SUBQUERY	t2	NULL	eq_ref	PRIMARY	PRIMARY	42	func	1	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where ((`test`.`t2`.`k` = concat(`test`.`t1`.`k`,'X')) and sum(`test`.`t1`.`k`))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'` from `test`.`t1`
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+NULL
+SET SQL_MODE=DEFAULT;
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
+Warnings:
+Note	1276	Field or reference 'test.t1.k' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select ((/* select#2 */ select 'X' from `test`.`t2` where (`test`.`t2`.`k` = concat(NULL,'X'))) = 'XXX') AS `(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'` from `test`.`t1` where multiple equal('X', NULL)
+SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+FROM t1
+WHERE k ='X';
+(SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX'
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX',
+SUM(k)
+FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT SUM(k), k
+FROM t1
+HAVING (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')) = 'XXX';
+ERROR 42000: In aggregated query without GROUP BY, expression #2 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+EXPLAIN SELECT (SELECT 'X' FROM t2
+WHERE t2.k = CONCAT(t1.k, 'X')
+AND SUM(t1.k)) = 'XXX'
+FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.k'; this is incompatible with sql_mode=only_full_group_by
+DROP TABLE t1,t2;

@@ -3052,9 +3052,9 @@ ON table3.col_varchar_nokey = table2.col_varchar_key
 ON table3.col_varchar_nokey = table2.col_varchar_key;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-4	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+4	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select 1 from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = NULL) or isnull(NULL)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))))) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
+Note	1003	/* select#1 */ select `test`.`sq1_t1`.`pk` AS `field1`,`test`.`sq2_t1`.`pk` AS `field2` from `test`.`t2` `table3` left join (`test`.`t2` `sq2_t1`) on(((not(<in_optimizer>(`test`.`sq2_t1`.`col_int_key`,<exists>(/* select#4 */ select `test`.`child_sq1_t1`.`col_int_key` AS `child_sq2_field1` from `test`.`t2` `child_sq1_t1` where <if>(outer_field_is_not_null, ((<cache>(`test`.`sq2_t1`.`col_int_key`) = `test`.`child_sq1_t1`.`col_int_key`) or isnull(`test`.`child_sq1_t1`.`col_int_key`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`child_sq1_t1`.`col_int_key`), true))))) and multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))) left join (`test`.`t1` `sq1_t1`) on(multiple equal(NULL, `test`.`sq2_t1`.`col_varchar_key`))
 SELECT table1.pk AS field1,
 table2.pk field2
 FROM (SELECT sq1_t1.*
