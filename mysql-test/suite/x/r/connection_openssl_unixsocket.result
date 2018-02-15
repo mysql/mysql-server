@@ -603,8 +603,34 @@ Mysqlx.Ok {
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
@@ -1243,8 +1269,34 @@ Mysqlx.Ok {
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
@@ -1883,8 +1935,34 @@ Mysqlx.Ok {
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	17
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
