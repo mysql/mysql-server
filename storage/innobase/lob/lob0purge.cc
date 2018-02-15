@@ -179,7 +179,8 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 
   page_no_t first_page_no = ref.page_no();
   page_id_t page_id(ref.space_id(), first_page_no);
-  page_size_t page_size(dict_table_page_size(index->table));
+  page_size_t page_size MY_ATTRIBUTE((unused))(
+      dict_table_page_size(index->table));
 
   z_first_page_t first(mtr, index);
   first.load_x(first_page_no);

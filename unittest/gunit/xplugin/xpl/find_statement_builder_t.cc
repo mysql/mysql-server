@@ -52,7 +52,7 @@ class Find_statement_builder_test : public ::testing::Test {
 
     std::unique_ptr<Find_statement_builder_stub> stub(
         new Find_statement_builder_stub(expr_gen.get()));
-    return std::move(stub);
+    return stub;
   }
 
   Find_statement_builder::Find msg;

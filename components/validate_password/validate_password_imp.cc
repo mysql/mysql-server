@@ -48,7 +48,7 @@ mysql_rwlock_t LOCK_dict_file;
 PSI_rwlock_key key_validate_password_LOCK_dict_file;
 
 static PSI_rwlock_info all_validate_password_rwlocks[] = {
-    {&key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0}};
+    {&key_validate_password_LOCK_dict_file, "LOCK_dict_file", 0, 0, ""}};
 
 static void init_validate_password_psi_keys() {
   const char *category = "validate_pwd";
