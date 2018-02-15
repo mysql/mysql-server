@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,7 @@ void ndb_log_error(const char* fmt, ...)
 void ndb_log_verbose(unsigned verbose_level, const char* fmt, ...)
   MY_ATTRIBUTE((format(printf, 2, 3)));
 
+
 enum ndb_log_loglevel {
    NDB_LOG_ERROR_LEVEL=       0,
    NDB_LOG_WARNING_LEVEL=     1,
@@ -58,5 +59,19 @@ enum ndb_log_loglevel {
 void ndb_log_print(enum ndb_log_loglevel loglevel,
                    const char* prefix, const char* fmt, va_list va_args)
   MY_ATTRIBUTE((format(printf, 3, 0)));
+
+/*
+  @brief Write potentially long message to standard error.
+
+  @note The above ndb_log* functions all have limitations in terms
+  of how long messages they can write to the MySQL Server error log.
+  When it's necessary to write something which is known to be longer
+  than the limit(normally 512 bytes), this function can be used instead.
+
+  @param[in]  fmt    printf-like format string
+  @param[in]  ...    Variable arguments matching format string
+*/
+void ndb_log_error_dump(const char* fmt, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 #endif

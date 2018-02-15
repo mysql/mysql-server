@@ -207,8 +207,9 @@ bool Index_element_impl::is_prefix() const
 Index_element_impl *Index_element_impl::clone(const Index_element_impl &other,
                                               Index_impl *index)
 {
-  return new Index_element_impl(other, index,
-                                index->table_impl().get_column(other.column().name()));
+  Column *dstcol =
+      (*index->table_impl().columns())[other.column().ordinal_position() - 1];
+  return new Index_element_impl(other, index, dstcol);
 }
 
 Index_element_impl::Index_element_impl(const Index_element_impl &src,
