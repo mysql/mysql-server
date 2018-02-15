@@ -9157,7 +9157,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
 /*
   Create version name for running mysqld version
-  We automaticly add suffixes -debug, -log, -valgrind, -asan, -ubsan
+  We automaticly add suffixes -debug, -valgrind, -asan, -ubsan
   to the version name to make the version more descriptive.
   (MYSQL_SERVER_SUFFIX is set by the compilation environment)
 */
@@ -9173,8 +9173,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end = strxmov(server_version, MYSQL_SERVER_VERSION,
-                      MYSQL_SERVER_SUFFIX_STR, NullS);
+  char *end MY_ATTRIBUTE((unused)) = strxmov(
+      server_version, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef DBUG_OFF
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");
