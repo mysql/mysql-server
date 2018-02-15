@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -206,8 +206,9 @@ bool Index_element_impl::is_prefix() const
 Index_element_impl *Index_element_impl::clone(const Index_element_impl &other,
                                               Index_impl *index)
 {
-  return new Index_element_impl(other, index,
-                                index->table_impl().get_column(other.column().name()));
+  Column *dstcol =
+      (*index->table_impl().columns())[other.column().ordinal_position() - 1];
+  return new Index_element_impl(other, index, dstcol);
 }
 
 Index_element_impl::Index_element_impl(const Index_element_impl &src,

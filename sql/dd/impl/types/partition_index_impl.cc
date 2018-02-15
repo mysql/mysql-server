@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,7 @@
 #include "sql/dd/impl/sdi_impl.h"             // sdi read/write functions
 #include "sql/dd/impl/tables/index_partitions.h" // Index_partitions
 #include "sql/dd/impl/transaction_impl.h"     // Open_dictionary_tables_ctx
+#include "sql/dd/impl/types/index_impl.h"     // Index_impl
 #include "sql/dd/impl/types/partition_impl.h" // Partition_impl
 #include "sql/dd/impl/types/table_impl.h"     // Table_impl
 #include "sql/dd/string_type.h"               // dd::String_type
@@ -279,7 +280,8 @@ bool Partition_index_impl::has_new_primary_key() const
 Partition_index_impl *Partition_index_impl::clone(const Partition_index_impl &other,
                                                   Partition_impl *partition)
 {
-  Index *dstix= partition->table_impl().get_index(other.m_index->id());
+  Index *dstix = (*partition->table_impl()
+                       .indexes())[other.m_index->ordinal_position() - 1];
   return new Partition_index_impl(other, partition, dstix);
 }
 
