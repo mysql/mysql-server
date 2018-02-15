@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +27,7 @@ int reader(Uint32 *, Uint32 len);
 int unpack(Uint32 *, Uint32 len);
 
 int main(){ 
+  ndb_init();
   int len = writer();
   reader(page, len);
   unpack(page, len);
@@ -65,16 +65,15 @@ struct Test {
   Uint32 val1;
   Uint32 val7;
   char val3[100];
-  Test() : val1(0xFFFFFFFF), val7(0xFFFFFFFF) { sprintf(val3, "bad");}
 };
 
 static const
 SimpleProperties::SP2StructMapping
 test_map [] = {
-  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value, 0, ~0 },
-  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value, 0, ~0 },
-  { 3, offsetof(Test, val3), SimpleProperties::StringValue, 0, sizeof(100) },
-  { 5,                    0, SimpleProperties::InvalidValue, 0, 0 }
+  { 1, offsetof(Test, val1), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
+  { 7, offsetof(Test, val7), SimpleProperties::Uint32Value, 0, (Uint32)~0, 0 },
+  { 3, offsetof(Test, val3), SimpleProperties::StringValue, 0, 100, 0 },
+  { 5,                    0, SimpleProperties::InvalidValue, 0, 0, 0 }
 };
 
 static unsigned
@@ -83,6 +82,10 @@ test_map_sz = sizeof(test_map)/sizeof(test_map[0]);
 int 
 unpack(Uint32 * pages, Uint32 len){
   Test test;
+  test.val1 = 0xFFFFFFFF;
+  test.val7 = 0xFFFFFFFF;
+  sprintf(test.val3, "bad");
+
   SimplePropertiesLinearReader it(pages, len);
   SimpleProperties::UnpackStatus status;
   while((status = SimpleProperties::unpack(it, &test, test_map, test_map_sz, 
