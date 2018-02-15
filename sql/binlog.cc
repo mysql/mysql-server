@@ -2279,6 +2279,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     DBUG_ASSERT(cache_mngr || !xs->is_binlogged() ||
                 !(is_open() && thd->variables.option_bits & OPTION_BIN_LOG));
 
+    is_empty = !xs->is_binlogged();
     if ((error = do_binlog_xa_commit_rollback(thd, xs->get_xid(), false)))
       goto end;
     cache_mngr = thd_get_cache_mngr(thd);
@@ -2291,7 +2292,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all) {
     unless XA-ROLLBACK that yet to run rollback_low().
   */
   if (cache_mngr == NULL || cache_mngr->is_binlog_empty()) {
-    is_empty = true;
     goto end;
   }
 
@@ -2467,7 +2467,7 @@ end:
       XA-rollback ignores the gtid_state, if the transaciton
       is empty.
     */
-    if (is_empty) gtid_state->update_on_rollback(thd);
+    if (is_empty && !thd->slave_thread) gtid_state->update_on_rollback(thd);
     /*
       XA-rollback commits the new gtid_state, if transaction
       is not empty.

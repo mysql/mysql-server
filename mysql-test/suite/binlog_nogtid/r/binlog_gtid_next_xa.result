@@ -787,7 +787,7 @@ one
 0
 SELECT count(*) FROM mysql.gtid_executed FOR UPDATE;
 count(*)
-16
+15
 Warnings:
 Warning	3129	Please do not modify the gtid_executed table. This is a mysql internal system table to store GTIDs for committed transactions. Modifying it can lead to an inconsistent GTID state.
 [connection master]
