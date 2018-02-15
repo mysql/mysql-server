@@ -33,7 +33,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef srv0start_h
 #define srv0start_h
 
-#include "log0log.h"
+#include "log0types.h"
+#include "os0thread-create.h"
+#ifndef UNIV_HOTBACKUP
+#include "sync0rw.h"
+#endif /* !UNIV_HOTBACKUP */
 #include "trx0purge.h"
 #include "univ.i"
 #include "ut0byte.h"
@@ -108,6 +112,9 @@ void srv_pre_dd_shutdown();
 /** Shut down the InnoDB database. */
 void srv_shutdown();
 
+/** Shut down all InnoDB background threads. */
+void srv_shutdown_all_bg_threads();
+
 /** Start purge threads. During upgrade we start
 purge threads early to apply purge. */
 void srv_start_purge_threads();
@@ -130,11 +137,6 @@ single-table tablespace.
 void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
                                       ulint max_len);
 #endif /* !UNIV_HOTBACKUP */
-
-/** Log sequence number at shutdown */
-extern lsn_t srv_shutdown_lsn;
-/** Log sequence number immediately after startup */
-extern lsn_t srv_start_lsn;
 
 /** true if the server is being started */
 extern bool srv_is_being_started;

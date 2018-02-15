@@ -634,7 +634,7 @@ class Arch_Log_Sys {
   /** Get LSN up to which redo is archived
   @return last archived redo LSN */
   lsn_t get_archived_lsn() {
-    ut_ad(log_write_mutex_own());
+    ut_ad(log_writer_mutex_own(*log_sys));
     return (m_archived_lsn);
   }
 
@@ -725,7 +725,7 @@ class Arch_Log_Sys {
   ib_mutex_t m_mutex;
 
   /** Archiver system state.
-  #m_state is protected by #m_mutex and #log_t::write_mutex. For changing
+  #m_state is protected by #m_mutex and #log_t::writer_mutex. For changing
   the state both needs to be acquired. For reading, hold any of the two
   mutexes. Same is true for #m_archived_lsn. */
   Arch_State m_state;

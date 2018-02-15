@@ -353,16 +353,12 @@ static void buf_pool_register_chunk(buf_chunk_t *chunk) {
       buf_pool_chunk_map_t::value_type(chunk->blocks->frame, chunk));
 }
 
-/** Gets the smallest oldest_modification lsn for any page in the pool. Returns
- zero if all modified pages have been flushed to disk.
- @return oldest modification in pool, zero if none */
-lsn_t buf_pool_get_oldest_modification(void) {
+lsn_t buf_pool_get_oldest_modification_approx(void) {
   lsn_t lsn = 0;
   lsn_t oldest_lsn = 0;
 
-  /* When we traverse all the flush lists we don't want another
-  thread to add a dirty page to any flush list. */
-  log_flush_order_mutex_enter();
+  /* When we traverse all the flush lists we don't care if previous
+  flush lists changed. We do not require consistent result. */
 
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
@@ -394,12 +390,37 @@ lsn_t buf_pool_get_oldest_modification(void) {
     }
   }
 
-  log_flush_order_mutex_exit();
-
   /* The returned answer may be out of date: the flush_list can
   change after the mutex has been released. */
 
   return (oldest_lsn);
+}
+
+lsn_t buf_pool_get_oldest_modification_lwm(void) {
+  const lsn_t lsn = buf_pool_get_oldest_modification_approx();
+
+  if (lsn == 0) {
+    return (0);
+  }
+
+  ut_a(lsn % OS_FILE_LOG_BLOCK_SIZE >= LOG_BLOCK_HDR_SIZE);
+
+  const log_t &log = *log_sys;
+
+  const lsn_t lag = log_buffer_flush_order_lag(log);
+
+  ut_a(lag % OS_FILE_LOG_BLOCK_SIZE == 0);
+
+  const lsn_t checkpoint_lsn = log_get_checkpoint_lsn(log);
+
+  ut_a(checkpoint_lsn != 0);
+
+  if (lsn > lag) {
+    return (std::max(checkpoint_lsn, lsn - lag));
+
+  } else {
+    return (checkpoint_lsn);
+  }
 }
 
 /** Get total buffer pool statistics. */
@@ -2159,7 +2180,6 @@ withdraw_retry:
 /** This is the thread for resizing buffer pool. It waits for an event and
 when waked up either performs a resizing and sleeps again. */
 void buf_resize_thread() {
-  srv_buf_resize_thread_active = true;
   my_thread_init();
 
   while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
@@ -2184,9 +2204,10 @@ void buf_resize_thread() {
     buf_pool_resize();
   }
 
-  srv_buf_resize_thread_active = false;
-
   my_thread_end();
+
+  std::atomic_thread_fence(std::memory_order_seq_cst);
+  srv_threads.m_buf_resize_thread_active = false;
 }
 
 /** Clears the adaptive hash index on all pages in the buffer pool. */
@@ -4683,7 +4704,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     if (recv_recovery_is_on()) {
       /* Pages must be uncompressed for crash recovery. */
       ut_a(uncompressed);
-      recv_recover_page(TRUE, (buf_block_t *)bpage);
+      recv_recover_page(true, (buf_block_t *)bpage);
     }
 
     if (uncompressed && !Compression::is_compressed_page(frame) &&
@@ -4800,9 +4821,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 }
 
 /** Asserts that all file pages in the buffer are in a replaceable state.
-@param[in]	buf_pool	buffer pool instance
-@return true */
-static ibool buf_all_freed_instance(buf_pool_t *buf_pool) {
+@param[in]	buf_pool	buffer pool instance */
+static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
   ulint i;
   buf_chunk_t *chunk;
 
@@ -4821,8 +4841,6 @@ static ibool buf_all_freed_instance(buf_pool_t *buf_pool) {
       ib::fatal() << "Page " << block->page.id << " still fixed or dirty";
     }
   }
-
-  return (TRUE);
 }
 
 /** Refreshes the statistics used to print per-second averages.
@@ -4864,7 +4882,7 @@ static void buf_pool_invalidate_instance(buf_pool_t *buf_pool) {
 
   mutex_exit(&buf_pool->flush_state_mutex);
 
-  ut_ad(buf_all_freed_instance(buf_pool));
+  ut_d(buf_must_be_all_freed_instance(buf_pool));
 
   while (buf_LRU_scan_and_free_block(buf_pool, true)) {
   }
@@ -5670,20 +5688,15 @@ void buf_refresh_io_stats_all(void) {
   }
 }
 
-/** Check if all pages in all buffer pools are in a replacable state.
- @return false if not */
-ibool buf_all_freed(void) {
+/** Aborts the current process if there is any page in other state. */
+void buf_must_be_all_freed(void) {
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     buf_pool_t *buf_pool;
 
     buf_pool = buf_pool_from_array(i);
 
-    if (!buf_all_freed_instance(buf_pool)) {
-      return (FALSE);
-    }
+    buf_must_be_all_freed_instance(buf_pool);
   }
-
-  return (TRUE);
 }
 
 /** Checks that there currently are no pending i/o-operations for the buffer

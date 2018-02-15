@@ -401,19 +401,58 @@ void buf_flush_free_flush_rbt(void) {
   }
 }
 
+bool buf_are_flush_lists_empty_validate(void) {
+  /* No mutex is acquired. It is used by single-thread
+  in assertions during startup. */
+
+  for (size_t i = 0; i < srv_buf_pool_instances; i++) {
+    auto buf_pool = buf_pool_from_array(i);
+
+    if (UT_LIST_GET_FIRST(buf_pool->flush_list) != nullptr) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/** Checks that order of two consecutive pages in flush list would be valid,
+according to their oldest_modification values.
+
+@remarks
+We have a relaxed order in flush list, but still we have guarantee,
+that the earliest added page has oldest_modification not greater than
+minimum oldest_midification of all dirty pages by more than number of
+slots in the log recent closed buffer.
+
+This is used by assertions only.
+
+@param[in]	earlier_added_lsn	oldest_modification of page which was
+                                        added to flush list earlier
+@param[in]	new_added_lsn		oldest_modification of page which is
+                                        being added to flush list
+@return true iff the order is valid
+@see @ref sect_redo_log_reclaim_space
+@see @ref sect_redo_log_add_dirty_pages */
+static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
+                                                 lsn_t new_added_lsn) {
+  return (earlier_added_lsn <=
+          new_added_lsn + log_buffer_flush_order_lag(*log_sys));
+}
+
 /** Inserts a modified block into the flush list. */
 void buf_flush_insert_into_flush_list(
     buf_pool_t *buf_pool, /*!< buffer pool instance */
     buf_block_t *block,   /*!< in/out: block which is modified */
     lsn_t lsn)            /*!< in: oldest modification */
 {
-  ut_ad(log_flush_order_mutex_own());
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL) ||
-        (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification <= lsn));
+  ut_ad(UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL ||
+        buf_flush_list_order_validate(
+            UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification, lsn));
 
   /* If we are in the recovery then we need to update the flush
   red-black tree as well. */
@@ -463,7 +502,6 @@ void buf_flush_insert_sorted_into_flush_list(
   buf_page_t *prev_b;
   buf_page_t *b;
 
-  ut_ad(log_flush_order_mutex_own());
   ut_ad(mutex_own(buf_page_get_mutex(&block->page)));
   ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 
@@ -991,7 +1029,11 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
 
   /* Force the log to the disk before writing the modified block */
   if (!srv_read_only_mode) {
-    log_write_up_to(bpage->newest_modification, true);
+    Wait_stats wait_stats;
+
+    wait_stats = log_write_up_to(*log_sys, bpage->newest_modification, true);
+
+    MONITOR_INC_WAIT_STATS_EX(MONITOR_ON_LOG_, _PAGE_WRITTEN, wait_stats);
   }
 
   switch (buf_page_get_state(bpage)) {
@@ -2251,7 +2293,7 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
   ulint pct_for_lsn = 0;
   ulint pct_total = 0;
 
-  cur_lsn = log_get_lsn();
+  cur_lsn = log_buffer_dirty_pages_added_up_to_lsn(*log_sys);
 
   if (prev_lsn == 0) {
     /* First time around. */
@@ -2366,9 +2408,9 @@ static ulint page_cleaner_flush_pages_recommendation(lsn_t *lsn_limit,
     sum_pages = 0;
   }
 
-  oldest_lsn = buf_pool_get_oldest_modification();
+  oldest_lsn = buf_pool_get_oldest_modification_approx();
 
-  ut_ad(oldest_lsn <= log_get_lsn());
+  ut_ad(oldest_lsn <= log_get_lsn(*log_sys));
 
   age = cur_lsn > oldest_lsn ? cur_lsn - oldest_lsn : 0;
 
@@ -3219,9 +3261,19 @@ static void buf_flush_page_cleaner_thread() {
  latches on pages! */
 void buf_flush_sync_all_buf_pools(void) {
   bool success;
+  ulint n_pages;
   do {
-    success = buf_flush_lists(ULINT_MAX, LSN_MAX, NULL);
+    n_pages = 0;
+    success = buf_flush_lists(ULINT_MAX, LSN_MAX, &n_pages);
     buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
+
+    if (!success) {
+      MONITOR_INC(MONITOR_FLUSH_SYNC_WAITS);
+    }
+
+    MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_SYNC_TOTAL_PAGE,
+                                 MONITOR_FLUSH_SYNC_COUNT,
+                                 MONITOR_FLUSH_SYNC_PAGES, n_pages);
   } while (!success);
 
   ut_a(success);
@@ -3230,6 +3282,8 @@ void buf_flush_sync_all_buf_pools(void) {
 /** Request IO burst and wake page_cleaner up.
 @param[in]	lsn_limit	upper limit of LSN to be flushed */
 void buf_flush_request_force(lsn_t lsn_limit) {
+  ut_a(buf_page_cleaner_is_active);
+
   /* adjust based on lsn_avg_rate not to get old */
   lsn_t lsn_target = lsn_limit + lsn_avg_rate * 3;
 
@@ -3300,7 +3354,8 @@ static ibool buf_flush_validate_low(
 
     bpage = UT_LIST_GET_NEXT(list, bpage);
 
-    ut_a(bpage == NULL || om >= bpage->oldest_modification);
+    ut_a(bpage == NULL ||
+         buf_flush_list_order_validate(bpage->oldest_modification, om));
   }
 
   /* By this time we must have exhausted the traversal of

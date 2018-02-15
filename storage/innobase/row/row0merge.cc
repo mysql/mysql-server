@@ -119,20 +119,22 @@ class index_tuple_info_t {
     dberr_t error = DB_SUCCESS;
     dtuple_t *dtuple;
     ulint count = 0;
+    bool force_log_free_check = false;
+
     const ulint flag = BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG |
                        BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG;
 
     ut_ad(dict_index_is_spatial(m_index));
 
     DBUG_EXECUTE_IF("row_merge_instrument_log_check_flush",
-                    log_sys->check_flush_or_checkpoint = true;);
+                    force_log_free_check = true;);
 
     for (idx_tuple_vec::iterator it = m_dtuple_vec->begin();
          it != m_dtuple_vec->end(); ++it) {
       dtuple = *it;
       ut_ad(dtuple);
 
-      if (log_sys->check_flush_or_checkpoint) {
+      if (log_needs_free_check() || force_log_free_check) {
         if (!(*mtr_committed)) {
           /* Since the data of the tuple pk fields
           are pointers of cluster rows. After mtr
@@ -155,6 +157,8 @@ class index_tuple_info_t {
         }
 
         log_free_check();
+
+        force_log_free_check = false;
       }
 
       mtr.start();

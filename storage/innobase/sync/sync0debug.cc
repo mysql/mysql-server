@@ -403,9 +403,13 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_FTS_BG_THREADS);
   LEVEL_MAP_INSERT(SYNC_FTS_CACHE_INIT);
   LEVEL_MAP_INSERT(SYNC_RECV);
-  LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_ORDER);
-  LEVEL_MAP_INSERT(SYNC_LOG);
-  LEVEL_MAP_INSERT(SYNC_LOG_WRITE);
+  LEVEL_MAP_INSERT(SYNC_LOG_SN);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITER);
+  LEVEL_MAP_INSERT(SYNC_LOG_WRITE_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSH_NOTIFIER);
+  LEVEL_MAP_INSERT(SYNC_LOG_FLUSHER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CLOSER);
+  LEVEL_MAP_INSERT(SYNC_LOG_CHECKPOINTER);
   LEVEL_MAP_INSERT(SYNC_LOG_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH);
   LEVEL_MAP_INSERT(SYNC_PAGE_ARCH_OPER);
@@ -634,6 +638,7 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       /* Do no order checking */
       break;
 
+    case SYNC_LOG_SN:
     case SYNC_TRX_SYS_HEADER:
     case SYNC_LOCK_FREE_HASH:
     case SYNC_MONITOR_MUTEX:
@@ -645,9 +650,12 @@ Latches *LatchDebug::check_order(const latch_t *latch,
     case SYNC_FTS_CACHE:
     case SYNC_FTS_CACHE_INIT:
     case SYNC_PAGE_CLEANER:
-    case SYNC_LOG:
-    case SYNC_LOG_WRITE:
-    case SYNC_LOG_FLUSH_ORDER:
+    case SYNC_LOG_CHECKPOINTER:
+    case SYNC_LOG_CLOSER:
+    case SYNC_LOG_WRITER:
+    case SYNC_LOG_FLUSHER:
+    case SYNC_LOG_WRITE_NOTIFIER:
+    case SYNC_LOG_FLUSH_NOTIFIER:
     case SYNC_LOG_ARCH:
     case SYNC_PAGE_ARCH:
     case SYNC_PAGE_ARCH_OPER:
@@ -861,18 +869,18 @@ Latches *LatchDebug::check_order(const latch_t *latch,
 
     case SYNC_PERSIST_DIRTY_TABLES:
 
-      basic_check(latches, level, SYNC_LOG);
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
       break;
 
     case SYNC_PERSIST_AUTOINC:
 
-      basic_check(latches, level, SYNC_LOG);
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
       ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
       break;
 
     case SYNC_PERSIST_CHECKPOINT:
 
-      basic_check(latches, level, SYNC_LOG);
+      basic_check(latches, level, SYNC_IBUF_MUTEX);
       ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
       ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
       break;
@@ -1236,12 +1244,22 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(IBUF_PESSIMISTIC_INSERT, SYNC_IBUF_PESS_INSERT_MUTEX,
                   ibuf_pessimistic_insert_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_SYS, SYNC_LOG, log_sys_mutex_key);
+  LATCH_ADD_MUTEX(LOG_CHECKPOINTER, SYNC_LOG_CHECKPOINTER,
+                  log_checkpointer_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_WRITE, SYNC_LOG_WRITE, log_sys_write_mutex_key);
+  LATCH_ADD_MUTEX(LOG_CLOSER, SYNC_LOG_CLOSER, log_closer_mutex_key);
 
-  LATCH_ADD_MUTEX(LOG_FLUSH_ORDER, SYNC_LOG_FLUSH_ORDER,
-                  log_flush_order_mutex_key);
+  LATCH_ADD_MUTEX(LOG_WRITER, SYNC_LOG_WRITER, log_writer_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSHER, SYNC_LOG_FLUSHER, log_flusher_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_WRITE_NOTIFIER, SYNC_LOG_WRITE_NOTIFIER,
+                  log_write_notifier_mutex_key);
+
+  LATCH_ADD_MUTEX(LOG_FLUSH_NOTIFIER, SYNC_LOG_FLUSH_NOTIFIER,
+                  log_flush_notifier_mutex_key);
+
+  LATCH_ADD_RWLOCK(LOG_SN, SYNC_LOG_SN, log_sn_lock_key);
 
   LATCH_ADD_MUTEX(LOG_ARCH, SYNC_LOG_ARCH, log_sys_arch_mutex_key);
 
@@ -1377,8 +1395,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 #endif /* UNIV_DEBUG */
 
   LATCH_ADD_RWLOCK(DICT_OPERATION, SYNC_DICT, dict_operation_lock_key);
-
-  LATCH_ADD_RWLOCK(CHECKPOINT, SYNC_NO_ORDER_CHECK, checkpoint_lock_key);
 
   LATCH_ADD_RWLOCK(RSEGS, SYNC_RSEGS, rsegs_lock_key);
 

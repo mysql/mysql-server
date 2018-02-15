@@ -224,6 +224,12 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
+innodb/log_checkpointer_thread	BACKGROUND
+innodb/log_closer_thread	BACKGROUND
+innodb/log_flusher_thread	BACKGROUND
+innodb/log_flush_notifier_thread	BACKGROUND
+innodb/log_writer_thread	BACKGROUND
+innodb/log_write_notifier_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND
@@ -268,6 +274,12 @@ innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
 innodb/io_write_thread	BACKGROUND
+innodb/log_checkpointer_thread	BACKGROUND
+innodb/log_closer_thread	BACKGROUND
+innodb/log_flusher_thread	BACKGROUND
+innodb/log_flush_notifier_thread	BACKGROUND
+innodb/log_writer_thread	BACKGROUND
+innodb/log_write_notifier_thread	BACKGROUND
 innodb/page_flush_coordinator_thread	BACKGROUND
 root@localhost	FOREGROUND
 sql/compress_gtid_table	FOREGROUND

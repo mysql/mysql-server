@@ -1796,6 +1796,7 @@ innodb_thread_concurrency	0
 set global innodb_thread_concurrency=1001;
 Warnings:
 Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
+Warning	1210	Current innodb_thread_concurrency is too big for safety of log files. Consider decreasing it or increase number of log files.
 show variables like "innodb_thread_concurrency";
 Variable_name	Value
 innodb_thread_concurrency	1000

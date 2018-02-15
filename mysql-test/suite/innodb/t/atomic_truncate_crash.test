@@ -10,7 +10,7 @@
 # [Note] InnoDB: Unable to open tablespace ...
 #        This should be fixed after data dictionary and DDL recovery later.
 # ... and the crash recovery has finally success.
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
+CALL mtr.add_suppression(".*InnoDB: Could not find a valid tablespace file for");
 
 CREATE TABLE t2 (a INT);
 

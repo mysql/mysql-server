@@ -251,6 +251,13 @@ void buf_flush_sync_all_buf_pools(void);
 @param[in]	lsn_limit	upper limit of LSN to be flushed */
 void buf_flush_request_force(lsn_t lsn_limit);
 
+/** Checks if all flush lists are empty. It is supposed to be used in
+single thread, during startup or shutdown. Hence it does not acquire
+lock and it is caller's responsibility to guarantee that flush lists
+are not changed in background.
+@return true if all flush lists were empty. */
+bool buf_are_flush_lists_empty_validate();
+
 /** We use FlushObserver to track flushing of non-redo logged pages in bulk
 create index(BtrBulk.cc).Since we disable redo logging during a index build,
 we need to make sure that all dirty pages modifed by the index build are

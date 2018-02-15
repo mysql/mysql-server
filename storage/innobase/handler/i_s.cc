@@ -1768,9 +1768,15 @@ static int i_s_metrics_fill(
     }
 
     /* Fill in counter's basic information */
+    ut_a(strlen(monitor_info->monitor_name) <= NAME_LEN);
+
     OK(field_store_string(fields[METRIC_NAME], monitor_info->monitor_name));
 
+    ut_a(strlen(monitor_info->monitor_module) <= NAME_LEN);
+
     OK(field_store_string(fields[METRIC_SUBSYS], monitor_info->monitor_module));
+
+    ut_a(strlen(monitor_info->monitor_desc) <= NAME_LEN);
 
     OK(field_store_string(fields[METRIC_DESC], monitor_info->monitor_desc));
 

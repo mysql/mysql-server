@@ -1,0 +1,110 @@
+/*****************************************************************************
+
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************************/ /**
+ @file include/os0event.ic
+
+ Inlined implementation for os_event_*
+ *******************************************************************/
+
+/** Waits in loop until a provided condition is satisfied. Combines usage
+of spin-delay and event.
+
+@remarks
+
+First it uses a spin loop with PAUSE instructions. In each spin iteration
+it checks the condition and stops as soon as it returned true.
+
+When a provided number of spin iterations is reached, and the condition
+still has not returned true, waiting on a provided event starts.
+
+Each wait uses a provided timeout. After each wake-up the condition is
+re-checked and function stops as soon as the condition returned true.
+
+Every k-waits (ended on wake-up or timeout), the timeout is multiplied by two
+(but it's limited up to maximum value of 100ms).
+
+@param[in/out]	event			event on which function may wait
+@param[in]	spins_limit		maximum spin iterations
+@param[in]	timeout			initial timeout value
+@param[in]	timeout_mul2_every	timeout is multiplied by two every
+                                        that many waits on event
+@param[in]	condition		returns true when condition is
+                                        satisfied
+
+@return number of loops with wait on event that have been used */
+template <typename Condition>
+inline static Wait_stats os_event_wait_for(os_event_t &event,
+                                           uint64_t spins_limit,
+                                           uint64_t timeout,
+                                           Condition condition = {}) {
+  uint64_t waits = 0;
+#ifdef _WIN32
+  uint64_t next_level = 64;
+#else
+  uint64_t next_level = 4;
+#endif
+
+  while (true) {
+    /* Store current sig_count before checking the
+    condition, not to miss notification. */
+
+    const int64_t sig_count = spins_limit != 0 ? 0 : os_event_reset(event);
+
+    /* Important: we do not want to split this loop to two
+    loops (one for spin-delay and one for event), because
+    we assume the condition is inlined below, and we don't
+    want to make it inlined in two places. */
+    if (condition(spins_limit == 0)) {
+      return (Wait_stats{waits});
+    }
+
+    if (spins_limit != 0) {
+      /* It's still spin-delay loop. */
+      --spins_limit;
+      UT_RELAX_CPU();
+
+    } else {
+      /* Event-based loop. */
+
+      ++waits;
+
+      if (waits == next_level) {
+        timeout = std::min(timeout * 2, uint64_t{100 * 1000});
+
+#ifdef _WIN32
+        /* On Windows timeout is expressed in ms,
+        so it's divided by 1000 and rounded down
+        to 0 when it's smaller than 1000.
+
+        In such case, it takes in average 10us to
+        perform single SleepConditionVariableCS.
+
+        So we need to perform more such 10us waits
+        to simulate given number of timeout waits. */
+        next_level += 64;
+#else
+        next_level += 4;
+#endif
+      }
+
+      /* This translates to pthread_cond_wait (linux). */
+      os_event_wait_time_low(event, timeout, sig_count);
+    }
+  }
+}

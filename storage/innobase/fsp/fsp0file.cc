@@ -441,8 +441,8 @@ m_is_valid is also set true on success, else false. */
 dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
   dberr_t err;
 
-  ut_ad(is_open());
   ut_ad(!srv_read_only_mode);
+  ut_ad(is_open());
 
   err = validate_first_page(space_id, 0, false);
 

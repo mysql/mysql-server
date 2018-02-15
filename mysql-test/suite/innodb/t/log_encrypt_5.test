@@ -13,9 +13,6 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to find tablesp
 call mtr.add_suppression("ibd can't be decrypted , please confirm the keyfile is match and keyring plugin is loaded.");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace .* because it could not be opened");
 call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Can't set redo log tablespace to be encrypted.");
-call mtr.add_suppression("InnoDB: Resizing redo log from");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-call mtr.add_suppression("InnoDB: New log files created, LSN=");
 call mtr.add_suppression("Plugin keyring_file reported: 'File");
 --enable_query_log
 

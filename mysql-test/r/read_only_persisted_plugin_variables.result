@@ -113,13 +113,11 @@ SELECT count(*) from performance_schema.persisted_variables;
 count(*)
 96
 # Restart server
-CALL mtr.add_suppression("InnoDB: Resizing redo log from *");
-CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-CALL mtr.add_suppression("InnoDB: New log files created,*");
 CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 100 rows.
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
+innodb_log_buffer_size	16777216
 slave_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	1
@@ -141,7 +139,6 @@ innodb_ft_max_token_size	84
 innodb_ft_min_token_size	4
 innodb_ft_sort_pll_degree	2
 innodb_ft_total_cache_size	640000000
-innodb_log_buffer_size	16777216
 innodb_log_file_size	50331648
 innodb_log_files_in_group	2
 innodb_open_files	1

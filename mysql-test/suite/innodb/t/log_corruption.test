@@ -179,7 +179,7 @@ EOF
 --exec unzip $MYSQL_TEST_DIR/suite/innodb/t/log_corruption7.zip -d $newdir > $SEARCH_FILE
 --error 1
 --exec $MYSQLD $args
-let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* pages, LSN=1319985;
+let SEARCH_PATTERN=InnoDB: Upgrading redo log: 2\\*.* bytes, LSN=1319985;
 --source include/search_pattern.inc
 
 --force-rmdir  $newdir

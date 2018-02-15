@@ -240,11 +240,24 @@
 
   @section storage_innodb Innodb
 
-  See #ha_innobase.
+  See #ha_innobase or read details about InnoDB internals:
+  - @subpage PAGE_INNODB_PFS
+  - @subpage PAGE_INNODB_REDO_LOG
+  - @subpage PAGE_INNODB_UTILS
 
-  @subpage PAGE_INNODB_PFS
+  @section storage_temptable Temp table
+
+  Before 8.0, temporary tables were handled by heap engine.
+  The heap engine had no feature to store bigger tables on disk.
+
+  Since 8.0, there is a brand new temptable engine, which
+  is written from scratch using c++11. It has following advantages:
+  - it is able to store bigger tables on disk (in temporary files),
+  - it uses row format with variable size (can save memory for varchars),
+  - it is better designed (easier to maintain).
 
   @subpage PAGE_TEMPTABLE
+
 */
 
 

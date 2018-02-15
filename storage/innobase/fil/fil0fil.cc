@@ -1956,6 +1956,7 @@ fil_space_t *fil_space_get(space_id_t space_id) {
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Returns the latch of a file space.
 @param[in]	space_id	Tablespace ID
 @return latch protecting storage allocation */
@@ -1972,22 +1973,22 @@ rw_lock_t *fil_space_get_latch(space_id_t space_id) {
 }
 
 #ifdef UNIV_DEBUG
+
 /** Gets the type of a file space.
 @param[in]	space_id	Tablespace ID
 @return file type */
 fil_type_t fil_space_get_type(space_id_t space_id) {
-  fil_space_t *space;
-
   auto shard = fil_system->shard_by_id(space_id);
 
   shard->mutex_acquire();
 
-  space = shard->get_space_by_id(space_id);
+  auto space = shard->get_space_by_id(space_id);
 
   shard->mutex_release();
 
   return (space->purpose);
 }
+
 #endif /* UNIV_DEBUG */
 
 /** Note that a tablespace has been imported.
@@ -2782,7 +2783,8 @@ void Fil_shard::space_detach(fil_space_t *space) {
 There must not be any pending I/O's or flushes on the files.
 @param[in,out]	space		tablespace */
 void Fil_shard::space_free_low(fil_space_t *&space) {
-  ut_ad(srv_fast_shutdown == 2 || space->max_lsn == 0);
+  // FIXME
+  // ut_ad(srv_fast_shutdown == 2);
 
   for (auto &file : space->files) {
     ut_d(space->size -= file.size);
@@ -3334,6 +3336,10 @@ void Fil_shard::close_all_files() {
          space->id == dict_sys_t::s_log_space_first_id ||
          space->files.size() == 1);
 
+    if (space->id == dict_sys_t::s_log_space_first_id) {
+      fil_space_t::s_redo_space = nullptr;
+    }
+
     for (auto &file : space->files) {
       if (file.is_open) {
         close_file(&file, false);
@@ -3383,8 +3389,6 @@ void Fil_shard::close_log_files(bool free_all) {
 
       fil_space_t::s_redo_space = nullptr;
     }
-
-    ut_ad(space->max_lsn == 0);
 
     for (auto &file : space->files) {
       if (file.is_open) {
@@ -3968,7 +3972,7 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
 #ifdef UNIV_HOTBACKUP
   /* When replaying the operation in MySQL Enterprise
   Backup, we do not try to write any log record. */
-#else /* UNIV_HOTBACKUP */
+#else  /* UNIV_HOTBACKUP */
     /* Before deleting the file, write a log record about
     it, so that InnoDB crash recovery will expect the file
     to be gone. */
@@ -3983,8 +3987,8 @@ dberr_t Fil_shard::space_delete(space_id_t space_id, buf_remove_t buf_remove) {
     /* Even if we got killed shortly after deleting the
     tablespace file, the record must have already been
     written to the redo log. */
-    log_write_up_to(mtr.commit_lsn(), true);
 
+    log_write_up_to(*log_sys, mtr.commit_lsn(), true);
 #endif /* UNIV_HOTBACKUP */
 
     char *cfg_name = Fil_path::make_cfg(path);
@@ -5055,8 +5059,7 @@ dberr_t fil_ibd_create(space_id_t space_id, const char *name, const char *path,
 
     mtr_commit(&mtr);
 
-    DBUG_EXECUTE_IF("fil_ibd_create_log",
-                    log_make_checkpoint_at(LSN_MAX, true););
+    DBUG_EXECUTE_IF("fil_ibd_create_log", log_make_latest_checkpoint(););
   }
 
 #endif /* !UNIV_HOTBACKUP */
@@ -7333,8 +7336,6 @@ void fil_aio_wait(ulint segment) {
       }
       return;
     case FIL_TYPE_LOG:
-      srv_set_io_thread_op_info(segment, "complete checkpoint io");
-      log_io_complete(static_cast<log_group_t *>(message));
       return;
   }
 
@@ -9064,10 +9065,12 @@ bool fil_check_missing_tablespaces() {
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9122,6 +9125,9 @@ byte *fil_tablespace_redo_create(byte *ptr, const byte *end,
     return (nullptr);
   }
 
+  if (parse_only) {
+    return (ptr);
+  }
 #ifdef UNIV_HOTBACKUP
 
   meb_tablespace_redo_create(page_id, flags, name);
@@ -9163,10 +9169,12 @@ This function doesn't do anything, simply parses the redo log record.
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9246,7 +9254,9 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 
 #ifdef UNIV_HOTBACKUP
 
-  meb_tablespace_redo_rename(page_id, from_name, to_name);
+  if (!parse_only) {
+    meb_tablespace_redo_rename(page_id, from_name, to_name);
+  }
 
 #else  /* !UNIV_HOTBACKUP */
 
@@ -9279,10 +9289,12 @@ byte *fil_tablespace_redo_rename(byte *ptr, const byte *end,
 @param[in]	end		end of the redo log buffer
 @param[in]	page_id		Tablespace Id and first page in file
 @param[in]	parsed_bytes	Number of bytes parsed so far
+@param[in]	parse_only	Don't apply, parse only
 @return pointer to next redo log record
 @retval nullptr if this log record was truncated */
 byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
-                                 const page_id_t &page_id, ulint parsed_bytes) {
+                                 const page_id_t &page_id, ulint parsed_bytes,
+                                 bool parse_only) {
   ut_a(page_id.page_no() == 0);
 
   /* We never recreate the system tablespace. */
@@ -9327,6 +9339,9 @@ byte *fil_tablespace_redo_delete(byte *ptr, const byte *end,
     return (nullptr);
   }
 
+  if (parse_only) {
+    return (ptr);
+  }
 #ifdef UNIV_HOTBACKUP
 
   meb_tablespace_redo_delete(page_id, name);

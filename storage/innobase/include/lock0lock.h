@@ -760,9 +760,6 @@ struct lock_sys_t {
                             thread. A value of 0 means the
                             thread is not active */
 
-  bool timeout_thread_active; /*!< True if the timeout thread
-                              is running */
-
   /** Marker value before trx_t::age. */
   uint64_t mark_age_updated;
 

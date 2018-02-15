@@ -64,7 +64,7 @@ SELECT @@global.innodb_log_write_ahead_size;
 SET global innodb_log_write_ahead_size=3000;
 Warnings:
 Warning	1292	Truncated incorrect innodb_log_write_ahead_size value: '3000'
-Warning	1210	innodb_log_write_ahead_size should be set 2^n value and larger than 512.
+Warning	1210	innodb_log_write_ahead_size should be set to power of 2, in range [512,16384]
 Warning	1210	Setting innodb_log_write_ahead_size to 4096
 SELECT @@global.innodb_log_write_ahead_size;
 @@global.innodb_log_write_ahead_size

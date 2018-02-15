@@ -41,6 +41,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "os0file.h"
 #include "fil0fil.h"
 #include "ha_prototypes.h"
+#include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -310,11 +311,7 @@ struct Slot {
   os_offset_t offset{0};
 
   /** file where to read or write */
-#ifdef UNIV_PFS_IO
-  pfs_os_file_t file{0, nullptr};
-#else
   pfs_os_file_t file{0};
-#endif /* UNIV_PFS_IO */
 
   /** file name or path */
   const char *name{nullptr};
@@ -4197,10 +4194,9 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
   // TODO: Create a bug, this looks wrong. The flush log
   // parameter is dynamic.
   if ((type == OS_BUFFERED_FILE) || (type == OS_CLONE_LOG_FILE) ||
-      (type == OS_LOG_FILE && srv_flush_log_at_trx_commit == 2)) {
+      (type == OS_LOG_FILE)) {
     /* Do not use unbuffered i/o for the log files because
-    value 2 denotes that we do not flush the log at every
-    commit, but only once per second */
+    we write really a lot and we have log flusher for fsyncs. */
 
   } else if (srv_win_file_flush_method == SRV_WIN_IO_UNBUFFERED) {
     attributes |= FILE_FLAG_NO_BUFFERING;

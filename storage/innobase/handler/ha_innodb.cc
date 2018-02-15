@@ -218,9 +218,6 @@ static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 
-static ulong innodb_log_buffer_size;
-static ulonglong innodb_log_file_size;
-
 extern thread_local ulint ut_rnd_ulint_counter;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
@@ -590,15 +587,18 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_flush_order_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(hash_table_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(lock_free_hash_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_checkpointer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_closer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_writer_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_flusher_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_write_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(log_flush_notifier_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(log_sys_write_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(log_cmdq_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(mutex_list_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(page_sys_arch_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -663,7 +663,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
     PSI_RWLOCK_KEY(dict_operation_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(dict_persist_checkpoint, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fil_space_latch, 0, PSI_DOCUMENT_ME),
-    PSI_RWLOCK_KEY(checkpoint_lock, 0, PSI_DOCUMENT_ME),
+    PSI_RWLOCK_KEY(log_sn_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(undo_spaces_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(rsegs_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fts_cache_rw_lock, 0, PSI_DOCUMENT_ME),
@@ -691,6 +691,12 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_KEY(io_read_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(io_write_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(buf_resize_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_writer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_closer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_checkpointer_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_flusher_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_write_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
+    PSI_KEY(log_flush_notifier_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(recv_writer_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(srv_error_monitor_thread, 0, 0, PSI_DOCUMENT_ME),
     PSI_KEY(srv_lock_timeout_thread, 0, 0, PSI_DOCUMENT_ME),
@@ -2051,6 +2057,7 @@ const char *innobase_basename(const char *path_name) {
 
   return ((name) ? name : "null");
 }
+
 #ifndef UNIV_HOTBACKUP
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
@@ -3568,6 +3575,7 @@ static
 }
 
 #ifndef UNIV_HOTBACKUP
+
 /** Minimum expected tablespace size. (5M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
@@ -3733,11 +3741,21 @@ static int innodb_init_params() {
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
+  ut_a(srv_log_buffer_size % OS_FILE_LOG_BLOCK_SIZE == 0);
+  ut_a(srv_log_buffer_size > 0);
+
+  ut_a(srv_log_write_ahead_size % OS_FILE_LOG_BLOCK_SIZE == 0);
+  ut_a(srv_log_write_ahead_size > 0);
+
+  ut_a(srv_log_file_size % UNIV_PAGE_SIZE == 0);
+  ut_a(srv_log_file_size > 0);
+
   acquire_sysvar_source_service();
   /* If innodb_dedicated_server == ON */
   if (srv_dedicated_server && sysvar_source_svc != nullptr) {
     static const char *variable_name = "innodb_log_file_size";
-    enum enum_variable_source source;
+    enum_variable_source source;
+
     if (!sysvar_source_svc->get(
             variable_name, static_cast<unsigned int>(strlen(variable_name)),
             &source)) {
@@ -3746,25 +3764,23 @@ static int innodb_init_params() {
         if (server_mem < 1.0) {
           ;
         } else if (server_mem <= 4.0) {
-          innodb_log_file_size = 128ULL * MB;
+          srv_log_file_size = 128ULL * MB;
         } else if (server_mem <= 8.0) {
-          innodb_log_file_size = 512ULL * MB;
+          srv_log_file_size = 512ULL * MB;
         } else if (server_mem <= 16.0) {
-          innodb_log_file_size = 1024ULL * MB;
+          srv_log_file_size = 1024ULL * MB;
         } else {
-          innodb_log_file_size = 2048ULL * MB;
+          srv_log_file_size = 2048ULL * MB;
         }
       } else {
         ib::warn() << "Option innodb_dedicated_server"
                       " is ignored for innodb_log_file_size"
                       " because innodb_log_file_size="
-                   << innodb_log_file_size << " is specified explicitly.";
+                   << srv_log_file_size << " is specified explicitly.";
       }
     }
   }
   release_sysvar_source_service();
-
-  srv_log_file_size = innodb_log_file_size;
 
   if (srv_n_log_files * srv_log_file_size >=
       512ULL * 1024ULL * 1024ULL * 1024ULL) {
@@ -3778,9 +3794,7 @@ static int innodb_init_params() {
     DBUG_RETURN(HA_ERR_INITIALIZATION);
   }
 
-  srv_log_file_size /= UNIV_PAGE_SIZE;
-
-  if (srv_n_log_files * srv_log_file_size >= PAGE_NO_MAX) {
+  if (srv_n_log_files * srv_log_file_size / UNIV_PAGE_SIZE >= PAGE_NO_MAX) {
     /* fil_io() is used for IO to log files and it takes page_id_t
     as an argument which uses page_no_t. So any page number must
     be < PAGE_NO_MAX. This means that a redo log file size is
@@ -3840,7 +3854,7 @@ static int innodb_init_params() {
 
   srv_use_doublewrite_buf = (ibool)innobase_use_doublewrite;
 
-  innodb_log_checksums_func_update(innodb_log_checksums);
+  innodb_log_checksums_func_update(srv_log_checksums);
 
 #ifdef HAVE_LINUX_LARGE_PAGES
   if ((os_use_large_pages = opt_large_pages)) {
@@ -3867,8 +3881,6 @@ static int innodb_init_params() {
 
   srv_max_n_open_files = (ulint)innobase_open_files;
   srv_innodb_status = (ibool)innobase_create_status_file;
-
-  srv_print_verbose_log = 1;
 
   /* Round up fts_sort_pll_degree to nearest power of 2 number */
   for (num_pll_degree = 1; num_pll_degree < fts_sort_pll_degree;
@@ -3918,6 +3930,7 @@ static int innodb_init_params() {
       os_is_o_direct_supported()) {
     static const char *variable_name = "innodb_flush_method";
     enum enum_variable_source source;
+
     if (!sysvar_source_svc->get(variable_name, strlen(variable_name),
                                 &source)) {
       /* If innodb_flush_method is not specified explicitly */
@@ -4030,8 +4043,6 @@ static int innodb_init_params() {
     is number of buffer pool instances. */
     srv_n_page_cleaners = srv_buf_pool_instances;
   }
-
-  srv_log_buffer_size = innodb_log_buffer_size / UNIV_PAGE_SIZE;
 
   srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 
@@ -16140,7 +16151,7 @@ static bool innobase_lock_hton_log(handlerton *hton) {
   DBUG_ENTER("innodb_lock_hton_log");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_lock();
+  log_position_lock(*log_sys);
 
   DBUG_RETURN(ret_val);
 }
@@ -16154,7 +16165,7 @@ static bool innobase_unlock_hton_log(handlerton *hton) {
   DBUG_ENTER("innodb_unlock_hton_log");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_unlock();
+  log_position_unlock(*log_sys);
 
   DBUG_RETURN(ret_val);
 }
@@ -16171,7 +16182,7 @@ static bool innobase_collect_hton_log_info(handlerton *hton, Json_dom *json) {
   DBUG_ENTER("innodb_collect_hton_log_info");
   DBUG_ASSERT(hton == innodb_hton_ptr);
 
-  log_collect_lsn_info(&lsn, &lsn_checkpoint);
+  log_position_collect_lsn_info(*log_sys, &lsn, &lsn_checkpoint);
 
   Json_object *json_engines = static_cast<Json_object *>(json);
   Json_object json_innodb;
@@ -18480,16 +18491,44 @@ static void checkpoint_now_set(THD *thd /*!< in: thread handle */
                                                  check function */
 {
   if (*(bool *)save && !srv_checkpoint_disabled) {
-    while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
-      log_make_checkpoint_at(LSN_MAX, TRUE);
+    /* Note that it's defined only when UNIV_DEBUG is defined.
+    It seems to be very risky feature. Fortunately it is used
+    only inside mtr tests. */
 
-      fil_flush_file_spaces(to_int(FIL_TYPE_LOG));
+    while (log_make_latest_checkpoint(*log_sys)) {
+      /* Creating checkpoint could itself result in
+      new log records. Hence we repeat until:
+              last_checkpoint_lsn = log_get_lsn(). */
     }
 
-    dberr_t err = fil_write_flushed_lsn(log_sys->lsn);
+    dberr_t err = fil_write_flushed_lsn(log_sys->last_checkpoint_lsn);
 
     ut_a(err == DB_SUCCESS);
   }
+}
+
+/** Updates srv_checkpoint_disabled - allowing or disallowing checkpoints.
+This is called when user invokes SET GLOBAL innodb_checkpoints_disabled=0/1.
+After checkpoints are disabled, there will be no write of a checkpoint,
+until checkpoints are re-enabled (log_sys->checkpointer_mutex protects that)
+@param[in]	thd		thread handle
+@param[in]	var		pointer to system variable
+@param[out]	var_ptr		where the formal string goes
+@param[in]	save		immediate result from check function */
+static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                       const void *save) {
+  /* We need to acquire the checkpointer_mutex, to ensure that
+  after we have finished this function, there will be no new
+  checkpoint written (e.g. in case there is currently curring
+  checkpoint). When checkpoint is being written, the same mutex
+  is acquired, current value of srv_checkpoint_disabled is checked,
+  and if checkpoints are disabled, we cancel writing the checkpoint. */
+
+  log_checkpointer_mutex_enter(*log_sys);
+
+  srv_checkpoint_disabled = *static_cast<const bool *>(save);
+
+  log_checkpointer_mutex_exit(*log_sys);
 }
 
 /** Force a dirty pages flush now. */
@@ -18627,11 +18666,14 @@ static void innodb_log_write_ahead_size_update(
     const void *save) /*!< in: immediate result
                       from check function */
 {
-  ulong val = OS_FILE_LOG_BLOCK_SIZE;
+  ulong val = INNODB_LOG_WRITE_AHEAD_SIZE_MIN;
   ulong in_val = *static_cast<const ulong *>(save);
 
   while (val < in_val) {
     val = val * 2;
+  }
+  if (val > INNODB_LOG_WRITE_AHEAD_SIZE_MAX) {
+    val = INNODB_LOG_WRITE_AHEAD_SIZE_MAX;
   }
 
   if (val > UNIV_PAGE_SIZE) {
@@ -18639,21 +18681,78 @@ static void innodb_log_write_ahead_size_update(
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "innodb_log_write_ahead_size cannot"
                         " be set higher than innodb_page_size.");
-    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                        "Setting innodb_log_write_ahead_size"
-                        " to %lu",
-                        UNIV_PAGE_SIZE);
   } else if (val != in_val) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "innodb_log_write_ahead_size should be"
-                        " set 2^n value and larger than 512.");
+                        " set to power of 2, in range [%lu,%lu]",
+                        INNODB_LOG_WRITE_AHEAD_SIZE_MIN,
+                        INNODB_LOG_WRITE_AHEAD_SIZE_MAX);
+  }
+
+  if (val != in_val) {
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         "Setting innodb_log_write_ahead_size"
                         " to %lu",
                         val);
   }
 
-  srv_log_write_ahead_size = val;
+  log_write_ahead_resize(*log_sys, val);
+}
+
+/** Update the system variable innodb_log_buffer_size using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_log_buffer_size_update(THD *thd, SYS_VAR *var, void *var_ptr,
+                                          const void *save) {
+  const ulong val = *static_cast<const ulong *>(save);
+
+  ib::info() << "Setting innodb_log_buffer_size to " << val;
+
+  if (!log_buffer_resize(*log_sys, val)) {
+    /* This could happen if we tried to decrease size of the
+    log buffer but we had more data in the log buffer than
+    the new size. We could have asked for writing the data to
+    disk, after x-locking the log buffer, but this could lead
+    to deadlock if there was no space in log files and checkpoint
+    was required (because checkpoint writes new redo records
+    when persisting dd table buffer). That's why we don't ask
+    for writing to disk. */
+
+    ib::error() << "Failed to change size of the log buffer."
+                   " Try flushing the log buffer first.";
+  }
+}
+
+/** Update the system variable innodb_thread_concurrency using the "saved"
+value. This function is registered as a callback with MySQL.
+@param[in]	thd	thread handle
+@param[in]	var	pointer to system variable
+@param[out]	var_ptr	where the formal string goes
+@param[in]	save	immediate result from check function */
+static void innodb_thread_concurrency_update(THD *thd, SYS_VAR *var,
+                                             void *var_ptr, const void *save) {
+  log_t &log = *log_sys;
+
+  log_checkpointer_mutex_enter(log);
+  log_writer_mutex_enter(log);
+
+  srv_thread_concurrency = *static_cast<const ulong *>(save);
+
+  if (!log_calc_max_ages(*log_sys)) {
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        "Current innodb_thread_concurrency"
+                        " is too big for safety of log files."
+                        " Consider decreasing it or increase"
+                        " number of log files.");
+  } else {
+    ib::info() << "Set innodb_thread_concurrency to " << srv_thread_concurrency;
+  }
+
+  log_writer_mutex_exit(log);
+  log_checkpointer_mutex_exit(log);
 }
 
 /** Update innodb_status_output or innodb_status_output_locks,
@@ -18678,9 +18777,7 @@ static void innodb_log_checksums_update(THD *thd, SYS_VAR *var, void *var_ptr,
   bool check = *static_cast<bool *>(var_ptr) = *static_cast<const bool *>(save);
 
   /* Make sure we are the only log user */
-  mutex_enter(&log_sys->mutex);
   innodb_log_checksums_func_update(check);
-  mutex_exit(&log_sys->mutex);
 }
 
 static SHOW_VAR innodb_status_variables_export[] = {
@@ -18717,7 +18814,7 @@ static MYSQL_SYSVAR_ENUM(
     &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(
-    log_checksums, innodb_log_checksums, PLUGIN_VAR_RQCMDARG,
+    log_checksums, srv_log_checksums, PLUGIN_VAR_RQCMDARG,
     "Whether to compute and require checksums for InnoDB redo log blocks", NULL,
     innodb_log_checksums_update, TRUE);
 
@@ -18770,8 +18867,8 @@ static MYSQL_SYSVAR_BOOL(log_checkpoint_now, innodb_log_checkpoint_now,
                          checkpoint_now_set, FALSE);
 
 static MYSQL_SYSVAR_BOOL(checkpoint_disabled, srv_checkpoint_disabled,
-                         PLUGIN_VAR_OPCMDARG, "Disable checkpoints", NULL, NULL,
-                         FALSE);
+                         PLUGIN_VAR_OPCMDARG, "Disable checkpoints", NULL,
+                         checkpoint_disabled_update, FALSE);
 
 static MYSQL_SYSVAR_BOOL(buf_flush_list_now, innodb_buf_flush_list_now,
                          PLUGIN_VAR_OPCMDARG, "Force dirty page flush now",
@@ -18832,7 +18929,7 @@ static MYSQL_SYSVAR_UINT(flush_log_at_timeout, srv_flush_log_at_timeout,
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
                           PLUGIN_VAR_OPCMDARG,
                           "Set to 0 (write and flush once per second),"
-                          " 1 (write and flush at each commit)"
+                          " 1 (write and flush at each commit),"
                           " or 2 (write at commit, flush once per second).",
                           NULL, NULL, 1, 0, 2, 0);
 
@@ -18909,7 +19006,7 @@ static MYSQL_SYSVAR_BOOL(rollback_on_timeout, innobase_rollback_on_timeout,
 
 static MYSQL_SYSVAR_BOOL(
     status_file, innobase_create_status_file,
-    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_NOSYSVAR,
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_EXPERIMENTAL,
     "Enable SHOW ENGINE INNODB STATUS output in the innodb_status.<pid> file",
     NULL, NULL, FALSE);
 
@@ -19236,31 +19333,191 @@ static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
                           NULL, UNIV_PAGE_SIZE_DEF, UNIV_PAGE_SIZE_MIN,
                           UNIV_PAGE_SIZE_MAX, 0);
 
-static MYSQL_SYSVAR_ULONG(log_buffer_size, innodb_log_buffer_size,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "The size of the buffer which InnoDB uses to write "
-                          "log to the log files on disk.",
-                          NULL, NULL, 16 * 1024 * 1024L, 256 * 1024L, ULONG_MAX,
-                          1024);
+static MYSQL_SYSVAR_ULONG(
+    log_buffer_size, srv_log_buffer_size, PLUGIN_VAR_RQCMDARG,
+    "The size of the buffer which InnoDB uses to write log to the log files"
+    " on disk.",
+    NULL, innodb_log_buffer_size_update, INNODB_LOG_BUFFER_SIZE_DEFAULT,
+    INNODB_LOG_BUFFER_SIZE_MIN, INNODB_LOG_BUFFER_SIZE_MAX, 1024);
 
-static MYSQL_SYSVAR_ULONGLONG(log_file_size, innodb_log_file_size,
+static MYSQL_SYSVAR_ULONGLONG(log_file_size, srv_log_file_size,
                               PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                              "Size of each log file in a log group.", NULL,
-                              NULL, 48 * 1024 * 1024L, 4 * 1024 * 1024L,
-                              ULLONG_MAX, 1024 * 1024L);
-
-static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
-                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "Number of log files in the log group. InnoDB writes "
-                          "to the files in a circular fashion.",
-                          NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+                              "Size of each log file (in bytes).", NULL, NULL,
+                              48 * 1024 * 1024L, 4 * 1024 * 1024L, ULLONG_MAX,
+                              1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONG(
-    log_write_ahead_size, srv_log_write_ahead_size, PLUGIN_VAR_RQCMDARG,
-    "Redo log write ahead unit size to avoid read-on-write,"
-    " it should match the OS cache block IO size",
-    NULL, innodb_log_write_ahead_size_update, 8 * 1024L, OS_FILE_LOG_BLOCK_SIZE,
-    UNIV_PAGE_SIZE_DEF, OS_FILE_LOG_BLOCK_SIZE);
+    log_files_in_group, srv_n_log_files,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+    "Number of log files (when multiplied by innodb_log_file_size gives total "
+    "size"
+    " of log files). InnoDB writes to files in a circular fashion.",
+    NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(log_write_ahead_size, srv_log_write_ahead_size,
+                          PLUGIN_VAR_RQCMDARG,
+                          "Log write ahead unit size to avoid read-on-write,"
+                          " it should match the OS cache block IO size.",
+                          NULL, innodb_log_write_ahead_size_update,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_DEFAULT,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_MIN,
+                          INNODB_LOG_WRITE_AHEAD_SIZE_MAX,
+                          OS_FILE_LOG_BLOCK_SIZE);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_events, srv_log_write_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of events used for notifications about log write.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_events, srv_log_flush_events,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of events used for notifications about log flush.", NULL, NULL,
+    INNODB_LOG_EVENTS_DEFAULT, INNODB_LOG_EVENTS_MIN, INNODB_LOG_EVENTS_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_written_size, srv_log_recent_written_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Size of a small buffer, which allows concurrent writes to log buffer.",
+    NULL, NULL, INNODB_LOG_RECENT_WRITTEN_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_WRITTEN_SIZE_MIN, INNODB_LOG_RECENT_WRITTEN_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_recent_closed_size, srv_log_recent_closed_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY | PLUGIN_VAR_EXPERIMENTAL,
+    "Size of a small buffer, which allows to break requirement for total order"
+    " of dirty pages, when they are added to flush lists.",
+    NULL, NULL, INNODB_LOG_RECENT_CLOSED_SIZE_DEFAULT,
+    INNODB_LOG_RECENT_CLOSED_SIZE_MIN, INNODB_LOG_RECENT_CLOSED_SIZE_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    log_spin_cpu_abs_lwm, srv_log_spin_cpu_abs_lwm, PLUGIN_VAR_RQCMDARG,
+    "Minimum value of cpu time for which spin-delay is used."
+    " Expressed in percentage of single cpu core.",
+    NULL, NULL, INNODB_LOG_SPIN_CPU_ABS_LWM_DEFAULT, 0, UINT_MAX, 0);
+
+static MYSQL_SYSVAR_UINT(
+    log_spin_cpu_pct_hwm, srv_log_spin_cpu_pct_hwm, PLUGIN_VAR_RQCMDARG,
+    "Maximum value of cpu time for which spin-delay is used."
+    " Expressed in percentage of all cpu cores.",
+    NULL, NULL, INNODB_LOG_SPIN_CPU_PCT_HWM_DEFAULT, 0, 100, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_spin_delay, srv_log_wait_for_write_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, when spinning and waiting for log buffer"
+    " written up to given LSN, before we fallback to loop with sleeps."
+    " This is not used when user thread has to wait for log flushed to disk.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_WRITE_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_write_timeout, srv_log_wait_for_write_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Timeout used when waiting for redo write (microseconds).", NULL, NULL,
+    INNODB_LOG_WAIT_FOR_WRITE_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_spin_delay, srv_log_wait_for_flush_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, when spinning and waiting for log flushed.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_spin_hwm, srv_log_wait_for_flush_spin_hwm,
+    PLUGIN_VAR_RQCMDARG,
+    "Maximum value of average log flush time for which spin-delay is used."
+    " When flushing takes longer, user threads no longer spin when waiting for"
+    "flushed redo. Expressed in microseconds.",
+    NULL, NULL, INNODB_LOG_WAIT_FOR_FLUSH_SPIN_HWM_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_wait_for_flush_timeout, srv_log_wait_for_flush_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Timeout used when waiting for redo flush (microseconds).", NULL, NULL,
+    INNODB_LOG_WAIT_FOR_FLUSH_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_max_size, srv_log_write_max_size,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Size available for next write, which satisfies log_writer thread"
+    " when it follows links in recent written buffer.",
+    NULL, NULL, INNODB_LOG_WRITE_MAX_SIZE_DEFAULT, 0, ULONG_MAX,
+    OS_FILE_LOG_BLOCK_SIZE);
+
+static MYSQL_SYSVAR_ULONG(
+    log_writer_spin_delay, srv_log_writer_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log writer thread is waiting"
+    " for new data to write without sleeping.",
+    NULL, NULL, INNODB_LOG_WRITER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_writer_timeout, srv_log_writer_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log writer thread (microseconds)",
+    NULL, NULL, INNODB_LOG_WRITER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_checkpoint_every, srv_log_checkpoint_every,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Checkpoints are executed at least every that many milliseconds.", NULL,
+    NULL, INNODB_LOG_CHECKPOINT_EVERY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flusher_spin_delay, srv_log_flusher_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log flusher thread is waiting"
+    " for new data to flush, without sleeping.",
+    NULL, NULL, INNODB_LOG_FLUSHER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(log_flusher_timeout, srv_log_flusher_timeout,
+                          PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+                          "Initial timeout used to wait on event in log "
+                          "flusher thread (microseconds)",
+                          NULL, NULL, INNODB_LOG_FLUSHER_TIMEOUT_DEFAULT, 0,
+                          ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_notifier_spin_delay, srv_log_write_notifier_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log write notifier thread is waiting"
+    " for advanced write_lsn, without sleeping.",
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_write_notifier_timeout, srv_log_write_notifier_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log write notifier thread"
+    " (microseconds)",
+    NULL, NULL, INNODB_LOG_WRITE_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_notifier_spin_delay, srv_log_flush_notifier_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log flush notifier thread is waiting"
+    " for advanced flushed_to_disk_lsn, without sleeping.",
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_flush_notifier_timeout, srv_log_flush_notifier_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial timeout used to wait on event in log flush notifier thread"
+    " (microseconds)",
+    NULL, NULL, INNODB_LOG_FLUSH_NOTIFIER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_closer_spin_delay, srv_log_closer_spin_delay,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Number of spin iterations, for which log closer thread is waiting"
+    " for dirty pages added.",
+    NULL, NULL, INNODB_LOG_CLOSER_SPIN_DELAY_DEFAULT, 0, ULONG_MAX, 0);
+
+static MYSQL_SYSVAR_ULONG(
+    log_closer_timeout, srv_log_closer_timeout,
+    PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_EXPERIMENTAL,
+    "Initial sleep time in log closer thread (microseconds)", NULL, NULL,
+    INNODB_LOG_CLOSER_TIMEOUT_DEFAULT, 0, ULONG_MAX, 0);
 
 static MYSQL_SYSVAR_UINT(
     old_blocks_pct, innobase_old_blocks_pct, PLUGIN_VAR_RQCMDARG,
@@ -19295,7 +19552,8 @@ static MYSQL_SYSVAR_ULONG(thread_concurrency, srv_thread_concurrency,
                           "environments. Sets the maximum number of threads "
                           "allowed inside InnoDB. Value 0 will disable the "
                           "thread throttling.",
-                          NULL, NULL, 0, 0, 1000, 0);
+                          NULL, innodb_thread_concurrency_update, 0, 0, 1000,
+                          0);
 
 static MYSQL_SYSVAR_ULONG(
     adaptive_max_sleep_delay, srv_adaptive_max_sleep_delay, PLUGIN_VAR_RQCMDARG,
@@ -19691,6 +19949,29 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(log_files_in_group),
     MYSQL_SYSVAR(log_write_ahead_size),
     MYSQL_SYSVAR(log_group_home_dir),
+    MYSQL_SYSVAR(log_write_events),
+    MYSQL_SYSVAR(log_flush_events),
+    MYSQL_SYSVAR(log_recent_written_size),
+    MYSQL_SYSVAR(log_recent_closed_size),
+    MYSQL_SYSVAR(log_spin_cpu_abs_lwm),
+    MYSQL_SYSVAR(log_spin_cpu_pct_hwm),
+    MYSQL_SYSVAR(log_wait_for_write_spin_delay),
+    MYSQL_SYSVAR(log_wait_for_write_timeout),
+    MYSQL_SYSVAR(log_wait_for_flush_spin_delay),
+    MYSQL_SYSVAR(log_wait_for_flush_spin_hwm),
+    MYSQL_SYSVAR(log_wait_for_flush_timeout),
+    MYSQL_SYSVAR(log_write_max_size),
+    MYSQL_SYSVAR(log_writer_spin_delay),
+    MYSQL_SYSVAR(log_writer_timeout),
+    MYSQL_SYSVAR(log_checkpoint_every),
+    MYSQL_SYSVAR(log_flusher_spin_delay),
+    MYSQL_SYSVAR(log_flusher_timeout),
+    MYSQL_SYSVAR(log_write_notifier_spin_delay),
+    MYSQL_SYSVAR(log_write_notifier_timeout),
+    MYSQL_SYSVAR(log_flush_notifier_spin_delay),
+    MYSQL_SYSVAR(log_flush_notifier_timeout),
+    MYSQL_SYSVAR(log_closer_spin_delay),
+    MYSQL_SYSVAR(log_closer_timeout),
     MYSQL_SYSVAR(log_compressed_pages),
     MYSQL_SYSVAR(max_dirty_pages_pct),
     MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
@@ -19746,6 +20027,7 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(random_read_ahead),
     MYSQL_SYSVAR(read_ahead_threshold),
     MYSQL_SYSVAR(read_only),
+
     MYSQL_SYSVAR(io_capacity),
     MYSQL_SYSVAR(io_capacity_max),
     MYSQL_SYSVAR(page_cleaners),

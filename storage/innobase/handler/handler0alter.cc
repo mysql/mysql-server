@@ -6869,7 +6869,7 @@ rollback_trx:
     ut_ad(!trx->fts_trx);
 
     DBUG_EXECUTE_IF("innodb_alter_commit_crash_after_commit",
-                    log_make_checkpoint_at(LSN_MAX, TRUE);
+                    log_make_latest_checkpoint();
                     log_buffer_flush_to_disk(); DBUG_SUICIDE(););
   }
 

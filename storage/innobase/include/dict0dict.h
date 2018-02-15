@@ -1457,12 +1457,6 @@ otherwise false */
 bool dict_table_apply_dynamic_metadata(dict_table_t *table,
                                        const PersistentTableMetadata *metadata);
 
-/** Calcualte the redo log margin for current tables which have some changed
-dynamic metadata in memory and have not been written back to
-mysql.innodb_dynamic_metadata
-@return the rough redo log size for current dynamic metadata changes */
-uint64_t dict_persist_log_margin();
-
 #ifndef UNIV_HOTBACKUP
 /** Sets merge_threshold in the SYS_INDEXES
 @param[in,out]	index		index

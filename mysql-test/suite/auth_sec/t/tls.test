@@ -11,9 +11,6 @@
 --echo #
 
 --disable_query_log
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite");
-call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("Failed to set up SSL because of");
 --enable_query_log
 

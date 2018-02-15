@@ -35,6 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "btr0sea.h"
 #include "ha_prototypes.h"
 #include "ibuf0ibuf.h"
+#include "log0log.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -2255,6 +2256,9 @@ static ulint ibuf_merge_pages(
 
   *n_pages = 0;
 
+  /* Check if there is enough reusable space in redo log files. */
+  log_free_check();
+
   ibuf_mtr_start(&mtr);
 
   /* Open a cursor to a randomly chosen leaf of the tree, at a random
@@ -3884,7 +3888,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool ibuf_delete_rec(
     btr_cur_set_deleted_flag_for_ibuf(btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
 
     ibuf_mtr_commit(mtr);
-    log_write_up_to(LSN_MAX, true);
+    log_buffer_flush_to_disk();
     DBUG_SUICIDE();
   }
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */

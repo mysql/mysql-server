@@ -5,7 +5,7 @@
 # Bug#21796691 INNODB REDO LOG DOES NOT INDICATE WHEN
 # REDO LOGGING IS SKIPPED
 #
-SET GLOBAL innodb_master_thread_disabled_debug=1;
+SET GLOBAL innodb_checkpoint_disabled=1;
 CREATE TABLE t1 (a INT NOT NULL, b INT UNIQUE) ENGINE=InnoDB
 TABLESPACE=innodb_file_per_table;
 INSERT INTO t1 VALUES (1,2);

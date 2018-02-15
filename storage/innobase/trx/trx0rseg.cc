@@ -569,7 +569,7 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_spaces,
 
   if (n_created > 0 && type != TEMP && !srv_read_only_mode &&
       srv_force_recovery == 0) {
-    log_make_checkpoint_at(LSN_MAX, TRUE);
+    log_make_latest_checkpoint();
   }
 
   std::ostringstream loc;

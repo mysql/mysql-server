@@ -34,6 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define ut0byte_h
 
 #include "univ.i"
+#include "ut0ut.h"
 
 /** Creates a 64-bit integer out of two 32-bit integers.
  @return created integer */

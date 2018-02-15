@@ -7,9 +7,6 @@
 --echo # WL#8688: Support ability to persist SET GLOBAL settings
 --echo #
 
-CALL mtr.add_suppression("InnoDB: Resizing redo log from*");
-CALL mtr.add_suppression("InnoDB: Starting to delete and rewrite log files.");
-CALL mtr.add_suppression("InnoDB: New log files created, LSN=*");
 CALL mtr.add_suppression("Failed to set up SSL because of the following *");
 CALL mtr.add_suppression("One can only use the --user switch.*");
 

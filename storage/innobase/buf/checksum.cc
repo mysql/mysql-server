@@ -168,13 +168,17 @@ inline void buf_page_lsn_check(bool check_lsn, const byte *read_buf) {
 
     /* Since we are going to reset the page LSN during the import
     phase it makes no sense to spam the log with error messages. */
+    current_lsn = log_get_lsn(*log_sys);
 
-    if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
+    if (current_lsn < page_lsn) {
       const space_id_t space_id =
           mach_read_from_4(read_buf + FIL_PAGE_SPACE_ID);
       const page_no_t page_no = mach_read_from_4(read_buf + FIL_PAGE_OFFSET);
 
-      ib::error() << "Page " << page_id_t(space_id, page_no)
+      auto space = fil_space_get(space_id);
+
+      ib::error() << "Tablespace '" << space->name << "'"
+                  << " Page " << page_id_t(space_id, page_no)
                   << " log sequence number " << page_lsn
                   << " is in the future! Current system"
                   << " log sequence number " << current_lsn << ".";

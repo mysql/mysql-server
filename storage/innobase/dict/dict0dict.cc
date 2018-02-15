@@ -215,6 +215,14 @@ static void dict_index_remove_from_cache_low(
     dict_index_t *index, /*!< in, own: index */
     ibool lru_evict);    /*!< in: TRUE if page being evicted
                          to make room in the table LRU list */
+
+/** Calculate and update the redo log margin for current tables which
+have some changed dynamic metadata in memory and have not been written
+back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
+to stop user threads when redo log is running out of space and they
+do not hold latches (log.sn_limit_for_start). */
+static void dict_persist_update_log_margin(void);
+
 /** Removes a table object from the dictionary cache. */
 static void dict_table_remove_from_cache_low(
     dict_table_t *table, /*!< in, own: table */
@@ -5070,6 +5078,10 @@ void dict_persist_init(void) {
   dict_persist->persisters = UT_NEW_NOKEY(Persisters());
   dict_persist->persisters->add(PM_INDEX_CORRUPTED);
   dict_persist->persisters->add(PM_TABLE_AUTO_INC);
+
+#ifndef UNIV_HOTBACKUP
+  dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Clear the structure */
@@ -5289,6 +5301,9 @@ void dict_table_mark_dirty(dict_table_t *table) {
     case METADATA_BUFFERED:
       table->dirty_status = METADATA_DIRTY;
       ++dict_persist->num_dirty_tables;
+#ifndef UNIV_HOTBACKUP
+      dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
   }
 
   ut_ad(table->in_dirty_dict_tables_list);
@@ -5337,7 +5352,7 @@ void dict_set_corrupted(dict_index_t *index) {
       /* Try to flush the log immediately, so that
       in most cases the corrupted bit would be
       persisted in redo log */
-      log_write_up_to(mtr.commit_lsn(), true);
+      log_write_up_to(*log_sys, mtr.commit_lsn(), true);
 #endif /* !UNIV_HOTBACKUP */
 
       dict_table_mark_dirty(table);
@@ -5380,6 +5395,9 @@ static void dict_table_persist_to_dd_table_buffer_low(dict_table_t *table) {
   table->dirty_status = METADATA_BUFFERED;
   ut_ad(dict_persist->num_dirty_tables > 0);
   --dict_persist->num_dirty_tables;
+#ifndef UNIV_HOTBACKUP
+  dict_persist_update_log_margin();
+#endif /* !UNIV_HOTBACKUP */
 }
 
 /** Write back the dirty persistent dynamic metadata of the table
@@ -5447,14 +5465,22 @@ bool dict_persist_to_dd_table_buffer(void) {
   ut_ad(dict_persist->num_dirty_tables == 0);
 
   mutex_exit(&dict_persist->mutex);
+
+  if (persisted) {
+    log_buffer_flush_to_disk();
+  }
+
   return (persisted);
 }
 
-/** Calcualte the redo log margin for current tables which have some changed
-dynamic metadata in memory and have not been written back to
-mysql.innodb_dynamic_metadata
-@return the rough redo log margin for current dynamic metadata changes */
-uint64_t dict_persist_log_margin() {
+#ifndef UNIV_HOTBACKUP
+
+/** Calculate and update the redo log margin for current tables which
+have some changed dynamic metadata in memory and have not been written
+back to mysql.innodb_dynamic_metadata. Update LSN limit, which is used
+to stop user threads when redo log is running out of space and they
+do not hold latches (log.sn_limit_for_start). */
+static void dict_persist_update_log_margin() {
   /* Below variables basically considers only the AUTO_INCREMENT counter
   and a small margin for corrupted indexes. */
 
@@ -5488,10 +5514,19 @@ uint64_t dict_persist_log_margin() {
     num_tables = num_tables / tables_per_split;
   }
 
-  return (num_dirty_tables * log_margin_per_table_no_split +
-          total_splits * log_margin_per_split_no_root +
-          (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
+  const auto margin = (num_dirty_tables * log_margin_per_table_no_split +
+                       total_splits * log_margin_per_split_no_root +
+                       (num_dirty_tables == 0 ? 0 : log_margin_per_split_root));
+
+  if (log_sys != nullptr) {
+    /* Update margin for redo log */
+    log_sys->dict_persist_margin.store(margin);
+
+    /* Update log.sn_limit_for_start. */
+    log_update_limits(*log_sys);
+  }
 }
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Sets merge_threshold for all indexes in the list of tables
@@ -5542,7 +5577,7 @@ void dict_ind_init(void) {
 }
 
 /** Frees dict_ind_redundant. */
-static void dict_ind_free(void) {
+void dict_ind_free(void) {
   dict_table_t *table;
 
   table = dict_ind_redundant->table;

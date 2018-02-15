@@ -22,9 +22,6 @@ if (`SELECT @@innodb_log_file_size = 2097152`) {
 let $restart_parameters = restart: --innodb-fast-shutdown=2 --innodb-log-file-size=4M;
 --source include/restart_mysqld.inc
 
-call mtr.add_suppression("InnoDB: Resizing redo log");
-call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
-call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;

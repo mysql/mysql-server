@@ -36,8 +36,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "buf0types.h"
 #include "dict0types.h"
 #include "hash0hash.h"
-#include "log0log.h"
+#include "log0types.h"
 #include "mtr0types.h"
+#include "os0file.h" /* OS_FILE_LOG_BLOCK_SIZE */
 #include "univ.i"
 #include "ut0byte.h"
 #include "ut0new.h"
@@ -91,7 +92,7 @@ void meb_scan_log_seg(byte *buf, ulint buf_len, lsn_t *scanned_lsn,
 /** Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
-@param[in,out	block		Buffer block */
+@param[in,out]	block		buffer block */
 void recv_recover_page_func(buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
@@ -100,7 +101,7 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 @param jri in: TRUE if just read in (the i/o handler calls this for
 a freshly read page)
-@param block in/out: the buffer block
+@param block in,out: the buffer block
 */
 #define recv_recover_page(jri, block) recv_recover_page_func(block)
 
@@ -156,7 +157,7 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
-@param[in,out]	block		Buffer block */
+@param[in,out]	block		buffer block */
 void recv_recover_page_func(bool just_read_in, buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
@@ -165,8 +166,7 @@ lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool.
 @param jri in: TRUE if just read in (the i/o handler calls this for
 a freshly read page)
-@param block in/out: the buffer block
-*/
+@param[in,out]	block	buffer block */
 #define recv_recover_page(jri, block) recv_recover_page_func(jri, block)
 
 /** Frees the recovery system. */
@@ -190,23 +190,19 @@ bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
 
 /** Start recovering from a redo log checkpoint.
 @see recv_recovery_from_checkpoint_finish
+@param[in,out]	log		redo log
 @param[in]	flush_lsn	FIL_PAGE_FILE_FLUSH_LSN
                                 of first system tablespace page
 @return error code or DB_SUCCESS */
-dberr_t recv_recovery_from_checkpoint_start(lsn_t flush_lsn)
+dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Complete the recovery from the latest checkpoint.
+@param[in,out]	log		redo log
 @param[in]	aborting	true if the server has to abort due to an error
 @return recovered persistent metadata or nullptr if aborting*/
-MetadataRecover *recv_recovery_from_checkpoint_finish(bool aborting)
+MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log, bool aborting)
     MY_ATTRIBUTE((warn_unused_result));
-
-/** Resets the logs. The contents of log files will be lost!
-@param[in]	lsn		reset to this lsn rounded up to be divisible
-                                by OS_FILE_LOG_BLOCK_SIZE, after which we
-                                add LOG_BLOCK_HDR_SIZE */
-void recv_reset_logs(lsn_t lsn);
 
 /** Creates the recovery system. */
 void recv_sys_create();
@@ -220,13 +216,14 @@ void recv_sys_init(ulint max_mem);
 
 /** Calculates the new value for lsn when more data is added to the log.
 @param[in]	lsn		Old LSN
-@param[in]	len		This many bytes of data is addedd, log block
+@param[in]	len		This many bytes of data is added, log block
                                 headers not included
 @return LSN after data addition */
 lsn_t recv_calc_lsn_on_data_add(lsn_t lsn, uint64_t len);
 
 /** Empties the hash table of stored log records, applying them to appropriate
 pages.
+@param[in,out]	log		redo log
 @param[in]	allow_ibuf	if true, ibuf operations are allowed during
                                 the application; if false, no ibuf operations
                                 are allowed, and after the application all
@@ -235,7 +232,7 @@ pages.
                                 no new log records can be generated during
                                 the application; the caller must in this case
                                 own the log mutex */
-void recv_apply_hashed_log_recs(bool allow_ibuf);
+void recv_apply_hashed_log_recs(log_t &log, bool allow_ibuf);
 
 #if defined(UNIV_DEBUG) || defined(UNIV_HOTBACKUP)
 /** Return string name of the redo log record type.
@@ -473,7 +470,7 @@ struct recv_sys_t {
   the recovery thread. */
   ib_mutex_t writer_mutex;
 
-  /** event to acticate page cleaner threads */
+  /** event to activate page cleaner threads */
   os_event_t flush_start;
 
   /** event to signal that the page cleaner has finished the request */
@@ -509,6 +506,12 @@ struct recv_sys_t {
   log records and adding them to the hash table; zero if a suitable
   start point not found yet */
   lsn_t parse_start_lsn;
+
+  /** Checkpoint lsn that was used during recovery (read from file). */
+  lsn_t checkpoint_lsn;
+
+  /** Number of data bytes to ignore until we reach checkpoint_lsn. */
+  ulint bytes_to_ignore_before_checkpoint;
 
   /** The log data has been scanned up to this lsn */
   lsn_t scanned_lsn;
