@@ -66,6 +66,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "mem0mem.h"
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -1941,6 +1942,7 @@ void srv_master_thread_disabled_debug_update(THD *thd, SYS_VAR *var,
 @param[in]	a	later timeval
 @param[in]	b	earlier timeval
 @return a - b; number of microseconds between b and a */
+MY_ATTRIBUTE((unused))
 static int64_t timeval_diff_us(timeval a, timeval b) {
   return ((a.tv_sec - b.tv_sec) * 1000000LL + a.tv_usec - b.tv_usec);
 }

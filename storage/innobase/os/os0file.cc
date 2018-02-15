@@ -311,7 +311,12 @@ struct Slot {
   os_offset_t offset{0};
 
   /** file where to read or write */
-  pfs_os_file_t file{0};
+  pfs_os_file_t file{
+#ifdef UNIV_PFS_IO
+      nullptr,  // m_psi
+#endif
+      0  // m_file
+  };
 
   /** file name or path */
   const char *name{nullptr};

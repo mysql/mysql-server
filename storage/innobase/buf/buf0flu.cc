@@ -52,6 +52,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ibuf0ibuf.h"
 #include "log0log.h"
+#include "my_compiler.h"
 #include "os0file.h"
 #include "os0thread-create.h"
 #include "page0page.h"
@@ -434,6 +435,7 @@ This is used by assertions only.
 @return true iff the order is valid
 @see @ref sect_redo_log_reclaim_space
 @see @ref sect_redo_log_add_dirty_pages */
+MY_ATTRIBUTE((unused))
 static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
                                                  lsn_t new_added_lsn) {
   return (earlier_added_lsn <=
