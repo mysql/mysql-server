@@ -79,55 +79,49 @@
   @page PAGE_CODING_GUIDELINES Coding Guidelines
 
   This section shows the guidelines that MySQL developers
-  follow when writing new code. In general, MySQL development
-  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
+  follow when writing new code.
 
-  - For new projects/components, use Google coding style wherever
-    possible.
-
-  - For old projects or code, use the style already used in the
-    existing code for the time being.
-
-  Exceptions in MySQL coding guidelines:
-
-  - Class names: Do not use MyClass. Instead, use My_class.
-    This exception exists because the server has a history of using
-    My_class. It will be confusing to mix the two
-    (from a code-review perspective).
-    InnoDB has had freedom of choice for Class names
-    and will therefore not suffer from the mix.
+  New MySQL code uses the Google C++ coding style
+  (https://google.github.io/styleguide/cppguide.html), with one
+  exception:
 
   - Member variable names: Do not use foo_. Instead, use
-    m_foo (non-static) and s_foo (static), which
-    are improvements over the Google style.
+    m_foo (non-static) or s_foo (static).
 
-  Notes:
+  Old projects and modifications to old code use an older MySQL-specific
+  style for the time being. Since 8.0, MySQL style uses the same formatting
+  rules as Google coding style (e.g., brace placement, indentation, line
+  lengths, etc.), but differs in a few important aspects:
+
+  - Class names: Do not use MyClass. Instead, use My_class.
+
+  - Function names: Use snake_case().
 
   - Comment Style: Use either the // or <em>/</em>* *<em>/</em> syntax. // is
     much more common but both syntaxes are permitted for the time being.
 
   - Doxygen comments: Use <em>/</em>** ... *<em>/</em> syntax and not ///.
 
-  - Doxygen command: Use '@' and not '\' for doxygen commands.
+  - Doxygen commands: Use '@' and not '\' for doxygen commands.
 
-  - Braces alignment, if..else indentation, spaces around '=':
-    MySQL coding guideline traditionally places left braces aligned
-    with the start of the preceding line, whereas the Google style is
-    to place the left brace on the end of the previous line.
-
-  - MySQL coding guideline is to have no space before '='
-    while assignment “foo= bar”. The Google style is have space
-    around '=' in assignment "foo = bar".
+  - You may see structs starting with st_ and being typedef-ed to some
+    UPPERCASE (e.g. typedef struct st_foo { ... } FOO). However,
+    this is legacy from when the codebase contained C. Do not make such new
+    typedefs nor structs with st_ prefixes, and feel free to remove those that
+    already exist, except in public header files that are part of libmysql
+    (which need to be parseable as C99).
 
 
-  Consistent style is important for us, because everyone must
-  know what to expect. For example, after we become accustomed
-  to seeing that everything inside an <em>if</em> is indented
-  two spaces, we can glance at a listing and understand what's
-  nested within what. Writing non-conforming code can be bad.
-  Knowing our rules, you'll find it easier to read our code,
-  and when you decide to contribute (which we hope you'll consider!)
-  we'll find it easier to read and review your code.
+  Code formatting is enforced by use of clang-format throughout the code
+  base. However, note that formatting is only one part of coding style;
+  you are required to take care of non-formatting issues yourself, such as
+  following naming conventions, having clear ownership of code or minimizing
+  the use of macros. See the Google coding style guide for the entire list.
+
+  Consistent style is important for us, because everyone must know what to
+  expect. Knowing our rules, you'll find it easier to read our code, and when
+  you decide to contribute (which we hope you'll consider!) we'll find it
+  easier to read and review your code.
 
   - @subpage GENERAL_DEVELOPMENT_GUIDELINES
   - @subpage CPP_CODING_GUIDELINES_FOR_NDB_SE
