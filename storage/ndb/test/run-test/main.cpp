@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,6 +213,11 @@ int main(int argc, char **argv) {
   g_config.m_replication = g_replicate;
   if (!setup_config(g_config, g_mysqld_host)) {
     g_logger.critical("Failed to setup configuration");
+    goto end;
+  }
+
+  if(!g_config.m_processes.size()) {
+    g_logger.critical("Error: No processes defined in cluster configuration");
     goto end;
   }
 
