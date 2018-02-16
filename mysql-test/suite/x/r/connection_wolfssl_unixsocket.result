@@ -336,11 +336,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	2
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	2
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -383,11 +383,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	6
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	6
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -411,11 +411,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	7
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	7
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -444,11 +444,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	9
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	9
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -472,11 +472,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	10
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	10
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -500,11 +500,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	11
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	11
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -528,11 +528,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	12
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	12
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -562,11 +562,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	15
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	15
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -582,29 +582,55 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	-1
-Mysqlx_ssl_verify_mode	5
+Mysqlx_ssl_verify_depth	9
+Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
@@ -619,11 +645,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	18
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	18
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -976,11 +1002,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	2
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	2
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1023,11 +1049,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	6
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	6
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1051,11 +1077,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	7
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	7
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1084,11 +1110,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	9
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	9
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1112,11 +1138,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	10
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	10
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1140,11 +1166,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	11
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	11
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1168,11 +1194,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	12
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	12
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1202,11 +1228,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	15
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	15
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1222,29 +1248,55 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	-1
-Mysqlx_ssl_verify_mode	5
+Mysqlx_ssl_verify_depth	9
+Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
@@ -1259,11 +1311,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	18
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	18
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1616,11 +1668,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	2
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	2
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1663,11 +1715,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	6
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	6
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1691,11 +1743,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	7
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	7
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1724,11 +1776,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	9
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	9
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1752,11 +1804,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	10
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	10
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1780,11 +1832,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	11
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	11
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1808,11 +1860,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	12
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	12
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1842,11 +1894,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	15
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	15
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value
@@ -1862,29 +1914,55 @@ not ok
 SHOW GLOBAL STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$';
 Variable_name	Value
 Mysqlx_ssl_cipher_list	
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
 Mysqlx_ssl_verify_depth	
 Mysqlx_ssl_verify_mode	
 RUN SHOW STATUS WHERE `Variable_name` RLIKE '^Mysqlx_ssl_(cipher_list|ctx_verify_(depth|mode)|server_not_(after|before)|verify_(depth|mode))$'
 Variable_name	Value
-Mysqlx_ssl_cipher_list	DHE-RSA-AES256-SHA:AES256-SHA
-Mysqlx_ssl_ctx_verify_depth	-1
-Mysqlx_ssl_ctx_verify_mode	5
+Mysqlx_ssl_cipher_list	AES256-SHA
+Mysqlx_ssl_ctx_verify_depth	9
+Mysqlx_ssl_ctx_verify_mode	1
 Mysqlx_ssl_server_not_after	Dec  1 04:48:40 2029 GMT
 Mysqlx_ssl_server_not_before	Dec  5 04:48:40 2014 GMT
-Mysqlx_ssl_verify_depth	-1
-Mysqlx_ssl_verify_mode	5
+Mysqlx_ssl_verify_depth	9
+Mysqlx_ssl_verify_mode	0
 0 rows affected
 Mysqlx.Ok {
   msg: "bye!"
 }
 ok
 SET GLOBAL require_secure_transport:=1;
-Application terminated with expected error: Secure transport required. To log in you must use TCP+SSL or UNIX socket connection. (code 1045)
-not ok
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
+CONNECTION_TYPE
+Socket
+0 rows affected
+RUN SELECT USER()
+USER()
+x_root@localhost
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_version'
+Variable_name	Value
+Mysqlx_ssl_version	
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
+Variable_name	Value
+Mysqlx_ssl_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
+Variable_name	Value
+Mysqlx_ssl_finished_accepts	0
+0 rows affected
+RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
+Variable_name	Value
+Mysqlx_ssl_cipher	
+0 rows affected
+Mysqlx.Ok {
+  msg: "bye!"
+}
+ok
 RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query'
 CONNECTION_TYPE
 SSL/TLS
@@ -1899,11 +1977,11 @@ Mysqlx_ssl_version	TLSv1
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_accepts'
 Variable_name	Value
-Mysqlx_ssl_accepts	18
+Mysqlx_ssl_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_finished_accepts'
 Variable_name	Value
-Mysqlx_ssl_finished_accepts	18
+Mysqlx_ssl_finished_accepts	0
 0 rows affected
 RUN SHOW STATUS LIKE 'Mysqlx_ssl_cipher'
 Variable_name	Value

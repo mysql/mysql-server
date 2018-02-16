@@ -1,4 +1,3 @@
-
 --source include/have_ssl.inc
 --source include/have_yassl.inc
 
@@ -7,22 +6,8 @@
 #2) wolfssl SSL context counters (GLOBAL status variables) are always 0
 #3) other cipher list than openssl
 
-# TCP/IP connection
 --let $USE_SOCKET=
 --let $ERROR_IF_CHANNEL_UNSECURE= Secure transport required. To log in you must use TCP\+SSL or UNIX socket connection. \(code 1045\)
-
---let $USER_AUTH_PLUGIN= 'mysql_native_password'
---source  ../include/connection_ssl.inc
-
---let $USER_AUTH_PLUGIN= 'sha256_password'
---source  ../include/connection_ssl.inc
-
---let $USER_AUTH_PLUGIN= 'caching_sha2_password'
---source ../include/connection_ssl.inc
-
-# SOCKET connection
---let $USE_SOCKET= '--socket=$MASTER_X_MYSOCK'
---let $ERROR_IF_CHANNEL_UNSECURE=
 
 --let $USER_AUTH_PLUGIN= 'mysql_native_password'
 --source  ../include/connection_ssl.inc
