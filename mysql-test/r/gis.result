@@ -4040,3 +4040,442 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Note	1003	/* select#1 */ select geomcollection() AS `GEOMETRYCOLLECTION()`
+#
+# Bug #27252609 UNABLE TO CREATE INDEX WHEN SPATIAL DATATYPES ARE USED
+# WITH REQUIRED OPTION
+#
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=COPY;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL;
+ERROR 23000: Column 'g2' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "coordinates": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ST_ASTEXT(g1)
+POINT(12.22 11.11)
+SELECT ST_ASTEXT(g2) FROM t1;
+ST_ASTEXT(g2)
+POINT(12.22 11.11)
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR 23000: Column 'g2' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL
+) ENGINE= InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (col1 JSON, col2 VARBINARY(255) GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL);
+INSERT INTO t1 (col1) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+CHANGE COLUMN col2 col2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL NOT NULL;
+DROP TABLE t1;
+SET @saved_sql_mode=@@sql_mode;
+SET SESSION sql_mode='';
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL,
+ALGORITHM=COPY;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL;
+ERROR 23000: Column 'g2' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "coordinates": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ST_ASTEXT(g1)
+POINT(12.22 11.11)
+SELECT ST_ASTEXT(g2) FROM t1;
+ST_ASTEXT(g2)
+POINT(12.22 11.11)
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=INPLACE;
+SELECT doc FROM t1;
+doc
+{"geojson": {"type": "Point", "invalid-geojson": [11.11, 12.22]}}
+SELECT ST_ASTEXT(g1) FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+ERROR 23000: Column 'g1' cannot be null
+DROP TABLE t1;
+CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid-geojson":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+ADD COLUMN g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+ALTER TABLE t1
+ADD COLUMN g2 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL,
+ALGORITHM=COPY;
+ERROR 23000: Column 'g2' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) STORED NOT NULL
+) ENGINE= InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) STORED NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(JSON_EXTRACT(doc, '$.geojson'), 2, 4326)
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
+UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
+ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (
+doc JSON,
+g1 GEOMETRY GENERATED ALWAYS AS (
+ST_CROSSES(ST_GEOMFROMTEXT('POLYGON((0 0, 1 0, 1 1, 0 0))'),
+ST_GEOMFROMTEXT('POINT(0 0)'))
+) VIRTUAL NOT NULL
+) ENGINE=InnoDB;
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+INSERT INTO t1 (doc) VALUES (
+'{"geojson":{"type":"Point","invalid":[11.11,12.22]}}'
+);
+ERROR 23000: Column 'g1' cannot be null
+DELETE FROM t1;
+DROP TABLE t1;
+CREATE TABLE t1 (col1 JSON, col2 VARBINARY(255) GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL);
+INSERT INTO t1 (col1) VALUES (
+'{"geojson":{"type":"Point","coordinates":[11.11,12.22]}}'
+);
+ALTER TABLE t1
+CHANGE COLUMN col2 col2 GEOMETRY GENERATED ALWAYS AS (
+ST_GEOMFROMGEOJSON(col1->>'$.geojson')
+) VIRTUAL NOT NULL;
+DROP TABLE t1;
+SET SESSION sql_mode=@saved_sql_mode;

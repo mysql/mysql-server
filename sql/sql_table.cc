@@ -10368,11 +10368,14 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
         subtype), existing NULL values will be converted into empty
         strings in non-strict mode. Empty strings are illegal values
         in GEOMETRY columns.
+
+        However, generated columns have implicit default values, so they can be
+        NOT NULL.
       */
       if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG)) &&
           field->type() != MYSQL_TYPE_GEOMETRY && field->maybe_null() &&
-          !thd->is_strict_mode()) {
+          !thd->is_strict_mode() && !def->is_gcol()) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
       }
@@ -10439,17 +10442,21 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
       }
 
       /*
-        New GEOMETRY (and subtypes) columns can't be NOT NULL. To add a
-        GEOMETRY NOT NULL column, first create a GEOMETRY NULL column,
-        UPDATE the table to set a different value than NULL, and then do
-        a ALTER TABLE MODIFY COLUMN to set NOT NULL.
+        New GEOMETRY (and subtypes) columns can't be NOT NULL unless they have a
+        default value. Explicit default values are currently not supported for
+        geometry columns. To add a GEOMETRY NOT NULL column, first create a
+        GEOMETRY NULL column, UPDATE the table to set a different value than
+        NULL, and then do a ALTER TABLE MODIFY COLUMN to set NOT NULL.
 
-        This restriction can be lifted once MySQL supports default
-        values (i.e., functions) for geometry columns. The new
-        restriction would then be for added GEOMETRY NOT NULL columns to
-        always have a provided default value.
+        This restriction can be lifted once MySQL supports explicit default
+        values (i.e., functions) for geometry columns. The new restriction would
+        then be for added GEOMETRY NOT NULL columns to always have a provided
+        default value.
+
+        Generated columns (including generated geometry columns) have implicit
+        default values, so they can be NOT NULL.
       */
-      if (def->sql_type == MYSQL_TYPE_GEOMETRY &&
+      if (def->sql_type == MYSQL_TYPE_GEOMETRY && !def->is_gcol() &&
           (def->flags & (NO_DEFAULT_VALUE_FLAG | NOT_NULL_FLAG))) {
         alter_ctx->error_if_not_empty |=
             Alter_table_ctx::GEOMETRY_WITHOUT_DEFAULT;
