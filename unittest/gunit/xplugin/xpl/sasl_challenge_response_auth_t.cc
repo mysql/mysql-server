@@ -60,7 +60,7 @@ void ASSERT_RESPONSE(const T1 &a, const T2 &b) {
   ASSERT_PRED_FORMAT2(assert_response, a, b);
 }
 
-} // namespace
+}  // namespace
 
 struct Auth_selector {
   std::string m_name;
@@ -82,8 +82,8 @@ class Sasl_challenge_response_auth_test
   }
 
   ::testing::StrictMock<Mock_account_verification_handler> *mock_handler{
-      ngs::allocate_object<::testing::StrictMock<
-          Mock_account_verification_handler>>(nullptr)};
+      ngs::allocate_object<
+          ::testing::StrictMock<Mock_account_verification_handler>>(nullptr)};
   std::unique_ptr<ngs::Authentication_interface> auth;
   ::testing::StrictMock<ngs::test::Mock_account_verification>
       mock_account_verification;
@@ -170,14 +170,14 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
                   auth->handle_continue(AUTH_DATA));
 }
 
-INSTANTIATE_TEST_CASE_P(Instantiation_auth_mechanism,
-    Sasl_challenge_response_auth_test,
+INSTANTIATE_TEST_CASE_P(
+    Instantiation_auth_mechanism, Sasl_challenge_response_auth_test,
     ::testing::Values(
-      Auth_selector{"SHA256_MEMORY",
-                    ngs::Account_verification_interface::Account_sha256_memory},
-      Auth_selector{"MYSQL41",
-                    ngs::Account_verification_interface::Account_native})
-);
+        Auth_selector{
+            "SHA256_MEMORY",
+            ngs::Account_verification_interface::Account_sha256_memory},
+        Auth_selector{"MYSQL41",
+                      ngs::Account_verification_interface::Account_native}));
 
 }  // namespace test
 }  // namespace xpl

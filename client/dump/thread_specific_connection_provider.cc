@@ -29,21 +29,18 @@
 
 using namespace Mysql::Tools::Dump;
 
-Mysql::Tools::Base::Mysql_query_runner*
-  Thread_specific_connection_provider::get_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-      message_handler)
-{
-  Mysql::Tools::Base::Mysql_query_runner* runner= nullptr;
+Mysql::Tools::Base::Mysql_query_runner *
+Thread_specific_connection_provider::get_runner(
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler) {
+  Mysql::Tools::Base::Mysql_query_runner *runner = nullptr;
   {
     std::lock_guard<std::mutex> lock(mu);
-    runner= m_runners[std::this_thread::get_id()];
+    runner = m_runners[std::this_thread::get_id()];
   }
-  if (runner == nullptr)
-  {
-    runner= this->create_new_runner(message_handler);
-    if (!runner)
-      return nullptr;
+  if (runner == nullptr) {
+    runner = this->create_new_runner(message_handler);
+    if (!runner) return nullptr;
 
     runner->run_query("SET SQL_QUOTE_SHOW_CREATE= 1");
     /*
@@ -53,21 +50,18 @@ Mysql::Tools::Base::Mysql_query_runner*
     runner->run_query("SET TIME_ZONE='+00:00'");
 
     std::lock_guard<std::mutex> lock(mu);
-    m_runners[std::this_thread::get_id()]= runner;
+    m_runners[std::this_thread::get_id()] = runner;
   }
   // Deliver copy of original runner.
   return new Mysql::Tools::Base::Mysql_query_runner(*runner);
 }
 
 Thread_specific_connection_provider::Thread_specific_connection_provider(
-  Mysql::Tools::Base::I_connection_factory* connection_factory)
-  : Abstract_connection_provider(connection_factory)
-{}
+    Mysql::Tools::Base::I_connection_factory *connection_factory)
+    : Abstract_connection_provider(connection_factory) {}
 
-Thread_specific_connection_provider::~Thread_specific_connection_provider()
-{
-  for (const auto &id_and_runner : m_runners)
-  {
+Thread_specific_connection_provider::~Thread_specific_connection_provider() {
+  for (const auto &id_and_runner : m_runners) {
     delete id_and_runner.second;
   }
 }

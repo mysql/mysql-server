@@ -33,10 +33,7 @@ struct SHOW_VAR;
   optimization) the status variable service code because libsql code
   is not calling any functions of it.
 */
-void mysql_comp_status_var_services_init()
-{
-  return;
-}
+void mysql_comp_status_var_services_init() { return; }
 
 /**
   Register status variable.
@@ -50,17 +47,12 @@ void mysql_comp_status_var_services_init()
   to know how to construct status varables for different variable types.
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
-  (SHOW_VAR *status_var))
-{
-  try
-  {
-    if (add_status_vars(status_var))
-      return true;
+                   (SHOW_VAR * status_var)) {
+  try {
+    if (add_status_vars(status_var)) return true;
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -75,15 +67,11 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
-  (SHOW_VAR *status_var))
-{
-  try
-  {
+                   (SHOW_VAR * status_var)) {
+  try {
     remove_status_vars(status_var);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;

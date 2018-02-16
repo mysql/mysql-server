@@ -1,7 +1,5 @@
 SET GLOBAL innodb_file_per_table=on;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE bug52745 (
 a2 int(10) unsigned DEFAULT NULL,
 col37 time DEFAULT NULL,

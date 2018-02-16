@@ -59,8 +59,8 @@ int base64_encode(const void *src, size_t src_len, char *dst);
 /*
   Decode a base64 string into data
 */
-int64 base64_decode(const char *src, size_t src_len,
-                  void *dst, const char **end_ptr, int flags);
+int64 base64_decode(const char *src, size_t src_len, void *dst,
+                    const char **end_ptr, int flags);
 
 /* Allow multuple chunks 'AAA= AA== AA==', binlog uses this */
 #define MY_BASE64_DECODE_ALLOW_MULTIPLE_CHUNKS 1

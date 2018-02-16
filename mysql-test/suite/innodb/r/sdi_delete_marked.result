@@ -66,7 +66,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 2,
                 "column_type_utf8": "int(11)",
                 "elements": [],
-                "collation_id": 8
+                "collation_id": 8,
+                "is_explicit_collation": false
             },
             {
                 "name": "b1",
@@ -101,7 +102,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "json",
                 "elements": [],
-                "collation_id": 46
+                "collation_id": 46,
+                "is_explicit_collation": true
             },
             {
                 "name": "c2",
@@ -136,7 +138,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "blob",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": true
             },
             {
                 "name": "d2",
@@ -171,7 +174,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "longblob",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": true
             },
             {
                 "name": "e2",
@@ -206,7 +210,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "mediumblob",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": true
             },
             {
                 "name": "f2",
@@ -241,7 +246,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "tinyblob",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": true
             },
             {
                 "name": "DB_TRX_ID",
@@ -276,7 +282,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": false
             },
             {
                 "name": "DB_ROLL_PTR",
@@ -311,7 +318,8 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
                 "column_key": 1,
                 "column_type_utf8": "",
                 "elements": [],
-                "collation_id": 63
+                "collation_id": 63,
+                "is_explicit_collation": false
             }
         ],
         "schema_ref": "test",

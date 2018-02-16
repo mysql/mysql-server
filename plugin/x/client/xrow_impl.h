@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -37,7 +37,7 @@
 
 namespace xcl {
 
-class XRow_impl: public XRow {
+class XRow_impl : public XRow {
  public:
   using Metadata = std::vector<Column_metadata>;
 
@@ -49,22 +49,17 @@ class XRow_impl: public XRow {
   bool valid() const override;
 
   bool is_null(const int32_t field_index) const override;
-  bool get_int64(const int32_t field_index,
-                 int64_t *out_data) const override;
-  bool get_uint64(const int32_t field_index,
-                  uint64_t *out_data) const override;
-  bool get_double(const int32_t field_index,
-                  double *out_data) const override;
+  bool get_int64(const int32_t field_index, int64_t *out_data) const override;
+  bool get_uint64(const int32_t field_index, uint64_t *out_data) const override;
+  bool get_double(const int32_t field_index, double *out_data) const override;
   bool get_float(const int32_t field_index, float *out_data) const override;
   bool get_string(const int32_t field_index,
                   std::string *out_data) const override;
-  bool get_string(const int32_t field_index,
-                  const char **out_data,
+  bool get_string(const int32_t field_index, const char **out_data,
                   size_t *out_data_length) const override;
   bool get_enum(const int32_t field_index,
                 std::string *out_data) const override;
-  bool get_enum(const int32_t field_index,
-                const char **out_data,
+  bool get_enum(const int32_t field_index, const char **out_data,
                 size_t *out_data_length) const override;
   bool get_decimal(const int32_t field_index, Decimal *out_data) const override;
   bool get_time(const int32_t field_index, Time *out_data) const override;
@@ -83,8 +78,7 @@ class XRow_impl: public XRow {
 
  private:
   bool get_string_based_field(const Column_type expected_type,
-                              const int32_t field_index,
-                              const char **out_data,
+                              const int32_t field_index, const char **out_data,
                               size_t *out_data_length) const;
 
   std::unique_ptr<Row> m_row;

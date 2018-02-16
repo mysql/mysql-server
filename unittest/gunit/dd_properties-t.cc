@@ -28,7 +28,6 @@
 #include "sql/dd/properties.h"
 #include "unittest/gunit/test_utils.h"
 
-
 namespace dd_properties_unittest {
 
 /**
@@ -39,105 +38,86 @@ namespace dd_properties_unittest {
   inherited from ::testing::Test (google naming style differs from MySQL).
 */
 
-class PropertiesTest: public ::testing::Test
-{
-protected:
-  PropertiesTest()
-  {
-  }
+class PropertiesTest : public ::testing::Test {
+ protected:
+  PropertiesTest() {}
 
-  virtual void SetUp()
-  {
-    m_props= new dd::Properties_impl();
-  }
+  virtual void SetUp() { m_props = new dd::Properties_impl(); }
 
-  virtual void TearDown()
-  {
-    delete m_props;
-  }
+  virtual void TearDown() { delete m_props; }
 
-  static void SetUpTestCase()
-  {
-  }
+  static void SetUpTestCase() {}
 
-  static void TearDownTestCase()
-  {
-  }
+  static void TearDownTestCase() {}
 
   dd::Properties *m_props;
 
-private:
+ private:
   // Declares (but does not define) copy constructor and assignment operator.
   GTEST_DISALLOW_COPY_AND_ASSIGN_(PropertiesTest);
 };
 
-
 // Tests that valid option parsing is handled
-TEST_F(PropertiesTest, ValidStringParsing)
-{
-  dd::Properties *p= dd::Properties_impl::parse_properties("a=b;b=c");
+TEST_F(PropertiesTest, ValidStringParsing) {
+  dd::Properties *p = dd::Properties_impl::parse_properties("a=b;b=c");
   EXPECT_TRUE(p->value("a") == "b");
   EXPECT_TRUE(p->value("b") == "c");
   EXPECT_TRUE(p->raw_string() == "a=b;b=c;");
   delete p;
 
-  p= dd::Properties_impl::parse_properties("a=b;b=c;");
+  p = dd::Properties_impl::parse_properties("a=b;b=c;");
   EXPECT_TRUE(p->value("a") == "b");
   EXPECT_TRUE(p->value("b") == "c");
   EXPECT_TRUE(p->raw_string() == "a=b;b=c;");
   delete p;
 
-  p= dd::Properties_impl::parse_properties("\\=a=\\;b;b\\==\\=c");
+  p = dd::Properties_impl::parse_properties("\\=a=\\;b;b\\==\\=c");
   EXPECT_TRUE(p->value("=a") == ";b");
   EXPECT_TRUE(p->value("b=") == "=c");
   EXPECT_TRUE(p->raw_string() == "\\=a=\\;b;b\\==\\=c;");
   delete p;
 
-  p= dd::Properties_impl::parse_properties("");
+  p = dd::Properties_impl::parse_properties("");
   EXPECT_TRUE(p != NULL);
   EXPECT_FALSE(p->exists(""));
   delete p;
 
-  p= dd::Properties_impl::parse_properties("a=;");
+  p = dd::Properties_impl::parse_properties("a=;");
   EXPECT_TRUE(p != NULL);
   EXPECT_TRUE(p->value("a") == "");
   delete p;
 }
 
-
 // Tests that option parsing errors are handled
-TEST_F(PropertiesTest, FailingStringParsing)
-{
-  dd::Properties *p= dd::Properties_impl::parse_properties("a");
+TEST_F(PropertiesTest, FailingStringParsing) {
+  dd::Properties *p = dd::Properties_impl::parse_properties("a");
   EXPECT_TRUE(p == NULL);
   delete p;
 
-  p= dd::Properties_impl::parse_properties("a");
+  p = dd::Properties_impl::parse_properties("a");
   EXPECT_TRUE(p == NULL);
   delete p;
 
-  p= dd::Properties_impl::parse_properties(";");
+  p = dd::Properties_impl::parse_properties(";");
   EXPECT_TRUE(p == NULL);
   delete p;
 
-  p= dd::Properties_impl::parse_properties("a\\=b");
+  p = dd::Properties_impl::parse_properties("a\\=b");
   EXPECT_TRUE(p == NULL);
   delete p;
 
-  p= dd::Properties_impl::parse_properties("=");
+  p = dd::Properties_impl::parse_properties("=");
   EXPECT_TRUE(p == NULL);
   delete p;
 
-  p= dd::Properties_impl::parse_properties("=a");
+  p = dd::Properties_impl::parse_properties("=a");
   EXPECT_TRUE(p == NULL);
   delete p;
 }
 
-
 // Tests empty value behavior
-TEST_F(PropertiesTest, EmptyValue)
-{
-  dd::Properties *p= dd::Properties_impl::parse_properties("k=;");
+TEST_F(PropertiesTest, EmptyValue) {
+  dd::Properties *p = dd::Properties_impl::parse_properties("k=;");
   dd::String_type string_value("");
 
   EXPECT_TRUE(p->value("k") == "");
@@ -145,10 +125,8 @@ TEST_F(PropertiesTest, EmptyValue)
   delete p;
 }
 
-
 // Tests utf-8 behavior
-TEST_F(PropertiesTest, UTF8)
-{
+TEST_F(PropertiesTest, UTF8) {
   const dd::String_type EUR("\xE2\x82\xAC");
   const dd::String_type CNY("\xe5\x85\x83");
   const dd::String_type JPY("\xe5\x86\x86");
@@ -157,7 +135,7 @@ TEST_F(PropertiesTest, UTF8)
   const dd::String_type CNT("\xC2\xA2");
 
   // Parse a utf-8 string and add more key=value pairs
-  dd::Properties *p= dd::Properties_impl::parse_properties("EUR=" + EUR);
+  dd::Properties *p = dd::Properties_impl::parse_properties("EUR=" + EUR);
   p->set("CNY", CNY);
   p->set("JPY", JPY);
   p->set("GBP", GBP);
@@ -169,8 +147,7 @@ TEST_F(PropertiesTest, UTF8)
   p->set("1/100 " + USD, "Half of my 2 " + CNT + "s worth");
 
   EXPECT_TRUE(p->value("EUR") == EUR);
-  EXPECT_TRUE(p->value("1/100 " + p->value("EUR")) ==
-              "Cent, but not " + CNT);
+  EXPECT_TRUE(p->value("1/100 " + p->value("EUR")) == "Cent, but not " + CNT);
 
   EXPECT_TRUE(p->value("CNY") == CNY);
   EXPECT_TRUE(p->value("1/100 " + p->value("CNY")) ==
@@ -188,18 +165,16 @@ TEST_F(PropertiesTest, UTF8)
   delete p;
 }
 
-
 // Tests setting and getting options
-TEST_F(PropertiesTest, SetGetStrings)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, SetGetStrings) {
+  dd::Properties *p = new dd::Properties_impl();
   dd::String_type str("");
-  const char *value= NULL;
+  const char *value = NULL;
 
   p->set("a", "b");
   EXPECT_TRUE(p->value("a") == "b");
   EXPECT_TRUE(!p->get("a", str) && str == "b");
-  value= p->value_cstr("a");
+  value = p->value_cstr("a");
   EXPECT_TRUE(strcmp(value, "b") == 0);
   EXPECT_TRUE(strlen(value) == 1);
   EXPECT_TRUE(value[strlen(value)] == '\0');
@@ -207,7 +182,7 @@ TEST_F(PropertiesTest, SetGetStrings)
   p->set("b=", "c;");
   EXPECT_TRUE(p->value("b=") == "c;");
   EXPECT_TRUE(!p->get("b=", str) && str == "c;");
-  value= p->value_cstr("b=");
+  value = p->value_cstr("b=");
   EXPECT_TRUE(strcmp(value, "c;") == 0);
   EXPECT_TRUE(strlen(value) == 2);
   EXPECT_TRUE(value[strlen(value)] == '\0');
@@ -215,7 +190,7 @@ TEST_F(PropertiesTest, SetGetStrings)
   p->set("d\\=", "e\\;");
   EXPECT_TRUE(p->value("d\\=") == "e\\;");
   EXPECT_TRUE(!p->get("d\\=", str) && str == "e\\;");
-  value= p->value_cstr("d\\=");
+  value = p->value_cstr("d\\=");
   EXPECT_TRUE(strcmp(value, "e\\;") == 0);
   EXPECT_TRUE(strlen(value) == 3);
   EXPECT_TRUE(value[strlen(value)] == '\0');
@@ -223,7 +198,7 @@ TEST_F(PropertiesTest, SetGetStrings)
   p->set(";f", "=g");
   EXPECT_TRUE(p->value(";f") == "=g");
   EXPECT_TRUE(!p->get(";f", str) && str == "=g");
-  value= p->value_cstr(";f");
+  value = p->value_cstr(";f");
   EXPECT_TRUE(strcmp(value, "=g") == 0);
   EXPECT_TRUE(strlen(value) == 2);
   EXPECT_TRUE(value[strlen(value)] == '\0');
@@ -231,7 +206,7 @@ TEST_F(PropertiesTest, SetGetStrings)
   p->set("\\;h", "\\=i");
   EXPECT_TRUE(p->value("\\;h") == "\\=i");
   EXPECT_TRUE(!p->get("\\;h", str) && str == "\\=i");
-  value= p->value_cstr("\\;h");
+  value = p->value_cstr("\\;h");
   EXPECT_TRUE(strcmp(value, "\\=i") == 0);
   EXPECT_TRUE(strlen(value) == 3);
   EXPECT_TRUE(value[strlen(value)] == '\0');
@@ -243,19 +218,19 @@ TEST_F(PropertiesTest, SetGetStrings)
   EXPECT_TRUE(p->remove(""));
 
   EXPECT_TRUE(p->raw_string() ==
-    "\\;f=\\=g;\\\\\\;h=\\\\\\=i;a=b;b\\==c\\;;d\\\\\\==e\\\\\\;;");
+              "\\;f=\\=g;\\\\\\;h=\\\\\\=i;a=b;b\\==c\\;;d\\\\\\==e\\\\\\;;");
 
   // Create another object with the raw string as input
-  dd::Properties *p_copy= dd::Properties_impl::parse_properties(
-                            p->raw_string());
+  dd::Properties *p_copy =
+      dd::Properties_impl::parse_properties(p->raw_string());
   // Verify same values
-  EXPECT_TRUE(p->value("a")    == p_copy->value("a"));
+  EXPECT_TRUE(p->value("a") == p_copy->value("a"));
   EXPECT_TRUE(strcmp(p->value_cstr("a"), p_copy->value_cstr("a")) == 0);
-  EXPECT_TRUE(p->value("b=")   == p_copy->value("b="));
+  EXPECT_TRUE(p->value("b=") == p_copy->value("b="));
   EXPECT_TRUE(strcmp(p->value_cstr("b="), p_copy->value_cstr("b=")) == 0);
   EXPECT_TRUE(p->value("d\\=") == p_copy->value("d\\="));
   EXPECT_TRUE(strcmp(p->value_cstr("d\\="), p_copy->value_cstr("d\\=")) == 0);
-  EXPECT_TRUE(p->value(";f")   == p_copy->value(";f"));
+  EXPECT_TRUE(p->value(";f") == p_copy->value(";f"));
   EXPECT_TRUE(strcmp(p->value_cstr(";f"), p_copy->value_cstr(";f")) == 0);
   EXPECT_TRUE(p->value("\\;h") == p_copy->value("\\;h"));
   EXPECT_TRUE(strcmp(p->value_cstr("\\;h"), p_copy->value_cstr("\\;h")) == 0);
@@ -266,40 +241,38 @@ TEST_F(PropertiesTest, SetGetStrings)
   delete p_copy;
 }
 
-
 // Tests valid setting and getting of int and bool options
-TEST_F(PropertiesTest, ValidSetGetIntBool)
-{
-  int64  val1_int64= 0;
-  int64  val2_int64= 0;
-  uint64 val1_uint64= 0;
-  uint64 val2_uint64= 0;
-  int32  val1_int32= 0;
-  int32  val2_int32= 0;
-  uint32 val1_uint32= 0;
-  uint32 val2_uint32= 0;
+TEST_F(PropertiesTest, ValidSetGetIntBool) {
+  int64 val1_int64 = 0;
+  int64 val2_int64 = 0;
+  uint64 val1_uint64 = 0;
+  uint64 val2_uint64 = 0;
+  int32 val1_int32 = 0;
+  int32 val2_int32 = 0;
+  uint32 val1_uint32 = 0;
+  uint32 val2_uint32 = 0;
 
-  const char*  MAX_INT64_STR= "9223372036854775807";
-  const int64  MAX_INT64= std::numeric_limits<int64>::max();
-  const char*  MIN_INT64_STR= "-9223372036854775808";
-  const int64  MIN_INT64= std::numeric_limits<int64>::min();
+  const char *MAX_INT64_STR = "9223372036854775807";
+  const int64 MAX_INT64 = std::numeric_limits<int64>::max();
+  const char *MIN_INT64_STR = "-9223372036854775808";
+  const int64 MIN_INT64 = std::numeric_limits<int64>::min();
 
-  const char*  MAX_UINT64_STR= "18446744073709551615";
-  const uint64 MAX_UINT64= std::numeric_limits<uint64>::max();
-  const char*  MIN_UINT64_STR= "0";
-  const uint64 MIN_UINT64= 0;
+  const char *MAX_UINT64_STR = "18446744073709551615";
+  const uint64 MAX_UINT64 = std::numeric_limits<uint64>::max();
+  const char *MIN_UINT64_STR = "0";
+  const uint64 MIN_UINT64 = 0;
 
-  const char*  MAX_INT32_STR=  "2147483647";
-  const int32  MAX_INT32= std::numeric_limits<int32>::max();
-  const char*  MIN_INT32_STR=  "-2147483648";
-  const int32  MIN_INT32= std::numeric_limits<int32>::min();
+  const char *MAX_INT32_STR = "2147483647";
+  const int32 MAX_INT32 = std::numeric_limits<int32>::max();
+  const char *MIN_INT32_STR = "-2147483648";
+  const int32 MIN_INT32 = std::numeric_limits<int32>::min();
 
-  const char*  MAX_UINT32_STR= "4294967295";
-  const uint32 MAX_UINT32= std::numeric_limits<uint32>::max();
-  const char*  MIN_UINT32_STR= "0";
-  const uint32 MIN_UINT32= 0;
+  const char *MAX_UINT32_STR = "4294967295";
+  const uint32 MAX_UINT32 = std::numeric_limits<uint32>::max();
+  const char *MIN_UINT32_STR = "0";
+  const uint32 MIN_UINT32 = 0;
 
-  dd::Properties *p= new dd::Properties_impl();
+  dd::Properties *p = new dd::Properties_impl();
 
   // Set and get as strings and ints, int64
   p->set("str_int64", MAX_INT64_STR);
@@ -309,8 +282,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_int64") == MAX_INT64_STR);
   EXPECT_TRUE(!p->get_int64("str_int64", &val1_int64) &&
               !p->get_int64("num_int64", &val2_int64));
-  EXPECT_TRUE(val1_int64 == val2_int64 &&
-              val1_int64 == MAX_INT64);
+  EXPECT_TRUE(val1_int64 == val2_int64 && val1_int64 == MAX_INT64);
 
   p->set("str_int64", MIN_INT64_STR);
   p->set_int64("num_int64", MIN_INT64);
@@ -319,8 +291,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_int64") == MIN_INT64_STR);
   EXPECT_TRUE(!p->get_int64("str_int64", &val1_int64) &&
               !p->get_int64("num_int64", &val2_int64));
-  EXPECT_TRUE(val1_int64 == val2_int64 &&
-              val1_int64 == MIN_INT64);
+  EXPECT_TRUE(val1_int64 == val2_int64 && val1_int64 == MIN_INT64);
 
   // Set and get as strings and ints, uint64
   p->set("str_uint64", MAX_UINT64_STR);
@@ -330,8 +301,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_uint64") == MAX_UINT64_STR);
   EXPECT_TRUE(!p->get_uint64("str_uint64", &val1_uint64) &&
               !p->get_uint64("num_uint64", &val2_uint64));
-  EXPECT_TRUE(val1_uint64 == val2_uint64 &&
-              val1_uint64 == MAX_UINT64);
+  EXPECT_TRUE(val1_uint64 == val2_uint64 && val1_uint64 == MAX_UINT64);
 
   p->set("str_uint64", MIN_UINT64_STR);
   p->set_uint64("num_uint64", MIN_UINT64);
@@ -340,8 +310,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_uint64") == MIN_UINT64_STR);
   EXPECT_TRUE(!p->get_uint64("str_uint64", &val1_uint64) &&
               !p->get_uint64("num_uint64", &val2_uint64));
-  EXPECT_TRUE(val1_uint64 == val2_uint64 &&
-              val1_uint64 == MIN_UINT64);
+  EXPECT_TRUE(val1_uint64 == val2_uint64 && val1_uint64 == MIN_UINT64);
 
   // Set and get as strings and ints, int32
   p->set("str_int32", MAX_INT32_STR);
@@ -351,8 +320,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_int32") == MAX_INT32_STR);
   EXPECT_TRUE(!p->get_int32("str_int32", &val1_int32) &&
               !p->get_int32("num_int32", &val2_int32));
-  EXPECT_TRUE(val1_int32 == val2_int32 &&
-              val1_int32 == MAX_INT32);
+  EXPECT_TRUE(val1_int32 == val2_int32 && val1_int32 == MAX_INT32);
 
   p->set("str_int32", MIN_INT32_STR);
   p->set_int32("num_int32", MIN_INT32);
@@ -361,8 +329,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_int32") == MIN_INT32_STR);
   EXPECT_TRUE(!p->get_int32("str_int32", &val1_int32) &&
               !p->get_int32("num_int32", &val2_int32));
-  EXPECT_TRUE(val1_int32 == val2_int32 &&
-              val1_int32 == MIN_INT32);
+  EXPECT_TRUE(val1_int32 == val2_int32 && val1_int32 == MIN_INT32);
 
   // Set and get as strings and ints, uint32
   p->set("str_uint32", MAX_UINT32_STR);
@@ -372,8 +339,7 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_uint32") == MAX_UINT32_STR);
   EXPECT_TRUE(!p->get_uint32("str_uint32", &val1_uint32) &&
               !p->get_uint32("num_uint32", &val2_uint32));
-  EXPECT_TRUE(val1_uint32 == val2_uint32 &&
-              val1_uint32 == MAX_UINT32);
+  EXPECT_TRUE(val1_uint32 == val2_uint32 && val1_uint32 == MAX_UINT32);
 
   p->set("str_uint32", MIN_UINT32_STR);
   p->set_uint32("num_uint32", MIN_UINT32);
@@ -382,11 +348,10 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
               p->value("str_uint32") == MIN_UINT32_STR);
   EXPECT_TRUE(!p->get_uint32("str_uint32", &val1_uint32) &&
               !p->get_uint32("num_uint32", &val2_uint32));
-  EXPECT_TRUE(val1_uint32 == val2_uint32 &&
-              val1_uint32 == MIN_UINT32);
+  EXPECT_TRUE(val1_uint32 == val2_uint32 && val1_uint32 == MIN_UINT32);
 
   // Set and get as strings and bool
-  bool maybe= false;
+  bool maybe = false;
 
   p->set_bool("bool", true);
   EXPECT_TRUE(p->value("bool") == "1");
@@ -440,36 +405,37 @@ TEST_F(PropertiesTest, ValidSetGetIntBool)
   p->set_uint32("str_int_bool", MIN_UINT32);
   EXPECT_TRUE(!p->get_bool("str_int_bool", &maybe) && maybe == false);
 
-  EXPECT_TRUE(p->raw_string() =="num_int32=-2147483648;num_int64=-9223372036854775808;num_uint32=0;num_uint64=0;str_int32=-2147483648;str_int64=-9223372036854775808;str_int_bool=0;str_uint32=0;str_uint64=0;");
+  EXPECT_TRUE(p->raw_string() ==
+              "num_int32=-2147483648;num_int64=-9223372036854775808;num_uint32="
+              "0;num_uint64=0;str_int32=-2147483648;str_int64=-"
+              "9223372036854775808;str_int_bool=0;str_uint32=0;str_uint64=0;");
 
   delete p;
 }
-
 
 #if !defined(DBUG_OFF)
 
 // Tests invalid setting and getting of int and bool options
 typedef PropertiesTest PropertiesTestDeathTest;
 
-TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool)
-{
+TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int32  val_int32= 0;
-  uint32 val_uint32= 0;
-  int64  val_int64= 0;
-  uint64 val_uint64= 0;
+  int32 val_int32 = 0;
+  uint32 val_uint32 = 0;
+  int64 val_int64 = 0;
+  uint64 val_uint64 = 0;
 
-  const char*  OFL_INT64_STR= "9223372036854775808";
-  const char*  UFL_INT64_STR= "-9223372036854775809";
+  const char *OFL_INT64_STR = "9223372036854775808";
+  const char *UFL_INT64_STR = "-9223372036854775809";
 
-  const char*  OFL_UINT64_STR= "18446744073709551616";
+  const char *OFL_UINT64_STR = "18446744073709551616";
 
-  const char*  OFL_INT32_STR=  "2147483648";
-  const char*  UFL_INT32_STR=  "-2147483649";
+  const char *OFL_INT32_STR = "2147483648";
+  const char *UFL_INT32_STR = "-2147483649";
 
-  const char*  OFL_UINT32_STR= "4294967296";
+  const char *OFL_UINT32_STR = "4294967296";
 
-  dd::Properties *p= new dd::Properties_impl();
+  dd::Properties *p = new dd::Properties_impl();
 
   p->set("num_int64", OFL_INT64_STR);
   EXPECT_TRUE(p->value("num_int64") == OFL_INT64_STR);
@@ -505,7 +471,7 @@ TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool)
               !p->get_int64("num_uint32", &val_int64));
 
   // An overflowing 64 bit int should not be accepted as a bool
-  bool maybe= false;
+  bool maybe = false;
 
   p->set("bool", OFL_UINT64_STR);
   EXPECT_TRUE(p->value("bool") == OFL_UINT64_STR);
@@ -529,22 +495,21 @@ TEST_F(PropertiesTestDeathTest, FailingSetGetIntBool)
                             ".*UTC - mysqld got.*");
   EXPECT_DEATH_IF_SUPPORTED(p->get_int64("", &val_int64),
                             ".*UTC - mysqld got.*");
-  EXPECT_DEATH_IF_SUPPORTED(p->value(""),
-                            ".*UTC - mysqld got.*");
+  EXPECT_DEATH_IF_SUPPORTED(p->value(""), ".*UTC - mysqld got.*");
   EXPECT_TRUE(p->remove(""));
 
-  EXPECT_TRUE(p->raw_string() == "num_int32=-2147483649;num_int64=-9223372036854775809;num_uint32=4294967296;num_uint64=18446744073709551616;");
+  EXPECT_TRUE(p->raw_string() ==
+              "num_int32=-2147483649;num_int64=-9223372036854775809;num_uint32="
+              "4294967296;num_uint64=18446744073709551616;");
 
   delete p;
 }
 
 #endif  // DBUG_OFF
 
-
 // Tests the exists function
-TEST_F(PropertiesTest, OptionsExist)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, OptionsExist) {
+  dd::Properties *p = new dd::Properties_impl();
   EXPECT_FALSE(p->exists(""));
   EXPECT_FALSE(p->exists("a"));
 
@@ -560,8 +525,8 @@ TEST_F(PropertiesTest, OptionsExist)
   EXPECT_TRUE(p->value("a") == "b");
 
   // Create another object with the raw string as input
-  dd::Properties *p_copy= dd::Properties_impl::parse_properties(
-                            p->raw_string());
+  dd::Properties *p_copy =
+      dd::Properties_impl::parse_properties(p->raw_string());
   EXPECT_TRUE(p->exists("empty"));
   EXPECT_TRUE(p->value("empty") == "");
 
@@ -572,11 +537,9 @@ TEST_F(PropertiesTest, OptionsExist)
   delete p_copy;
 }
 
-
 // Tests replacing values
-TEST_F(PropertiesTest, ReplaceValues)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, ReplaceValues) {
+  dd::Properties *p = new dd::Properties_impl();
   EXPECT_FALSE(p->exists(""));
   EXPECT_FALSE(p->exists("a"));
 
@@ -609,11 +572,9 @@ TEST_F(PropertiesTest, ReplaceValues)
   delete p;
 }
 
-
 // Tests removing options
-TEST_F(PropertiesTest, RemoveOptions)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, RemoveOptions) {
+  dd::Properties *p = new dd::Properties_impl();
 
   EXPECT_FALSE(p->exists(""));
   EXPECT_FALSE(p->exists("a"));
@@ -640,11 +601,9 @@ TEST_F(PropertiesTest, RemoveOptions)
   delete p;
 }
 
-
 // Tests iterating over options
-TEST_F(PropertiesTest, IterationSize)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, IterationSize) {
+  dd::Properties *p = new dd::Properties_impl();
 
   EXPECT_TRUE(p->size() == 0);
 
@@ -668,9 +627,8 @@ TEST_F(PropertiesTest, IterationSize)
   p->set("", "");
   EXPECT_TRUE(p->size() == 2);
 
-  int i= 0;
-  for (dd::Properties::Iterator it= p->begin();
-       it != p->end(); ++it, ++i)
+  int i = 0;
+  for (dd::Properties::Iterator it = p->begin(); it != p->end(); ++it, ++i)
     if (it->first == "b")
       EXPECT_TRUE(it->second == "c");
     else if (it->first == "c")
@@ -686,42 +644,40 @@ TEST_F(PropertiesTest, IterationSize)
 
   EXPECT_TRUE(p->size() == 0);
 
-  for (dd::Properties::Iterator it= p->begin(); it != p->end(); ++it)
+  for (dd::Properties::Iterator it = p->begin(); it != p->end(); ++it)
     EXPECT_TRUE(false);
 
   delete p;
 }
 
-
 // Tests that valid integer conversions are handled
-TEST_F(PropertiesTest, ValidIntConversions)
-{
-  int32  val_int32= 0;
-  uint32 val_uint32= 0;
-  int64  val_int64= 0;
-  uint64 val_uint64= 0;
+TEST_F(PropertiesTest, ValidIntConversions) {
+  int32 val_int32 = 0;
+  uint32 val_uint32 = 0;
+  int64 val_int64 = 0;
+  uint64 val_uint64 = 0;
 
-  const char*  MAX_INT64_STR= "9223372036854775807";
-  const int64  MAX_INT64= std::numeric_limits<int64>::max();
-  const char*  MIN_INT64_STR= "-9223372036854775808";
-  const int64  MIN_INT64= std::numeric_limits<int64>::min();
+  const char *MAX_INT64_STR = "9223372036854775807";
+  const int64 MAX_INT64 = std::numeric_limits<int64>::max();
+  const char *MIN_INT64_STR = "-9223372036854775808";
+  const int64 MIN_INT64 = std::numeric_limits<int64>::min();
 
-  const char*  MAX_UINT64_STR= "18446744073709551615";
-  const uint64 MAX_UINT64= std::numeric_limits<uint64>::max();
-  const char*  MIN_UINT64_STR= "0";
-  const uint64 MIN_UINT64= 0;
+  const char *MAX_UINT64_STR = "18446744073709551615";
+  const uint64 MAX_UINT64 = std::numeric_limits<uint64>::max();
+  const char *MIN_UINT64_STR = "0";
+  const uint64 MIN_UINT64 = 0;
 
-  const char*  MAX_INT32_STR=  "2147483647";
-  const int32  MAX_INT32= std::numeric_limits<int32>::max();
-  const char*  MIN_INT32_STR=  "-2147483648";
-  const int32  MIN_INT32= std::numeric_limits<int32>::min();
+  const char *MAX_INT32_STR = "2147483647";
+  const int32 MAX_INT32 = std::numeric_limits<int32>::max();
+  const char *MIN_INT32_STR = "-2147483648";
+  const int32 MIN_INT32 = std::numeric_limits<int32>::min();
 
-  const char*  MAX_UINT32_STR= "4294967295";
-  const uint32 MAX_UINT32= std::numeric_limits<uint32>::max();
-  const char*  MIN_UINT32_STR= "0";
-  const uint32 MIN_UINT32= 0;
+  const char *MAX_UINT32_STR = "4294967295";
+  const uint32 MAX_UINT32 = std::numeric_limits<uint32>::max();
+  const char *MIN_UINT32_STR = "0";
+  const uint32 MIN_UINT32 = 0;
 
-  dd::Properties *p= new dd::Properties_impl();
+  dd::Properties *p = new dd::Properties_impl();
 
   // ======================================
   // Positive test cases
@@ -802,26 +758,24 @@ TEST_F(PropertiesTest, ValidIntConversions)
   delete p;
 }
 
-
 // Tests that integer conversion errors are handled
-TEST_F(PropertiesTest, FailingIntConversions)
-{
-  int32  val_int32= 0;
-  uint32 val_uint32= 0;
-  int64  val_int64= 0;
-  uint64 val_uint64= 0;
+TEST_F(PropertiesTest, FailingIntConversions) {
+  int32 val_int32 = 0;
+  uint32 val_uint32 = 0;
+  int64 val_int64 = 0;
+  uint64 val_uint64 = 0;
 
-  const char*  OFL_INT64_STR= "9223372036854775808";
-  const char*  UFL_INT64_STR= "-9223372036854775809";
+  const char *OFL_INT64_STR = "9223372036854775808";
+  const char *UFL_INT64_STR = "-9223372036854775809";
 
-  const char*  OFL_UINT64_STR= "18446744073709551616";
+  const char *OFL_UINT64_STR = "18446744073709551616";
 
-  const char*  OFL_INT32_STR=  "2147483648";
-  const char*  UFL_INT32_STR=  "-2147483649";
+  const char *OFL_INT32_STR = "2147483648";
+  const char *UFL_INT32_STR = "-2147483649";
 
-  const char*  OFL_UINT32_STR= "4294967296";
+  const char *OFL_UINT32_STR = "4294967296";
 
-  dd::Properties *p= new dd::Properties_impl();
+  dd::Properties *p = new dd::Properties_impl();
 
   // ======================================
   // Negative test cases
@@ -876,17 +830,15 @@ TEST_F(PropertiesTest, FailingIntConversions)
   delete p;
 }
 
-
 // Tests that valid boolean conversions are handled
-TEST_F(PropertiesTest, ValidBoolConversions)
-{
-  bool val= false;
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, ValidBoolConversions) {
+  bool val = false;
+  dd::Properties *p = new dd::Properties_impl();
 
-  const char*  MIN_INT64_STR=  "-9223372036854775808";
-  const char*  MAX_INT64_STR=   "9223372036854775807";
-  const char*  MAX_UINT64_STR= "18446744073709551615";
-  const char*  OFL_INT64_STR=   "9223372036854775808";
+  const char *MIN_INT64_STR = "-9223372036854775808";
+  const char *MAX_INT64_STR = "9223372036854775807";
+  const char *MAX_UINT64_STR = "18446744073709551615";
+  const char *OFL_INT64_STR = "9223372036854775808";
 
   // =======================================
   // Positive test cases
@@ -923,15 +875,13 @@ TEST_F(PropertiesTest, ValidBoolConversions)
   delete p;
 }
 
-
 // Tests that boolean conversion errors are handled
-TEST_F(PropertiesTest, FailingBoolConversions)
-{
-  bool val= false;
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, FailingBoolConversions) {
+  bool val = false;
+  dd::Properties *p = new dd::Properties_impl();
 
-  const char*  UFL_INT64_STR= "-9223372036854775809";
-  const char*  OFL_UINT64_STR= "18446744073709551616";
+  const char *UFL_INT64_STR = "-9223372036854775809";
+  const char *OFL_UINT64_STR = "18446744073709551616";
 
   // =======================================
   // Negative test cases
@@ -971,29 +921,25 @@ TEST_F(PropertiesTest, FailingBoolConversions)
   delete p;
 }
 
-
 // Invoke conversion functions through class name
-TEST_F(PropertiesTest, StaticConversionMethods)
-{
-  int32  val_int32= 0;
-  uint32 val_uint32= 0;
-  int64  val_int64= 0;
-  uint64 val_uint64= 0;
-  bool maybe= false;
+TEST_F(PropertiesTest, StaticConversionMethods) {
+  int32 val_int32 = 0;
+  uint32 val_uint32 = 0;
+  int64 val_int64 = 0;
+  uint64 val_uint64 = 0;
+  bool maybe = false;
 
   EXPECT_TRUE(!dd::Properties::to_int64("-123", &val_int64) &&
               val_int64 == -123);
 
   EXPECT_TRUE(dd::Properties::to_uint64("-123", &val_uint64));
-  EXPECT_TRUE(!dd::Properties::to_uint64("0", &val_uint64) &&
-              val_uint64 == 0);
+  EXPECT_TRUE(!dd::Properties::to_uint64("0", &val_uint64) && val_uint64 == 0);
 
   EXPECT_TRUE(!dd::Properties::to_int32("-123", &val_int32) &&
               val_int32 == -123);
 
   EXPECT_TRUE(dd::Properties::to_uint32("-123", &val_uint32));
-  EXPECT_TRUE(!dd::Properties::to_uint32("0", &val_uint32) &&
-              val_uint32 == 0);
+  EXPECT_TRUE(!dd::Properties::to_uint32("0", &val_uint32) && val_uint32 == 0);
 
   EXPECT_TRUE(!dd::Properties::to_bool("true", &maybe) && maybe == true);
   EXPECT_TRUE(!dd::Properties::to_bool("1", &maybe) && maybe == true);
@@ -1003,20 +949,18 @@ TEST_F(PropertiesTest, StaticConversionMethods)
   EXPECT_TRUE(dd::Properties::to_bool("", &maybe));
 }
 
-
 // Test assignment operator for deep copy of Property objects
-TEST_F(PropertiesTest, Assign)
-{
-  dd::Properties *p= new dd::Properties_impl();
+TEST_F(PropertiesTest, Assign) {
+  dd::Properties *p = new dd::Properties_impl();
   p->set_int32("a", 1);
 
   // Assign to a different object
-  dd::Properties *p_copy= new dd::Properties_impl();
+  dd::Properties *p_copy = new dd::Properties_impl();
   p_copy->assign(*p);
 
   // The "a" key should be present with the same value in both objects
-  int32 val_p= 0;
-  int32 val_p_copy= 0;
+  int32 val_p = 0;
+  int32 val_p_copy = 0;
   EXPECT_TRUE(!p->get_int32("a", &val_p) && val_p == 1 &&
               !p_copy->get_int32("a", &val_p_copy) && val_p_copy == 1);
 
@@ -1028,5 +972,4 @@ TEST_F(PropertiesTest, Assign)
   delete p;
 }
 
-}  // namespace
-
+}  // namespace dd_properties_unittest

@@ -38,7 +38,7 @@ namespace upgrade_57 {
 */
 bool migrate_routines_to_dd(THD *thd);
 
-} // namespace upgrade
-} // namespace dd
+}  // namespace upgrade_57
+}  // namespace dd
 
-#endif // DD_UPGRADE__ROUTINE_H_INCLUDED
+#endif  // DD_UPGRADE__ROUTINE_H_INCLUDED

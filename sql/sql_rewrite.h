@@ -22,5 +22,4 @@
 
 class THD;
 
-
 void mysql_rewrite_query(THD *thd);

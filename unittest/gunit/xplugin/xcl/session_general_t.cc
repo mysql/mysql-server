@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -23,7 +23,6 @@
  */
 
 #include "unittest/gunit/xplugin/xcl/session_t.h"
-
 
 namespace xcl {
 namespace test {
@@ -39,8 +38,7 @@ TEST_F(Xcl_session_impl_tests, get_client_id) {
 
   encode_session_state_change(
       Mysqlx::Notice::SessionStateChanged::CLIENT_ID_ASSIGNED,
-      expected_client_id,
-      &payload);
+      expected_client_id, &payload);
 
   /* Connection was not started, session_id must
    be not initialized. */
@@ -48,12 +46,10 @@ TEST_F(Xcl_session_impl_tests, get_client_id) {
 
   /* Update the session_id */
   ASSERT_EQ(Handler_result::Consumed,
-            m_out_message_handler(
-              m_mock_protocol,
-              local_notice,
-              Mysqlx::Notice::Frame::SESSION_STATE_CHANGED,
-              payload.c_str(),
-              static_cast<uint32_t>(payload.length())));
+            m_out_message_handler(m_mock_protocol, local_notice,
+                                  Mysqlx::Notice::Frame::SESSION_STATE_CHANGED,
+                                  payload.c_str(),
+                                  static_cast<uint32_t>(payload.length())));
 
   /* Verify that the session object reports the new ID */
   ASSERT_EQ(expected_client_id, m_sut->client_id());

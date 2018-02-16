@@ -46,21 +46,16 @@ struct THR_LOCK;
   @{
 */
 
-class PFS_index_session_variables : public PFS_engine_index
-{
-public:
+class PFS_index_session_variables : public PFS_engine_index {
+ public:
   PFS_index_session_variables()
-    : PFS_engine_index(&m_key), m_key("VARIABLE_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_session_variables()
-  {
-  }
+  ~PFS_index_session_variables() {}
 
   virtual bool match(const System_variable *pfs);
 
-private:
+ private:
   PFS_key_variable_name m_key;
 };
 
@@ -68,21 +63,17 @@ private:
   Store and retrieve table state information during queries that reinstantiate
   the table object.
 */
-class table_session_variables_context : public PFS_table_context
-{
-public:
+class table_session_variables_context : public PFS_table_context {
+ public:
   table_session_variables_context(ulonglong hash_version, bool restore)
-    : PFS_table_context(hash_version, restore, THR_PFS_SV)
-  {
-  }
+      : PFS_table_context(hash_version, restore, THR_PFS_SV) {}
 };
 
 /**
   A row of table
   PERFORMANCE_SCHEMA.SESSION_VARIABLES.
 */
-struct row_session_variables
-{
+struct row_session_variables {
   /** Column VARIABLE_NAME. */
   PFS_variable_name_row m_variable_name;
   /** Column VARIABLE_VALUE. */
@@ -90,11 +81,10 @@ struct row_session_variables
 };
 
 /** Table PERFORMANCE_SCHEMA.SESSION_VARIABLES. */
-class table_session_variables : public PFS_engine_table
-{
+class table_session_variables : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -109,22 +99,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_session_variables();
 
-public:
-  ~table_session_variables()
-  {
-  }
+ public:
+  ~table_session_variables() {}
 
-protected:
+ protected:
   int make_row(const System_variable *system_var);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

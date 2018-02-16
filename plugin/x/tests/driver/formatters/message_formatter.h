@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,11 +31,9 @@
 
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
-
 namespace formatter {
 
-std::string message_to_text(
-    const xcl::XProtocol::Message &message);
+std::string message_to_text(const xcl::XProtocol::Message &message);
 
 /*
    - field_path possible values:
@@ -45,9 +43,8 @@ std::string message_to_text(
   * field1[1].field1[0]
   * field1[1].field2
 */
-std::string message_to_text(
-    const xcl::XProtocol::Message &message,
-    const std::string &field_path);
+std::string message_to_text(const xcl::XProtocol::Message &message,
+                            const std::string &field_path);
 
 }  // namespace formatter
 

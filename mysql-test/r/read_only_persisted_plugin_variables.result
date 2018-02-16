@@ -44,7 +44,7 @@ set @@persist_only.innodb_sort_buffer_size=1048576;
 set @@persist_only.innodb_sync_array_size=1;
 set @@persist_only.innodb_use_native_aio=1;
 set @@persist_only.innodb_write_io_threads=4;
-set @@persist_only.log_slave_updates=1;
+set @@persist_only.log_slave_updates=0;
 set @@persist_only.max_digest_length=1024;
 set @@persist_only.metadata_locks_cache_size=1024;
 set @@persist_only.metadata_locks_hash_instances=8;
@@ -153,7 +153,7 @@ innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
 innodb_use_native_aio	1
 innodb_write_io_threads	4
-log_slave_updates	1
+log_slave_updates	0
 max_digest_length	1024
 metadata_locks_cache_size	1024
 metadata_locks_hash_instances	8

@@ -96,7 +96,7 @@ GRANT ALL PRIVILEGES ON `b54866`.* TO `b54866_user`@`localhost`
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO `b54866_user`@`localhost`
 *************************************************************
 REVOKE ALTER ON TABLE b54866.t1 FROM 'b54866_user'@'localhost', 'b54866_fake_user';
-ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on table 't1'
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -143,7 +143,7 @@ GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 ##########
 #### PROCEDURE ASSERTION
 REVOKE EXECUTE ON PROCEDURE b54866.b54866_p FROM 'b54866_user'@'localhost', 'b54866_fake_user';
-ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on routine 'b54866_p'
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -167,7 +167,7 @@ GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 ########## FUNCTION
 ##########
 REVOKE EXECUTE ON FUNCTION b54866.b54866_f FROM 'b54866_user'@'localhost', 'b54866_fake_user';
-ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%'
+ERROR 42000: There is no such grant defined for user 'b54866_fake_user' on host '%' on routine 'b54866_f'
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -191,9 +191,9 @@ GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO `b54866_user`@`localhost`
 ########## empty revokes should not be binlogged
 ##########
 REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
-ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost'
+ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost' on routine 'b54866_p'
 REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
-ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost'
+ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost' on routine 'b54866_f'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
 include/sync_slave_sql_with_master.inc

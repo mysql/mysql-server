@@ -34,11 +34,7 @@ SET @@local.default_week_format = 2;
 SET @@global.lc_time_names = 'zh_HK';
 SET @@local.lc_time_names = 'zh_TW';
 SET @@global.sql_mode = 'ALLOW_INVALID_DATES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@local.sql_mode = 'ANSI_QUOTES,HIGH_NOT_PRECEDENCE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @user_num = 10;
 SET @user_text = 'Alunda';
 include/stop_slave.inc
@@ -135,17 +131,11 @@ SET @@local.lc_time_names = 'ar_IQ';
 INSERT INTO tstmt(text) VALUES (@@global.lc_time_names);
 INSERT INTO tstmt(text) VALUES (@@local.lc_time_names);
 SET @@global.sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+SET @@local.sql_mode = 'IGNORE_SPACE';
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@local.sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO tstmt(text) VALUES (@@global.sql_mode);
 INSERT INTO tstmt(text) VALUES (@@local.sql_mode);
 ---- user variables ----
@@ -222,7 +212,7 @@ INSERT INTO tproc(text) VALUES (@@global.lc_time_names);
 INSERT INTO tproc(text) VALUES (@@local.lc_time_names);
 # enum
 SET @@global.sql_mode = '';
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+SET @@local.sql_mode = 'IGNORE_SPACE';
 INSERT INTO tproc(text) VALUES (@@global.sql_mode);
 INSERT INTO tproc(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
@@ -308,7 +298,7 @@ INSERT INTO tfunc(text) VALUES (@@global.lc_time_names);
 INSERT INTO tfunc(text) VALUES (@@local.lc_time_names);
 # enum
 SET @@global.sql_mode = '';
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+SET @@local.sql_mode = 'IGNORE_SPACE';
 INSERT INTO tfunc(text) VALUES (@@global.sql_mode);
 INSERT INTO tfunc(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
@@ -398,7 +388,7 @@ INSERT INTO ttrig(text) VALUES (@@global.lc_time_names);
 INSERT INTO ttrig(text) VALUES (@@local.lc_time_names);
 # enum
 SET @@global.sql_mode = '';
-SET @@local.sql_mode = 'IGNORE_SPACE,NO_AUTO_CREATE_USER';
+SET @@local.sql_mode = 'IGNORE_SPACE';
 INSERT INTO ttrig(text) VALUES (@@global.sql_mode);
 INSERT INTO ttrig(text) VALUES (@@local.sql_mode);
 SET @@global.sql_mode = 'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION';
@@ -468,7 +458,7 @@ PREPARE p46 FROM 'SET @@local.lc_time_names = \'ar_IQ\'';
 PREPARE p47 FROM 'INSERT INTO tprep(text) VALUES (@@global.lc_time_names)';
 PREPARE p48 FROM 'INSERT INTO tprep(text) VALUES (@@local.lc_time_names)';
 PREPARE p49 FROM 'SET @@global.sql_mode = \'\'';
-PREPARE p50 FROM 'SET @@local.sql_mode = \'IGNORE_SPACE,NO_AUTO_CREATE_USER\'';
+PREPARE p50 FROM 'SET @@local.sql_mode = \'IGNORE_SPACE\'';
 PREPARE p51 FROM 'INSERT INTO tprep(text) VALUES (@@global.sql_mode)';
 PREPARE p52 FROM 'INSERT INTO tprep(text) VALUES (@@local.sql_mode)';
 PREPARE p53 FROM 'SET @@global.sql_mode = \'NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_DIR_IN_CREATE,NO_ENGINE_SUBSTITUTION\'';
@@ -533,16 +523,10 @@ EXECUTE p47;
 EXECUTE p48;
 EXECUTE p49;
 EXECUTE p50;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXECUTE p51;
 EXECUTE p52;
 EXECUTE p53;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXECUTE p54;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 EXECUTE p55;
 EXECUTE p56;
 EXECUTE p57;
@@ -582,7 +566,7 @@ id	truth	num	text
 23	NULL	NULL	ar_TN
 24	NULL	NULL	ar_IQ
 25	NULL	NULL	
-26	NULL	NULL	IGNORE_SPACE,NO_AUTO_CREATE_USER
+26	NULL	NULL	IGNORE_SPACE
 27	NULL	NULL	NO_DIR_IN_CREATE,NO_AUTO_VALUE_ON_ZERO,NO_BACKSLASH_ESCAPES,NO_ENGINE_SUBSTITUTION
 28	NULL	NULL	
 29	NULL	20	NULL
@@ -604,8 +588,6 @@ SET @@global.low_priority_updates= @m_low_priority_updates;
 SET @@global.relay_log_purge=      @m_relay_log_purge;
 SET @@global.slave_exec_mode=      @m_slave_exec_mode;
 SET @@global.sql_mode=             @m_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.sync_binlog=          @m_sync_binlog;
 [on slave]
 SET @@global.default_week_format=  @s_default_week_format;
@@ -615,8 +597,6 @@ SET @@global.low_priority_updates= @s_low_priority_updates;
 SET @@global.relay_log_purge=      @s_relay_log_purge;
 SET @@global.slave_exec_mode=      @s_slave_exec_mode;
 SET @@global.sql_mode=             @s_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.sync_binlog=          @s_sync_binlog;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

@@ -59,7 +59,7 @@ COMMIT;
 
 ALTER TABLE t DROP INDEX c;
 
-GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+CREATE USER 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
 FLUSH PRIVILEGES;
 
 -- connect (con1,localhost,tuser01,cDJvI9s_Uq,)

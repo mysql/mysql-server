@@ -53,8 +53,7 @@
 #define PSI_CURRENT_IDLE_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_idle_bootstrap
-{
+struct PSI_idle_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -73,8 +72,7 @@ typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
   Performance Schema Idle Interface, version 1.
   @since PSI_IDLE_VERSION_1
 */
-struct PSI_idle_service_v1
-{
+struct PSI_idle_service_v1 {
   /** @sa start_idle_wait_v1_t. */
   start_idle_wait_v1_t start_idle_wait;
   /** @sa end_idle_wait_v1_t. */

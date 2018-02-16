@@ -20,37 +20,31 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include "common.h"
 #include "my_loglevel.h"
 
-
 // Client-side logging function
 
-void error_log_vprint(error_log_level::type level,
-                        const char *fmt, va_list args)
-{
-  const char *level_string= "";
-  int   log_level= get_log_level();
+void error_log_vprint(error_log_level::type level, const char *fmt,
+                      va_list args) {
+  const char *level_string = "";
+  int log_level = get_log_level();
 
-  switch (level)
-  {
-  case error_log_level::INFO:    
-    if (3 > log_level)
-      return;
-    level_string= "Note"; 
-    break;
-  case error_log_level::WARNING: 
-    if (2 > log_level)
-      return;
-    level_string= "Warning"; 
-    break;
-  case error_log_level::ERROR:   
-    if (1 > log_level)
-      return;
-    level_string= "ERROR";
-    break;
+  switch (level) {
+    case error_log_level::INFO:
+      if (3 > log_level) return;
+      level_string = "Note";
+      break;
+    case error_log_level::WARNING:
+      if (2 > log_level) return;
+      level_string = "Warning";
+      break;
+    case error_log_level::ERROR:
+      if (1 > log_level) return;
+      level_string = "ERROR";
+      break;
   }
 
   fprintf(stderr, "Windows Authentication Plugin %s: ", level_string);
@@ -59,16 +53,8 @@ void error_log_vprint(error_log_level::type level,
   fflush(stderr);
 }
 
-
 // Trivial implementation of log-level setting storage.
 
-void set_log_level(unsigned int level)
-{
-  opt_auth_win_log_level= level;
-}
+void set_log_level(unsigned int level) { opt_auth_win_log_level = level; }
 
-
-unsigned int  get_log_level(void)
-{
-  return opt_auth_win_log_level;
-}
+unsigned int get_log_level(void) { return opt_auth_win_log_level; }

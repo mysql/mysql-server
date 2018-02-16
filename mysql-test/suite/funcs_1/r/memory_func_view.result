@@ -1,6 +1,4 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET timestamp=UNIX_TIMESTAMP('2010-01-01');
 DROP TABLE IF EXISTS t1_selects, t1_modes, t1_values;
 DROP VIEW  IF EXISTS v1;
@@ -87,7 +85,7 @@ PREPARE ins_sel_no_result   FROM "INSERT INTO t1_selects SET my_select = @my_sel
 disable_result = 'Yes'" ;
 SET sql_mode = 'traditional';
 SET @my_select = 'SELECT sqrt(my_bigint), my_bigint, id FROM t1_values';
-SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1_values SET select_id = @select_id,

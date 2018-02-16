@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2017, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -30,12 +30,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/log0types.h
-Log types
+/** @file include/log0types.h
+ Log types
 
-Created 2013-03-15 Sunny Bains
-*******************************************************/
+ Created 2013-03-15 Sunny Bains
+ *******************************************************/
 
 #ifndef log0types_h
 #define log0types_h
@@ -43,10 +42,10 @@ Created 2013-03-15 Sunny Bains
 #include "univ.i"
 
 /* Type used for all log sequence number storage and arithmetics */
-typedef	ib_uint64_t		lsn_t;
+typedef ib_uint64_t lsn_t;
 
-#define LSN_MAX			IB_UINT64_MAX
+#define LSN_MAX IB_UINT64_MAX
 
-#define LSN_PF			UINT64PF
+#define LSN_PF UINT64PF
 
 #endif /* log0types_h */

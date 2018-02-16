@@ -1633,8 +1633,6 @@ DROP TABLE t1;
 # Bug#21140088 MATCH AGAINST: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || BITMAP_IS_SET
 #
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT) ENGINE=INNODB;
 CREATE TABLE t2(b TEXT CHARSET LATIN1, FULLTEXT(b), PRIMARY KEY(b(10))) ENGINE=INNODB;
 INSERT INTO t2 VALUES ('a'),('b');

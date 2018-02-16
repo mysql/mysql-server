@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,13 +25,13 @@
 #ifndef _XPL_SHA256_PASSWORD_CACHE_H_
 #define _XPL_SHA256_PASSWORD_CACHE_H_
 
-#include <unordered_map>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
-#include "plugin/x/src/xpl_performance_schema.h"
-#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/ngs/include/ngs/interface/sha256_password_cache_interface.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 
 #include "sql/auth/i_sha2_password_common.h"
 
@@ -42,16 +42,16 @@ namespace xpl {
   allows for fast authentication.
 */
 class SHA256_password_cache final
-  : public ngs::SHA256_password_cache_interface {
-public:
+    : public ngs::SHA256_password_cache_interface {
+ public:
   using sha2_cache_entry_t = std::string;
   using password_cache_t = std::unordered_map<std::string, sha2_cache_entry_t>;
 
   SHA256_password_cache();
-  SHA256_password_cache(SHA256_password_cache&) = delete;
-  SHA256_password_cache& operator=(const SHA256_password_cache&) = delete;
-  SHA256_password_cache(SHA256_password_cache&&) = default;
-  SHA256_password_cache& operator=(SHA256_password_cache&&) = default;
+  SHA256_password_cache(SHA256_password_cache &) = delete;
+  SHA256_password_cache &operator=(const SHA256_password_cache &) = delete;
+  SHA256_password_cache(SHA256_password_cache &&) = default;
+  SHA256_password_cache &operator=(SHA256_password_cache &&) = default;
 
   void enable() override;
   void disable() override;
@@ -59,13 +59,14 @@ public:
   bool upsert(const std::string &user, const std::string &host,
               const std::string &value) override;
   bool remove(const std::string &user, const std::string &host) override;
-  std::pair<bool, std::string> get_entry(const std::string &user,
-      const std::string &host) const override;
+  std::pair<bool, std::string> get_entry(
+      const std::string &user, const std::string &host) const override;
   bool contains(const std::string &user, const std::string &host,
                 const std::string &value) const override;
   std::size_t size() const override { return m_password_cache.size(); }
   void clear() override;
-private:
+
+ private:
   std::string create_key(const std::string &user,
                          const std::string &host) const;
   std::pair<bool, sha2_cache_entry_t> create_hash(

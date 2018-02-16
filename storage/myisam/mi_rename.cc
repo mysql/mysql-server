@@ -29,23 +29,25 @@
 #include "my_io.h"
 #include "storage/myisam/fulltext.h"
 
-int mi_rename(const char *old_name, const char *new_name)
-{
-  char from[FN_REFLEN],to[FN_REFLEN];
+int mi_rename(const char *old_name, const char *new_name) {
+  char from[FN_REFLEN], to[FN_REFLEN];
   DBUG_ENTER("mi_rename");
 
 #ifdef EXTRA_DEBUG
-  check_table_is_closed(old_name,"rename old_table");
-  check_table_is_closed(new_name,"rename new table2");
+  check_table_is_closed(old_name, "rename old_table");
+  check_table_is_closed(new_name, "rename new table2");
 #endif
 
-  fn_format(from,old_name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  fn_format(to,new_name,"",MI_NAME_IEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
+  fn_format(from, old_name, "", MI_NAME_IEXT,
+            MY_UNPACK_FILENAME | MY_APPEND_EXT);
+  fn_format(to, new_name, "", MI_NAME_IEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
   if (mysql_file_rename_with_symlink(mi_key_file_kfile, from, to, MYF(MY_WME)))
     DBUG_RETURN(my_errno());
-  fn_format(from,old_name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  fn_format(to,new_name,"",MI_NAME_DEXT,MY_UNPACK_FILENAME|MY_APPEND_EXT);
-  DBUG_RETURN(mysql_file_rename_with_symlink(mi_key_file_dfile,
-                                             from, to,
-                                             MYF(MY_WME)) ? my_errno() : 0);
+  fn_format(from, old_name, "", MI_NAME_DEXT,
+            MY_UNPACK_FILENAME | MY_APPEND_EXT);
+  fn_format(to, new_name, "", MI_NAME_DEXT, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+  DBUG_RETURN(
+      mysql_file_rename_with_symlink(mi_key_file_dfile, from, to, MYF(MY_WME))
+          ? my_errno()
+          : 0);
 }

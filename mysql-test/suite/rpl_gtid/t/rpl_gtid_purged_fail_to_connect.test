@@ -21,7 +21,7 @@
 --let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
-call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires.");
+call mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*");
 
 --echo ######## Initialize ########
 
@@ -91,6 +91,12 @@ RESET MASTER;
 --connection master
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
+
+--let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_match= .*Cannot replicate to server with server_uuid.*The missing transactions are '.*:3'.*
+--let $assert_select= Cannot replicate to server with server_uuid
+--let $assert_text= Found warning containing lost GTIDs
+--source include/assert_grep.inc
 
 --connection master
 --source include/rpl_end.inc

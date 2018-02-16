@@ -1,16 +1,12 @@
-SET old_passwords=2;
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
 SELECT plugin into @plugin from mysql.user where user= 'root' and host='localhost';
 SELECT password_last_changed into @plc from mysql.user where user= 'root' and host='localhost';
 SELECT authentication_string into @auth_str from mysql.user where user= 'root' and host='localhost';
 SELECT plugin into @sys_plugin from mysql.user where user= 'mysql.sys' and host='localhost';
 SELECT password_last_changed into @sys_plc from mysql.user where user= 'mysql.sys' and host='localhost';
 SELECT authentication_string into @sys_auth_str from mysql.user where user= 'mysql.sys' and host='localhost';
-update mysql.user set plugin= 'sha256_password', authentication_string= PASSWORD('123') where user='root' and host='localhost';
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
+update mysql.user set plugin= 'sha256_password', authentication_string= '' where user='root' and host='localhost';
 FLUSH PRIVILEGES;
+SET PASSWORD='123';
 call mtr.add_suppression("Dictionary file not specified");
 mysql_secure_installation: [Warning] Using a password on the command line interface can be insecure.
 

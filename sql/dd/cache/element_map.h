@@ -23,16 +23,15 @@
 #ifndef DD_CACHE__ELEMENT_MAP_INCLUDED
 #define DD_CACHE__ELEMENT_MAP_INCLUDED
 
-#include <cstddef>                        // size_t
-#include <map>                            // std::map
-#include <set>                            // std::set
+#include <cstddef>  // size_t
+#include <map>      // std::map
+#include <set>      // std::set
 
 #include "my_dbug.h"
-#include "sql/malloc_allocator.h"         // Malloc_allocator.
+#include "sql/malloc_allocator.h"  // Malloc_allocator.
 
 namespace dd {
 namespace cache {
-
 
 /**
   Implementation of a map between a key type and an element type.
@@ -68,31 +67,27 @@ namespace cache {
 */
 
 template <typename K, typename E>
-class Element_map
-{
-public:
-  typedef std::map<K, E*, std::less<K>,
-                   Malloc_allocator<std::pair<const K, E*> > >
-                     Element_map_type;              // Real map type.
-  typedef typename Element_map_type::
-                     const_iterator Const_iterator; // Const iterator type.
-  typedef typename Element_map_type::
-                     iterator Iterator;             // Iterator type.
+class Element_map {
+ public:
+  typedef std::map<K, E *, std::less<K>,
+                   Malloc_allocator<std::pair<const K, E *>>>
+      Element_map_type;  // Real map type.
+  typedef typename Element_map_type::const_iterator
+      Const_iterator;                                    // Const iterator type.
+  typedef typename Element_map_type::iterator Iterator;  // Iterator type.
 
-private:
-  Element_map_type m_map;                      // The real map instance.
+ private:
+  Element_map_type m_map;  // The real map instance.
   std::set<K, std::less<K>,
-           Malloc_allocator<K> > m_missed;     // Cache misses being handled.
+           Malloc_allocator<K>>
+      m_missed;  // Cache misses being handled.
 
-public:
-
-  Element_map(): m_map(std::less<K>(),
-                       Malloc_allocator<std::pair<const K,
-                                                  E*> >(PSI_INSTRUMENT_ME)),
-                 m_missed(std::less<K>(),
-                          Malloc_allocator<K>(PSI_INSTRUMENT_ME))
-  { } /* purecov: tested */
-
+ public:
+  Element_map()
+      : m_map(std::less<K>(),
+              Malloc_allocator<std::pair<const K, E *>>(PSI_INSTRUMENT_ME)),
+        m_missed(std::less<K>(), Malloc_allocator<K>(PSI_INSTRUMENT_ME)) {
+  } /* purecov: tested */
 
   /**
     Get an iterator to the beginning of the map.
@@ -103,13 +98,10 @@ public:
   */
 
   /* purecov: begin inspected */
-  Const_iterator begin() const
-  { return m_map.begin(); }
+  Const_iterator begin() const { return m_map.begin(); }
   /* purecov: end */
 
-  Iterator begin()
-  { return m_map.begin(); }
-
+  Iterator begin() { return m_map.begin(); }
 
   /**
     Get an iterator to one past the end of the map.
@@ -120,13 +112,10 @@ public:
   */
 
   /* purecov: begin inspected */
-  Const_iterator end() const
-  { return m_map.end(); }
+  Const_iterator end() const { return m_map.end(); }
   /* purecov: end */
 
-  Iterator end()
-  { return m_map.end(); }
-
+  Iterator end() { return m_map.end(); }
 
   /**
     Return the number of elements in the map.
@@ -134,9 +123,7 @@ public:
     @return   Number of elements in the map.
   */
 
-  size_t size() const
-  { return m_map.size(); }
-
+  size_t size() const { return m_map.size(); }
 
   /**
     Check if the given key is present in the map.
@@ -148,9 +135,7 @@ public:
     @return        true if present, otherwise false.
   */
 
-  bool is_present(const K &key) const
-  { return m_map.find(key) != m_map.end(); }
-
+  bool is_present(const K &key) const { return m_map.find(key) != m_map.end(); }
 
   /**
     Get the element associated with the given key.
@@ -163,19 +148,16 @@ public:
                           or NULL (if not present).
   */
 
-  void get(const K &key, E** element) const
-  {
+  void get(const K &key, E **element) const {
     DBUG_ASSERT(element);
-    typename Element_map_type::const_iterator it= m_map.find(key);
+    typename Element_map_type::const_iterator it = m_map.find(key);
     if (it == m_map.end())
-      *element= NULL;
-    else
-    {
+      *element = NULL;
+    else {
       DBUG_ASSERT(it->second);
-      *element= it->second;
+      *element = it->second;
     }
   }
-
 
   /**
     Put the element into the map and associate it with the given key.
@@ -186,13 +168,11 @@ public:
     @param       element  The element to be associated with the key.
   */
 
-  void put(const K &key, E *element)
-  {
+  void put(const K &key, E *element) {
     DBUG_ASSERT(element);
     DBUG_ASSERT(m_map.find(key) == m_map.end());
     m_map.insert(typename Element_map_type::value_type(key, element));
   }
-
 
   /**
     Remove an element from the map.
@@ -204,12 +184,10 @@ public:
     @param       key      The key to be removed.
   */
 
-  void remove(const K &key)
-  {
+  void remove(const K &key) {
     DBUG_ASSERT(m_map.find(key) != m_map.end());
     m_map.erase(key);
   }
-
 
   /**
     Check if the given key has been missed in the cache.
@@ -218,9 +196,9 @@ public:
     @return true if the element has been missed, otherwise false.
   */
 
-  bool is_missed(const K &key) const
-  { return m_missed.find(key) != m_missed.end(); }
-
+  bool is_missed(const K &key) const {
+    return m_missed.find(key) != m_missed.end();
+  }
 
   /**
     Register the given key as being missed in the cache.
@@ -230,12 +208,10 @@ public:
     @param  key  Key representing element missed in the cache.
   */
 
-  void set_missed(const K &key)
-  {
+  void set_missed(const K &key) {
     DBUG_ASSERT(m_missed.find(key) == m_missed.end());
     m_missed.insert(key);
   }
-
 
   /**
     Register that the miss of a key has been handled.
@@ -245,12 +221,10 @@ public:
     @param  key  Key representing element previously missed in the cache.
   */
 
-  void set_miss_handled(const K &key)
-  {
+  void set_miss_handled(const K &key) {
     DBUG_ASSERT(m_missed.find(key) != m_missed.end());
     m_missed.erase(key);
   }
-
 
   /**
     Debug dump of the element map to stderr.
@@ -260,18 +234,16 @@ public:
   */
 
   /* purecov: begin inspected */
-  void dump() const
- {
+  void dump() const {
 #ifndef DBUG_OFF
     Const_iterator it;
-    for (it= m_map.begin(); it != m_map.end(); it++)
-      it->second->dump();
+    for (it = m_map.begin(); it != m_map.end(); it++) it->second->dump();
 #endif
   }
   /* purecov: end */
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
-#endif // DD_CACHE__ELEMENT_MAP_INCLUDED
+#endif  // DD_CACHE__ELEMENT_MAP_INCLUDED

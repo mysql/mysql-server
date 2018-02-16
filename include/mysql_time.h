@@ -41,12 +41,13 @@
 // Do not not pull in the server header "my_inttypes.h" from client code.
 // IWYU pragma: no_include "my_inttypes.h"
 
-enum enum_mysql_timestamp_type
-{
-  MYSQL_TIMESTAMP_NONE= -2, MYSQL_TIMESTAMP_ERROR= -1,
-  MYSQL_TIMESTAMP_DATE= 0, MYSQL_TIMESTAMP_DATETIME= 1, MYSQL_TIMESTAMP_TIME= 2
+enum enum_mysql_timestamp_type {
+  MYSQL_TIMESTAMP_NONE = -2,
+  MYSQL_TIMESTAMP_ERROR = -1,
+  MYSQL_TIMESTAMP_DATE = 0,
+  MYSQL_TIMESTAMP_DATETIME = 1,
+  MYSQL_TIMESTAMP_TIME = 2
 };
-
 
 /*
   Structure which is used to represent datetime values inside MySQL.
@@ -60,11 +61,10 @@ enum enum_mysql_timestamp_type
   value (time_type == MYSQL_TIMESTAMP_TIME) days and hour member can hold
   bigger values.
 */
-typedef struct MYSQL_TIME
-{
-  unsigned int  year, month, day, hour, minute, second;
-  unsigned long second_part;  /**< microseconds */
-  bool          neg;
+typedef struct MYSQL_TIME {
+  unsigned int year, month, day, hour, minute, second;
+  unsigned long second_part; /**< microseconds */
+  bool neg;
   enum enum_mysql_timestamp_type time_type;
 } MYSQL_TIME;
 

@@ -30,51 +30,50 @@
   or member role updates.
 */
 BEGIN_SERVICE_DEFINITION(group_member_status_listener)
-  /**
-    This function SHALL be called whenever the role of a member
-    changes.
+/**
+  This function SHALL be called whenever the role of a member
+  changes.
 
-    The implementation SHALL consume the notification and
-    return false on success, true on failure.
+  The implementation SHALL consume the notification and
+  return false on success, true on failure.
 
-    The implementation MUST NOT block the caller. It MUST
-    handle the notification quickly or enqueue it and deal
-    with it asynchronously.
+  The implementation MUST NOT block the caller. It MUST
+  handle the notification quickly or enqueue it and deal
+  with it asynchronously.
 
-    Currently the server can have one of two roles in group
-    replication, when setup in single primary mode: PRIMARY
-    or SECONDARY.
+  Currently the server can have one of two roles in group
+  replication, when setup in single primary mode: PRIMARY
+  or SECONDARY.
 
-    @param view_id The view identifier. This must be copied
-                   if the string must outlive the notification
-                   lifecycle.
+  @param view_id The view identifier. This must be copied
+                 if the string must outlive the notification
+                 lifecycle.
 
-    @return false success, true on failure.
-  */
-  DECLARE_BOOL_METHOD(notify_member_role_change, (const char* view_id));
+  @return false success, true on failure.
+*/
+DECLARE_BOOL_METHOD(notify_member_role_change, (const char *view_id));
 
-  /**
-    This function SHALL be called whenever the state of a member
-    changes.
+/**
+  This function SHALL be called whenever the state of a member
+  changes.
 
-    The implementation SHALL consume the notification and
-    return false on success, true on failure.
+  The implementation SHALL consume the notification and
+  return false on success, true on failure.
 
-    The implementation MUST NOT block the caller. It MUST
-    handle the notification quickly or enqueue it and deal
-    with it asynchronously.
+  The implementation MUST NOT block the caller. It MUST
+  handle the notification quickly or enqueue it and deal
+  with it asynchronously.
 
-    A state is one of OFFLINE, ONLINE, RECOVERING, UNREACHABLE,
-    ERROR.
+  A state is one of OFFLINE, ONLINE, RECOVERING, UNREACHABLE,
+  ERROR.
 
-    @param view_id The view identifier. This must be copied
-                   if the string must outlive the notification
-                   lifecycle.
+  @param view_id The view identifier. This must be copied
+                 if the string must outlive the notification
+                 lifecycle.
 
-    @return false success, true on failure.
-  */
-  DECLARE_BOOL_METHOD(notify_member_state_change, (const char* view_id));
+  @return false success, true on failure.
+*/
+DECLARE_BOOL_METHOD(notify_member_state_change, (const char *view_id));
 END_SERVICE_DEFINITION(group_member_status_listener)
 
 #endif /* GROUP_MEMBER_STATUS_LISTENER_H */
-

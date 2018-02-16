@@ -27,19 +27,19 @@
   Character constant for the escape character in a wildcard pattern
   (SQL style).
 */
-const char wild_prefix= '\\';
+const char wild_prefix = '\\';
 
 /**
   Character constant for wildcard representing any one character
   (SQL style).
 */
-const char wild_one= '_';
+const char wild_one = '_';
 
 /**
   Character constant for wildcard representing zero or more
   characters (SQL style).
 */
-const char wild_many= '%';
+const char wild_many = '%';
 
 /**
   Performs wildcard matching, aka globbing, on the input string with
@@ -84,7 +84,6 @@ int wild_compare_full(const char *str, const char *wildstr, bool str_is_pattern,
 
   @return 0 if match, 1 otherwise
  */
-int wild_compare(const char *str, const char *wildstr,
-                 bool str_is_pattern);
+int wild_compare(const char *str, const char *wildstr, bool str_is_pattern);
 
 #endif /* !MF_WCOMP_INCLUDED */

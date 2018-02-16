@@ -23,28 +23,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_ref_counted.h"
 
 /** default constructor */
-my_ref_counted::my_ref_counted()
-  : m_count(0)
-{}
+my_ref_counted::my_ref_counted() : m_count(0) {}
 
 /** copy constructor */
 my_ref_counted::my_ref_counted(my_ref_counted &other)
-  : m_count(other.m_count.load())
-{}
+    : m_count(other.m_count.load()) {}
 
 /* virtual destructor */
-my_ref_counted::~my_ref_counted()
-{}
+my_ref_counted::~my_ref_counted() {}
 
 /**
   Increases a reference count.
 
   @return old value
 */
-uint64 my_ref_counted::add_reference()
-{
-  return m_count++;
-}
+uint64 my_ref_counted::add_reference() { return m_count++; }
 
 /**
   Decreases a reference count.
@@ -55,20 +48,16 @@ uint64 my_ref_counted::add_reference()
   @retval false success
   @retval true Failure. Will be returned in case counter is already 0.
 */
-bool my_ref_counted::release_reference(uint64* new_count)
-{
-  uint64 old_val= m_count;
-  do
-  {
-    if (old_val == 0)
-    {
+bool my_ref_counted::release_reference(uint64 *new_count) {
+  uint64 old_val = m_count;
+  do {
+    if (old_val == 0) {
       return true;
     }
-  } while (!m_count.compare_exchange_weak(old_val, old_val-1));
+  } while (!m_count.compare_exchange_weak(old_val, old_val - 1));
 
-  if (new_count != NULL)
-  {
-    *new_count= old_val-1;
+  if (new_count != NULL) {
+    *new_count = old_val - 1;
   }
   return false;
 }
@@ -78,7 +67,4 @@ bool my_ref_counted::release_reference(uint64* new_count)
 
   @return current value
 */
-uint64 my_ref_counted::get_reference_count() const
-{
-  return m_count;
-}
+uint64 my_ref_counted::get_reference_count() const { return m_count; }

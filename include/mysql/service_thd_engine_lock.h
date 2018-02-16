@@ -29,14 +29,14 @@
   lock related activities.
 
   SYNOPSIS
-  thd_row_lock_wait() - call it just when the engine find a transaction should wait
-                        another transaction to realease a row lock
-  thd                   The session which is waiting  for the row lock to release.
-  thd_wait_for          The session which is holding the row lock.
+  thd_row_lock_wait() - call it just when the engine find a transaction should
+  wait another transaction to realease a row lock thd                   The
+  session which is waiting  for the row lock to release. thd_wait_for
+  The session which is holding the row lock.
 */
 
 class THD;
 
-void thd_report_row_lock_wait(THD* self, THD *wait_for);
+void thd_report_row_lock_wait(THD *self, THD *wait_for);
 
 #endif

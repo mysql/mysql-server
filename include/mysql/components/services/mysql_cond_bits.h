@@ -46,8 +46,7 @@
   @sa mysql_cond_broadcast
   @sa mysql_cond_destroy
 */
-struct mysql_cond_t
-{
+struct mysql_cond_t {
   /** The real condition */
   native_cond_t m_cond;
   /**

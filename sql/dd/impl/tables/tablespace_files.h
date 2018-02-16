@@ -23,53 +23,46 @@
 #ifndef DD_TABLES__TABLESPACE_FILES_INCLUDED
 #define DD_TABLES__TABLESPACE_FILES_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace_files : public Object_table_impl
-{
-public:
+class Tablespace_files : public Object_table_impl {
+ public:
   static const Tablespace_files &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_TABLESPACE_ID,
     FIELD_ORDINAL_POSITION,
     FIELD_FILE_NAME,
     FIELD_SE_PRIVATE_DATA
   };
 
-  enum enum_indexes
-  {
+  enum enum_indexes {
     INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
     INDEX_UK_FILE_NAME
   };
 
-  enum enum_foreign_keys
-  {
-    FK_TABLESPACE_ID
-  };
+  enum enum_foreign_keys { FK_TABLESPACE_ID };
 
   Tablespace_files();
 
-  static Object_key *create_key_by_tablespace_id(
-    Object_id tablespace_id);
+  static Object_key *create_key_by_tablespace_id(Object_id tablespace_id);
 
-  static Object_key *create_primary_key(
-    Object_id tablespace_id, int ordinal_position);
+  static Object_key *create_primary_key(Object_id tablespace_id,
+                                        int ordinal_position);
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TABLESPACE_FILES_INCLUDED
+#endif  // DD_TABLES__TABLESPACE_FILES_INCLUDED

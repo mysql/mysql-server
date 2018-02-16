@@ -34,43 +34,42 @@
 #include "client/base/mysql_connection_options.h"
 #include "client/client_priv.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 /**
   Base class for all programs that use connection to MySQL database server.
  */
-class Abstract_connection_program
-  : public Abstract_program, public I_connection_factory
-{
-public:
+class Abstract_connection_program : public Abstract_program,
+                                    public I_connection_factory {
+ public:
   /**
     Provides new connection to MySQL database server based on option values.
     Implementation of I_connection_factory interface.
    */
-  virtual MYSQL* create_connection();
+  virtual MYSQL *create_connection();
 
   /**
     Retrieves charset that will be used in new MySQL connections. Can be NULL
     if none was set explicitly.
    */
-  CHARSET_INFO* get_current_charset() const;
+  CHARSET_INFO *get_current_charset() const;
 
   /**
     Sets charset that will be used in new MySQL connections.
    */
-  void set_current_charset(CHARSET_INFO* charset);
+  void set_current_charset(CHARSET_INFO *charset);
 
-protected:
+ protected:
   Abstract_connection_program();
 
-private:
+ private:
   Options::Mysql_connection_options m_connection_options;
 };
 
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

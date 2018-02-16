@@ -4,11 +4,13 @@
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
+# We can't create ''@'%' unless we delete row from mysql.db
+create table mysql.db_copy as select * from mysql.db;
+delete from mysql.db where host='%';
+flush privileges;
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 connect (con1root,localhost,root,,);
 
@@ -16,7 +18,12 @@ connection con1root;
 use test;
 
 # Create user user1 with no particular access rights
-grant usage on *.* to user1@localhost;
+create user user1@localhost;
+create user ''@'%';
+create user user1;
+delete from mysql.db;
+# Restore mysql.db to its original state
+insert into mysql.db select * from mysql.db_copy;
 flush privileges;
 
 --disable_warnings
@@ -175,6 +182,8 @@ use db2;
 create table t2 (s1 int);
 insert into t2 values (0);
 
+create user user2@localhost;
+
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
@@ -263,14 +272,14 @@ delete from mysql.user where user='' and host='%';
 delete from mysql.procs_priv where user='user1' or user='user2';
 # Delete the grants to user ''@'%' that was created above
 delete from mysql.procs_priv where user='' and host='%';
-delete from mysql.db where user='user2';
+delete from mysql.db where user='user1' or user='user2';
 flush privileges;
 #
 # Test the new security acls
 #
-grant usage on *.* to usera@localhost;
-grant usage on *.* to userb@localhost;
-grant usage on *.* to userc@localhost;
+create user usera@localhost;
+create user userb@localhost;
+create user userc@localhost;
 create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
@@ -343,6 +352,7 @@ drop table t1;
 connect (root,localhost,root,,test);
 connection root;
 
+create user user1@localhost;
 --disable_warnings
 drop function if exists bug_9503;
 --enable_warnings
@@ -425,7 +435,7 @@ begin
 end//
 delimiter ;//
 
-grant usage on *.* to mysqltest_1@localhost;
+create user mysqltest_1@localhost;
 
 connect (n1,localhost,mysqltest_1,,information_schema,$MASTER_MYPORT,$MASTER_MYSOCK);
 connection n1;
@@ -755,7 +765,7 @@ DROP DATABASE mysqltest;
 #
 
 
-GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
+CREATE USER user19857@localhost IDENTIFIED BY 'meow';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
 user19857@localhost;
 SELECT Host,User FROM mysql.user WHERE User='user19857';
@@ -1088,9 +1098,6 @@ DROP USER u1@localhost;
 DROP USER user@localhost;
 DROP DATABASE mysqltest_db;
 
-SET GLOBAL sql_mode= @orig_sql_mode_global;
-SET SESSION sql_mode= @orig_sql_mode_session;
-
 --echo #
 --echo # PASSWORD EXPIRATION CHECKED FOR LOCKED ACCOUNTS USED AS SP DEFINERS
 --echo #
@@ -1100,6 +1107,15 @@ CREATE DEFINER=r1 PROCEDURE p1() SELECT current_user();
 CALL p1();
 DROP PROCEDURE p1;
 DROP ROLE r1;
+
+# Restore mysql.db to its original state
+delete from mysql.db;
+insert into mysql.db select * from mysql.db_copy;
+flush privileges;
+drop table mysql.db_copy;
+
+SET GLOBAL sql_mode= @orig_sql_mode_global;
+SET SESSION sql_mode= @orig_sql_mode_session;
 
 # Wait till all disconnects are completed.
 --source include/wait_until_count_sessions.inc

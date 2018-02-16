@@ -29,30 +29,26 @@
 namespace dd {
 namespace system_views {
 
-const Statistics_base &Statistics::instance()
-{
-  static Statistics_base *s_instance= new Statistics();
+const Statistics_base &Statistics::instance() {
+  static Statistics_base *s_instance = new Statistics();
   return *s_instance;
 }
 
-
-const Statistics_base &Show_statistics::instance()
-{
-  static Statistics_base *s_instance= new Show_statistics();
+const Statistics_base &Show_statistics::instance() {
+  static Statistics_base *s_instance = new Show_statistics();
   return *s_instance;
 }
 
-
-Statistics_base::Statistics_base()
-{
+Statistics_base::Statistics_base() {
   m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME",
                          "tbl.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(FIELD_NON_UNIQUE, "NON_UNIQUE",
-     "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE','0','1')");
+  m_target_def.add_field(
+      FIELD_NON_UNIQUE, "NON_UNIQUE",
+      "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE','0','1')");
   m_target_def.add_field(FIELD_INDEX_SCHEMA, "INDEX_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_INDEX_NAME, "INDEX_NAME",
@@ -76,10 +72,11 @@ Statistics_base::Statistics_base()
                          "CASE WHEN idx.type = 'SPATIAL' THEN 'SPATIAL' "
                          "WHEN idx.algorithm = 'SE_PRIVATE' THEN '' "
                          "ELSE idx.algorithm END ");
-  m_target_def.add_field(FIELD_COMMENT, "COMMENT",
-             "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE', "
-             "    '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', ''))");
-  m_target_def.add_field(FIELD_INDEX_COMMENT,"INDEX_COMMENT", "idx.comment");
+  m_target_def.add_field(
+      FIELD_COMMENT, "COMMENT",
+      "IF (idx.type = 'PRIMARY' OR idx.type = 'UNIQUE', "
+      "    '',IF(INTERNAL_KEYS_DISABLED(tbl.options),'disabled', ''))");
+  m_target_def.add_field(FIELD_INDEX_COMMENT, "INDEX_COMMENT", "idx.comment");
   m_target_def.add_field(FIELD_IS_VISIBLE, "IS_VISIBLE",
                          "IF (idx.is_visible, 'YES', 'NO')");
 
@@ -89,20 +86,22 @@ Statistics_base::Statistics_base()
   m_target_def.add_from("JOIN mysql.columns col ON icu.column_id=col.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
-  m_target_def.add_from("JOIN mysql.collations coll "
-                         "ON tbl.collation_id=coll.id");
+  m_target_def.add_from(
+      "JOIN mysql.collations coll "
+      "ON tbl.collation_id=coll.id");
 
   m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
-  m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
-                         "idx.hidden OR icu.hidden)");
+  m_target_def.add_where(
+      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, "
+      "idx.hidden OR icu.hidden)");
 }
 
-Statistics::Statistics()
-{
+Statistics::Statistics() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_CARDINALITY,  "CARDINALITY",
-    "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
+  m_target_def.add_field(
+      FIELD_CARDINALITY, "CARDINALITY",
+      "INTERNAL_INDEX_COLUMN_CARDINALITY(sch.name, tbl.name, idx.name,"
       "col.name, idx.ordinal_position,"
       "icu.ordinal_position,"
       "tbl.engine,"
@@ -111,23 +110,22 @@ Statistics::Statistics()
       "COALESCE(stat.cardinality, CAST(-1 AS UNSIGNED)),"
       "COALESCE(CAST(stat.cached_time as UNSIGNED), 0))");
 
-  m_target_def.add_from("LEFT JOIN mysql.index_stats stat"
-                                  "  ON tbl.name=stat.table_name"
-                                  " AND sch.name=stat.schema_name"
-                                  " AND idx.name=stat.index_name"
-                                  " AND col.name=stat.column_name");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.index_stats stat"
+      "  ON tbl.name=stat.table_name"
+      " AND sch.name=stat.schema_name"
+      " AND idx.name=stat.index_name"
+      " AND col.name=stat.column_name");
 }
 
-
-Show_statistics::Show_statistics()
-{
+Show_statistics::Show_statistics() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_INDEX_ORDINAL_POSITION,
-                         "INDEX_ORDINAL_POSITION", "idx.ordinal_position");
+  m_target_def.add_field(FIELD_INDEX_ORDINAL_POSITION, "INDEX_ORDINAL_POSITION",
+                         "idx.ordinal_position");
   m_target_def.add_field(FIELD_COLUMN_ORDINAL_POSITION,
                          "COLUMN_ORDINAL_POSITION", "icu.ordinal_position");
 }
 
-} // system_views
-} // dd
+}  // namespace system_views
+}  // namespace dd

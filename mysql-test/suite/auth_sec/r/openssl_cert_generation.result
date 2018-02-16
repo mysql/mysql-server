@@ -28,10 +28,7 @@ Pattern "Skipping generation of RSA key pair as --sha256_password_auto_generate_
 # Ensure that certificate files are not there after server is started
 # Ensure that server is not ssl enabled
 # Ensure that sha connection is not possible in absence of certificates and keys
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 drop user wl7699_sha256;
 # Test 3 : SSL certificates
 # 3.1 : Restarting mysqld with : --auto-generate-certs=1
@@ -76,6 +73,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -86,10 +84,7 @@ sha256_password_private_key_path	private_key.pem
 sha256_password_proxy_users	OFF
 sha256_password_public_key_path	public_key.pem
 # 5.3 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
@@ -118,6 +113,7 @@ ssl_cert	server-cert.pem
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	server-key.pem
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -132,10 +128,7 @@ sha256_password_public_key_path	public_key.pem
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
 # 6.4 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should be able to connect to server using generated SSL certificates.
 Variable_name	Value
 Ssl_cipher	SSL_CIPHER
@@ -162,6 +155,7 @@ ssl_cert
 ssl_cipher	
 ssl_crl	
 ssl_crlpath	
+ssl_fips_mode	OFF
 ssl_key	
 # sha256_password_auto_generate_rsa_keys, sha256_password_private_key_path
 # and sha256_password_public_key_path should be set.
@@ -174,10 +168,7 @@ sha256_password_public_key_path	public_key.pem
 # 7.3 : SSL connection
 # Should not be able to connect to server using generated SSL certificates.
 # 7.4 : SHA256_password user
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 # Should not be able to connect to server using generated SSL certificates.
 # Should be able to connect to server using RSA key pair.
 current_user()

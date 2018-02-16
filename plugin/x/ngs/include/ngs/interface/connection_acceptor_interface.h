@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,18 +27,15 @@
 
 #include "violite.h"
 
+namespace ngs {
 
-namespace ngs
-{
-
-class Connection_acceptor_interface
-{
-public:
-  virtual ~Connection_acceptor_interface() {};
+class Connection_acceptor_interface {
+ public:
+  virtual ~Connection_acceptor_interface(){};
 
   virtual Vio *accept() = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_CONNECTION_ACCEPTOR_INTERFACE_H_
+#endif  // _NGS_CONNECTION_ACCEPTOR_INTERFACE_H_

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,14 +25,10 @@
 #ifndef _NGS_PROTOCOL_MONITOR_INTERFACE_H_
 #define _NGS_PROTOCOL_MONITOR_INTERFACE_H_
 
+namespace ngs {
 
-namespace ngs
-{
-
-
-class Protocol_monitor_interface
-{
-public:
+class Protocol_monitor_interface {
+ public:
   virtual ~Protocol_monitor_interface() {}
 
   virtual void on_notice_warning_send() = 0;
@@ -47,8 +43,6 @@ public:
   virtual void on_error_unknown_msg_type() = 0;
 };
 
+}  // namespace ngs
 
-} // namespace ngs
-
-
-#endif // _NGS_PROTOCOL_MONITOR_INTERFACE_H_
+#endif  // _NGS_PROTOCOL_MONITOR_INTERFACE_H_

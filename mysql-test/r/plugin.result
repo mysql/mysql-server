@@ -75,8 +75,6 @@ UNINSTALL PLUGIN example;
 INSTALL PLUGIN example SONAME 'ha_example.so';
 select @@session.sql_mode into @old_sql_mode;
 set session sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set global example_ulong_var=500;
 select @@global.example_ulong_var;
 @@global.example_ulong_var
@@ -100,8 +98,6 @@ select @@global.example_ulong_var;
 @@global.example_ulong_var
 500
 set session sql_mode=@old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set session old=bla;
 ERROR HY000: Variable 'old' is a read only variable
 UNINSTALL PLUGIN example;
@@ -296,16 +292,8 @@ SET GLOBAL DEBUG='-d,set_uninstall_sync_point';
 #
 # Bug#51770: UNINSTALL PLUGIN requires no privileges
 #
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER bug51770@localhost;
 GRANT INSERT ON mysql.plugin TO bug51770@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSTALL PLUGIN example SONAME 'ha_example.so';
 UNINSTALL PLUGIN example;
 ERROR 42000: DELETE command denied to user 'bug51770'@'localhost' for table 'plugin'

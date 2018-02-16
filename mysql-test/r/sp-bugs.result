@@ -257,8 +257,6 @@ Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION f1;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE f1(IN arg TINYINT UNSIGNED)
 BEGIN
 DECLARE arg1 TINYINT;
@@ -318,8 +316,6 @@ ERROR 22003: Out of range value for column 'arg' at row 1
 SELECT fn2();
 ERROR 22003: Out of range value for column 'v1' at row 1
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT fn1(-25);
 ERROR 22007: Truncated incorrect DOUBLE value: '1abcd'
 DROP FUNCTION fn1;
@@ -345,8 +341,6 @@ NULL
 Warnings:
 Warning	1365	Division by 0
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE proc_c()
 BEGIN
 DECLARE div_zero INTEGER;
@@ -360,8 +354,6 @@ Warnings:
 Warning	1365	Division by 0
 DROP PROCEDURE proc_c;
 SET sql_mode=traditional;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE FUNCTION fn1() RETURNS TINYINT
 BEGIN
 SET  @x=floor('1a');

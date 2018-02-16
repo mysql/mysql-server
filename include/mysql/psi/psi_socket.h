@@ -45,8 +45,7 @@
 #define PSI_SOCKET_VERSION_1 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_socket_bootstrap
-{
+struct PSI_socket_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -65,8 +64,7 @@ typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
   Performance Schema Socket Interface, version 1.
   @since PSI_SOCKET_VERSION_1
 */
-struct PSI_socket_service_v1
-{
+struct PSI_socket_service_v1 {
   /** @sa register_socket_v1_t. */
   register_socket_v1_t register_socket;
   /** @sa init_socket_v1_t. */

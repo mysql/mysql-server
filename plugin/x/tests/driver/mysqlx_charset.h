@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,14 +28,13 @@
 #include <cstdint>
 #include <string>
 
-
 namespace xcl {
 
 class Charset {
  public:
   static std::string charset_name_from_id(uint32_t id);
   static std::string collation_name_from_id(uint32_t id);
-  static uint32_t id_from_collation_name(const std::string& collation_name);
+  static uint32_t id_from_collation_name(const std::string &collation_name);
 
  private:
   typedef struct {

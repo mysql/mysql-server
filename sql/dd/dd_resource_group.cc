@@ -23,93 +23,84 @@
 
 #include <memory>
 
-#include "my_dbug.h"                           // DBUG_*
-#include "mysqld_error.h"                      // ER_RESOURCE_GROUP_EXISTS
-#include "sql/dd/cache/dictionary_client.h"    // dd::cache::Dictionary_client
-#include "sql/dd/dd.h"                         // dd::create_object
-#include "sql/dd/types/resource_group.h"       // dd::Resource_group
-#include "sql/resourcegroups/resource_group.h" // resourcegroups::Resource_group
-#include "sql/sql_class.h"                     // THD
+#include "my_dbug.h"                            // DBUG_*
+#include "mysqld_error.h"                       // ER_RESOURCE_GROUP_EXISTS
+#include "sql/dd/cache/dictionary_client.h"     // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                          // dd::create_object
+#include "sql/dd/types/resource_group.h"        // dd::Resource_group
+#include "sql/resourcegroups/resource_group.h"  // resourcegroups::Resource_group
+#include "sql/sql_class.h"                      // THD
 #include "sql/thd_raii.h"
-#include "sql/transaction.h"                   // trans_commit
+#include "sql/transaction.h"  // trans_commit
 
 namespace dd {
 
 bool resource_group_exists(dd::cache::Dictionary_client *dd_client,
                            const String_type &resource_group_name,
-                           bool *exists)
-{
+                           bool *exists) {
   DBUG_ENTER("resource_group_exists");
   DBUG_ASSERT(exists);
 
-  const dd::Resource_group *resource_group_ptr= nullptr;
+  const dd::Resource_group *resource_group_ptr = nullptr;
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  if (dd_client->acquire(resource_group_name, &resource_group_ptr))
-  {
+  if (dd_client->acquire(resource_group_name, &resource_group_ptr)) {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  *exists= resource_group_ptr != nullptr;
+  *exists = resource_group_ptr != nullptr;
 
   DBUG_RETURN(false);
 }
 
-
-static bool
-set_resource_group_attributes(dd::Resource_group *resource_group,
-                              const resourcegroups::Resource_group &res_grp_ref)
-{
+static bool set_resource_group_attributes(
+    dd::Resource_group *resource_group,
+    const resourcegroups::Resource_group &res_grp_ref) {
   DBUG_ENTER("set_resource_group_attributes");
 
   resource_group->set_name(res_grp_ref.name().c_str());
   resource_group->set_resource_group_type(res_grp_ref.type());
   resource_group->set_resource_group_enabled(res_grp_ref.enabled());
 
-  const resourcegroups::Thread_resource_control *thr_res_ctrl=
-    res_grp_ref.controller();
+  const resourcegroups::Thread_resource_control *thr_res_ctrl =
+      res_grp_ref.controller();
   resource_group->set_cpu_id_mask(thr_res_ctrl->vcpu_vector());
   resource_group->set_thread_priority(thr_res_ctrl->priority());
 
   DBUG_RETURN(false);
 }
 
-
 bool create_resource_group(THD *thd,
-                           const resourcegroups::Resource_group &res_grp_ref)
-{
+                           const resourcegroups::Resource_group &res_grp_ref) {
   DBUG_ENTER("create_resource_group");
 
   // Check if the same resource group already exists.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Resource_group *resource_group_ptr= nullptr;
+  const dd::Resource_group *resource_group_ptr = nullptr;
   if (thd->dd_client()->acquire(dd::String_type(res_grp_ref.name().c_str(),
                                                 res_grp_ref.name().length()),
-                                &resource_group_ptr))
-  {
+                                &resource_group_ptr)) {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (resource_group_ptr != nullptr)
-  {
+  if (resource_group_ptr != nullptr) {
     my_error(ER_RESOURCE_GROUP_EXISTS, MYF(0), res_grp_ref.name().c_str());
     DBUG_RETURN(true);
   }
 
   // Create new resource group.
   std::unique_ptr<dd::Resource_group> resource_group(
-    dd::create_object<dd::Resource_group>());
+      dd::create_object<dd::Resource_group>());
 
   // Set attributes of the resource group.
   if (set_resource_group_attributes(resource_group.get(), res_grp_ref))
-    DBUG_RETURN(true); // Error already logged.
+    DBUG_RETURN(true);  // Error already logged.
 
   Disable_gtid_state_update_guard disabler(thd);
 
   // Write changes to dictionary.
-  if (thd->dd_client()->store(resource_group.get()))
-  {
+  if (thd->dd_client()->store(resource_group.get())) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
@@ -119,57 +110,48 @@ bool create_resource_group(THD *thd,
   DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
-
 bool update_resource_group(THD *thd, const String_type &resource_grp_name,
-                           const resourcegroups::Resource_group &res_grp_ref)
-{
+                           const resourcegroups::Resource_group &res_grp_ref) {
   DBUG_ENTER("update_resource_group");
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  dd::Resource_group *resource_group= nullptr;
+  dd::Resource_group *resource_group = nullptr;
   if (thd->dd_client()->acquire_for_modification(resource_grp_name,
-                                                 &resource_group))
-  {
+                                                 &resource_group)) {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
 
-  if (resource_group == nullptr)
-  {
+  if (resource_group == nullptr) {
     my_error(ER_RESOURCE_GROUP_NOT_EXISTS, MYF(0), resource_grp_name.c_str());
     DBUG_RETURN(true);
   }
 
   // Set attributes of the resource group.
   if (set_resource_group_attributes(resource_group, res_grp_ref))
-    DBUG_RETURN(true); // Error already logged.
+    DBUG_RETURN(true);  // Error already logged.
 
-  if (thd->dd_client()->update(resource_group))
-  {
+  if (thd->dd_client()->update(resource_group)) {
     trans_rollback_stmt(thd);
     // Full rollback we have THD::transaction_rollback_request.
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-
   DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
 
-bool drop_resource_group(THD *thd, const String_type resource_grp_name)
-{
+bool drop_resource_group(THD *thd, const String_type resource_grp_name) {
   DBUG_ENTER("drop_resource_group");
 
   // Acquire resource group.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Resource_group *resource_group= nullptr;
-  if (thd->dd_client()->acquire(resource_grp_name, &resource_group))
-  {
+  const dd::Resource_group *resource_group = nullptr;
+  if (thd->dd_client()->acquire(resource_grp_name, &resource_group)) {
     // Error is reported by the dictionary subsystem.
     DBUG_RETURN(true);
   }
-  if (resource_group == nullptr)
-  {
+  if (resource_group == nullptr) {
     my_error(ER_RESOURCE_GROUP_NOT_EXISTS, MYF(0), resource_grp_name.c_str());
     DBUG_RETURN(true);
   }
@@ -177,15 +159,13 @@ bool drop_resource_group(THD *thd, const String_type resource_grp_name)
   Disable_gtid_state_update_guard disabler(thd);
 
   // Drop resource group.
-  if (thd->dd_client()->drop(resource_group))
-  {
+  if (thd->dd_client()->drop(resource_group)) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
     DBUG_RETURN(true);
   }
 
-  DBUG_RETURN(trans_commit_stmt(thd) ||
-              trans_commit(thd));
+  DBUG_RETURN(trans_commit_stmt(thd) || trans_commit(thd));
 }
-} // namespace dd
+}  // namespace dd

@@ -34,31 +34,27 @@
   Grabs the mutex in the CTOR, releases it in the DTOR.
   The mutex may be NULL, in which case this is a no-op.
 */
-class Mutex_lock
-{
-public:
+class Mutex_lock {
+ public:
   explicit Mutex_lock(mysql_mutex_t *mutex, const char *src_file, int src_line)
-    : m_mutex(mutex), m_src_file(src_file), m_src_line(src_line)
-  {
-    if (m_mutex)
-    {
+      : m_mutex(mutex), m_src_file(src_file), m_src_line(src_line) {
+    if (m_mutex) {
       mysql_mutex_lock_with_src(m_mutex, m_src_file, m_src_line);
     }
   }
-  ~Mutex_lock()
-  {
-    if (m_mutex)
-    {
+  ~Mutex_lock() {
+    if (m_mutex) {
       mysql_mutex_unlock_with_src(m_mutex, m_src_file, m_src_line);
     }
   }
-private:
+
+ private:
   mysql_mutex_t *m_mutex;
-  const char* m_src_file;
+  const char *m_src_file;
   int m_src_line;
 
-  Mutex_lock(const Mutex_lock&);                /* Not copyable. */
-  void operator=(const Mutex_lock&);            /* Not assignable. */
+  Mutex_lock(const Mutex_lock &);     /* Not copyable. */
+  void operator=(const Mutex_lock &); /* Not assignable. */
 };
 
 #define MUTEX_LOCK(NAME, X) Mutex_lock NAME(X, __FILE__, __LINE__)

@@ -44,7 +44,7 @@ template <typename T>
 class Wrapper {
  public:
   using Base = T;
-  operator const T&() const { return m_base; }
+  operator const T &() const { return m_base; }
 
  protected:
   T m_base;
@@ -85,14 +85,13 @@ using Document_path = RepeatedPtrField<Document_path_item>;
 
 class ColumnIdentifier : public Wrapper<::Mysqlx::Expr::ColumnIdentifier> {
  public:
-  ColumnIdentifier(const std::string &name = "",
-                   const std::string &table_name = "",
-                   const std::string &schema_name =
-                       "");  // NOLINT(runtime/explicit)
-  ColumnIdentifier(const Document_path &path, const std::string &name = "",
-                   const std::string &table_name = "",
-                   const std::string &schema_name =
-                       "");  // NOLINT(runtime/explicit)
+  ColumnIdentifier(
+      const std::string &name = "", const std::string &table_name = "",
+      const std::string &schema_name = "");  // NOLINT(runtime/explicit)
+  ColumnIdentifier(
+      const Document_path &path, const std::string &name = "",
+      const std::string &table_name = "",
+      const std::string &schema_name = "");  // NOLINT(runtime/explicit)
 };
 
 class Scalar : public Wrapper<::Mysqlx::Datatypes::Scalar> {
@@ -109,11 +108,11 @@ class Scalar : public Wrapper<::Mysqlx::Datatypes::Scalar> {
   };
 
   Scalar() = default;
-  Scalar(const int value);                             // NOLINT(runtime/explicit)
-  Scalar(const unsigned int value);                    // NOLINT(runtime/explicit)
-  Scalar(const bool value);                            // NOLINT(runtime/explicit)
-  Scalar(const float value);                           // NOLINT(runtime/explicit)
-  Scalar(const double value);                          // NOLINT(runtime/explicit)
+  Scalar(const int value);                       // NOLINT(runtime/explicit)
+  Scalar(const unsigned int value);              // NOLINT(runtime/explicit)
+  Scalar(const bool value);                      // NOLINT(runtime/explicit)
+  Scalar(const float value);                     // NOLINT(runtime/explicit)
+  Scalar(const double value);                    // NOLINT(runtime/explicit)
   Scalar(const char *value, unsigned type = 0);  // NOLINT(runtime/explicit)
   Scalar(const Scalar::Octets &value);           // NOLINT(runtime/explicit)
   Scalar(const Scalar::String &value);           // NOLINT(runtime/explicit)
@@ -133,12 +132,11 @@ class Any : public Wrapper<::Mysqlx::Datatypes::Any> {
 
   Any() = default;
   template <typename T>
-  Any(const T &v)             // NOLINT(runtime/explicit)
+  Any(const T &v)  // NOLINT(runtime/explicit)
       : Any(Scalar(v)) {}
   Any(const Scalar &scalar);  // NOLINT(runtime/explicit)
   Any(const Object &obj);     // NOLINT(runtime/explicit)
   Any(const Array &array);    // NOLINT(runtime/explicit)
-
 };
 
 struct Any::Object::Fld {
@@ -171,7 +169,7 @@ class Expr : public Wrapper<::Mysqlx::Expr::Expr> {
  public:
   Expr() = default;
   template <typename T>
-  Expr(const T &value)               // NOLINT(runtime/explicit)
+  Expr(const T &value)  // NOLINT(runtime/explicit)
       : Expr(Scalar(value)) {}
   Expr(const Scalar &value);         // NOLINT(runtime/explicit)
   Expr(const Operator &oper);        // NOLINT(runtime/explicit)

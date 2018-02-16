@@ -3137,8 +3137,6 @@ SELECT IFNULL(NULL, NULL);
 IFNULL(NULL, NULL)
 NULL
 SET @OLD_SQL_MODE12595=@@SQL_MODE, @@SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW LOCAL VARIABLES LIKE 'SQL_MODE';
 Variable_name	Value
 sql_mode	
@@ -3195,8 +3193,6 @@ ha%an
 SELECT * FROM BUG_12595 WHERE a LIKE 'hakan\n%' ESCAPE '\n';
 ERROR HY000: Incorrect arguments to ESCAPE
 SET @@SQL_MODE=@OLD_SQL_MODE12595;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE BUG_12595;
 create table t1 (a char(1));
 create table t2 (a char(1));
@@ -3563,8 +3559,6 @@ Warnings:
 Note	1003	/* select#1 */ select '20' AS `sku`,'10' AS `sppr`,'bbb' AS `name`,`test`.`t1`.`sku` AS `sku`,`test`.`t1`.`pr` AS `pr` from `test`.`t2` join `test`.`t1` where (((`test`.`t1`.`sku` = 20) or (`test`.`t1`.`sku` = '10')))
 DROP TABLE t1,t2;
 SET SQL_MODE='NO_UNSIGNED_SUBTRACTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (i TINYINT UNSIGNED NOT NULL);
 INSERT t1 SET i = 0;
 UPDATE t1 SET i = -1;
@@ -4662,8 +4656,6 @@ DROP TABLE t1;
 #   memory
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT NOT NULL, b YEAR);
 INSERT INTO t1 VALUES ();
 Warnings:
@@ -4767,8 +4759,6 @@ DROP TABLE t1;
 SET @old_sort_buffer_size= @@session.sort_buffer_size;
 SET @@sort_buffer_size= 40000;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a CHAR(0) NOT NULL);
 INSERT INTO t1 VALUES (0), (0), (0);
 INSERT INTO t1 SELECT t11.a FROM t1 t11, t1 t12;

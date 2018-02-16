@@ -38,9 +38,7 @@ CREATE USER test_user_2 IDENTIFIED BY 'testpw';
 GRANT ALL PRIVILEGES ON test.* TO test_user_1;
 GRANT ALL PRIVILEGES ON test.* TO test_user_2;
 # FILE is needed to use the DATA DIRECTORY or INDEX DIRECTORY option
-GRANT FILE ON *.* TO test_user_2 IDENTIFIED BY 'testpw';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT FILE ON *.* TO test_user_2;
 connect  session1, localhost, test_user_1,'testpw',test;
 SELECT * FROM t1 PARTITION (`p0-29`);
 a	b

@@ -21,7 +21,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/service_plugin_registry.h>
-#include "server_component.h" // imp_mysql_server_registry
+#include "server_component.h"  // imp_mysql_server_registry
 
 /**
    Returns a new reference to the "registry" service.
@@ -43,17 +43,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
    @ref PAGE_COMPONENTS, @ref PAGE_COMPONENTS_REGISTRY,
    @ref mysql_service_registry_t::acquire()
 */
-SERVICE_TYPE(registry) * mysql_plugin_registry_acquire()
-{
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() {
   my_h_service registry_handle;
-  if (imp_mysql_server_registry.acquire(
-    "registry", &registry_handle))
-  {
+  if (imp_mysql_server_registry.acquire("registry", &registry_handle)) {
     return nullptr;
   }
   return reinterpret_cast<SERVICE_TYPE(registry) *>(registry_handle);
 }
-
 
 /**
   Releases a registry service reference
@@ -75,7 +71,6 @@ SERVICE_TYPE(registry) * mysql_plugin_registry_acquire()
   @ref PAGE_COMPONENTS, @ref PAGE_COMPONENTS_REGISTRY,
   @ref mysql_service_registry_t::release()
 */
-int mysql_plugin_registry_release(SERVICE_TYPE(registry) *reg)
-{
-  return imp_mysql_server_registry.release((my_h_service) reg);
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg) {
+  return imp_mysql_server_registry.release((my_h_service)reg);
 }

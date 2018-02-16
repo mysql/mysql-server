@@ -30,33 +30,33 @@
 #include "client/dump/abstract_chain_element.h"
 #include "client/dump/i_data_formatter_wrapper.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Implementation of common logic for classes that directs execution of
   dump tasks to Data Formatters.
  */
 class Abstract_data_formatter_wrapper : public I_data_formatter_wrapper,
-  public Abstract_chain_element
-{
-public:
-  void register_data_formatter(I_data_formatter* new_data_formatter);
+                                        public Abstract_chain_element {
+ public:
+  void register_data_formatter(I_data_formatter *new_data_formatter);
 
-protected:
+ protected:
   Abstract_data_formatter_wrapper(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void format_object(Item_processing_data* current_processing_data);
+  void format_object(Item_processing_data *current_processing_data);
 
-private:
-  std::vector<I_data_formatter*> m_formatters;
+ private:
+  std::vector<I_data_formatter *> m_formatters;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -53,7 +53,7 @@ SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET sjis NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET sjis COLLATE sjis_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4
@@ -159,7 +159,7 @@ SHOW CREATE TABLE page;
 Table	Create Table
 page	CREATE TABLE `page` (
   `page_id` int(8) unsigned NOT NULL AUTO_INCREMENT,
-  `page_title` varchar(255) CHARACTER SET cp932 NOT NULL DEFAULT '',
+  `page_title` varchar(255) CHARACTER SET cp932 COLLATE cp932_japanese_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`page_id`),
   FULLTEXT KEY `page_title` (`page_title`) /*!50100 WITH PARSER `mecab` */ 
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4

@@ -35,20 +35,17 @@
   @file mysys/my_timespec.cc
 */
 
-void set_timespec_nsec(struct timespec *abstime, ulonglong nsec)
-{
-  ulonglong now= my_getsystime() + (nsec / 100);
-  ulonglong tv_sec= now / 10000000ULL;
+void set_timespec_nsec(struct timespec *abstime, ulonglong nsec) {
+  ulonglong now = my_getsystime() + (nsec / 100);
+  ulonglong tv_sec = now / 10000000ULL;
 #if SIZEOF_TIME_T < SIZEOF_LONG_LONG
   /* Ensure that the number of seconds don't overflow. */
-  tv_sec= MY_MIN(tv_sec, ((ulonglong)INT_MAX32));
+  tv_sec = MY_MIN(tv_sec, ((ulonglong)INT_MAX32));
 #endif
-  abstime->tv_sec=  (time_t)tv_sec;
-  abstime->tv_nsec= (now % 10000000ULL) * 100 + (nsec % 100);
+  abstime->tv_sec = (time_t)tv_sec;
+  abstime->tv_nsec = (now % 10000000ULL) * 100 + (nsec % 100);
 }
 
-
-void set_timespec(struct timespec *abstime, ulonglong sec)
-{
+void set_timespec(struct timespec *abstime, ulonglong sec) {
   set_timespec_nsec(abstime, sec * 1000000000ULL);
 }

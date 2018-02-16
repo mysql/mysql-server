@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -75,9 +75,6 @@ ADD_CUSTOM_COMMAND(
 )
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-IF(SSL_DEFINES)
- ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
 
 SET(DD_SOURCES
   dd/collection.cc
@@ -392,6 +389,7 @@ SET(SQL_SHARED_SOURCES
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
+  sd_notify.cc
   sdi_utils.cc
   session_tracker.cc
   set_var.cc 

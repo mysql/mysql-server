@@ -26,20 +26,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _lot0buf_h_
 #define _lot0buf_h_
 
-#include "lot0types.h"
-#include "mach0data.h"
 #include "buf0types.h"
 #include "fil0fil.h"
+#include "lot0types.h"
+#include "mach0data.h"
 
 struct buf_block_t {
-  byte* m_frame;
+  byte *m_frame;
 
   void set_next_page(page_no_t num) {
     mach_write_to_4(m_frame + FIL_PAGE_NEXT, num);
   }
 
   page_no_t get_next_page() {
-    return(mach_read_from_4(m_frame + FIL_PAGE_NEXT));
+    return (mach_read_from_4(m_frame + FIL_PAGE_NEXT));
   }
 
   void set_page_no(page_no_t num) {
@@ -51,52 +51,50 @@ struct buf_block_t {
   }
 
   page_no_t get_page_no() {
-    return(mach_read_from_4(m_frame + FIL_PAGE_OFFSET));
+    return (mach_read_from_4(m_frame + FIL_PAGE_OFFSET));
   }
 
-  ulint get_page_type() {
-    return(mach_read_from_2(m_frame + FIL_PAGE_TYPE));
-  }
+  ulint get_page_type() { return (mach_read_from_2(m_frame + FIL_PAGE_TYPE)); }
 
-  const char* get_page_type_str() {
+  const char *get_page_type_str() {
     ulint type = get_page_type();
-    switch(type) {
+    switch (type) {
       case FIL_PAGE_TYPE_LOB_INDEX:
-        return("FIL_PAGE_TYPE_LOB_INDEX");
+        return ("FIL_PAGE_TYPE_LOB_INDEX");
       case FIL_PAGE_TYPE_LOB_DATA:
-        return("FIL_PAGE_TYPE_LOB_DATA");
+        return ("FIL_PAGE_TYPE_LOB_DATA");
       case FIL_PAGE_TYPE_LOB_FIRST:
-        return("FIL_PAGE_TYPE_LOB_FIRST");
+        return ("FIL_PAGE_TYPE_LOB_FIRST");
       case FIL_PAGE_TYPE_ZLOB_FIRST:
-        return("FIL_PAGE_TYPE_ZLOB_FIRST");
+        return ("FIL_PAGE_TYPE_ZLOB_FIRST");
       case FIL_PAGE_TYPE_ZLOB_DATA:
-        return("FIL_PAGE_TYPE_ZLOB_DATA");
+        return ("FIL_PAGE_TYPE_ZLOB_DATA");
       case FIL_PAGE_TYPE_ZLOB_INDEX:
-        return("FIL_PAGE_TYPE_ZLOB_INDEX");
+        return ("FIL_PAGE_TYPE_ZLOB_INDEX");
       case FIL_PAGE_TYPE_ZLOB_FRAG:
-        return("FIL_PAGE_TYPE_ZLOB_FRAG");
+        return ("FIL_PAGE_TYPE_ZLOB_FRAG");
       case FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY:
-        return("FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY");
+        return ("FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY");
       default:
-        return("UNKNOWN");
+        return ("UNKNOWN");
     }
   }
 };
 
 /** Get the specified page number.
 @param[in] page_no the requested page number. */
-buf_block_t* buf_page_get(page_no_t page_no);
+buf_block_t *buf_page_get(page_no_t page_no);
 
 /** Allocate a new page.
 @return the newly allocated buffer block. */
-buf_block_t* btr_page_alloc();
+buf_block_t *btr_page_alloc();
 
-void btr_page_free(buf_block_t* block);
+void btr_page_free(buf_block_t *block);
 
-inline buf_frame_t* buf_block_get_frame(const buf_block_t* block) {
-  return(block->m_frame);
+inline buf_frame_t *buf_block_get_frame(const buf_block_t *block) {
+  return (block->m_frame);
 }
 
 void buf_pool_reset();
 
-#endif // _lot0buf_h_
+#endif  // _lot0buf_h_

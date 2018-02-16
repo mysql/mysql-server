@@ -47,48 +47,44 @@
 THR_LOCK table_replication_applier_configuration::m_table_lock;
 
 Plugin_table table_replication_applier_configuration::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "replication_applier_configuration",
-  /* Definition */
-  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-  "  DESIRED_DELAY INTEGER not null,\n"
-  "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "replication_applier_configuration",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  DESIRED_DELAY INTEGER not null,\n"
+    "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_replication_applier_configuration::m_share = {
-  &pfs_readonly_acl,
-  table_replication_applier_configuration::create,
-  NULL, /* write_row */
-  NULL, /* delete_all_rows */
-  table_replication_applier_configuration::get_row_count,
-  sizeof(pos_t), /* ref length */
-  &m_table_lock,
-  &m_table_def,
-  true, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_readonly_acl,
+    table_replication_applier_configuration::create,
+    NULL, /* write_row */
+    NULL, /* delete_all_rows */
+    table_replication_applier_configuration::get_row_count,
+    sizeof(pos_t), /* ref length */
+    &m_table_lock,
+    &m_table_def,
+    true, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_rpl_applier_config::match(Master_info *mi)
-{
-  if (m_fields >= 1)
-  {
+bool PFS_index_rpl_applier_config::match(Master_info *mi) {
+  if (m_fields >= 1) {
     st_row_applier_config row;
 
     /* Mutex locks not necessary for channel name. */
     row.channel_name_length =
-      mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
+        mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match_not_null(row.channel_name, row.channel_name_length))
-    {
+    if (!m_key.match_not_null(row.channel_name, row.channel_name_length)) {
       return false;
     }
   }
@@ -96,39 +92,28 @@ PFS_index_rpl_applier_config::match(Master_info *mi)
   return true;
 }
 
-PFS_engine_table *
-table_replication_applier_configuration::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_replication_applier_configuration::create(
+    PFS_engine_table_share *) {
   return new table_replication_applier_configuration();
 }
 
 table_replication_applier_configuration::
-  table_replication_applier_configuration()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
-{
-}
+    table_replication_applier_configuration()
+    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_applier_configuration::
-  ~table_replication_applier_configuration()
-{
-}
+    ~table_replication_applier_configuration() {}
 
-void
-table_replication_applier_configuration::reset_position(void)
-{
+void table_replication_applier_configuration::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-ha_rows
-table_replication_applier_configuration::get_row_count()
-{
+ha_rows table_replication_applier_configuration::get_row_count() {
   return channel_map.get_max_channels();
 }
 
-int
-table_replication_applier_configuration::rnd_next(void)
-{
+int table_replication_applier_configuration::rnd_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
   Master_info *mi;
@@ -137,12 +122,10 @@ table_replication_applier_configuration::rnd_next(void)
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
-       m_pos.next())
-  {
+       m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
-    {
+    if (mi && mi->host[0]) {
       res = make_row(mi);
       m_next_pos.set_after(&m_pos);
     }
@@ -153,10 +136,7 @@ table_replication_applier_configuration::rnd_next(void)
   return res;
 }
 
-int
-table_replication_applier_configuration::rnd_pos(
-  const void *pos)
-{
+int table_replication_applier_configuration::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
   Master_info *mi;
@@ -165,8 +145,7 @@ table_replication_applier_configuration::rnd_pos(
 
   channel_map.rdlock();
 
-  if ((mi = channel_map.get_mi_at_pos(m_pos.m_index)))
-  {
+  if ((mi = channel_map.get_mi_at_pos(m_pos.m_index))) {
     res = make_row(mi);
   }
 
@@ -175,10 +154,8 @@ table_replication_applier_configuration::rnd_pos(
   return res;
 }
 
-int
-table_replication_applier_configuration::index_init(
-  uint idx MY_ATTRIBUTE((unused)), bool)
-{
+int table_replication_applier_configuration::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_rpl_applier_config *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_config);
@@ -187,9 +164,7 @@ table_replication_applier_configuration::index_init(
   return 0;
 }
 
-int
-table_replication_applier_configuration::index_next(void)
-{
+int table_replication_applier_configuration::index_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
   Master_info *mi;
@@ -198,14 +173,11 @@ table_replication_applier_configuration::index_next(void)
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
-       m_pos.next())
-  {
+       m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
-    {
-      if (m_opened_index->match(mi))
-      {
+    if (mi && mi->host[0]) {
+      if (m_opened_index->match(mi)) {
         res = make_row(mi);
         m_next_pos.set_after(&m_pos);
       }
@@ -217,9 +189,7 @@ table_replication_applier_configuration::index_next(void)
   return res;
 }
 
-int
-table_replication_applier_configuration::make_row(Master_info *mi)
-{
+int table_replication_applier_configuration::make_row(Master_info *mi) {
   DBUG_ASSERT(mi != NULL);
   DBUG_ASSERT(mi->rli != NULL);
 
@@ -236,13 +206,10 @@ table_replication_applier_configuration::make_row(Master_info *mi)
   return 0;
 }
 
-int
-table_replication_applier_configuration::read_row_values(
-  TABLE *table,
-  unsigned char *buf,
-  Field **fields,
-  bool read_all)
-{
+int table_replication_applier_configuration::read_row_values(TABLE *table,
+                                                             unsigned char *buf,
+                                                             Field **fields,
+                                                             bool read_all) {
   Field *f;
 
   /*
@@ -258,20 +225,17 @@ table_replication_applier_configuration::read_row_values(
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /**channel_name*/
-        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
-        break;
-      case 1: /** desired_delay */
-        set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /**channel_name*/
+          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          break;
+        case 1: /** desired_delay */
+          set_field_ulong(f, static_cast<ulong>(m_row.desired_delay));
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }

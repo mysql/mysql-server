@@ -29,18 +29,17 @@
 
 #include "client/base/abstract_enum_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Enum value option.
  */
-template<typename T_type, typename T_typelib>
-class Enum_option : public Abstract_enum_option<T_type, T_typelib>
-{
-public:
+template <typename T_type, typename T_typelib>
+class Enum_option : public Abstract_enum_option<T_type, T_typelib> {
+ public:
   /**
     Constructs new enum option.
     @param value Pointer to enum object to receive option value.
@@ -49,22 +48,21 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Enum_option(T_type* value, const T_typelib* type, std::string name, std::string description)
-    : Abstract_enum_option<T_type, T_typelib>(value, type, GET_ENUM, name, description, 1),
-      m_value(value)
-  {}
+  Enum_option(T_type *value, const T_typelib *type, std::string name,
+              std::string description)
+      : Abstract_enum_option<T_type, T_typelib>(value, type, GET_ENUM, name,
+                                                description, 1),
+        m_value(value) {}
 
-  void set_value(T_type value)
-  {
-    *m_value= value;
-  }
-private:
-  T_type* m_value;
+  void set_value(T_type value) { *m_value = value; }
+
+ private:
+  T_type *m_value;
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

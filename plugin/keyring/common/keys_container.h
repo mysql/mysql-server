@@ -25,6 +25,7 @@
 
 #include <sys/types.h>
 
+#include <vector>
 #include "m_ctype.h"
 #include "map_helpers.h"
 #include "my_inttypes.h"
@@ -34,37 +35,30 @@
 #include "plugin/keyring/common/keyring_key.h"
 #include "plugin/keyring/common/keyring_memory.h"
 #include "plugin/keyring/common/logger.h"
-#include "sql/sys_vars_shared.h" //For PolyLock, AutoWLock, AutoRLock
-#include <vector>
+#include "sql/sys_vars_shared.h"  //For PolyLock, AutoWLock, AutoRLock
 
 namespace keyring {
 
-class Keys_container : public IKeys_container
-{
-private:
+class Keys_container : public IKeys_container {
+ private:
   bool remove_keys_metadata(IKey *key);
   void store_keys_metadata(IKey *key);
-public:
-  Keys_container(ILogger* logger);
-  bool init(IKeyring_io* keyring_io, std::string keyring_storage_url);
+
+ public:
+  Keys_container(ILogger *logger);
+  bool init(IKeyring_io *keyring_io, std::string keyring_storage_url);
   bool store_key(IKey *key);
-  IKey* fetch_key(IKey *key);
+  IKey *fetch_key(IKey *key);
   bool remove_key(IKey *key);
   std::string get_keyring_storage_url();
   void set_keyring_io(IKeyring_io *keyring_io);
-  std::vector<Key_metadata> get_keys_metadata()
-  {
-    return keys_metadata;
-  }
+  std::vector<Key_metadata> get_keys_metadata() { return keys_metadata; }
 
   ~Keys_container();
 
-  ulong get_number_of_keys()
-  {
-    return keys_hash->size();
-  };
+  ulong get_number_of_keys() { return keys_hash->size(); };
 
-protected:
+ protected:
   Keys_container(const Keys_container &);
 
   virtual void allocate_and_set_data_for_key(IKey *key,
@@ -79,7 +73,7 @@ protected:
   virtual bool flush_to_backup();
   virtual bool flush_to_storage(IKey *key, Key_operation operation);
 
-  using Key_hash= collation_unordered_map<std::string, std::unique_ptr<IKey>>;
+  using Key_hash = collation_unordered_map<std::string, std::unique_ptr<IKey>>;
   std::unique_ptr<Key_hash> keys_hash;
   std::vector<Key_metadata> keys_metadata;
   ILogger *logger;
@@ -87,6 +81,6 @@ protected:
   std::string keyring_storage_url;
 };
 
-} //namespace keyring
+}  // namespace keyring
 
-#endif //KEYS_CONTAINER_INCLUDED
+#endif  // KEYS_CONTAINER_INCLUDED

@@ -295,7 +295,8 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                                          new_table_id, new_table_version);
 
   // Rename foreign keys
-  if (dd::rename_foreign_keys(old_table_name, to_table_def))
+  if (dd::rename_foreign_keys(m_thd, old_schema_name, old_table_name,
+                              new_schema_name, to_table_def))
   {
     // Failed to rename foreign keys or commit/rollback, unexpected
     DBUG_ASSERT(false);

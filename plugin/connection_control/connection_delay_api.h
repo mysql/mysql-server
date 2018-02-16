@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,32 +25,33 @@
 
 /* Structures/Functions requried for information schema table */
 
-extern struct st_mysql_information_schema connection_control_failed_attempts_view;
+extern struct st_mysql_information_schema
+    connection_control_failed_attempts_view;
 int connection_control_failed_attempts_view_init(void *ptr);
 
-namespace connection_control
-{
+namespace connection_control {
 
-  /* constants/variables defined in connection_delay.cc */
+/* constants/variables defined in connection_delay.cc */
 
-  extern int64 DEFAULT_THRESHOLD;
-  extern int64 MIN_THRESHOLD;
-  extern int64 DISABLE_THRESHOLD;
-  extern int64 MAX_THRESHOLD;
+extern int64 DEFAULT_THRESHOLD;
+extern int64 MIN_THRESHOLD;
+extern int64 DISABLE_THRESHOLD;
+extern int64 MAX_THRESHOLD;
 
-  extern int64 DEFAULT_MAX_DELAY;
-  extern int64 DEFAULT_MIN_DELAY;
-  extern int64 MIN_DELAY;
-  extern int64 MAX_DELAY;
+extern int64 DEFAULT_MAX_DELAY;
+extern int64 DEFAULT_MIN_DELAY;
+extern int64 MIN_DELAY;
+extern int64 MAX_DELAY;
 
-  /** Functions being used by connection_control.cc */
+/** Functions being used by connection_control.cc */
 
-  class Connection_event_coordinator_services;
-  class Error_handler;
+class Connection_event_coordinator_services;
+class Error_handler;
 
-  bool init_connection_delay_event(Connection_event_coordinator_services *coordinator,
-                                   Error_handler *error_handler);
-  void deinit_connection_delay_event();
+bool init_connection_delay_event(
+    Connection_event_coordinator_services *coordinator,
+    Error_handler *error_handler);
+void deinit_connection_delay_event();
 
-}
-#endif // !CONNECTION_DELAY_API_H
+}  // namespace connection_control
+#endif  // !CONNECTION_DELAY_API_H

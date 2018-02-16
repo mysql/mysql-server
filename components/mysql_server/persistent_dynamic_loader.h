@@ -23,11 +23,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_SERVER_PERSISTENT_DYNAMIC_LOADER_H
 #define MYSQL_SERVER_PERSISTENT_DYNAMIC_LOADER_H
 
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/persistent_dynamic_loader.h>
+#include <mysql/psi/mysql_mutex.h>
 #include <atomic>
 #include <map>
-#include <mysql/components/services/persistent_dynamic_loader.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/psi/mysql_mutex.h>
 
 #include "my_inttypes.h"
 
@@ -54,7 +54,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   the MySQL Server restart.
 */
 class mysql_persistent_dynamic_loader_imp {
-public:
+ public:
   /**
     Initializes persistence store, loads all groups of components registered in
     component table. Shouldn't be called multiple times. We assume the order
@@ -71,7 +71,7 @@ public:
     @retval false success
     @retval true failure
   */
-  static bool init(void* thdp);
+  static bool init(void *thdp);
   /**
     De-initializes persistence loader.
   */
@@ -82,7 +82,7 @@ public:
   */
   static bool initialized();
 
-public: /* service implementations */
+ public: /* service implementations */
   /**
     Loads specified group of components by URN, initializes them and
     registers all service implementations present in these components.
@@ -101,8 +101,8 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(load,
-    (void* thd_ptr, const char *urns[], int component_count));
+  static DEFINE_BOOL_METHOD(load, (void *thd_ptr, const char *urns[],
+                                   int component_count));
 
   /**
     Unloads specified group of Components by URN, deinitializes them and
@@ -125,10 +125,10 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(unload,
-    (void* thd_ptr, const char *urns[], int component_count));
+  static DEFINE_BOOL_METHOD(unload, (void *thd_ptr, const char *urns[],
+                                     int component_count));
 
-private:
+ private:
   /**
     Stores last group ID used in component table. It is initialized on init()
     on component table scan with maximum group ID used in table.

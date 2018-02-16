@@ -65,4 +65,4 @@ void set_my_thread_var_id(my_thread_id id);
 
 #endif
 
-#endif // MY_THREAD_LOCAL_INCLUDED
+#endif  // MY_THREAD_LOCAL_INCLUDED

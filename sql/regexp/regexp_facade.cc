@@ -54,7 +54,6 @@ String *EvalExprToCharset(Item *expr, String *out) {
   return result;
 }
 
-
 bool Regexp_facade::SetPattern(Item *pattern_expr) {
   /*
     The pattern is NULL, but that's fine. Since it's the facade's job to
@@ -72,7 +71,6 @@ bool Regexp_facade::SetPattern(Item *pattern_expr) {
   }
   return false;
 }
-
 
 bool Regexp_facade::Reset(Item *subject_expr) {
   DBUG_ENTER("Regexp_facade::Reset");
@@ -99,8 +97,7 @@ Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
   Nullable<bool> match_found = Matches(subject_expr, start, occurrence);
   if (!match_found.has_value()) return Mysql::Nullable<int>();
   if (!match_found.value()) return 0;
-  return (after_match ? m_engine->EndOfMatch()
-          : m_engine->StartOfMatch()) + 1;
+  return (after_match ? m_engine->EndOfMatch() : m_engine->StartOfMatch()) + 1;
 }
 
 String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
@@ -108,8 +105,7 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
   DBUG_ENTER("Regexp_facade::Replace");
   String replacement_buf;
 
-  String *replacement =
-      EvalExprToCharset(replacement_expr, &replacement_buf);
+  String *replacement = EvalExprToCharset(replacement_expr, &replacement_buf);
 
   if (replacement == nullptr) DBUG_RETURN(nullptr);
 
@@ -119,8 +115,8 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
                                 start - 1, occurrence, result));
 }
 
-String *Regexp_facade::Substr(Item *subject_expr, int start,
-                              int occurrence, String *result) {
+String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
+                              String *result) {
   if (Reset(subject_expr) || !m_engine->Matches(start - 1, occurrence)) {
     m_engine->CheckError();
     return nullptr;
@@ -129,7 +125,6 @@ String *Regexp_facade::Substr(Item *subject_expr, int start,
   if (m_engine->CheckError()) return nullptr;
   return res;
 }
-
 
 bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
   DBUG_ENTER("Regexp_facade::SetupEngine");

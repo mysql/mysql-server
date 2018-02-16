@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_MYSQL_MUTEX_SERVICE_H
 #define COMPONENTS_SERVICES_MYSQL_MUTEX_SERVICE_H
 
+#include <mysql/components/service.h>
 #include <mysql/components/services/mysql_mutex_bits.h>
 #include <mysql/components/services/psi_mutex_bits.h>
-#include <mysql/components/service.h>
 
 /**
   @defgroup psi_abi_mutex Mutex Instrumentation (ABI)
@@ -34,29 +34,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 
 typedef void (*mysql_mutex_register_t)(const char *category,
-                                       PSI_mutex_info *info,
-                                       int count);
+                                       PSI_mutex_info *info, int count);
 
-typedef int (*mysql_mutex_init_t)(PSI_mutex_key key,
-                                  mysql_mutex_t *that,
+typedef int (*mysql_mutex_init_t)(PSI_mutex_key key, mysql_mutex_t *that,
                                   const native_mutexattr_t *attr,
-                                  const char *src_file,
-                                  unsigned int src_line);
+                                  const char *src_file, unsigned int src_line);
 
-typedef int (*mysql_mutex_destroy_t)(mysql_mutex_t *that,
-                                     const char *src_file,
+typedef int (*mysql_mutex_destroy_t)(mysql_mutex_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_mutex_lock_t)(mysql_mutex_t *that,
-                                  const char *src_file,
+typedef int (*mysql_mutex_lock_t)(mysql_mutex_t *that, const char *src_file,
                                   unsigned int src_line);
 
-typedef int (*mysql_mutex_trylock_t)(mysql_mutex_t *that,
-                                     const char *src_file,
+typedef int (*mysql_mutex_trylock_t)(mysql_mutex_t *that, const char *src_file,
                                      unsigned int src_line);
 
-typedef int (*mysql_mutex_unlock_t)(mysql_mutex_t *that,
-                                    const char *src_file,
+typedef int (*mysql_mutex_unlock_t)(mysql_mutex_t *that, const char *src_file,
                                     unsigned int src_line);
 
 BEGIN_SERVICE_DEFINITION(mysql_mutex_v1)

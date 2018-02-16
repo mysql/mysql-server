@@ -55,8 +55,7 @@ struct THR_LOCK;
   length field denoted by @<field_name@>_length.
 */
 
-struct st_row_group_member_stats
-{
+struct st_row_group_member_stats {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char view_id[HOSTNAME_LENGTH];
@@ -78,11 +77,10 @@ struct st_row_group_member_stats
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_GROUP_MEMBER_STATS. */
-class table_replication_group_member_stats : public PFS_engine_table
-{
+class table_replication_group_member_stats : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-private:
+ private:
   int make_row(uint index);
 
   /** Table share lock. */
@@ -97,7 +95,7 @@ private:
   /** Next position. */
   pos_t m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -106,14 +104,12 @@ protected:
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_replication_group_member_stats();
 
-public:
+ public:
   ~table_replication_group_member_stats();
 
   /** Table share. */

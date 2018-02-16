@@ -26,12 +26,12 @@
 #include <time.h>
 
 #ifdef _WIN32
-#include <winsock2.h>                 // timeval
+#include <winsock2.h>  // timeval
 #endif
 
 #include "my_inttypes.h"
-#include "sql/dd/sdi_fwd.h"           // dd::Sdi_wcontext
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
@@ -40,35 +40,24 @@ namespace dd {
 class Trigger_impl;
 
 namespace tables {
-  class Triggers;
+class Triggers;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 /// Class representing a Trigger in DD framework.
-class Trigger : virtual public Entity_object
-{
-public:
+class Trigger : virtual public Entity_object {
+ public:
   typedef Trigger_impl Impl;
   typedef tables::Triggers DD_table;
 
-public:
-  enum class enum_event_type
-  {
-    ET_INSERT = 1,
-    ET_UPDATE,
-    ET_DELETE
-  };
+ public:
+  enum class enum_event_type { ET_INSERT = 1, ET_UPDATE, ET_DELETE };
 
-  enum class enum_action_timing
-  {
-    AT_BEFORE = 1,
-    AT_AFTER
-  };
+  enum class enum_action_timing { AT_BEFORE = 1, AT_AFTER };
 
-public:
-  virtual ~Trigger()
-  { };
+ public:
+  virtual ~Trigger(){};
 
   /////////////////////////////////////////////////////////////////////////
   // schema.
@@ -111,8 +100,8 @@ public:
   virtual void set_action_statement(const String_type &action_statement) = 0;
 
   virtual const String_type &action_statement_utf8() const = 0;
-  virtual void set_action_statement_utf8(const String_type
-                                         &action_statement_utf8) = 0;
+  virtual void set_action_statement_utf8(
+      const String_type &action_statement_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created.
@@ -152,15 +141,15 @@ public:
   virtual void set_client_collation_id(Object_id client_collation_id) = 0;
 
   virtual Object_id connection_collation_id() const = 0;
-  virtual void set_connection_collation_id(Object_id connection_collation_id) = 0;
+  virtual void set_connection_collation_id(
+      Object_id connection_collation_id) = 0;
 
   virtual Object_id schema_collation_id() const = 0;
   virtual void set_schema_collation_id(Object_id schema_collation_id) = 0;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TRIGGER_INCLUDED
+#endif  // DD__TRIGGER_INCLUDED

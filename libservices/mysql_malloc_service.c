@@ -22,4 +22,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_malloc_service= (void**)VERSION_mysql_malloc;
+SERVICE_VERSION *mysql_malloc_service = (void **)VERSION_mysql_malloc;

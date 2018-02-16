@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,6 @@
 
 #include <iostream>
 
-
 class Dummy_stream : public std::ostream {
  public:
   Dummy_stream() : std::ostream(&m_streambuf) {}
@@ -38,7 +37,7 @@ class Dummy_stream : public std::ostream {
  private:
   class Dummy_streambuf : public std::streambuf {
    public:
-    std::streamsize xsputn(const char* s, std::streamsize n) { return n; }
+    std::streamsize xsputn(const char *s, std::streamsize n) { return n; }
 
     int overflow(int c) { return 1; }
   };

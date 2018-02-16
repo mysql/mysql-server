@@ -51,8 +51,7 @@
 #define mysql_stage_register(P1, P2, P3) inline_mysql_stage_register(P1, P2, P3)
 #else
 #define mysql_stage_register(P1, P2, P3) \
-  do                                     \
-  {                                      \
+  do {                                   \
   } while (0)
 #endif
 
@@ -92,35 +91,28 @@
 #define mysql_end_stage inline_mysql_end_stage
 #else
 #define mysql_end_stage \
-  do                    \
-  {                     \
+  do {                  \
   } while (0)
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
-inline_mysql_stage_register(const char *category,
-                            PSI_stage_info **info,
-                            int count)
-{
+static inline void inline_mysql_stage_register(const char *category,
+                                               PSI_stage_info **info,
+                                               int count) {
   PSI_STAGE_CALL(register_stage)(category, info, count);
 }
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline PSI_stage_progress *
-inline_mysql_set_stage(PSI_stage_key key, const char *src_file, int src_line)
-{
+static inline PSI_stage_progress *inline_mysql_set_stage(PSI_stage_key key,
+                                                         const char *src_file,
+                                                         int src_line) {
   return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
 }
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
-inline_mysql_end_stage()
-{
-  PSI_STAGE_CALL(end_stage)();
-}
+static inline void inline_mysql_end_stage() { PSI_STAGE_CALL(end_stage)(); }
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
@@ -131,13 +123,11 @@ inline_mysql_end_stage()
   inline_mysql_stage_get_work_completed(P1)
 #else
 #define mysql_stage_set_work_completed(P1, P2) \
-  do                                           \
-  {                                            \
+  do {                                         \
   } while (0)
 
 #define mysql_stage_get_work_completed(P1) \
-  do                                       \
-  {                                        \
+  do {                                     \
   } while (0)
 #endif
 
@@ -146,8 +136,7 @@ inline_mysql_end_stage()
   inline_mysql_stage_inc_work_completed(P1, P2)
 #else
 #define mysql_stage_inc_work_completed(P1, P2) \
-  do                                           \
-  {                                            \
+  do {                                         \
   } while (0)
 #endif
 
@@ -159,64 +148,51 @@ inline_mysql_end_stage()
   inline_mysql_stage_get_work_estimated(P1)
 #else
 #define mysql_stage_set_work_estimated(P1, P2) \
-  do                                           \
-  {                                            \
+  do {                                         \
   } while (0)
 
 #define mysql_stage_get_work_estimated(P1) \
-  do                                       \
-  {                                        \
+  do {                                     \
   } while (0)
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
-inline_mysql_stage_set_work_completed(PSI_stage_progress *progress,
-                                      ulonglong val)
-{
-  if (progress != NULL)
-  {
+static inline void inline_mysql_stage_set_work_completed(
+    PSI_stage_progress *progress, ulonglong val) {
+  if (progress != NULL) {
     progress->m_work_completed = val;
   }
 }
 
-static inline ulonglong
-inline_mysql_stage_get_work_completed(PSI_stage_progress *progress)
-{
+static inline ulonglong inline_mysql_stage_get_work_completed(
+    PSI_stage_progress *progress) {
   return progress->m_work_completed;
 }
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
-inline_mysql_stage_inc_work_completed(PSI_stage_progress *progress,
-                                      ulonglong val)
-{
-  if (progress != NULL)
-  {
+static inline void inline_mysql_stage_inc_work_completed(
+    PSI_stage_progress *progress, ulonglong val) {
+  if (progress != NULL) {
     progress->m_work_completed += val;
   }
 }
 #endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-static inline void
-inline_mysql_stage_set_work_estimated(PSI_stage_progress *progress,
-                                      ulonglong val)
-{
-  if (progress != NULL)
-  {
+static inline void inline_mysql_stage_set_work_estimated(
+    PSI_stage_progress *progress, ulonglong val) {
+  if (progress != NULL) {
     progress->m_work_estimated = val;
   }
 }
 
-static inline ulonglong
-inline_mysql_stage_get_work_estimated(PSI_stage_progress *progress)
-{
+static inline ulonglong inline_mysql_stage_get_work_estimated(
+    PSI_stage_progress *progress) {
   return progress->m_work_estimated;
 }
 #endif
 
-/** @} (end of group psi_api_stage) */
+  /** @} (end of group psi_api_stage) */
 
 #endif

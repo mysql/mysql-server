@@ -114,8 +114,7 @@ let SEARCH_PATTERN= Skipping generation of RSA key pair as --sha256_password_aut
 
 --echo # Ensure that sha connection is not possible in absence of certificates and keys
 connect (test_root_2,localhost,root,,,,,);
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 --error 1
 --exec $MYSQL -uwl7699_sha256 -pabcd -e "show status like 'Ssl_cipher'"
 drop user wl7699_sha256;
@@ -249,8 +248,7 @@ show variables like 'sha256%';
 
 --echo # 5.3 : SHA256_password user
 connection test_root_4;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
@@ -320,8 +318,7 @@ show variables like 'sha256%';
 
 --echo # 6.4 : SHA256_password user
 connection test_root_6;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should be able to connect to server using generated SSL certificates.
@@ -403,8 +400,7 @@ show variables like 'sha256%';
 
 --echo # 7.4 : SHA256_password user
 connection test_root_7;
-create user wl7699_sha256 identified with 'sha256_password';
-grant usage on *.* to wl7699_sha256 identified by 'abcd';
+create user wl7699_sha256 identified with 'sha256_password' by 'abcd';
 
 # Using SSL certificates
 --echo # Should not be able to connect to server using generated SSL certificates.

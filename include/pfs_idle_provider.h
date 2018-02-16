@@ -39,16 +39,15 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_idle.h"
 
-#define PSI_IDLE_CALL(M) pfs_ ## M ## _v1
+#define PSI_IDLE_CALL(M) pfs_##M##_v1
 
-PSI_idle_locker*
-pfs_start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_line);
+PSI_idle_locker *pfs_start_idle_wait_v1(PSI_idle_locker_state *state,
+                                        const char *src_file, uint src_line);
 
-void pfs_end_idle_wait_v1(PSI_idle_locker* locker);
+void pfs_end_idle_wait_v1(PSI_idle_locker *locker);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_IDLE_INTERFACE */
 
 #endif
-

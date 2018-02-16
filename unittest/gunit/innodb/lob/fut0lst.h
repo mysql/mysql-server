@@ -35,23 +35,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0dbg.h"
 
 /* We define the field offsets of a node for the list */
-#define FLST_PREV                                                              \
-  0 /* 6-byte address of the previous list element;                            \
-    the page part of address is FIL_NULL, if no                                \
+#define FLST_PREV                                   \
+  0 /* 6-byte address of the previous list element; \
+    the page part of address is FIL_NULL, if no     \
     previous element */
-#define FLST_NEXT                                                              \
-  FIL_ADDR_SIZE /* 6-byte address of the next                                  \
-        list element; the page part of address                                 \
+#define FLST_NEXT                              \
+  FIL_ADDR_SIZE /* 6-byte address of the next  \
+        list element; the page part of address \
         is FIL_NULL, if no next element */
 
 /* We define the field offsets of a base node for the list */
 #define FLST_LEN 0 /* 32-bit list length field */
-#define FLST_FIRST                                                             \
-  4 /* 6-byte address of the first element                                     \
+#define FLST_FIRST                         \
+  4 /* 6-byte address of the first element \
     of the list; undefined if empty list */
-#define FLST_LAST                                                              \
-  (4 + FIL_ADDR_SIZE) /* 6-byte address of the                                 \
-          last element of the list; undefined                                  \
+#define FLST_LAST                              \
+  (4 + FIL_ADDR_SIZE) /* 6-byte address of the \
+          last element of the list; undefined  \
           if empty list */
 
 /* The physical size of a list base node in bytes */
@@ -92,8 +92,6 @@ inline fil_addr_t flst_get_next_addr(const flst_node_t *node) {
   return (flst_read_addr(node + FLST_NEXT));
 }
 
-
-
 bool flst_validate(const flst_base_node_t *base);
 
 inline fil_addr_t flst_get_first(const flst_base_node_t *base) {
@@ -106,48 +104,37 @@ void flst_add_first(flst_base_node_t *base, flst_node_t *node);
 /** Insert node2 after node1 in the list base. */
 void flst_insert_after(flst_base_node_t *base, flst_node_t *node1,
                        flst_node_t *node2);
-void
-flst_insert_before(
-	flst_base_node_t*	base,
-	flst_node_t*		node2,
-	flst_node_t*		node3);
+void flst_insert_before(flst_base_node_t *base, flst_node_t *node2,
+                        flst_node_t *node3);
 
 void flst_write_addr(fil_faddr_t *faddr, fil_addr_t addr);
 
 /** In-memory representation of flst_base_node_t */
-struct flst_bnode_t
-{
-	ulint		len;
-	fil_addr_t	first;
-	fil_addr_t	last;
+struct flst_bnode_t {
+  ulint len;
+  fil_addr_t first;
+  fil_addr_t last;
 
-	flst_bnode_t(const flst_base_node_t* base)
-		:
-		len(flst_get_len(base)),
-		first(flst_get_first(base)),
-		last(flst_get_last(base))
-	{}
+  flst_bnode_t(const flst_base_node_t *base)
+      : len(flst_get_len(base)),
+        first(flst_get_first(base)),
+        last(flst_get_last(base)) {}
 
-	void set(const flst_base_node_t* base)
-	{
-		len	= flst_get_len(base);
-		first	= flst_get_first(base);
-		last	= flst_get_last(base);
-	}
+  void set(const flst_base_node_t *base) {
+    len = flst_get_len(base);
+    first = flst_get_first(base);
+    last = flst_get_last(base);
+  }
 
-	std::ostream& print(std::ostream& out) const
-	{
-		out << "[flst_base_node_t: len=" << len << ", first="
-			<< first << ", last=" << last << "]";
-		return(out);
-	}
+  std::ostream &print(std::ostream &out) const {
+    out << "[flst_base_node_t: len=" << len << ", first=" << first
+        << ", last=" << last << "]";
+    return (out);
+  }
 };
 
-inline
-std::ostream& operator<<(std::ostream& out, const flst_bnode_t& obj)
-{
-	return(obj.print(out));
+inline std::ostream &operator<<(std::ostream &out, const flst_bnode_t &obj) {
+  return (obj.print(out));
 }
 
-
-#endif // _fut0lst_h_
+#endif  // _fut0lst_h_

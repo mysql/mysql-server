@@ -23,23 +23,23 @@
 #ifndef SQL_SHOW_STATUS_H
 #define SQL_SHOW_STATUS_H
 
-#include "sql/parse_tree_node_base.h" // POS
+#include "sql/parse_tree_node_base.h"  // POS
 
 class Item;
 class SELECT_LEX;
 class String;
 class THD;
 
-SELECT_LEX*
-build_show_global_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);
+SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
+                                     const String *wild, Item *where_cond);
 
-SELECT_LEX*
-build_show_session_status(const POS &pos, THD *thd, const String *wild, Item *where_cond);
+SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
+                                      const String *wild, Item *where_cond);
 
-SELECT_LEX*
-build_show_global_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond);
+SELECT_LEX *build_show_global_variables(const POS &pos, THD *thd,
+                                        const String *wild, Item *where_cond);
 
-SELECT_LEX*
-build_show_session_variables(const POS &pos, THD *thd, const String *wild, Item *where_cond);
+SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
+                                         const String *wild, Item *where_cond);
 
 #endif /* SQL_SHOW_STATUS_H */

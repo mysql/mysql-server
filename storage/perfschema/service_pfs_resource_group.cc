@@ -46,69 +46,56 @@ extern int pfs_get_thread_system_attrs_by_id_v1(PSI_thread *thread,
                                                 ulonglong thread_id,
                                                 PSI_thread_attrs *thread_attrs);
 
-int
-impl_pfs_set_thread_resource_group(const char *group_name,
-                                   int group_name_len,
-                                   void *user_data)
-{
-  return pfs_set_thread_resource_group_v1(
-    group_name, group_name_len, user_data);
+int impl_pfs_set_thread_resource_group(const char *group_name,
+                                       int group_name_len, void *user_data) {
+  return pfs_set_thread_resource_group_v1(group_name, group_name_len,
+                                          user_data);
 }
 
-int
-impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
-                                         ulonglong thread_id,
-                                         const char *group_name,
-                                         int group_name_len,
-                                         void *user_data)
-{
-  return pfs_set_thread_resource_group_by_id_v1(
-    thread, thread_id, group_name, group_name_len, user_data);
+int impl_pfs_set_thread_resource_group_by_id(PSI_thread *thread,
+                                             ulonglong thread_id,
+                                             const char *group_name,
+                                             int group_name_len,
+                                             void *user_data) {
+  return pfs_set_thread_resource_group_by_id_v1(thread, thread_id, group_name,
+                                                group_name_len, user_data);
 }
 
-int
-impl_pfs_get_thread_system_attrs(PSI_thread_attrs *thread_attrs)
-{
+int impl_pfs_get_thread_system_attrs(PSI_thread_attrs *thread_attrs) {
   return pfs_get_thread_system_attrs_v1(thread_attrs);
 }
 
-int
-impl_pfs_get_thread_system_attrs_by_id(PSI_thread *thread,
-                                       ulonglong thread_id,
-                                       PSI_thread_attrs *thread_attrs)
-{
+int impl_pfs_get_thread_system_attrs_by_id(PSI_thread *thread,
+                                           ulonglong thread_id,
+                                           PSI_thread_attrs *thread_attrs) {
   return pfs_get_thread_system_attrs_by_id_v1(thread, thread_id, thread_attrs);
 }
 
 SERVICE_TYPE(pfs_resource_group)
 SERVICE_IMPLEMENTATION(mysql_server, pfs_resource_group) = {
-  impl_pfs_set_thread_resource_group,
-  impl_pfs_set_thread_resource_group_by_id,
-  impl_pfs_get_thread_system_attrs,
-  impl_pfs_get_thread_system_attrs_by_id};
+    impl_pfs_set_thread_resource_group,
+    impl_pfs_set_thread_resource_group_by_id, impl_pfs_get_thread_system_attrs,
+    impl_pfs_get_thread_system_attrs_by_id};
 
 /**
   Register the Resource Group service with the MySQL server registry.
   @return 0 if successful, 1 otherwise
 */
-int
-register_pfs_resource_group_service()
-{
+int register_pfs_resource_group_service() {
   SERVICE_TYPE(registry) * r;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r)
-  {
+  if (!r) {
     return 1;
   }
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
-  if (reg->register_service("pfs_resource_group.mysql_server",
-                            (my_h_service)&imp_mysql_server_pfs_resource_group))
-  {
+  if (reg->register_service(
+          "pfs_resource_group.mysql_server",
+          (my_h_service)&imp_mysql_server_pfs_resource_group)) {
     result = 1;
   }
 
@@ -121,23 +108,19 @@ register_pfs_resource_group_service()
   Unregister the Resource Group service.
   @return 0 if successful, 1 otherwise
 */
-int
-unregister_pfs_resource_group_service()
-{
+int unregister_pfs_resource_group_service() {
   SERVICE_TYPE(registry) * r;
   int result = 0;
 
   r = mysql_plugin_registry_acquire();
-  if (!r)
-  {
+  if (!r) {
     return 1;
   }
 
   my_service<SERVICE_TYPE(registry_registration)> reg("registry_registration",
                                                       r);
 
-  if (reg->unregister("pfs_resource_group.mysql_server"))
-  {
+  if (reg->unregister("pfs_resource_group.mysql_server")) {
     result = 1;
   }
 

@@ -26,4 +26,3 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fil0fil.h"
 
 fil_addr_t fil_addr_null = {FIL_NULL, 0};
-

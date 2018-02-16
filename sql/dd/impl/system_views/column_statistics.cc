@@ -25,14 +25,12 @@
 namespace dd {
 namespace system_views {
 
-const Column_statistics &Column_statistics::instance()
-{
-  static Column_statistics *s_instance= new Column_statistics();
+const Column_statistics &Column_statistics::instance() {
+  static Column_statistics *s_instance = new Column_statistics();
   return *s_instance;
 }
 
-Column_statistics::Column_statistics()
-{
+Column_statistics::Column_statistics() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_SCHEMA_NAME, "SCHEMA_NAME", "SCHEMA_NAME");
@@ -43,5 +41,5 @@ Column_statistics::Column_statistics()
   m_target_def.add_where("CAN_ACCESS_TABLE(SCHEMA_NAME, TABLE_NAME)");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

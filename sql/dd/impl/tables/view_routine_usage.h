@@ -23,40 +23,34 @@
 #ifndef DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED
 #define DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_routine_usage : virtual public Object_table_impl
-{
-public:
+class View_routine_usage : virtual public Object_table_impl {
+ public:
   static const View_routine_usage &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_VIEW_ID,
     FIELD_ROUTINE_CATALOG,
     FIELD_ROUTINE_SCHEMA,
     FIELD_ROUTINE_NAME
   };
 
-  enum enum_indexes
-  {
+  enum enum_indexes {
     INDEX_PK_VIEW_ID_ROUTINE_CATALOG,
     INDEX_K_ROUTINE_CATALOG_ROUTINE_SCHEMA_ROUTINE_NAME
   };
 
-  enum enum_foreign_keys
-  {
-    FK_VIEW_ID
-  };
+  enum enum_foreign_keys { FK_VIEW_ID };
 
   View_routine_usage();
 
@@ -74,7 +68,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED
+#endif  // DD_TABLES__VIEW_ROUTINE_USAGE_INCLUDED

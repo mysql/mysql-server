@@ -67,24 +67,20 @@ using std::string;
   Struct to store a key and pointer to object
 */
 
-struct SAFE_HASH_ENTRY
-{
+struct SAFE_HASH_ENTRY {
   char *key;
   uint length;
   uchar *data;
   SAFE_HASH_ENTRY *next, **prev;
 };
 
-
-struct SAFE_HASH
-{
+struct SAFE_HASH {
   mysql_rwlock_t lock;
-  malloc_unordered_map<string, unique_ptr_my_free<SAFE_HASH_ENTRY>>
-    hash{key_memory_SAFE_HASH_ENTRY};
+  malloc_unordered_map<string, unique_ptr_my_free<SAFE_HASH_ENTRY>> hash{
+      key_memory_SAFE_HASH_ENTRY};
   uchar *default_value;
   SAFE_HASH_ENTRY *root;
 };
-
 
 /*
   Init a SAFE_HASH object
@@ -104,15 +100,13 @@ struct SAFE_HASH
     1  error
 */
 
-static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value)
-{
+static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value) {
   DBUG_ENTER("safe_hash");
   mysql_rwlock_init(key_SAFE_HASH_lock, &hash->lock);
-  hash->default_value= default_value;
-  hash->root= 0;
+  hash->default_value = default_value;
+  hash->root = 0;
   DBUG_RETURN(0);
 }
-
 
 /*
   Free a SAFE_HASH object
@@ -121,17 +115,15 @@ static bool safe_hash_init(SAFE_HASH *hash, uchar *default_value)
     This is safe to call on any object that has been sent to safe_hash_init()
 */
 
-static void safe_hash_free(SAFE_HASH *hash)
-{
+static void safe_hash_free(SAFE_HASH *hash) {
   /*
     Test if safe_hash_init succeeded. This will also guard us against multiple
     free calls.
   */
-  if (hash->default_value)
-  {
+  if (hash->default_value) {
     hash->hash.clear();
     mysql_rwlock_destroy(&hash->lock);
-    hash->default_value=0;
+    hash->default_value = 0;
   }
 }
 
@@ -139,21 +131,19 @@ static void safe_hash_free(SAFE_HASH *hash)
   Return the value stored for a key or default value if no key
 */
 
-static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
-{
+static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length) {
   uchar *result;
   DBUG_ENTER("safe_hash_search");
   mysql_rwlock_rdlock(&hash->lock);
-  auto it= hash->hash.find(string(pointer_cast<const char *>(key), length));
+  auto it = hash->hash.find(string(pointer_cast<const char *>(key), length));
   if (it == hash->hash.end())
-    result= hash->default_value;
+    result = hash->default_value;
   else
-    result= it->second->data;
+    result = it->second->data;
   mysql_rwlock_unlock(&hash->lock);
-  DBUG_PRINT("exit",("data: %p", result));
+  DBUG_PRINT("exit", ("data: %p", result));
   DBUG_RETURN(result);
 }
-
 
 /*
   Associate a key with some data
@@ -176,65 +166,56 @@ static uchar *safe_hash_search(SAFE_HASH *hash, const uchar *key, uint length)
 */
 
 static bool safe_hash_set(SAFE_HASH *hash, const uchar *key, uint length,
-                          uchar *data)
-{
+                          uchar *data) {
   SAFE_HASH_ENTRY *entry;
-  bool error= 0;
+  bool error = 0;
   DBUG_ENTER("safe_hash_set");
-  DBUG_PRINT("enter",("key: %.*s  data: %p", length, key, data));
+  DBUG_PRINT("enter", ("key: %.*s  data: %p", length, key, data));
   string key_str(pointer_cast<const char *>(key), length);
 
   mysql_rwlock_wrlock(&hash->lock);
-  entry= find_or_nullptr(hash->hash, key_str);
+  entry = find_or_nullptr(hash->hash, key_str);
 
-  if (data == hash->default_value)
-  {
+  if (data == hash->default_value) {
     /*
       The key is to be associated with the default entry. In this case
       we can just delete the entry (if it existed) from the hash as a
       search will return the default entry
     */
-    if (!entry)					/* nothing to do */
+    if (!entry) /* nothing to do */
       goto end;
     /* unlink entry from list */
-    if ((*entry->prev= entry->next))
-      entry->next->prev= entry->prev;
+    if ((*entry->prev = entry->next)) entry->next->prev = entry->prev;
     hash->hash.erase(key_str);
     goto end;
   }
-  if (entry)
-  {
+  if (entry) {
     /* Entry existed;  Just change the pointer to point at the new data */
-    entry->data= data;
-  }
-  else
-  {
-    if (!(entry= (SAFE_HASH_ENTRY *) my_malloc(key_memory_SAFE_HASH_ENTRY,
+    entry->data = data;
+  } else {
+    if (!(entry = (SAFE_HASH_ENTRY *)my_malloc(key_memory_SAFE_HASH_ENTRY,
                                                sizeof(*entry) + length,
-					       MYF(MY_WME))))
-    {
-      error= 1;
+                                               MYF(MY_WME)))) {
+      error = 1;
       goto end;
     }
-    entry->key= (char*) (entry +1);
-    memcpy((char*) entry->key, (char*) key, length);
-    entry->length= length;
-    entry->data= data;
+    entry->key = (char *)(entry + 1);
+    memcpy((char *)entry->key, (char *)key, length);
+    entry->length = length;
+    entry->data = data;
     /* Link entry to list */
-    if ((entry->next= hash->root))
-      entry->next->prev= &entry->next;
-    entry->prev= &hash->root;
-    hash->root= entry;
-    hash->hash.emplace(string(pointer_cast<const char *>(entry->key),
-                              entry->length),
-                       unique_ptr_my_free<SAFE_HASH_ENTRY>(entry));
+    if ((entry->next = hash->root)) entry->next->prev = &entry->next;
+    entry->prev = &hash->root;
+    hash->root = entry;
+    hash->hash.emplace(
+        string(pointer_cast<const char *>(entry->key), entry->length),
+        unique_ptr_my_free<SAFE_HASH_ENTRY>(entry));
   }
 
 end:
   mysql_rwlock_unlock(&hash->lock);
   DBUG_RETURN(error);
 }
-
 
 /*
   Change all entres with one data value to another data value
@@ -251,33 +232,27 @@ end:
     default value.
 */
 
-static void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
-{
+static void safe_hash_change(SAFE_HASH *hash, uchar *old_data,
+                             uchar *new_data) {
   SAFE_HASH_ENTRY *entry, *next;
   DBUG_ENTER("safe_hash_set");
 
   mysql_rwlock_wrlock(&hash->lock);
 
-  for (entry= hash->root ; entry ; entry= next)
-  {
-    next= entry->next;
-    if (entry->data == old_data)
-    {
-      if (new_data == hash->default_value)
-      {
-        if ((*entry->prev= entry->next))
-          entry->next->prev= entry->prev;
+  for (entry = hash->root; entry; entry = next) {
+    next = entry->next;
+    if (entry->data == old_data) {
+      if (new_data == hash->default_value) {
+        if ((*entry->prev = entry->next)) entry->next->prev = entry->prev;
         hash->hash.erase(string(entry->key, entry->length));
-      }
-      else
-	entry->data= new_data;
+      } else
+        entry->data = new_data;
     }
   }
 
   mysql_rwlock_unlock(&hash->lock);
   DBUG_VOID_RETURN;
 }
-
 
 /*****************************************************************************
   Functions to handle the key cache objects
@@ -286,17 +261,11 @@ static void safe_hash_change(SAFE_HASH *hash, uchar *old_data, uchar *new_data)
 /* Variable to store all key cache objects */
 static SAFE_HASH key_cache_hash;
 
-
-bool multi_keycache_init(void)
-{
-  return safe_hash_init(&key_cache_hash, (uchar*) dflt_key_cache);
+bool multi_keycache_init(void) {
+  return safe_hash_init(&key_cache_hash, (uchar *)dflt_key_cache);
 }
 
-
-void multi_keycache_free(void)
-{
-  safe_hash_free(&key_cache_hash);
-}
+void multi_keycache_free(void) { safe_hash_free(&key_cache_hash); }
 
 /*
   Get a key cache to be used for a specific table.
@@ -315,13 +284,10 @@ void multi_keycache_free(void)
     key cache to use
 */
 
-KEY_CACHE *multi_key_cache_search(uchar *key, uint length)
-{
-  if (key_cache_hash.hash.empty())
-    return dflt_key_cache;
-  return (KEY_CACHE*) safe_hash_search(&key_cache_hash, key, length);
+KEY_CACHE *multi_key_cache_search(uchar *key, uint length) {
+  if (key_cache_hash.hash.empty()) return dflt_key_cache;
+  return (KEY_CACHE *)safe_hash_search(&key_cache_hash, key, length);
 }
-
 
 /*
   Assosiate a key cache with a key
@@ -338,16 +304,10 @@ KEY_CACHE *multi_key_cache_search(uchar *key, uint length)
     entry
 */
 
-
-bool multi_key_cache_set(const uchar *key, uint length,
-                         KEY_CACHE *key_cache)
-{
-  return safe_hash_set(&key_cache_hash, key, length, (uchar*) key_cache);
+bool multi_key_cache_set(const uchar *key, uint length, KEY_CACHE *key_cache) {
+  return safe_hash_set(&key_cache_hash, key, length, (uchar *)key_cache);
 }
 
-
-void multi_key_cache_change(KEY_CACHE *old_data,
-			    KEY_CACHE *new_data)
-{
-  safe_hash_change(&key_cache_hash, (uchar*) old_data, (uchar*) new_data);
+void multi_key_cache_change(KEY_CACHE *old_data, KEY_CACHE *new_data) {
+  safe_hash_change(&key_cache_hash, (uchar *)old_data, (uchar *)new_data);
 }

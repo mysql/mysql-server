@@ -72,8 +72,7 @@ typedef unsigned int PSI_memory_key;
 struct PSI_thread;
 
 /** Entry point for the performance schema interface. */
-struct PSI_memory_bootstrap
-{
+struct PSI_memory_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -92,8 +91,7 @@ typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
   Performance Schema Memory Interface, version 1.
   @since PSI_MEMORY_VERSION_1
 */
-struct PSI_memory_service_v1
-{
+struct PSI_memory_service_v1 {
   /** @sa register_memory_v1_t. */
   register_memory_v1_t register_memory;
   /** @sa memory_alloc_v1_t. */

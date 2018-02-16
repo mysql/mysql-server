@@ -31,10 +31,12 @@ struct TABLE;
 struct TABLE_LIST;
 
 struct ORDER;
-template <typename Element_type> class Bounds_checked_array;
+template <typename Element_type>
+class Bounds_checked_array;
 
-typedef Bounds_checked_array<Item*> Ref_item_array;
-template <class T> class List;
+typedef Bounds_checked_array<Item *> Ref_item_array;
+template <class T>
+class List;
 
 /**
   @file sql/sql_resolver.h
@@ -44,16 +46,14 @@ template <class T> class List;
 void propagate_nullability(List<TABLE_LIST> *tables, bool nullable);
 
 bool setup_order(THD *thd, Ref_item_array ref_item_array, TABLE_LIST *tables,
-                 List<Item> &fields, List <Item> &all_fields, ORDER *order);
-bool subquery_allows_materialization(Item_in_subselect *predicate,
-                                     THD *thd, SELECT_LEX *select_lex,
+                 List<Item> &fields, List<Item> &all_fields, ORDER *order);
+bool subquery_allows_materialization(Item_in_subselect *predicate, THD *thd,
+                                     SELECT_LEX *select_lex,
                                      const SELECT_LEX *outer);
-bool validate_gc_assignment(List<Item> *fields,
-                            List<Item> *values, TABLE *tab);
+bool validate_gc_assignment(List<Item> *fields, List<Item> *values, TABLE *tab);
 
 bool find_order_in_list(THD *thd, Ref_item_array ref_item_array,
-                        TABLE_LIST *tables, ORDER *order,
-                        List<Item> &fields, List<Item> &all_fields,
-                        bool is_group_field);
+                        TABLE_LIST *tables, ORDER *order, List<Item> &fields,
+                        List<Item> &all_fields, bool is_group_field);
 
 #endif /* SQL_RESOLVER_INCLUDED */

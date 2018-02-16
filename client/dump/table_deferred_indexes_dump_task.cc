@@ -27,6 +27,5 @@
 using namespace Mysql::Tools::Dump;
 
 Table_deferred_indexes_dump_task::Table_deferred_indexes_dump_task(
-  Table* related_table)
-  : Abstract_table_dump_task(related_table)
-{}
+    Table *related_table)
+    : Abstract_table_dump_task(related_table) {}

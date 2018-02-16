@@ -22,18 +22,16 @@
 #ifndef DD_RESOURCE_GROUP_INCLUDED
 #define DD_RESOURCE_GROUP_INCLUDED
 
-#include "sql/dd/string_type.h" // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 namespace resourcegroups {
-  class Resource_group;
+class Resource_group;
 }
 namespace dd {
-namespace cache
-{
-  class Dictionary_client;
+namespace cache {
+class Dictionary_client;
 }
-
 
 /**
   Check if resource group exists in the data dictionary.
@@ -50,7 +48,6 @@ bool resource_group_exists(dd::cache::Dictionary_client *dd_client,
                            const String_type &resource_group_name,
                            bool *exists);
 
-
 /**
   Create a DD object and persist it to DD table resourcegroup.
 
@@ -63,7 +60,6 @@ bool resource_group_exists(dd::cache::Dictionary_client *dd_client,
 
 bool create_resource_group(THD *thd,
                            const resourcegroups::Resource_group &res_grp_ref);
-
 
 /**
   Update a resource group and persist it to DD table resourcegroup.
@@ -79,7 +75,6 @@ bool create_resource_group(THD *thd,
 bool update_resource_group(THD *thd, const String_type &resource_grp_name,
                            const resourcegroups::Resource_group &res_grp_ref);
 
-
 /**
   Drop a resource group from DD table resourcegroup.
 
@@ -91,5 +86,5 @@ bool update_resource_group(THD *thd, const String_type &resource_grp_name,
 */
 
 bool drop_resource_group(THD *thd, const String_type resource_grp_name);
-} // namespace dd
-#endif // DD_RESOURCE_GROUP_INCLUDED
+}  // namespace dd
+#endif  // DD_RESOURCE_GROUP_INCLUDED

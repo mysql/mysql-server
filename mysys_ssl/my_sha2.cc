@@ -25,7 +25,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @file mysys_ssl/my_sha2.cc
   A compatibility layer to our built-in SSL implementation, to mimic the
@@ -34,38 +33,29 @@
 
 #include "sha2.h"
 
-#ifdef HAVE_WOLFSSL
-#  define GEN_WOLFSSL_SHA2_BRIDGE(size) \
-unsigned char* SHA_HASH##size(const unsigned char *input_ptr, size_t input_length, \
-               char unsigned *output_ptr) {                         \
-  Sha##size hasher;                                                 \
-  wc_InitSha##size(&hasher);                                        \
-  wc_Sha##size##Update(&hasher, input_ptr, input_length);           \
-  wc_Sha##size##Final(&hasher, output_ptr);                         \
-  return(output_ptr);                                               \
-}
+/*  Low level digest API's are not allowed to access when FIPS mode is ON. This
+ * wrapper will allow to call different sha256 methods directly.*/
+#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                          \
+  unsigned char *SHA_EVP##size(const unsigned char *input_ptr,     \
+                               size_t input_length,                \
+                               char unsigned *output_ptr) {        \
+    EVP_MD_CTX *md_ctx = EVP_MD_CTX_create();                      \
+    EVP_DigestInit_ex(md_ctx, EVP_sha##size(), NULL);              \
+    EVP_DigestUpdate(md_ctx, input_ptr, input_length);             \
+    EVP_DigestFinal_ex(md_ctx, (unsigned char *)output_ptr, NULL); \
+    EVP_MD_CTX_destroy(md_ctx);                                    \
+    return (output_ptr);                                           \
+  }
 
-
-/**
-  @fn SHA_HASH512
-  @fn SHA_HASH384
-  @fn SHA_HASH256
-
-  Instantiate an hash object, fill in the cleartext value, compute the digest,
-  and extract the result from the object.
-
-  (Generate the functions.  See similar .h code for the prototypes.)
+/*
+  @fn SHA_EVP512
+  @fn SHA_EVP384
+  @fn SHA_EVP256
+  @fn SHA_EVP224
 */
-#  ifndef OPENSSL_NO_SHA512
-GEN_WOLFSSL_SHA2_BRIDGE(512);
-GEN_WOLFSSL_SHA2_BRIDGE(384);
-#  else
-#    warning Some SHA2 functionality is missing.  See OPENSSL_NO_SHA512.
-#  endif
-#undef SHA256
-GEN_WOLFSSL_SHA2_BRIDGE(256);
-GEN_WOLFSSL_SHA2_BRIDGE(224);
 
-#  undef GEN_WOLFSSL_SHA2_BRIDGE
-
-#endif /* HAVE_WOLFSSL */
+GEN_OPENSSL_EVP_SHA2_BRIDGE(512)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(384)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
+#undef GEN_OPENSSL_EVP_SHA2_BRIDGE

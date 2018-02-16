@@ -39,14 +39,12 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Character_sets : public Entity_object_table_impl
-{
-public:
+class Character_sets : public Entity_object_table_impl {
+ public:
   static const Character_sets &instance();
 
-  enum enum_fields
-  {
-    FIELD_ID= static_cast<uint>(Common_field::ID),
+  enum enum_fields {
+    FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_NAME,
     FIELD_DEFAULT_COLLATION_ID,
     FIELD_COMMENT,
@@ -54,17 +52,13 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_K_DEFAULT_COLLATION_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_DEFAULT_COLLATION_ID
-  };
+  enum enum_foreign_keys { FK_DEFAULT_COLLATION_ID };
 
   Character_sets();
 
@@ -81,7 +75,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__CHARACTER_SETS_INCLUDED
+#endif  // DD_TABLES__CHARACTER_SETS_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -48,16 +48,16 @@ ngs::Authentication_interface_ptr Sasl_plain_auth::create(
       ngs::allocate_object<Sasl_plain_auth>(handler));
 }
 
-Sasl_plain_auth::Response Sasl_plain_auth::handle_start(
-    const std::string&, const std::string &data,
-    const std::string&) {
+Sasl_plain_auth::Response Sasl_plain_auth::handle_start(const std::string &,
+                                                        const std::string &data,
+                                                        const std::string &) {
   if (ngs::Error_code error = m_verification_handler->authenticate(*this, data))
     return {Failed, error.error, error.message};
   return {Succeeded};
 }
 
 Sasl_plain_auth::Response Sasl_plain_auth::handle_continue(
-    const std::string&) {
+    const std::string &) {
   // never supposed to get called
   return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
 }

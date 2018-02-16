@@ -23,23 +23,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_SERVICE_IMPLEMENTATION_H
 #define MYSQL_SERVICE_IMPLEMENTATION_H
 
-#include "my_ref_counted.h"
-#include "my_metadata.h"
 #include <mysql/components/services/registry.h>
+#include "my_metadata.h"
+#include "my_ref_counted.h"
 
 /** a Service implementation registry data */
-class mysql_service_implementation : public my_ref_counted, public my_metadata
-{
-public:
-  mysql_service_implementation(
-    my_h_service interface, const char *full_name);
-  mysql_service_implementation(mysql_service_implementation& other);
+class mysql_service_implementation : public my_ref_counted, public my_metadata {
+ public:
+  mysql_service_implementation(my_h_service interface, const char *full_name);
+  mysql_service_implementation(mysql_service_implementation &other);
 
-  const char* service_name_c_str() const;
-  const char* name_c_str() const;
+  const char *service_name_c_str() const;
+  const char *name_c_str() const;
   my_h_service interface() const;
 
-private:
+ private:
   my_h_service m_interface;
   my_string m_service;
   my_string m_full_name;

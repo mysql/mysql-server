@@ -31,7 +31,7 @@
 #include <mysql/plugin.h>
 #define MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION 0x0100
 
-typedef void* mysql_string_handle;
+typedef void *mysql_string_handle;
 
 /**
   This plugin type defines interface that the server uses to
@@ -55,8 +55,7 @@ typedef void* mysql_string_handle;
 
   @sa mysql_password_policy_service_st
 */
-struct st_mysql_validate_password
-{
+struct st_mysql_validate_password {
   int interface_version;
   /**
     Checks if a password is valid by the password policy

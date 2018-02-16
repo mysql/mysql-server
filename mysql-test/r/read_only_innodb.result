@@ -1,11 +1,7 @@
 DROP TABLE IF EXISTS table_11733 ;
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user test@localhost;
 grant CREATE, SELECT, DROP on *.* to test@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 set global read_only=0;
 create table table_11733 (a int) engine=InnoDb;
 BEGIN;
@@ -22,12 +18,8 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
+CREATE USER test@localhost;
 GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT) ENGINE=INNODB;
 INSERT INTO t1 VALUES (0), (1);
 SET GLOBAL read_only=1;

@@ -31,14 +31,14 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
-#include "my_systime.h"              //my_getsystime
+#include "my_systime.h"  //my_getsystime
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 
 /**
    Maximum size of an error message from a slave thread.
  */
-#define MAX_SLAVE_ERRMSG      1024
+#define MAX_SLAVE_ERRMSG 1024
 
 class THD;
 
@@ -49,9 +49,8 @@ class THD;
    By inheriting from this class, the class is imbued with
    capabilities to do slave reporting.
  */
-class Slave_reporting_capability
-{
-public:
+class Slave_reporting_capability {
+ public:
   /** lock used to synchronize m_last_error on 'SHOW SLAVE STATUS' **/
   mutable mysql_mutex_t err_lock;
   /**
@@ -72,10 +71,10 @@ public:
                         printf() format.
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
-    MY_ATTRIBUTE((format(printf, 4, 5)));
+      MY_ATTRIBUTE((format(printf, 4, 5)));
   void va_report(loglevel level, int err_code, const char *prefix_msg,
                  const char *msg, va_list v_args) const
-    MY_ATTRIBUTE((format(printf, 5, 0)));
+      MY_ATTRIBUTE((format(printf, 5, 0)));
 
   /**
      Clear errors. They will not show up under <code>SHOW SLAVE
@@ -90,46 +89,37 @@ public:
   /**
      Check if the current error is of temporary nature or not.
   */
-  int has_temporary_error(THD *thd, uint error_arg= 0, bool* silent= 0) const;
+  int has_temporary_error(THD *thd, uint error_arg = 0, bool *silent = 0) const;
 
   /**
      Error information structure.
    */
   class Error {
     friend class Slave_reporting_capability;
-  public:
-    Error()
-    {
-      clear();
+
+   public:
+    Error() { clear(); }
+
+    void clear() {
+      number = 0;
+      message[0] = '\0';
+      timestamp[0] = '\0';
     }
 
-    void clear()
-    {
-      number= 0;
-      message[0]= '\0';
-      timestamp[0]= '\0';
-
-    }
-
-    void update_timestamp()
-    {
+    void update_timestamp() {
       struct tm tm_tmp;
       struct tm *start;
       time_t tt_tmp;
 
-      skr= my_getsystime()/10;
-      tt_tmp= skr/1000000;
+      skr = my_getsystime() / 10;
+      tt_tmp = skr / 1000000;
       localtime_r(&tt_tmp, &tm_tmp);
-      start=&tm_tmp;
+      start = &tm_tmp;
 
       snprintf(timestamp, sizeof(timestamp), "%02d%02d%02d %02d:%02d:%02d",
-              start->tm_year % 100,
-              start->tm_mon+1,
-              start->tm_mday,
-              start->tm_hour,
-              start->tm_min,
-              start->tm_sec);
-      timestamp[15]= '\0';
+               start->tm_year % 100, start->tm_mon + 1, start->tm_mday,
+               start->tm_hour, start->tm_min, start->tm_sec);
+      timestamp[15] = '\0';
     }
 
     /** Error code */
@@ -140,50 +130,45 @@ public:
     char timestamp[64];
     /** Error timestamp in microseconds. Used in performance_schema */
     ulonglong skr;
-
   };
 
-  Error const& last_error() const { return m_last_error; }
+  Error const &last_error() const { return m_last_error; }
   bool is_error() const { return last_error().number != 0; }
 
+  /*
+    For MSR, there is a need to introduce error messages per channel.
+    Instead of changing the error messages in share/errmsg-utf8.txt to
+    introduce the clause, FOR CHANNEL "%s", we construct a string like this.
+    There might be problem with a client applications which could print
+    error messages and see no %s.
+    @TODO: fix this.
+  */
+  virtual const char *get_for_channel_str(bool upper_case) const = 0;
 
- /*
-   For MSR, there is a need to introduce error messages per channel.
-   Instead of changing the error messages in share/errmsg-utf8.txt to
-   introduce the clause, FOR CHANNEL "%s", we construct a string like this.
-   There might be problem with a client applications which could print
-   error messages and see no %s.
-   @TODO: fix this.
- */
-  virtual const char* get_for_channel_str(bool upper_case) const = 0;
+  virtual ~Slave_reporting_capability() = 0;
 
-  virtual ~Slave_reporting_capability()= 0;
-
-protected:
-
-  virtual void do_report(loglevel level, int err_code,
-                 const char *msg, va_list v_args) const
-    MY_ATTRIBUTE((format(printf, 4, 0)));
+ protected:
+  virtual void do_report(loglevel level, int err_code, const char *msg,
+                         va_list v_args) const
+      MY_ATTRIBUTE((format(printf, 4, 0)));
 
   /**
      Last error produced by the I/O or SQL thread respectively.
    */
   mutable Error m_last_error;
 
-private:
-
+ private:
   char const *const m_thread_name;
 
   // not implemented
-  Slave_reporting_capability(const Slave_reporting_capability& rhs);
-  Slave_reporting_capability& operator=(const Slave_reporting_capability& rhs);
+  Slave_reporting_capability(const Slave_reporting_capability &rhs);
+  Slave_reporting_capability &operator=(const Slave_reporting_capability &rhs);
 };
 
-inline void Slave_reporting_capability::do_report
-  (loglevel level, int err_code, const char *msg, va_list v_args) const
-{
+inline void Slave_reporting_capability::do_report(loglevel level, int err_code,
+                                                  const char *msg,
+                                                  va_list v_args) const {
   va_report(level, err_code, NULL, msg, v_args);
 }
 
-#endif // RPL_REPORTING_H
-
+#endif  // RPL_REPORTING_H

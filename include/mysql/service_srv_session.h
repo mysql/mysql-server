@@ -29,31 +29,28 @@
   together with the Command service to execute commands in the server.
 */
 
-
 #ifdef __cplusplus
 class Srv_session;
-typedef class Srv_session* MYSQL_SESSION;
+typedef class Srv_session *MYSQL_SESSION;
 #else
 struct Srv_session;
-typedef struct Srv_session* MYSQL_SESSION;
+typedef struct Srv_session *MYSQL_SESSION;
 #endif
 
 #ifndef MYSQL_ABI_CHECK
-#include "mysql/plugin.h"  /* MYSQL_THD */
+#include "mysql/plugin.h" /* MYSQL_THD */
 #endif
 
-typedef void (*srv_session_error_cb)(void *ctx,
-                                     unsigned int sql_errno,
+typedef void (*srv_session_error_cb)(void *ctx, unsigned int sql_errno,
                                      const char *err_msg);
 
-extern "C" struct srv_session_service_st
-{
+extern "C" struct srv_session_service_st {
   int (*init_session_thread)(const void *plugin);
 
   void (*deinit_session_thread)();
 
-  MYSQL_SESSION (*open_session)(srv_session_error_cb error_cb,
-                                void *plugix_ctx);
+  MYSQL_SESSION(*open_session)
+  (srv_session_error_cb error_cb, void *plugix_ctx);
 
   int (*detach_session)(MYSQL_SESSION session);
 
@@ -62,30 +59,27 @@ extern "C" struct srv_session_service_st
   int (*server_is_available)();
 
   int (*attach_session)(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd);
-} *srv_session_service;
+} * srv_session_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define srv_session_init_thread(plugin) \
-        srv_session_service->init_session_thread((plugin))
+  srv_session_service->init_session_thread((plugin))
 
-#define srv_session_deinit_thread() \
-        srv_session_service->deinit_session_thread()
+#define srv_session_deinit_thread() srv_session_service->deinit_session_thread()
 
-#define srv_session_open(cb, ctx) \
-        srv_session_service->open_session((cb), (ctx))
+#define srv_session_open(cb, ctx) srv_session_service->open_session((cb), (ctx))
 
 #define srv_session_detach(session) \
-        srv_session_service->detach_session((session))
+  srv_session_service->detach_session((session))
 
-#define srv_session_close(session) \
-        srv_session_service->close_session((session))
+#define srv_session_close(session) srv_session_service->close_session((session))
 
 #define srv_session_server_is_available() \
-        srv_session_service->server_is_available()
+  srv_session_service->server_is_available()
 
 #define srv_session_attach(session, thd) \
-        srv_session_service->attach_session((session), (thd))
+  srv_session_service->attach_session((session), (thd))
 
 #else
 

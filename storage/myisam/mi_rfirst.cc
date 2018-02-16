@@ -24,12 +24,11 @@
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 
-	/*  Read first row through  a specfic key */
+/*  Read first row through  a specfic key */
 
-int mi_rfirst(MI_INFO *info, uchar *buf, int inx)
-{
+int mi_rfirst(MI_INFO *info, uchar *buf, int inx) {
   DBUG_ENTER("mi_rfirst");
-  info->lastpos= HA_OFFSET_ERROR;
-  info->update|= HA_STATE_PREV_FOUND;
-  DBUG_RETURN(mi_rnext(info,buf,inx));
+  info->lastpos = HA_OFFSET_ERROR;
+  info->update |= HA_STATE_PREV_FOUND;
+  DBUG_RETURN(mi_rnext(info, buf, inx));
 } /* mi_rfirst */

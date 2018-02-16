@@ -16,7 +16,7 @@ CREATE DATABASE test_user_db;
 
 CREATE USER qa_test_1_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_1_dest';
 CREATE USER qa_test_1_dest IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest;
 GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_user;
 --sorted_result
@@ -36,7 +36,7 @@ DROP USER qa_test_1_dest;
 CREATE USER qa_test_2_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_2_dest';
 CREATE USER qa_test_2_dest IDENTIFIED BY 'dest_passwd';
 CREATE USER authenticated_as IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_2_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_2_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO authenticated_as;
 GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
 GRANT PROXY ON authenticated_as TO qa_test_2_user;
@@ -57,7 +57,7 @@ DROP USER authenticated_as;
 
 CREATE USER qa_test_3_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_3_dest';
 CREATE USER qa_test_3_dest IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_3_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_3_dest;
 GRANT PROXY ON qa_test_3_dest TO qa_test_3_user;
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_3_user --password=qa_test_3_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
@@ -70,7 +70,7 @@ DROP USER qa_test_3_dest;
 
 CREATE USER qa_test_4_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_4_dest';
 CREATE USER qa_test_4_dest IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_4_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_4_dest;
 GRANT PROXY ON qa_test_4_dest TO qa_test_4_user;
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT -u qa_test_4_user --password=qa_test_4_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
@@ -84,8 +84,8 @@ DROP USER qa_test_4_dest;
 CREATE USER qa_test_5_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_5_dest';
 CREATE USER qa_test_5_dest IDENTIFIED BY 'dest_passwd';
 CREATE USER ''@'localhost' IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_5_dest identified by 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'localhost' identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_5_dest;
+GRANT ALL PRIVILEGES ON test_user_db.* TO ''@'localhost';
 GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
 GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
 
@@ -103,7 +103,7 @@ DROP USER ''@'localhost';
 
 CREATE USER qa_test_6_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 CREATE USER qa_test_6_dest IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest;
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 
 --source include/plugin_auth_check_non_default_users.inc
@@ -112,7 +112,8 @@ GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 --error 1
 --exec $MYSQL $PLUGIN_AUTH_OPT -h localhost -P $MASTER_MYPORT --user=qa_test_6_user --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 
-GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+CREATE USER root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
+GRANT PROXY ON qa_test_6_dest TO root;
 --source include/plugin_auth_check_non_default_users.inc
 
 --echo exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=root  --password=qa_test_6_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
@@ -136,7 +137,7 @@ DELETE FROM mysql.user WHERE user='root' AND plugin='qa_auth_interface';
 
 CREATE USER qa_test_11_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_11_dest';
 CREATE USER qa_test_11_dest IDENTIFIED BY 'dest_passwd';
-GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest identified by 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_11_dest;
 GRANT PROXY ON qa_test_11_dest TO qa_test_11_user;
 
 --echo exec MYSQL PLUGIN_AUTH_OPT --default_auth=qa_auth_client -h localhost -P MASTER_MYPORT -u qa_test_11_user --password=qa_test_11_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1

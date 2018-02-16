@@ -30,8 +30,6 @@ create table t1 (a varchar(66000));
 ERROR 42000: Column length too big for column 'a' (max = 16383); use BLOB or TEXT instead
 set sql_mode=default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT);
 SELECT a FROM t1 WHERE a IN(1, (SELECT IF(1=0,1,2/0)));
 a

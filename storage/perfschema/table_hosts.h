@@ -41,28 +41,22 @@ struct PFS_host;
   @{
 */
 
-class PFS_index_hosts_by_host : public PFS_index_hosts
-{
-public:
-  PFS_index_hosts_by_host() : PFS_index_hosts(&m_key), m_key("HOST")
-  {
-  }
+class PFS_index_hosts_by_host : public PFS_index_hosts {
+ public:
+  PFS_index_hosts_by_host() : PFS_index_hosts(&m_key), m_key("HOST") {}
 
-  ~PFS_index_hosts_by_host()
-  {
-  }
+  ~PFS_index_hosts_by_host() {}
 
   virtual bool match(PFS_host *pfs);
 
-private:
+ private:
   PFS_key_host m_key;
 };
 
 /**
   A row of PERFORMANCE_SCHEMA.HOSTS.
 */
-struct row_hosts
-{
+struct row_hosts {
   /** Column HOST. */
   PFS_host_row m_host;
   /** Columns CURRENT_CONNECTIONS, TOTAL_CONNECTIONS. */
@@ -70,32 +64,27 @@ struct row_hosts
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */
-class table_hosts : public cursor_by_host
-{
-public:
+class table_hosts : public cursor_by_host {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
   static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   table_hosts();
 
-public:
-  ~table_hosts()
-  {
-  }
+ public:
+  ~table_hosts() {}
 
   int index_init(uint idx, bool sorted);
 
-private:
+ private:
   virtual int make_row(PFS_host *pfs);
 
   /** Table share lock. */

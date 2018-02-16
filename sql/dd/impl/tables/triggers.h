@@ -27,8 +27,8 @@
 
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/object_table_definition_impl.h"
-#include "sql/dd/impl/types/object_table_impl.h"        // dd::Object_table_i...
-#include "sql/dd/impl/types/trigger_impl.h"             // dd::Trigger_impl
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_i...
+#include "sql/dd/impl/types/trigger_impl.h"       // dd::Trigger_impl
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 
@@ -38,23 +38,19 @@ namespace dd {
 class Object_key;
 }  // namespace dd
 
-
 namespace dd {
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Triggers : virtual public Object_table_impl
-{
-public:
-  static const Triggers &instance()
-  {
-    static Triggers *s_instance= new Triggers();
+class Triggers : virtual public Object_table_impl {
+ public:
+  static const Triggers &instance() {
+    static Triggers *s_instance = new Triggers();
     return *s_instance;
   }
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_NAME,
@@ -74,18 +70,16 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_TABLE_ID_EVENT_TYPE_ACTION_TIMING_ACTION_ORDER,
     INDEX_K_CLIENT_COLLATION_ID,
     INDEX_K_CONNECTION_COLLATION_ID,
     INDEX_K_SCHEMA_COLLATION_ID
   };
 
-  enum enum_foreign_keys
-  {
+  enum enum_foreign_keys {
     FK_SCHEMA_ID,
     FK_TABLE_ID,
     FK_CLIENT_COLLATION_ID,
@@ -105,7 +99,6 @@ public:
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
 
-
   /**
     Create a key to find all triggers for a given table.
 
@@ -115,7 +108,6 @@ public:
   */
 
   static Object_key *create_key_by_table_id(Object_id table_id);
-
 
   /**
     Find table's Object_id for a given trigger name.
@@ -130,14 +122,11 @@ public:
       true upon failure.
   */
 
-  static bool get_trigger_table_id(THD *thd,
-                                   Object_id schema_id,
+  static bool get_trigger_table_id(THD *thd, Object_id schema_id,
                                    const String_type &trigger_name,
                                    Object_id *oid);
 
-
-private:
-
+ private:
   /**
     Create a key to find a trigger by schema_id and trigger name.
 
@@ -150,7 +139,6 @@ private:
   static Object_key *create_key_by_trigger_name(Object_id schema_id,
                                                 const char *trigger_name);
 
-
   /**
     Get the table id from the record.
 
@@ -160,12 +148,11 @@ private:
   */
 
   static Object_id read_table_id(const Raw_record &r);
-
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TRIGGERS_INCLUDED
+#endif  // DD_TABLES__TRIGGERS_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -57,19 +57,21 @@ void Sql_data_result::query(const ngs::PFS_string &query) {
 }
 
 void Sql_data_result::get_next_field(long &value) {
-  Field_value &field_value = validate_field_index_no_null({MYSQL_TYPE_LONGLONG});
+  Field_value &field_value =
+      validate_field_index_no_null({MYSQL_TYPE_LONGLONG});
 
   value = static_cast<long>(field_value.value.v_long);
 }
 
 void Sql_data_result::get_next_field(bool &value) {
-  Field_value &field_value = validate_field_index_no_null({MYSQL_TYPE_LONGLONG});
+  Field_value &field_value =
+      validate_field_index_no_null({MYSQL_TYPE_LONGLONG});
 
   value = field_value.value.v_long;
 }
 
 void Sql_data_result::get_next_field(std::string &value) {
-  validate_field_index({MYSQL_TYPE_VARCHAR,     MYSQL_TYPE_STRING,
+  validate_field_index({MYSQL_TYPE_VARCHAR, MYSQL_TYPE_STRING,
                         MYSQL_TYPE_MEDIUM_BLOB, MYSQL_TYPE_BLOB});
 
   Field_value *field_value = get_value();
@@ -147,7 +149,8 @@ void Sql_data_result::validate_field_index(
 
   if (std::find(field_types.begin(), field_types.end(),
                 rset_types[m_field_index].type) == field_types.end())
-    throw ngs::Error(ER_DATA_OUT_OF_RANGE, "Invalid column type (%u) for index %u",
+    throw ngs::Error(ER_DATA_OUT_OF_RANGE,
+                     "Invalid column type (%u) for index %u",
                      (unsigned int)rset_types[m_field_index].type,
                      (unsigned int)m_field_index);
 }

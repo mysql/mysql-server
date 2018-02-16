@@ -28,14 +28,12 @@
 
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_lock_database(MYRG_INFO *info, int lock_type)
-{
-  int error,new_error;
+int myrg_lock_database(MYRG_INFO *info, int lock_type) {
+  int error, new_error;
   MYRG_TABLE *file;
 
-  error=0;
-  for (file=info->open_tables ; file != info->end_table ; file++) 
-  {
+  error = 0;
+  for (file = info->open_tables; file != info->end_table; file++) {
 #ifdef _WIN32
     /*
       Make sure this table is marked as owned by a merge table.
@@ -45,16 +43,14 @@ int myrg_lock_database(MYRG_INFO *info, int lock_type)
      */
     (file->table)->owned_by_merge = true;
 #endif
-    if ((new_error=mi_lock_database(file->table,lock_type)))
-    {
-      error=new_error;
-      if (lock_type != F_UNLCK)
-      {
+    if ((new_error = mi_lock_database(file->table, lock_type))) {
+      error = new_error;
+      if (lock_type != F_UNLCK) {
         while (--file >= info->open_tables)
           mi_lock_database(file->table, F_UNLCK);
         break;
       }
     }
   }
-  return(error);
+  return (error);
 }

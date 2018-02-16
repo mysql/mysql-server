@@ -24,8 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 TempTable public handler API declaration. */
 
 /** @page PAGE_TEMPTABLE TempTable storage engine
-The TempTable storage engine is designed to be used by the Optimizer for creating
-temporary tables internally when dealing with complex queries.
+The TempTable storage engine is designed to be used by the Optimizer for
+creating temporary tables internally when dealing with complex queries.
 
 @subpage PAGE_TEMPTABLE_GLOSSARY
 
@@ -33,7 +33,8 @@ temporary tables internally when dealing with complex queries.
 
 @page PAGE_TEMPTABLE_GLOSSARY Glossary
 
-Following is a list of the terms used in the TempTable storage engine source code.
+Following is a list of the terms used in the TempTable storage engine source
+code.
 
 This is to avoid confusion because in the surrounding code (outside of
 storage/temptable) different terms are used to designate the one thing and in
@@ -131,8 +132,8 @@ Also called "key", "field", "subkey", "key part", "key segment" elsewhere.
 #include <thread> /* std::thread* */
 #endif
 
-#include "sql/handler.h"    /* handler */
-#include "sql/table.h"      /* TABLE, TABLE_SHARE */
+#include "sql/handler.h" /* handler */
+#include "sql/table.h"   /* TABLE, TABLE_SHARE */
 #include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Iterator */
 #include "storage/temptable/include/temptable/table.h" /* temptable::Table */
 #include "storage/temptable/include/temptable/test.h" /* TEMPTABLE_CPP_HOOKED_TESTS */
@@ -144,10 +145,10 @@ class Handler : public ::handler {
   /** Constructor. */
   Handler(
       /** [in] Handlerton, saved in `ht` in this class for later usage. */
-      handlerton* hton,
+      handlerton *hton,
       /** [in] Table data that is shared between handlers, saved in
        * `table_share` in this class for later usage. */
-      TABLE_SHARE* table_share);
+      TABLE_SHARE *table_share);
 
   /** Destructor. */
   ~Handler();
@@ -158,22 +159,22 @@ class Handler : public ::handler {
       /** [in] Name of the new table. The engine does not try to parse it, so it
        * can be anything as long as it is unique wrt other created tables and as
        * long as the same name is given to the `open()` method. */
-      const char* table_name,
+      const char *table_name,
       /** [in] New table structure (columns and indexes). Some of the members in
        * `mysql_table->s` are remembered for later usage. */
-      TABLE* mysql_table,
+      TABLE *mysql_table,
       /** [in] Unused. */
-      HA_CREATE_INFO*,
+      HA_CREATE_INFO *,
       /** [in] Unused. */
-      dd::Table*) override;
+      dd::Table *) override;
 
   /** Delete a table.
    * @return 0 on success or HA_ERR_* error code */
   int delete_table(
       /** [in] Name of the table to delete. */
-      const char* table_name,
+      const char *table_name,
       /** [in] Unused. */
-      const dd::Table*) override;
+      const dd::Table *) override;
 
   /** Open an existing table. A reference to the opened table is kept
    * internally. Only one table can be opened at a time and the read&write
@@ -181,13 +182,13 @@ class Handler : public ::handler {
    * @return 0 on success or HA_ERR_* error code */
   int open(
       /** [in] Name of the table to open. */
-      const char* table_name,
+      const char *table_name,
       /** [in] Unused. */
       int,
       /** [in] Unused. */
       uint,
       /** [in] Unused. */
-      const dd::Table*) override;
+      const dd::Table *) override;
 
   /** Close the opened table.
    * @return 0 on success or HA_ERR_* error code */
@@ -211,16 +212,16 @@ class Handler : public ::handler {
    * @return 0 on success or HA_ERR_* error code */
   int rnd_next(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row) override;
+      uchar *mysql_row) override;
 
   /** Fetch the record pointed by `position`.
    * @return 0 on success or HA_ERR_* error code */
   int rnd_pos(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row,
+      uchar *mysql_row,
       /** [in] Position pointing to a row. Must be retrieved from
        * `handler::ref` after a call to `position()`. */
-      uchar* position) override;
+      uchar *position) override;
 
   /** End a table scan. The table scan cursor is invalidated.
    * @return 0 on success or HA_ERR_* error code */
@@ -239,13 +240,13 @@ class Handler : public ::handler {
    * @return 0 on success or HA_ERR_* error code */
   int index_read(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row,
+      uchar *mysql_row,
       /** [in] Concatenated cells that are to be searched for. For example if
        * the table has columns `c1=INT, c2=INT, c3=VARCHAR(16)` and an index
        * on `(c1, c3)` and we are searching for `WHERE c1=5 AND c3='foo'`,
        * then this will contain 5 and 'foo' concatenated. It may also contain
        * a prefix of the indexed columns. */
-      const uchar* mysql_search_cells,
+      const uchar *mysql_search_cells,
       /** [in] The length of `mysql_search_cells` in bytes. */
       uint mysql_search_cells_len_bytes,
       /** [in] Flag denoting how to search for the row. */
@@ -256,16 +257,16 @@ class Handler : public ::handler {
    * @return 0 on success or HA_ERR_* error code */
   int index_next(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row) override;
+      uchar *mysql_row) override;
 
   /** Advance the index cursor and read the row at that position if its indexed
    * cells are the same as in the current row.
    * @return 0 on success or HA_ERR_* error code */
   int index_next_same(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row,
+      uchar *mysql_row,
       /** [in] Unused. */
-      const uchar*,
+      const uchar *,
       /** [in] Unused. */
       uint) override;
 
@@ -283,7 +284,7 @@ class Handler : public ::handler {
    * @return 0 on success or HA_ERR_* error code */
   Result index_next_conditional(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row,
+      uchar *mysql_row,
       /** [in] Condition which dictates whether to fetch the next row or not. */
       NextCondition condition);
 
@@ -291,10 +292,10 @@ class Handler : public ::handler {
   @return 0 on success or HA_ERR_* error code */
   int index_read_last(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row,
+      uchar *mysql_row,
       /** [in] Concatenated cells that are to be searched for.
        * @see `index_read()`. */
-      const uchar* mysql_search_cells,
+      const uchar *mysql_search_cells,
       /** [in] The length of `mysql_search_cells` in bytes. */
       uint mysql_search_cells_len_bytes) override;
 
@@ -302,7 +303,7 @@ class Handler : public ::handler {
   @return 0 on success or HA_ERR_* error code */
   int index_prev(
       /** [out] Output where the retrieved row is written to. */
-      uchar* mysql_row) override;
+      uchar *mysql_row) override;
 
   /** End an index scan.
    * @return 0 on success or HA_ERR_* error code */
@@ -311,34 +312,34 @@ class Handler : public ::handler {
   /** Store position to current row inside the handler. */
   void position(
       /** [in] Unused. */
-      const uchar*) override;
+      const uchar *) override;
 
   /** Insert a new row to the currently opened table.
    * @return 0 on success or HA_ERR_* error code */
   int write_row(
       /** [in] Row to insert. */
-      uchar* mysql_row) override;
+      uchar *mysql_row) override;
 
   /** Update a row.
    * @return 0 on success or HA_ERR_* error code */
   int update_row(
       /** [in] Original row to find and update. */
-      const uchar* mysql_row_old,
+      const uchar *mysql_row_old,
       /** [in] New row to put into the place of the old one. */
-      uchar* mysql_row_new) override;
+      uchar *mysql_row_new) override;
 
   /** Delete the row where the handler is currently positioned. This row must
    * be equal to `mysql_row` and the handler must be positioned.
    * @return 0 on success or HA_ERR_* error code */
   int delete_row(
       /** [in] Copy of the row to be deleted. */
-      const uchar* mysql_row) override;
+      const uchar *mysql_row) override;
 
   /** Delete all rows in the table.
    * @return 0 on success or HA_ERR_* error code */
   int truncate(
       /** [in] Unused. */
-      dd::Table*) override;
+      dd::Table *) override;
 
   /** Delete all rows in the table.
    * @return 0 on success or HA_ERR_* error code */
@@ -355,7 +356,7 @@ class Handler : public ::handler {
 
   /** Get the name of the storage engine.
    * @return name */
-  const char* table_type() const override;
+  const char *table_type() const override;
 
   /** Get the table flags.
    * @return table flags */
@@ -401,7 +402,7 @@ class Handler : public ::handler {
 #endif
 
   /** Not implemented. */
-  THR_LOCK_DATA** store_lock(THD*, THR_LOCK_DATA**, thr_lock_type) override;
+  THR_LOCK_DATA **store_lock(THD *, THR_LOCK_DATA **, thr_lock_type) override;
 
   /** Scan time. The unit of the return value is "disk access". E.g. if the
    * operation would require the disk to be accessed 5 times, then 5.0 would
@@ -442,21 +443,21 @@ class Handler : public ::handler {
 
   /** Not implemented.
   @return nullptr */
-  char* get_foreign_key_create_info() override;
+  char *get_foreign_key_create_info() override;
 
   /** Not implemented. */
-  void free_foreign_key_create_info(char*) override;
+  void free_foreign_key_create_info(char *) override;
 
   /** Not implemented.
   @return 0 */
-  int external_lock(THD*, int) override;
+  int external_lock(THD *, int) override;
 
   /** Not implemented. */
   void unlock_row() override;
 
   /** Not implemented.
   @return nullptr */
-  handler* clone(const char*, MEM_ROOT*) override;
+  handler *clone(const char *, MEM_ROOT *) override;
 
   /** Not implemented.
   @return false */
@@ -467,27 +468,27 @@ class Handler : public ::handler {
 
   /** Not implemented.
   @return 0 */
-  int index_first(uchar*) override;
+  int index_first(uchar *) override;
 
   /** Not implemented.
   @return 0 */
-  int index_last(uchar*) override;
+  int index_last(uchar *) override;
 
   /** Not implemented.
   @return 0 */
-  int analyze(THD*, HA_CHECK_OPT*) override;
+  int analyze(THD *, HA_CHECK_OPT *) override;
 
   /** Not implemented.
   @return 0 */
-  int optimize(THD*, HA_CHECK_OPT*) override;
+  int optimize(THD *, HA_CHECK_OPT *) override;
 
   /** Not implemented.
   @return 0 */
-  int check(THD*, HA_CHECK_OPT*) override;
+  int check(THD *, HA_CHECK_OPT *) override;
 
   /** Not implemented.
   @return 0 */
-  int start_stmt(THD*, thr_lock_type) override;
+  int start_stmt(THD *, thr_lock_type) override;
 
   /** Not implemented.
   @return 0 */
@@ -495,23 +496,23 @@ class Handler : public ::handler {
 
   /** Not implemented.
   @return 0 */
-  int records(ha_rows*) override;
+  int records(ha_rows *) override;
 
   /** Not implemented.
   @return 0 */
-  void update_create_info(HA_CREATE_INFO*) override;
+  void update_create_info(HA_CREATE_INFO *) override;
 
   /** Not implemented.
   @return 0 */
-  int rename_table(const char*, const char*, const dd::Table*,
-                   dd::Table*) override;
+  int rename_table(const char *, const char *, const dd::Table *,
+                   dd::Table *) override;
 
   /** Not implemented. */
   void init_table_handle_for_HANDLER() override;
 
   /** Not implemented.
   @return false */
-  bool get_error_message(int, String*) override;
+  bool get_error_message(int, String *) override;
 
   /** Not implemented.
   @return false */
@@ -519,23 +520,23 @@ class Handler : public ::handler {
 
   /** Not implemented.
   @return 0 */
-  int cmp_ref(const uchar*, const uchar*) const override;
+  int cmp_ref(const uchar *, const uchar *) const override;
 
   /** Not implemented.
   @return false */
-  bool check_if_incompatible_data(HA_CREATE_INFO*, uint) override;
+  bool check_if_incompatible_data(HA_CREATE_INFO *, uint) override;
 
   /** Not implemented.
   @return 0 */
-  ha_rows records_in_range(uint, key_range*, key_range*) override;
+  ha_rows records_in_range(uint, key_range *, key_range *) override;
 
  private:
   void assign_table();
 
-  bool is_field_type_supported(const Field& mysql_field) const;
+  bool is_field_type_supported(const Field &mysql_field) const;
 
   /** Currently opened table, or `nullptr` if none is opened. */
-  Table* m_opened_table;
+  Table *m_opened_table;
 
   /** Iterator used by `rnd_init()`, `rnd_next()` and `rnd_end()` methods.
    * It points to the row that was retrieved by the last read call (e.g.
@@ -569,7 +570,7 @@ class Handler : public ::handler {
   size_t m_deleted_rows;
 
 #ifdef TEMPTABLE_CPP_HOOKED_TESTS
-  void test(TABLE* mysql_table);
+  void test(TABLE *mysql_table);
 #endif /* TEMPTABLE_CPP_HOOKED_TESTS */
 
 #ifndef DBUG_OFF
@@ -593,7 +594,7 @@ inline void Handler::assign_table() {
   m_opened_table->mysql_table(handler::table);
 }
 
-inline bool Handler::is_field_type_supported(const Field& mysql_field) const {
+inline bool Handler::is_field_type_supported(const Field &mysql_field) const {
   switch (mysql_field.type()) {
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_GEOMETRY:

@@ -45,8 +45,7 @@ struct PFS_thread;
 /**
   A row of PERFORMANCE_SCHEMA.THREADS.
 */
-struct row_threads
-{
+struct row_threads {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column PROCESSLIST_ID. */
@@ -97,164 +96,122 @@ struct row_threads
   uint m_groupname_length;
 };
 
-class PFS_index_threads_by_thread_id : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_thread_id : public PFS_index_threads {
+ public:
   PFS_index_threads_by_thread_id()
-    : PFS_index_threads(&m_key), m_key("THREAD_ID")
-  {
-  }
+      : PFS_index_threads(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_threads_by_thread_id()
-  {
-  }
+  ~PFS_index_threads_by_thread_id() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key;
 };
 
-class PFS_index_threads_by_processlist_id : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_processlist_id : public PFS_index_threads {
+ public:
   PFS_index_threads_by_processlist_id()
-    : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID")
-  {
-  }
+      : PFS_index_threads(&m_key), m_key("PROCESSLIST_ID") {}
 
-  ~PFS_index_threads_by_processlist_id()
-  {
-  }
+  ~PFS_index_threads_by_processlist_id() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_processlist_id m_key;
 };
 
-class PFS_index_threads_by_name : public PFS_index_threads
-{
-public:
-  PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME")
-  {
-  }
+class PFS_index_threads_by_name : public PFS_index_threads {
+ public:
+  PFS_index_threads_by_name() : PFS_index_threads(&m_key), m_key("NAME") {}
 
-  ~PFS_index_threads_by_name()
-  {
-  }
+  ~PFS_index_threads_by_name() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_thread_name m_key;
 };
 
-class PFS_index_threads_by_user_host : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_user_host : public PFS_index_threads {
+ public:
   PFS_index_threads_by_user_host()
-    : PFS_index_threads(&m_key_1, &m_key_2),
-      m_key_1("PROCESSLIST_USER"),
-      m_key_2("PROCESSLIST_HOST")
-  {
-  }
+      : PFS_index_threads(&m_key_1, &m_key_2),
+        m_key_1("PROCESSLIST_USER"),
+        m_key_2("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_user_host()
-  {
-  }
+  ~PFS_index_threads_by_user_host() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_host m_key_2;
 };
 
-class PFS_index_threads_by_host : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_host : public PFS_index_threads {
+ public:
   PFS_index_threads_by_host()
-    : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST")
-  {
-  }
+      : PFS_index_threads(&m_key), m_key("PROCESSLIST_HOST") {}
 
-  ~PFS_index_threads_by_host()
-  {
-  }
+  ~PFS_index_threads_by_host() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_host m_key;
 };
 
-class PFS_index_threads_by_thread_os_id : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_thread_os_id : public PFS_index_threads {
+ public:
   PFS_index_threads_by_thread_os_id()
-    : PFS_index_threads(&m_key), m_key("THREAD_OS_ID")
-  {
-  }
+      : PFS_index_threads(&m_key), m_key("THREAD_OS_ID") {}
 
-  ~PFS_index_threads_by_thread_os_id()
-  {
-  }
+  ~PFS_index_threads_by_thread_os_id() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_thread_os_id m_key;
 };
 
-class PFS_index_threads_by_resource_group : public PFS_index_threads
-{
-public:
+class PFS_index_threads_by_resource_group : public PFS_index_threads {
+ public:
   PFS_index_threads_by_resource_group()
-    : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP")
-  {
-  }
+      : PFS_index_threads(&m_key), m_key("RESOURCE_GROUP") {}
 
-  ~PFS_index_threads_by_resource_group()
-  {
-  }
+  ~PFS_index_threads_by_resource_group() {}
 
   virtual bool match(PFS_thread *pfs);
 
-private:
+ private:
   PFS_key_group_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */
-class table_threads : public cursor_by_thread
-{
-public:
+class table_threads : public cursor_by_thread {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
   static PFS_engine_table *create(PFS_engine_table_share *);
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
 
-protected:
+ protected:
   table_threads();
   virtual int index_init(uint idx, bool sorted);
 
-public:
-  ~table_threads()
-  {
-  }
+ public:
+  ~table_threads() {}
 
-private:
+ private:
   virtual int make_row(PFS_thread *pfs);
 
   /** Table share lock. */

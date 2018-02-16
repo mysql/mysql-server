@@ -34,20 +34,19 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 BEGIN_SERVICE_DEFINITION(system_variable_source)
 
-  /**
-    Get source information of given system variable.
+/**
+  Get source information of given system variable.
 
-    @param [in]  name Name of sytem variable in system charset
-    @param [in]  length Name length of sytem variable
-    @param [out]  source Source of system variable
-    @return Status of performance operation
-    @retval false Success
-    @retval true Failure
-  */
+  @param [in]  name Name of sytem variable in system charset
+  @param [in]  length Name length of sytem variable
+  @param [out]  source Source of system variable
+  @return Status of performance operation
+  @retval false Success
+  @retval true Failure
+*/
 
-  DECLARE_BOOL_METHOD(get,
-    (const char* name, unsigned int length,
-       enum enum_variable_source* source));
+DECLARE_BOOL_METHOD(get, (const char *name, unsigned int length,
+                          enum enum_variable_source *source));
 
 END_SERVICE_DEFINITION(system_variable_source)
 

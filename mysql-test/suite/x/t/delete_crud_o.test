@@ -875,7 +875,7 @@ EOF
 DROP SCHEMA if EXISTS mysqlxplugin_coll;
 CREATE SCHEMA mysqlxplugin_coll;
 USE mysqlxplugin_coll;
-CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
 insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')));
 insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "2", "name": "Alfonso", "Last_Name":"Pavluchenko"}', json_unquote(json_extract(doc, '$._id')));
 insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "3", "name": "Rodrigo", "Last_Name":"Kernel"}', json_unquote(json_extract(doc, '$._id')));

@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef GROUP_REPLICATION_PRIV_INCLUDE
-#define	GROUP_REPLICATION_PRIV_INCLUDE
+#define GROUP_REPLICATION_PRIV_INCLUDE
 
 /**
   @file include/mysql/group_replication_priv.h
@@ -36,12 +36,10 @@
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_write_set_handler.h"
 
-
 /**
   Server side initializations.
 */
 int group_replication_init();
-
 
 /**
   Returns the server connection attribute
@@ -64,7 +62,7 @@ my_thread_attr_t *get_connection_attrib();
 */
 void get_server_parameters(char **hostname, uint *port, char **uuid,
                            unsigned int *server_version,
-                           st_server_ssl_variables* server_ssl_variables);
+                           st_server_ssl_variables *server_ssl_variables);
 
 /**
   Returns the server_id.
@@ -80,14 +78,12 @@ ulong get_server_id();
 */
 ulong get_auto_increment_increment();
 
-
 /**
   Returns the server auto_increment_offset
 
   @return auto_increment_offset
 */
 ulong get_auto_increment_offset();
-
 
 /**
   Set server auto_increment_increment
@@ -96,14 +92,12 @@ ulong get_auto_increment_offset();
 */
 void set_auto_increment_increment(ulong auto_increment_increment);
 
-
 /**
   Set server auto_increment_offset
 
   @param[in] auto_increment_offset
 */
 void set_auto_increment_offset(ulong auto_increment_offset);
-
 
 /**
   Returns a struct containing all server startup information needed to evaluate
@@ -114,9 +108,8 @@ void set_auto_increment_offset(ulong auto_increment_offset);
   @param[in] has_lock Caller should set this to true if the calling
   thread holds gtid_mode_lock; otherwise set it to false.
 */
-void get_server_startup_prerequirements(Trans_context_info& requirements,
+void get_server_startup_prerequirements(Trans_context_info &requirements,
                                         bool has_lock);
-
 
 /**
   Returns the server GTID_EXECUTED encoded as a binary string.
@@ -140,9 +133,8 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
 
   @return a pointer to text representation of the encoded set
 */
-char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
+char *encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 #endif
-
 
 /**
   Return last gno for a given sidno, see
@@ -150,20 +142,17 @@ char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, size_t length);
 */
 rpl_gno get_last_executed_gno(rpl_sidno sidno);
 
-
 /**
   Return sidno for a given sid, see Sid_map::add_sid() for details.
 */
 rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
-
 
 /**
   Set slave thread default options.
 
   @param[in] thd  The thread
 */
-void set_slave_thread_options(THD* thd);
-
+void set_slave_thread_options(THD *thd);
 
 /**
   Add thread to Global_THD_manager singleton.
@@ -171,7 +160,6 @@ void set_slave_thread_options(THD* thd);
   @param[in] thd  The thread
 */
 void global_thd_manager_add_thd(THD *thd);
-
 
 /**
   Remove thread from Global_THD_manager singleton.
@@ -187,7 +175,6 @@ void global_thd_manager_remove_thd(THD *thd);
 
   @return the algorithm name
 */
-const char* get_write_set_algorithm_string(unsigned int algorithm);
+const char *get_write_set_algorithm_string(unsigned int algorithm);
 
-#endif	/* GROUP_REPLICATION_PRIV_INCLUDE */
-
+#endif /* GROUP_REPLICATION_PRIV_INCLUDE */

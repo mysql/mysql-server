@@ -48,19 +48,11 @@ PSI_memory_key key_memory_string_service_iterator;
   library optimization) the string service code because libsql code is not
   calling any functions of it.
 */
-void mysql_string_services_init()
-{
-  return;
-}
+void mysql_string_services_init() { return; }
 
-struct my_h_string_imp
-{
-};
+struct my_h_string_imp {};
 
-struct my_h_string_iterator_imp
-{
-};
-
+struct my_h_string_iterator_imp {};
 
 /**
   Creates a new instance of string object
@@ -70,17 +62,12 @@ struct my_h_string_iterator_imp
   @retval false success
   @retval true failure
 */
-DEFINE_BOOL_METHOD(mysql_string_imp::create,
-  (my_h_string* out_string))
-{
-  try
-  {
-    String *res= new String[1];
-    *out_string= (my_h_string) res;
+DEFINE_BOOL_METHOD(mysql_string_imp::create, (my_h_string * out_string)) {
+  try {
+    String *res = new String[1];
+    *out_string = (my_h_string)res;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -97,34 +84,26 @@ DEFINE_BOOL_METHOD(mysql_string_imp::create,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::tolower,
-  (my_h_string* out_string, my_h_string in_string))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (in_string);
-    if (str == NULL)
-      return true;
-    String *res= reinterpret_cast<String *> (*out_string);
-    const CHARSET_INFO *cs= str->charset();
-    if (cs->casedn_multiply == 1)
-    {
+                   (my_h_string * out_string, my_h_string in_string)) {
+  try {
+    String *str = reinterpret_cast<String *>(in_string);
+    if (str == NULL) return true;
+    String *res = reinterpret_cast<String *>(*out_string);
+    const CHARSET_INFO *cs = str->charset();
+    if (cs->casedn_multiply == 1) {
       res->copy(*str);
       my_casedn_str(cs, res->c_ptr_quick());
-    }
-    else
-    {
-      size_t len= str->length() * cs->casedn_multiply;
+    } else {
+      size_t len = str->length() * cs->casedn_multiply;
       res->set_charset(cs);
       res->alloc(len);
-      len= cs->cset->casedn(cs, (char *) str->ptr(), str->length(),
-                            (char *) res->ptr(), len);
+      len = cs->cset->casedn(cs, (char *)str->ptr(), str->length(),
+                             (char *)res->ptr(), len);
       res->length(len);
     }
-    *out_string= (my_h_string) res;
+    *out_string = (my_h_string)res;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -141,34 +120,26 @@ DEFINE_BOOL_METHOD(mysql_string_imp::tolower,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
-  (my_h_string* out_string, my_h_string in_string))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (in_string);
-    if (str == NULL)
-      return true;
-    String *res= reinterpret_cast<String *> (*out_string);
-    const CHARSET_INFO *cs= str->charset();
-    if (cs->caseup_multiply == 1)
-    {
+                   (my_h_string * out_string, my_h_string in_string)) {
+  try {
+    String *str = reinterpret_cast<String *>(in_string);
+    if (str == NULL) return true;
+    String *res = reinterpret_cast<String *>(*out_string);
+    const CHARSET_INFO *cs = str->charset();
+    if (cs->caseup_multiply == 1) {
       res->copy(*str);
       my_caseup_str(cs, res->c_ptr_quick());
-    }
-    else
-    {
-      size_t len= str->length() * cs->caseup_multiply;
+    } else {
+      size_t len = str->length() * cs->caseup_multiply;
       res->set_charset(cs);
       res->alloc(len);
-      len= cs->cset->caseup(cs, (char *) str->ptr(), str->length(),
-                            (char *) res->ptr(), len);
+      len = cs->cset->caseup(cs, (char *)str->ptr(), str->length(),
+                             (char *)res->ptr(), len);
       res->length(len);
     }
-    *out_string= (my_h_string) res;
+    *out_string = (my_h_string)res;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -190,25 +161,20 @@ DEFINE_BOOL_METHOD(mysql_string_imp::toupper,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
-  (my_h_string *out_string, const char *in_buffer, uint64 length,
-   const char *charset_name))
-{
-  try
-  {
+                   (my_h_string * out_string, const char *in_buffer,
+                    uint64 length, const char *charset_name)) {
+  try {
     if (in_buffer == NULL || length == 0 || length > strlen(in_buffer))
       return true;
 
-    String *res= new String[1];
-    CHARSET_INFO *cs= get_charset_by_csname(charset_name,
-                                            MY_CS_PRIMARY, MYF(0));
+    String *res = new String[1];
+    CHARSET_INFO *cs =
+        get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
 
-    if (!cs || res->copy(in_buffer, length, cs))
-      return true;
-    *out_string= (my_h_string) res;
+    if (!cs || res->copy(in_buffer, length, cs)) return true;
+    *out_string = (my_h_string)res;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -229,25 +195,20 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_from_buffer,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
-  (my_h_string in_string, char *out_buffer, uint64 length,
-    const char *charset_name))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (in_string);
+                   (my_h_string in_string, char *out_buffer, uint64 length,
+                    const char *charset_name)) {
+  try {
+    String *str = reinterpret_cast<String *>(in_string);
     uint error;
-    CHARSET_INFO *cs= get_charset_by_csname(charset_name,
-                                            MY_CS_PRIMARY, MYF(0));
-    if (str == NULL || cs == NULL || length == 0)
-      return true;
-    size_t len= my_convert(out_buffer, length - 1, cs,
-                           str->ptr(), str->length(), str->charset(), &error);
-    out_buffer[len]= '\0';
+    CHARSET_INFO *cs =
+        get_charset_by_csname(charset_name, MY_CS_PRIMARY, MYF(0));
+    if (str == NULL || cs == NULL || length == 0) return true;
+    size_t len = my_convert(out_buffer, length - 1, cs, str->ptr(),
+                            str->length(), str->charset(), &error);
+    out_buffer[len] = '\0';
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -261,19 +222,13 @@ DEFINE_BOOL_METHOD(mysql_string_imp::convert_to_buffer,
   @retval false success
   @retval true failure
 */
-DEFINE_METHOD(void, mysql_string_imp::destroy,
-  (my_h_string string))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL)
-      return;
+DEFINE_METHOD(void, mysql_string_imp::destroy, (my_h_string string)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL) return;
     str->mem_free();
-    delete [] str;
-  }
-  catch (...)
-  {
+    delete[] str;
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
 }
@@ -290,26 +245,20 @@ DEFINE_METHOD(void, mysql_string_imp::destroy,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
-  (my_h_string string, uint index, ulong *out_char))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL || index >= str->length())
-      return true;
-    my_charset_conv_mb_wc mb_wc= (str->charset())->cset->mb_wc;
-    int ret= str->charpos(index);
-    if (ret < 0)
-      return true;
-    const char *ptr= (str->ptr() + ret);
-    if ((*mb_wc)(str->charset(), out_char, (uchar *) ptr,
-                 (const uchar*) (str->ptr() + str->length())) <= 0)
+                   (my_h_string string, uint index, ulong *out_char)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL || index >= str->length()) return true;
+    my_charset_conv_mb_wc mb_wc = (str->charset())->cset->mb_wc;
+    int ret = str->charpos(index);
+    if (ret < 0) return true;
+    const char *ptr = (str->ptr() + ret);
+    if ((*mb_wc)(str->charset(), out_char, (uchar *)ptr,
+                 (const uchar *)(str->ptr() + str->length())) <= 0)
       return true;
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -325,18 +274,13 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::get_char_length,
-  (my_h_string string, uint *out_length))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL)
-      return true;
-    *out_length= str->numchars();
+                   (my_h_string string, uint *out_length)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL) return true;
+    *out_length = str->numchars();
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -354,22 +298,16 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_char_length,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::get_byte,
-  (my_h_string string, uint index, uint *out_char))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL || index >= str->length())
-      return true;
+                   (my_h_string string, uint index, uint *out_char)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL || index >= str->length()) return true;
 
-    const char *ptr= str->ptr();
-    if (ptr == NULL)
-      return true;
-    *out_char= ptr[index];
+    const char *ptr = str->ptr();
+    if (ptr == NULL) return true;
+    *out_char = ptr[index];
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -385,23 +323,17 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_byte,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::get_byte_length,
-  (my_h_string string, uint *out_length))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL)
-      return true;
-    *out_length= str->length();
+                   (my_h_string string, uint *out_length)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL) return true;
+    *out_length = str->length();
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
 }
-
 
 /**
   Creates an iterator for a specified string to allow iteration through all
@@ -415,25 +347,19 @@ DEFINE_BOOL_METHOD(mysql_string_imp::get_byte_length,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::iterator_create,
-  (my_h_string string, my_h_string_iterator *out_iterator))
-{
-  try
-  {
-    String *str= reinterpret_cast<String *> (string);
-    if (str == NULL)
-      return true;
-    st_string_iterator *iterator= (st_string_iterator *) my_malloc(
-                               key_memory_string_service_iterator,
-                               sizeof(st_string_iterator), MYF(0));
-    iterator->iterator_str= str;
-    iterator->iterator_ptr= str->ptr();
-    iterator->ctype= 0;
-    *out_iterator= (my_h_string_iterator) iterator;
+                   (my_h_string string, my_h_string_iterator *out_iterator)) {
+  try {
+    String *str = reinterpret_cast<String *>(string);
+    if (str == NULL) return true;
+    st_string_iterator *iterator = (st_string_iterator *)my_malloc(
+        key_memory_string_service_iterator, sizeof(st_string_iterator), MYF(0));
+    iterator->iterator_str = str;
+    iterator->iterator_ptr = str->ptr();
+    iterator->ctype = 0;
+    *out_iterator = (my_h_string_iterator)iterator;
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -451,33 +377,26 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_create,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
-  (my_h_string_iterator iter, int *out_char))
-{
-  try
-  {
+                   (my_h_string_iterator iter, int *out_char)) {
+  try {
     int char_len, tmp_len;
-    st_string_iterator *iterator= (st_string_iterator *) iter;
-    if (iterator == NULL)
-      return true;
-    String *str= iterator->iterator_str;
-    const CHARSET_INFO *cs= str->charset();
-    char *end= (char*) str->ptr() + str->length();
-    *out_char= 0;
-    if (iterator->iterator_ptr >= (const char *) end)
-      return true;
-    char_len= (cs->cset->ctype(cs, out_char,
-                               (uchar *) iterator->iterator_ptr,
-                               (uchar *) end));
-    iterator->ctype= *out_char;
-    tmp_len= (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
-    if(iterator->iterator_ptr + tmp_len > end)
+    st_string_iterator *iterator = (st_string_iterator *)iter;
+    if (iterator == NULL) return true;
+    String *str = iterator->iterator_str;
+    const CHARSET_INFO *cs = str->charset();
+    char *end = (char *)str->ptr() + str->length();
+    *out_char = 0;
+    if (iterator->iterator_ptr >= (const char *)end) return true;
+    char_len = (cs->cset->ctype(cs, out_char, (uchar *)iterator->iterator_ptr,
+                                (uchar *)end));
+    iterator->ctype = *out_char;
+    tmp_len = (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
+    if (iterator->iterator_ptr + tmp_len > end)
       return true;
     else
-      iterator->iterator_ptr+= tmp_len;
+      iterator->iterator_ptr += tmp_len;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -492,16 +411,11 @@ DEFINE_BOOL_METHOD(mysql_string_imp::iterator_get_next,
   @retval true failure
 */
 DEFINE_METHOD(void, mysql_string_imp::iterator_destroy,
-  (my_h_string_iterator iter))
-{
-  try
-  {
-    if (iter == NULL)
-      return;
-    my_free((st_string_iterator *) iter);
-  }
-  catch (...)
-  {
+              (my_h_string_iterator iter)) {
+  try {
+    if (iter == NULL) return;
+    my_free((st_string_iterator *)iter);
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
 }
@@ -518,18 +432,13 @@ DEFINE_METHOD(void, mysql_string_imp::iterator_destroy,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
-  (my_h_string_iterator iter, bool *out))
-{
-  try
-  {
-    st_string_iterator *iterator= (st_string_iterator *) iter;
-    if (iterator == NULL)
-      return true;
-    *out= (iterator->ctype & _MY_U);
+                   (my_h_string_iterator iter, bool *out)) {
+  try {
+    st_string_iterator *iterator = (st_string_iterator *)iter;
+    if (iterator == NULL) return true;
+    *out = (iterator->ctype & _MY_U);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -547,18 +456,13 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_upper,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
-  (my_h_string_iterator iter, bool *out))
-{
-  try
-  {
-    st_string_iterator *iterator= (st_string_iterator *) iter;
-    if (iterator == NULL)
-      return true;
-    *out= (iterator->ctype & _MY_L);
+                   (my_h_string_iterator iter, bool *out)) {
+  try {
+    st_string_iterator *iterator = (st_string_iterator *)iter;
+    if (iterator == NULL) return true;
+    *out = (iterator->ctype & _MY_L);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -574,18 +478,13 @@ DEFINE_BOOL_METHOD(mysql_string_imp::is_lower,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_string_imp::is_digit,
-  (my_h_string_iterator iter, bool *out))
-{
-  try
-  {
-    st_string_iterator *iterator= (st_string_iterator *) iter;
-    if (iterator == NULL)
-      return true;
-    *out= (iterator->ctype & _MY_NMR);
+                   (my_h_string_iterator iter, bool *out)) {
+  try {
+    st_string_iterator *iterator = (st_string_iterator *)iter;
+    if (iterator == NULL) return true;
+    *out = (iterator->ctype & _MY_NMR);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;

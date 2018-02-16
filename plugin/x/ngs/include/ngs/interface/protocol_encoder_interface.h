@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -47,7 +47,8 @@ enum class Frame_scope {
 
 enum class Frame_type {
   WARNING = Mysqlx::Notice::Frame_Type_WARNING,
-  SESSION_VARIABLE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED,
+  SESSION_VARIABLE_CHANGED =
+      Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED,
   SESSION_STATE_CHANGED = Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED
 };
 
@@ -60,18 +61,18 @@ struct Encode_column_info {
   const char *m_org_col_name = "";
 
   uint64_t m_collation{0};
-  bool     m_has_collation{false};
+  bool m_has_collation{false};
 
-  int32_t  m_type{0};
+  int32_t m_type{0};
 
-  int32_t  m_decimals{0};
-  int32_t  m_has_decimals{false};
+  int32_t m_decimals{0};
+  int32_t m_has_decimals{false};
 
   uint32_t m_flags{0};
-  bool     m_has_flags{false};
+  bool m_has_flags{false};
 
   uint32_t m_length{0};
-  bool     m_has_length{false};
+  bool m_has_length{false};
 
   uint32_t m_content_type{0};
 

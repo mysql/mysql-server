@@ -38,24 +38,18 @@ struct mysql_rwlock_t;
   @param file File in which lock acquisition is to be presented.
   @param line Line of file in which lock acquisition is to be presented.
 */
-rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t* lock,
+rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t *lock,
                                        bool lock_for_write,
-                                       const char* file MY_ATTRIBUTE((unused)),
+                                       const char *file MY_ATTRIBUTE((unused)),
                                        int line MY_ATTRIBUTE((unused)))
-  : m_lock(lock)
-{
-  if (lock_for_write)
-  {
-    if (!mysql_rwlock_wrlock_with_src(lock, file, line))
-    {
-      m_lock= lock;
+    : m_lock(lock) {
+  if (lock_for_write) {
+    if (!mysql_rwlock_wrlock_with_src(lock, file, line)) {
+      m_lock = lock;
     }
-  }
-  else
-  {
-    if (!mysql_rwlock_rdlock_with_src(lock, file, line))
-    {
-      m_lock= lock;
+  } else {
+    if (!mysql_rwlock_rdlock_with_src(lock, file, line)) {
+      m_lock = lock;
     }
   }
 }
@@ -65,19 +59,15 @@ rwlock_scoped_lock::rwlock_scoped_lock(mysql_rwlock_t* lock,
 
   @param lock Scoped lock object to move from.
 */
-rwlock_scoped_lock::rwlock_scoped_lock(
-  rwlock_scoped_lock&& lock)
-  : m_lock(lock.m_lock)
-{
-  lock.m_lock= NULL;
+rwlock_scoped_lock::rwlock_scoped_lock(rwlock_scoped_lock &&lock)
+    : m_lock(lock.m_lock) {
+  lock.m_lock = NULL;
 }
 
-rwlock_scoped_lock::~rwlock_scoped_lock()
-{
+rwlock_scoped_lock::~rwlock_scoped_lock() {
   /* If lock is NULL, then lock was set to remain locked when going out of
     scope or was moved to other object. */
-  if (m_lock != NULL)
-  {
+  if (m_lock != NULL) {
     mysql_rwlock_unlock(m_lock);
   }
 }

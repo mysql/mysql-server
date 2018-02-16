@@ -30,14 +30,14 @@
 
 #include "lex_string.h"
 #include "map_helpers.h"
-#include "my_base.h"                // ha_extra_function
+#include "my_base.h"  // ha_extra_function
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "sql/mdl.h"                // MDL_savepoint
-#include "sql/sql_array.h"          // Bounds_checked_array
-#include "sql/sql_const.h"          // enum_resolution_type
-#include "sql/trigger_def.h"        // enum_trigger_event_type
-#include "thr_lock.h"               // thr_lock_type
+#include "sql/mdl.h"          // MDL_savepoint
+#include "sql/sql_array.h"    // Bounds_checked_array
+#include "sql/sql_const.h"    // enum_resolution_type
+#include "sql/trigger_def.h"  // enum_trigger_event_type
+#include "thr_lock.h"         // thr_lock_type
 
 class COPY_INFO;
 class Field;
@@ -59,56 +59,63 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
-template <class T> class List;
-template <class T> class List_iterator;
+template <class T>
+class List;
+template <class T>
+class List_iterator;
 
 typedef Bounds_checked_array<Item *> Ref_item_array;
 namespace dd {
 class Table;
 }  // namespace dd
 
+#define TEMP_PREFIX "MY"
 
-#define TEMP_PREFIX	"MY"
+/* Defines for use with openfrm, openprt and openfrd */
 
-	/* Defines for use with openfrm, openprt and openfrd */
-
-#define READ_ALL		1	/* openfrm: Read all parameters */
-#define EXTRA_RECORD		8	/* Reservera plats f|r extra record */
-#define DELAYED_OPEN	        4096    /* Open table later */
+#define READ_ALL 1        /* openfrm: Read all parameters */
+#define EXTRA_RECORD 8    /* Reservera plats f|r extra record */
+#define DELAYED_OPEN 4096 /* Open table later */
 /**
   This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine
   The flag means that we need to open FRM file only to get necessary data.
 */
-#define OPEN_FRM_FILE_ONLY     32768
+#define OPEN_FRM_FILE_ONLY 32768
 /**
   This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine
   The flag means that we need to process tables only to get necessary data.
   Views are not processed.
 */
-#define OPEN_TABLE_ONLY        OPEN_FRM_FILE_ONLY*2
+#define OPEN_TABLE_ONLY OPEN_FRM_FILE_ONLY * 2
 /**
   This flag is used in function get_all_tables() which fills
   I_S tables with data which are retrieved from frm files and storage engine.
   The flag means that I_S table uses optimization algorithm.
 */
-#define OPTIMIZE_I_S_TABLE     OPEN_TABLE_ONLY*2
+#define OPTIMIZE_I_S_TABLE OPEN_TABLE_ONLY * 2
 /**
   Avoid dd::Table lookup in open_table_from_share() call.
   Temporary workaround used by upgrade code until we start
   reading info from InnoDB SYS tables directly.
 */
-#define OPEN_NO_DD_TABLE       OPTIMIZE_I_S_TABLE*2
+#define OPEN_NO_DD_TABLE OPTIMIZE_I_S_TABLE * 2
 
+enum find_item_error_report_type {
+  REPORT_ALL_ERRORS,
+  REPORT_EXCEPT_NOT_FOUND,
+  IGNORE_ERRORS,
+  REPORT_EXCEPT_NON_UNIQUE,
+  IGNORE_EXCEPT_NON_UNIQUE
+};
 
-enum find_item_error_report_type {REPORT_ALL_ERRORS, REPORT_EXCEPT_NOT_FOUND,
-				  IGNORE_ERRORS, REPORT_EXCEPT_NON_UNIQUE,
-                                  IGNORE_EXCEPT_NON_UNIQUE};
-
-enum enum_tdc_remove_table_type {TDC_RT_REMOVE_ALL, TDC_RT_REMOVE_NOT_OWN,
-                                 TDC_RT_REMOVE_UNUSED,
-                                 TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE};
+enum enum_tdc_remove_table_type {
+  TDC_RT_REMOVE_ALL,
+  TDC_RT_REMOVE_NOT_OWN,
+  TDC_RT_REMOVE_UNUSED,
+  TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE
+};
 
 extern mysql_mutex_t LOCK_open;
 bool table_def_init(void);
@@ -126,74 +133,71 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
 
 /* mysql_lock_tables() and open_table() flags bits */
-#define MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK      0x0001
-#define MYSQL_OPEN_IGNORE_FLUSH                 0x0002
+#define MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK 0x0001
+#define MYSQL_OPEN_IGNORE_FLUSH 0x0002
 /* MYSQL_OPEN_TEMPORARY_ONLY (0x0004) is not used anymore. */
-#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY      0x0008
-#define MYSQL_LOCK_LOG_TABLE                    0x0010
+#define MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY 0x0008
+#define MYSQL_LOCK_LOG_TABLE 0x0010
 /**
   Do not try to acquire a metadata lock on the table: we
   already have one.
 */
-#define MYSQL_OPEN_HAS_MDL_LOCK                 0x0020
+#define MYSQL_OPEN_HAS_MDL_LOCK 0x0020
 /**
   If in locked tables mode, ignore the locked tables and get
   a new instance of the table.
 */
-#define MYSQL_OPEN_GET_NEW_TABLE                0x0040
+#define MYSQL_OPEN_GET_NEW_TABLE 0x0040
 /* 0x0080 used to be MYSQL_OPEN_SKIP_TEMPORARY */
 /** Fail instead of waiting when conficting metadata lock is discovered. */
-#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT         0x0100
+#define MYSQL_OPEN_FAIL_ON_MDL_CONFLICT 0x0100
 /** Open tables using MDL_SHARED lock instead of one specified in parser. */
-#define MYSQL_OPEN_FORCE_SHARED_MDL             0x0200
+#define MYSQL_OPEN_FORCE_SHARED_MDL 0x0200
 /**
   Open tables using MDL_SHARED_HIGH_PRIO lock instead of one specified
   in parser.
 */
-#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL   0x0400
+#define MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL 0x0400
 /**
   When opening or locking the table, use the maximum timeout
   (LONG_TIMEOUT = 1 year) rather than the user-supplied timeout value.
 */
-#define MYSQL_LOCK_IGNORE_TIMEOUT               0x0800
+#define MYSQL_LOCK_IGNORE_TIMEOUT 0x0800
 /**
   When acquiring "strong" (SNW, SNRW, X) metadata locks on tables to
   be open do not acquire global, tablespace-scope and schema-scope IX locks.
 */
-#define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK         0x1000
+#define MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK 0x1000
 /**
   When opening or locking a replication table through an internal
   operation rather than explicitly through an user thread.
 */
-#define MYSQL_LOCK_RPL_INFO_TABLE               0x2000
+#define MYSQL_LOCK_RPL_INFO_TABLE 0x2000
 /**
   Only check THD::killed if waits happen (e.g. wait on MDL, wait on
   table flush, wait on thr_lock.c locks) while opening and locking table.
 */
-#define MYSQL_OPEN_IGNORE_KILLED                0x4000
+#define MYSQL_OPEN_IGNORE_KILLED 0x4000
 /**
   For new TABLE instances constructed do not open table in the storage
   engine. Existing TABLE instances for which there is a handler object
   which represents table open in storage engines can still be used.
 */
-#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE           0x8000
+#define MYSQL_OPEN_NO_NEW_TABLE_IN_SE 0x8000
 
 /** Please refer to the internals manual. */
-#define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
-                            MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |\
-                            MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
-                            MYSQL_LOCK_IGNORE_TIMEOUT |\
-                            MYSQL_OPEN_IGNORE_KILLED |\
-                            MYSQL_OPEN_GET_NEW_TABLE |\
-                            MYSQL_OPEN_HAS_MDL_LOCK)
+#define MYSQL_OPEN_REOPEN                                           \
+  (MYSQL_OPEN_IGNORE_FLUSH | MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |   \
+   MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY | MYSQL_LOCK_IGNORE_TIMEOUT | \
+   MYSQL_OPEN_IGNORE_KILLED | MYSQL_OPEN_GET_NEW_TABLE |            \
+   MYSQL_OPEN_HAS_MDL_LOCK)
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx);
 
 TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
-			   const char *table_name,
+                           const char *table_name,
                            bool add_to_temporary_tables_list,
-                           bool open_in_engine,
-                           const dd::Table &table_def);
+                           bool open_in_engine, const dd::Table &table_def);
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name);
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
@@ -210,22 +214,19 @@ TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, COPY_INFO *optype_info,
                                           List<Item> &fields,
-                                          List<Item> &values,
-                                          TABLE *table,
+                                          List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
-                                          List<Item> &values,
-                                          TABLE *table,
+                                          List<Item> &values, TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool resolve_var_assignments(THD *thd, LEX *lex);
 bool insert_fields(THD *thd, Name_resolution_context *context,
-		   const char *db_name, const char *table_name,
+                   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
-bool setup_fields(THD *thd, Ref_item_array ref_item_array,
-                  List<Item> &item, ulong privilege,
-                  List<Item> *sum_func_list,
+bool setup_fields(THD *thd, Ref_item_array ref_item_array, List<Item> &item,
+                  ulong privilege, List<Item> *sum_func_list,
                   bool allow_sum_func, bool column_update);
 bool fill_record(THD *thd, TABLE *table, List<Item> &fields, List<Item> &values,
                  MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
@@ -234,45 +235,37 @@ bool fill_record(THD *thd, TABLE *table, Field **field, List<Item> &values,
 
 bool check_record(THD *thd, Field **ptr);
 
-Field *
-find_field_in_tables(THD *thd, Item_ident *item,
-                     TABLE_LIST *first_table, TABLE_LIST *last_table,
-                     Item **ref, find_item_error_report_type report_error,
-                     ulong want_privilege, bool register_tree_change);
-Field *
-find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, size_t length,
-                        const char *item_name, const char *db_name,
-                        const char *table_name, Item **ref,
-                        ulong want_privilege, bool allow_rowid,
-                        uint *cached_field_index_ptr,
-                        bool register_tree_change, TABLE_LIST **actual_table);
-Field *
-find_field_in_table(TABLE *table, const char *name, size_t length,
-                    bool allow_rowid, uint *cached_field_index_ptr);
-Field *
-find_field_in_table_sef(TABLE *table, const char *name);
-Item ** find_item_in_list(THD *thd, Item *item,
-                          List<Item> &items, uint *counter,
-                          find_item_error_report_type report_error,
-                          enum_resolution_type *resolution);
-bool setup_natural_join_row_types(THD *thd,
-                                  List<TABLE_LIST> *from_clause,
+Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
+                            TABLE_LIST *last_table, Item **ref,
+                            find_item_error_report_type report_error,
+                            ulong want_privilege, bool register_tree_change);
+Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
+                               const char *name, size_t length,
+                               const char *item_name, const char *db_name,
+                               const char *table_name, Item **ref,
+                               ulong want_privilege, bool allow_rowid,
+                               uint *cached_field_index_ptr,
+                               bool register_tree_change,
+                               TABLE_LIST **actual_table);
+Field *find_field_in_table(TABLE *table, const char *name, size_t length,
+                           bool allow_rowid, uint *cached_field_index_ptr);
+Field *find_field_in_table_sef(TABLE *table, const char *name);
+Item **find_item_in_list(THD *thd, Item *item, List<Item> &items, uint *counter,
+                         find_item_error_report_type report_error,
+                         enum_resolution_type *resolution);
+bool setup_natural_join_row_types(THD *thd, List<TABLE_LIST> *from_clause,
                                   Name_resolution_context *context);
 bool wait_while_table_is_used(THD *thd, TABLE *table,
                               enum ha_extra_function function);
 
-void update_non_unique_table_error(TABLE_LIST *update,
-                                   const char *operation,
+void update_non_unique_table_error(TABLE_LIST *update, const char *operation,
                                    TABLE_LIST *duplicate);
-int setup_ftfuncs(const THD *thd, SELECT_LEX* select);
-bool init_ftfuncs(THD *thd, SELECT_LEX* select);
+int setup_ftfuncs(const THD *thd, SELECT_LEX *select);
+bool init_ftfuncs(THD *thd, SELECT_LEX *select);
 int run_before_dml_hook(THD *thd);
-bool get_and_lock_tablespace_names(THD *thd,
-                                   TABLE_LIST *tables_start,
+bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
                                    TABLE_LIST *tables_end,
-                                   ulong lock_wait_timeout,
-                                   uint flags);
+                                   ulong lock_wait_timeout, uint flags);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
@@ -291,14 +284,15 @@ void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 void close_thread_table(THD *thd, TABLE **table_ptr);
 bool close_temporary_tables(THD *thd);
-TABLE_LIST *unique_table(const TABLE_LIST *table,
-                         TABLE_LIST *table_list, bool check_alias);
+TABLE_LIST *unique_table(const TABLE_LIST *table, TABLE_LIST *table_list,
+                         bool check_alias);
 void drop_temporary_table(THD *thd, TABLE_LIST *table_list);
 void close_temporary_table(THD *thd, TABLE *table, bool free_share,
                            bool delete_table);
-void close_temporary(THD *thd, TABLE *table, bool free_share, bool delete_table);
-bool rename_temporary_table(THD* thd, TABLE *table, const char *new_db,
-			    const char *table_name);
+void close_temporary(THD *thd, TABLE *table, bool free_share,
+                     bool delete_table);
+bool rename_temporary_table(THD *thd, TABLE *table, const char *new_db,
+                            const char *table_name);
 bool open_temporary_tables(THD *thd, TABLE_LIST *tl_list);
 bool open_temporary_table(THD *thd, TABLE_LIST *tl);
 bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
@@ -307,12 +301,12 @@ bool is_equal(const LEX_STRING *a, const LEX_STRING *b);
 bool open_trans_system_tables_for_read(THD *thd, TABLE_LIST *table_list);
 void close_trans_system_tables(THD *thd);
 void close_mysql_tables(THD *thd);
-TABLE *open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup);
+TABLE *open_log_table(THD *thd, TABLE_LIST *one_table,
+                      Open_tables_backup *backup);
 void close_log_table(THD *thd, Open_tables_backup *backup);
 
-bool close_cached_tables(THD *thd, TABLE_LIST *tables,
-                         bool wait_for_refresh, ulong timeout);
-
+bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool wait_for_refresh,
+                         ulong timeout);
 
 /**
   Close all open instances of the table but keep the MDL lock.
@@ -335,7 +329,6 @@ void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
                                bool remove_from_locked_tables,
                                TABLE *skip_table);
 
-
 /**
   Close all open instances of the table but keep the MDL lock.
 
@@ -352,18 +345,15 @@ void close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
 
   @pre Must be called with an X MDL lock on the table.
 */
-void
-close_all_tables_for_name(THD *thd, const char *db, const char *table_name,
-                          bool remove_from_locked_tables);
+void close_all_tables_for_name(THD *thd, const char *db, const char *table_name,
+                               bool remove_from_locked_tables);
 
 OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild);
 void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
-                      const char *db, const char *table_name,
-                      bool has_lock);
+                      const char *db, const char *table_name, bool has_lock);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
-                                  const char *table_name,
-                                  bool no_error);
+                                  const char *table_name, bool no_error);
 void mark_tmp_table_for_reuse(TABLE *table);
 
 extern Item **not_found_item;
@@ -371,14 +361,13 @@ extern Field *not_found_field;
 extern Field *view_ref_found;
 
 struct Table_share_deleter {
-  void operator() (TABLE_SHARE *share) const;
+  void operator()(TABLE_SHARE *share) const;
 };
-extern malloc_unordered_map<
-  std::string, std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
+extern malloc_unordered_map<std::string,
+                            std::unique_ptr<TABLE_SHARE, Table_share_deleter>>
     *table_def_cache;
 
-TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
-                                      const char *db_name,
+TABLE_LIST *find_table_in_global_list(TABLE_LIST *table, const char *db_name,
                                       const char *table_name);
 
 /**
@@ -387,10 +376,9 @@ TABLE_LIST *find_table_in_global_list(TABLE_LIST *table,
   already existing elements in the set.
 */
 
-class Prelocking_strategy
-{
-public:
-  virtual ~Prelocking_strategy() { }
+class Prelocking_strategy {
+ public:
+  virtual ~Prelocking_strategy() {}
 
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
@@ -398,9 +386,8 @@ public:
   virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
                             TABLE_LIST *table_list, bool *need_prelocking) = 0;
   virtual bool handle_view(THD *thd, Query_tables_list *prelocking_ctx,
-                           TABLE_LIST *table_list, bool *need_prelocking)= 0;
+                           TABLE_LIST *table_list, bool *need_prelocking) = 0;
 };
-
 
 /**
   A Strategy for prelocking algorithm suitable for DML statements.
@@ -410,9 +397,8 @@ public:
   cached.
 */
 
-class DML_prelocking_strategy : public Prelocking_strategy
-{
-public:
+class DML_prelocking_strategy : public Prelocking_strategy {
+ public:
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
                               bool *need_prelocking);
@@ -422,18 +408,15 @@ public:
                            TABLE_LIST *table_list, bool *need_prelocking);
 };
 
-
 /**
   A strategy for prelocking algorithm to be used for LOCK TABLES
   statement.
 */
 
-class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
-{
+class Lock_tables_prelocking_strategy : public DML_prelocking_strategy {
   virtual bool handle_table(THD *thd, Query_tables_list *prelocking_ctx,
                             TABLE_LIST *table_list, bool *need_prelocking);
 };
-
 
 /**
   Strategy for prelocking algorithm to be used for ALTER TABLE statements.
@@ -443,9 +426,8 @@ class Lock_tables_prelocking_strategy : public DML_prelocking_strategy
   used during ALTER.
 */
 
-class Alter_table_prelocking_strategy : public Prelocking_strategy
-{
-public:
+class Alter_table_prelocking_strategy : public Prelocking_strategy {
+ public:
   virtual bool handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
                               Sroutine_hash_entry *rt, sp_head *sp,
                               bool *need_prelocking);
@@ -455,46 +437,37 @@ public:
                            TABLE_LIST *table_list, bool *need_prelocking);
 };
 
-
-inline bool
-open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags)
-{
+inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,
+                        uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_tables(thd, tables, counter, flags, &prelocking_strategy);
 }
 
-
 inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,
-                                       thr_lock_type lock_type, uint flags)
-{
+                                       thr_lock_type lock_type, uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_n_lock_single_table(thd, table_l, lock_type, flags,
                                   &prelocking_strategy);
 }
 
-
 // open_and_lock_tables with default prelocking strategy
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags)
-{
+inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
   return open_and_lock_tables(thd, tables, flags, &prelocking_strategy);
 }
-
 
 /**
   A context of open_tables() function, used to recover
   from a failed open_table() or open_routine() attempt.
 */
 
-class Open_table_context
-{
-public:
-  enum enum_open_table_action
-  {
-    OT_NO_ACTION= 0,
+class Open_table_context {
+ public:
+  enum enum_open_table_action {
+    OT_NO_ACTION = 0,
     OT_BACKOFF_AND_RETRY,
     OT_REOPEN_TABLES,
     OT_DISCOVER,
@@ -507,8 +480,7 @@ public:
   bool request_backoff_action(enum_open_table_action action_arg,
                               TABLE_LIST *table);
 
-  bool can_recover_from_failed_open() const
-  { return m_action != OT_NO_ACTION; }
+  bool can_recover_from_failed_open() const { return m_action != OT_NO_ACTION; }
 
   /**
     When doing a back-off, we close all tables acquired by this
@@ -516,15 +488,11 @@ public:
     the statement, so that we can rollback to it before waiting on
     locks.
   */
-  const MDL_savepoint &start_of_statement_svp() const
-  {
+  const MDL_savepoint &start_of_statement_svp() const {
     return m_start_of_statement_svp;
   }
 
-  inline ulong get_timeout() const
-  {
-    return m_timeout;
-  }
+  inline ulong get_timeout() const { return m_timeout; }
 
   uint get_flags() const { return m_flags; }
 
@@ -532,22 +500,15 @@ public:
     Set flag indicating that we have already acquired metadata lock
     protecting this statement against GRL while opening tables.
   */
-  void set_has_protection_against_grl()
-  {
-    m_has_protection_against_grl= true;
-  }
+  void set_has_protection_against_grl() { m_has_protection_against_grl = true; }
 
-  bool has_protection_against_grl() const
-  {
+  bool has_protection_against_grl() const {
     return m_has_protection_against_grl;
   }
 
-  bool can_back_off() const
-  {
-    return !m_has_locks;
-  }
+  bool can_back_off() const { return !m_has_locks; }
 
-private:
+ private:
   /* THD for which tables are opened. */
   THD *m_thd;
   /**

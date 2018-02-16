@@ -36,129 +36,105 @@ using std::vector;
 
 extern const char *load_default_groups[];
 
-bool Abstract_program::callback_option_parsed(
-  int, const struct my_option *opt, char *argument)
-{
+bool Abstract_program::callback_option_parsed(int, const struct my_option *opt,
+                                              char *argument) {
   // Check if option uses My::Tools::Base::Options, and it should.
-  Options::I_option* app_type = (Options::I_option*)opt->app_type;
-  Options::I_option* option = dynamic_cast<Options::I_option*>(app_type);
-  if (option != NULL)
-  {
+  Options::I_option *app_type = (Options::I_option *)opt->app_type;
+  Options::I_option *option = dynamic_cast<Options::I_option *>(app_type);
+  if (option != NULL) {
     option->call_callbacks(argument);
   }
   return 0;
 }
 
+const string Abstract_program::get_name() { return this->m_name; }
 
-const string Abstract_program::get_name()
-{
-  return this->m_name;
-}
-
-my_option* Abstract_program::get_options_array()
-{
-  return &this->m_options[0];
-}
+my_option *Abstract_program::get_options_array() { return &this->m_options[0]; }
 
 Abstract_program::Abstract_program()
-  : m_debug_options(this),
-  m_help_options(this)
-{
+    : m_debug_options(this), m_help_options(this) {
   this->add_providers(&this->m_help_options, &this->m_debug_options, NULL);
 }
 
-void Abstract_program::run(int argc, char **argv)
-{
-  vector<Options::I_options_provider*>::iterator it;
+void Abstract_program::run(int argc, char **argv) {
+  vector<Options::I_options_provider *>::iterator it;
   this->init_name(argv[0]);
 
   MY_INIT(this->m_name.c_str());
 
   this->aggregate_options();
 
-  my_getopt_use_args_separator= true;
-  if (load_defaults("my",load_default_groups,&argc,&argv, &m_argv_alloc))
-    this->error(Message_data(
-    1, "Error during loading default options", Message_type_error));
-  my_getopt_use_args_separator= false;
+  my_getopt_use_args_separator = true;
+  if (load_defaults("my", load_default_groups, &argc, &argv, &m_argv_alloc))
+    this->error(Message_data(1, "Error during loading default options",
+                             Message_type_error));
+  my_getopt_use_args_separator = false;
 
-  int ho_error= handle_options(&argc, &argv, this->get_options_array(),
-    Abstract_program::callback_option_parsed);
-  if (ho_error != 0)
-  {
-    this->error(Message_data(
-      ho_error, "Error during handling options", Message_type_error));
+  int ho_error = handle_options(&argc, &argv, this->get_options_array(),
+                                Abstract_program::callback_option_parsed);
+  if (ho_error != 0) {
+    this->error(Message_data(ho_error, "Error during handling options",
+                             Message_type_error));
   }
 
   // Let providers handle their parsed options.
   this->options_parsed();
 
   vector<string> positional_options;
-  for (; argc > 0; argc--, argv++)
-  {
+  for (; argc > 0; argc--, argv++) {
     positional_options.push_back(*argv);
   }
 
   // Execute main body of program.
-  int result= this->execute(positional_options);
+  int result = this->execute(positional_options);
 
   exit(result);
 }
 
-Abstract_program::~Abstract_program()
-{
-}
+Abstract_program::~Abstract_program() {}
 
-void Abstract_program::init_name(char *name_from_cmd_line)
-{
+void Abstract_program::init_name(char *name_from_cmd_line) {
 #ifdef _WIN32
-  char* name;
+  char *name;
 
   char name_buf[FN_REFLEN];
-  if (GetModuleFileName(NULL, name_buf, FN_REFLEN) != 0)
-  {
-    name= name_buf;
-  }
-  else
-  {
-    name= name_from_cmd_line;
+  if (GetModuleFileName(NULL, name_buf, FN_REFLEN) != 0) {
+    name = name_buf;
+  } else {
+    name = name_from_cmd_line;
   }
 
   char drive[_MAX_DRIVE];
   char dir[_MAX_DIR];
   char fname[_MAX_FNAME];
   char ext[_MAX_EXT];
-  _splitpath_s( name, drive, dir, fname, ext);
+  _splitpath_s(name, drive, dir, fname, ext);
 
-  this->m_name= fname;
+  this->m_name = fname;
 #else
-  string name= name_from_cmd_line;
-  this->m_name= name.substr( name.find_last_of( '/' ) +1 );
+  string name = name_from_cmd_line;
+  this->m_name = name.substr(name.find_last_of('/') + 1);
 #endif
 }
 
-void Abstract_program::aggregate_options()
-{
+void Abstract_program::aggregate_options() {
   // Concatenate all available command line options.
   this->m_options.clear();
 
-  this->m_options= this->generate_options();
+  this->m_options = this->generate_options();
 
   // Sort by lexical order of long names.
   std::sort(this->m_options.begin(), this->m_options.end(),
-    &Abstract_program::options_by_name_comparer);
+            &Abstract_program::options_by_name_comparer);
 
   // Adding sentinel, handle_options assume input as array with sentinel.
-  my_option sentinel=
-    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
+  my_option sentinel = {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0};
   this->m_options.push_back(sentinel);
 }
 
-bool Abstract_program::options_by_name_comparer(const my_option& a, const my_option& b)
-{
-  if (strcmp(a.name, "help") == 0)
-    return true;
-  if (strcmp(b.name, "help") == 0)
-    return false;
+bool Abstract_program::options_by_name_comparer(const my_option &a,
+                                                const my_option &b) {
+  if (strcmp(a.name, "help") == 0) return true;
+  if (strcmp(b.name, "help") == 0) return false;
   return strcmp(a.name, b.name) < 0;
 }

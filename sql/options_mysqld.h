@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,8 @@
   only options that need special treatment in get_one_option() deserve
   to be listed below
 */
-enum options_mysqld
-{
-  OPT_to_set_the_start_number=256,
+enum options_mysqld {
+  OPT_to_set_the_start_number = 256,
   OPT_BIND_ADDRESS,
   OPT_BINLOG_CHECKSUM,
   OPT_BINLOG_DO_DB,
@@ -37,6 +36,7 @@ enum options_mysqld
   OPT_BINLOG_IGNORE_DB,
   OPT_BINLOG_MAX_FLUSH_QUEUE_TIME,
   OPT_EXPIRE_LOGS_DAYS,
+  OPT_BINLOG_EXPIRE_LOGS_SECONDS,
   OPT_BIN_LOG,
   OPT_BOOTSTRAP,
   OPT_CONSOLE,
@@ -95,6 +95,7 @@ enum options_mysqld
   OPT_ENFORCE_GTID_CONSISTENCY,
   OPT_INSTALL_SERVER,
   OPT_EARLY_PLUGIN_LOAD,
+  OPT_SSL_FIPS_MODE,
   OPT_KEYRING_MIGRATION_SOURCE,
   OPT_KEYRING_MIGRATION_DESTINATION,
   OPT_KEYRING_MIGRATION_USER,
@@ -105,6 +106,5 @@ enum options_mysqld
   OPT_LOG_SLAVE_UPDATES,
   OPT_SLAVE_PRESERVE_COMMIT_ORDER
 };
-
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

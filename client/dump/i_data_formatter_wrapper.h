@@ -27,26 +27,25 @@
 
 #include "client/dump/i_data_formatter.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents class that directs execution of dump tasks to Data Formatters.
  */
-class I_data_formatter_wrapper
-{
-public:
-  virtual ~I_data_formatter_wrapper()
-  {}
+class I_data_formatter_wrapper {
+ public:
+  virtual ~I_data_formatter_wrapper() {}
   /**
   Add new Data Formatter to supply acquired data of objects to.
   */
-  virtual void register_data_formatter(I_data_formatter* new_data_formatter)= 0;
+  virtual void register_data_formatter(
+      I_data_formatter *new_data_formatter) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

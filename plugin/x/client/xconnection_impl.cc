@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -63,68 +63,55 @@
 #define SHUT_WR SD_SEND
 #endif
 
-
 namespace xcl {
 
-const char * const ER_TEXT_SERVER_GONE =
-    "MySQL server has gone away";
-const char * const ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED =
+const char *const ER_TEXT_SERVER_GONE = "MySQL server has gone away";
+const char *const ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED =
     "Can't set a timeout, socket not connected.";
-const char * const ER_TEXT_TLS_ALREADY_ACTIVATED =
-    "TLS already activated";
-const char * const ER_TEXT_TLS_NOT_CONFIGURATED =
-    "TLS not configured";
-const char * const ER_TEXT_INVALID_SOCKET =
-    "Invalid socket";
-const char * const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
+const char *const ER_TEXT_TLS_ALREADY_ACTIVATED = "TLS already activated";
+const char *const ER_TEXT_TLS_NOT_CONFIGURATED = "TLS not configured";
+const char *const ER_TEXT_INVALID_SOCKET = "Invalid socket";
+const char *const ER_TEXT_UN_SOCKET_FILE_NOT_SET =
     "UNIX Socket file was not specified";
-const char * const ER_TEXT_CANT_TIMEOUT_WHILE_READING =
+const char *const ER_TEXT_CANT_TIMEOUT_WHILE_READING =
     "Read operation failed because of a timeout";
-const char * const ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING =
+const char *const ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING =
     "Write operation failed because of a timeout";
 
 #if !defined(HAVE_SYS_UN_H)
-const char * const ER_TEXT_UN_SOCKET_NOT_SUPPORTED =
+const char *const ER_TEXT_UN_SOCKET_NOT_SUPPORTED =
     "UNIX sockets aren't supported on current OS";
 #endif  // !defined(HAVE_SYS_UN_H)
 
 namespace details {
 
-class Connection_state: public XConnection::State {
+class Connection_state : public XConnection::State {
  public:
-  Connection_state(
-      Vio *vio,
-      const bool is_ssl_configured,
-      const bool is_ssl_active,
-      const bool is_connected,
-      const Connection_type connection_type)
-  : m_vio(vio),
-    m_is_ssl_configured(is_ssl_configured),
-    m_is_ssl_active(is_ssl_active),
-    m_is_connected(is_connected),
-    m_connection_type(connection_type) {
-  }
+  Connection_state(Vio *vio, const bool is_ssl_configured,
+                   const bool is_ssl_active, const bool is_connected,
+                   const Connection_type connection_type)
+      : m_vio(vio),
+        m_is_ssl_configured(is_ssl_configured),
+        m_is_ssl_active(is_ssl_active),
+        m_is_connected(is_connected),
+        m_connection_type(connection_type) {}
 
   bool is_ssl_configured() const override { return m_is_ssl_configured; }
   bool is_ssl_activated() const override { return m_is_ssl_active; }
   bool is_connected() const override { return m_is_connected; }
 
   std::string get_ssl_version() const override {
-    if (nullptr == m_vio->ssl_arg)
-      return "";
+    if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(
-        SSL_get_version(reinterpret_cast<SSL*>(m_vio->ssl_arg)),
-        "");
+    return HAVE_SSL(SSL_get_version(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
+                    "");
   }
 
   std::string get_ssl_cipher() const override {
-    if (nullptr == m_vio->ssl_arg)
-      return "";
+    if (nullptr == m_vio->ssl_arg) return "";
 
-    return HAVE_SSL(
-        SSL_get_cipher(reinterpret_cast<SSL*>(m_vio->ssl_arg)),
-        "");
+    return HAVE_SSL(SSL_get_cipher(reinterpret_cast<SSL *>(m_vio->ssl_arg)),
+                    "");
   }
 
   Connection_type get_connection_type() const override {
@@ -139,8 +126,7 @@ class Connection_state: public XConnection::State {
 };
 
 const char *null_when_empty(const std::string &value) {
-  if (value.empty())
-    return nullptr;
+  if (value.empty()) return nullptr;
 
   return value.c_str();
 }
@@ -156,10 +142,8 @@ int make_vio_timeout(const int64_t value) {
   return -1;
 }
 
-XError ssl_verify_server_cert(
-    Vio *vio,
-    const std::string &server_hostname) {
-  SSL *ssl = reinterpret_cast<SSL*>(vio->ssl_arg);
+XError ssl_verify_server_cert(Vio *vio, const std::string &server_hostname) {
+  SSL *ssl = reinterpret_cast<SSL *>(vio->ssl_arg);
 
   if (nullptr == ssl) {
     return XError{CR_SSL_CONNECTION_ERROR, "No SSL pointer found"};
@@ -170,65 +154,51 @@ XError ssl_verify_server_cert(
     return XError{CR_SSL_CONNECTION_ERROR, "Could not get server certificate"};
   }
 
-  auto free_cert = create_scope_guard(
-      [server_cert](){
-        X509_free(server_cert);
-  });
+  auto free_cert =
+      create_scope_guard([server_cert]() { X509_free(server_cert); });
 
   if (X509_V_OK != SSL_get_verify_result(ssl)) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "Failed to verify the server certificate"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR,
+                  "Failed to verify the server certificate"};
   }
   X509_NAME *subject = X509_get_subject_name(server_cert);
-  int        cn_loc  = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
+  int cn_loc = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
 
   if (cn_loc < 0) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "Failed to get CN location in the certificate subject"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR,
+                  "Failed to get CN location in the certificate subject"};
   }
 
   // Get the CN entry for given location
   X509_NAME_ENTRY *cn_entry = X509_NAME_get_entry(subject, cn_loc);
   if (nullptr == cn_entry) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "Failed to get CN entry using CN location"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR,
+                  "Failed to get CN entry using CN location"};
   }
 
   // Get CN from common name entry
   ASN1_STRING *cn_asn1 = X509_NAME_ENTRY_get_data(cn_entry);
   if (nullptr == cn_asn1) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "Failed to get CN from CN entry"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR, "Failed to get CN from CN entry"};
   }
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   const auto cn = reinterpret_cast<char *>(ASN1_STRING_data(cn_asn1));
-#else /* OPENSSL_VERSION_NUMBER < 0x10100000L */
-  const auto cn = reinterpret_cast<const char *>(ASN1_STRING_get0_data(cn_asn1));
+#else  /* OPENSSL_VERSION_NUMBER < 0x10100000L */
+  const auto cn =
+      reinterpret_cast<const char *>(ASN1_STRING_get0_data(cn_asn1));
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
   const auto cn_len = static_cast<size_t>(ASN1_STRING_length(cn_asn1));
 
   // There should not be any NULL embedded in the CN
   if (cn_len != strlen(cn)) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "NULL embedded in the certificate CN"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR,
+                  "NULL embedded in the certificate CN"};
   }
 
   if (server_hostname != cn) {
-    return XError{
-      CR_SSL_CONNECTION_ERROR,
-      "SSL certificate validation failure"
-    };
+    return XError{CR_SSL_CONNECTION_ERROR,
+                  "SSL certificate validation failure"};
   }
 
   return {};
@@ -236,14 +206,16 @@ XError ssl_verify_server_cert(
 
 inline int get_shutdown_consts(const Shutdown_type type) {
   switch (type) {
-    case Shutdown_type::Send: return SHUT_WR;
-    case Shutdown_type::Recv: return SHUT_RD;
-    case Shutdown_type::Both: return SHUT_RDWR;
+    case Shutdown_type::Send:
+      return SHUT_WR;
+    case Shutdown_type::Recv:
+      return SHUT_RD;
+    case Shutdown_type::Both:
+      return SHUT_RDWR;
   }
 
   return 0;
 }
-
 
 }  // namespace details
 
@@ -253,8 +225,7 @@ Connection_impl::Connection_impl(std::shared_ptr<Context> context)
       m_ssl_active(false),
       m_connected(false),
       m_ssl_init_error(SSL_INITERR_NOERROR),
-      m_context(context) {
-}
+      m_context(context) {}
 
 Connection_impl::~Connection_impl() {
   close();
@@ -265,8 +236,7 @@ Connection_impl::~Connection_impl() {
   }
 }
 
-XError Connection_impl::connect_to_localhost(
-    const std::string &unix_socket) {
+XError Connection_impl::connect_to_localhost(const std::string &unix_socket) {
   m_connection_type = Connection_type::Unix_socket;
   m_hostname = "localhost";
 #if defined(HAVE_SYS_UN_H)
@@ -285,8 +255,7 @@ XError Connection_impl::connect_to_localhost(
 
   memset(&addr, 0, sizeof(addr));
   addr.sun_family = AF_UNIX;
-  strncpy(addr.sun_path, unix_socket.c_str(),
-          sizeof(addr.sun_path) - 1);
+  strncpy(addr.sun_path, unix_socket.c_str(), sizeof(addr.sun_path) - 1);
   addr.sun_path[sizeof(addr.sun_path) - 1] = 0;
 
   auto error = connect(reinterpret_cast<sockaddr *>(&addr), sizeof(addr));
@@ -300,15 +269,12 @@ XError Connection_impl::connect_to_localhost(
   m_connected = true;
   return {};
 #else
-  return XError(CR_SOCKET_CREATE_ERROR,
-                ER_TEXT_UN_SOCKET_NOT_SUPPORTED);
+  return XError(CR_SOCKET_CREATE_ERROR, ER_TEXT_UN_SOCKET_NOT_SUPPORTED);
 #endif  // defined(HAVE_SYS_UN_H)
 }
 
-XError Connection_impl::connect(
-    const std::string &host,
-    const uint16_t port,
-    const Internet_protocol ip_mode) {
+XError Connection_impl::connect(const std::string &host, const uint16_t port,
+                                const Internet_protocol ip_mode) {
   m_connection_type = Connection_type::Tcp;
   struct addrinfo *res_lst, hints, *t_res;
   int gai_errno;
@@ -354,24 +320,21 @@ XError Connection_impl::connect(
 
 XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
   enum_vio_type type = VIO_TYPE_TCPIP;
-  int           err = 0;
-  const bool    is_unix_socket = AF_UNIX == addr->sa_family;
-  my_socket     s = ::socket(
-      addr->sa_family, SOCK_STREAM,
-      is_unix_socket ? 0 : IPPROTO_TCP);
+  int err = 0;
+  const bool is_unix_socket = AF_UNIX == addr->sa_family;
+  my_socket s =
+      ::socket(addr->sa_family, SOCK_STREAM, is_unix_socket ? 0 : IPPROTO_TCP);
 
-  if (is_unix_socket)
-    type = VIO_TYPE_SOCKET;
+  if (is_unix_socket) type = VIO_TYPE_SOCKET;
 
   if (INVALID_SOCKET == s)
     return XError(CR_SOCKET_CREATE_ERROR, ER_TEXT_INVALID_SOCKET);
 
-  auto vio   = vio_new(s, type, 0);
-  auto error = vio_socket_connect(
-      vio,
-      addr,
-      static_cast<socklen_t>(addr_size),
-      details::make_vio_timeout(m_context->m_connection_config.m_timeout_connect));
+  auto vio = vio_new(s, type, 0);
+  auto error =
+      vio_socket_connect(vio, addr, static_cast<socklen_t>(addr_size),
+                         details::make_vio_timeout(
+                             m_context->m_connection_config.m_timeout_connect));
 
   if (error) {
     err = socket_errno;
@@ -382,17 +345,16 @@ XError Connection_impl::connect(sockaddr *addr, const std::size_t addr_size) {
 
   m_vio = vio;
 
-  set_read_timeout(
-      details::make_vio_timeout(m_context->m_connection_config.m_timeout_read / 1000));
-  set_write_timeout(
-      details::make_vio_timeout(m_context->m_connection_config.m_timeout_write / 1000));
+  set_read_timeout(details::make_vio_timeout(
+      m_context->m_connection_config.m_timeout_read / 1000));
+  set_write_timeout(details::make_vio_timeout(
+      m_context->m_connection_config.m_timeout_write / 1000));
 
   return XError();
 }
 
 my_socket Connection_impl::get_socket_fd() {
-  if (nullptr == m_vio)
-    return INVALID_SOCKET;
+  if (nullptr == m_vio) return INVALID_SOCKET;
 
   return vio_fd(m_vio);
 }
@@ -405,7 +367,7 @@ std::string Connection_impl::get_socket_error_description(const int error_id) {
                FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
                    FORMAT_MESSAGE_IGNORE_INSERTS,
                nullptr, error_id, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-               (LPSTR) & s, 0, nullptr)) {
+               (LPSTR)&s, 0, nullptr)) {
     char text[256];
     snprintf(text, sizeof(text), "Error %i", error_id);
     strerr = text;
@@ -443,14 +405,14 @@ XError Connection_impl::get_ssl_init_error(const int init_error_id) {
 #ifdef HAVE_WOLFSSL
 
 #ifdef SOCKET_EPIPE
-# undef SOCKET_EPIPE
+#undef SOCKET_EPIPE
 #endif
 
 #ifdef SOCKET_ECONNABORTED
-# undef SOCKET_ECONNABORTED
+#undef SOCKET_ECONNABORTED
 #endif
 
-#endif // HAVE_WOLFSSL
+#endif  // HAVE_WOLFSSL
 
 #define SOCKET_EPIPE SOCKET_ERROR_WIN_OR_POSIX(ERROR_BROKEN_PIPE, EPIPE)
 #define SOCKET_ECONNABORTED \
@@ -487,9 +449,49 @@ XError Connection_impl::get_ssl_error(const int error_id) {
   return XError(CR_SSL_CONNECTION_ERROR, buffer);
 }
 
+#ifndef HAVE_WOLFSSL
+/**
+  Set fips mode in openssl library,
+  When we set fips mode ON/STRICT, it will perform following operations:
+  1. Check integrity of openssl library
+  2. Run fips related tests.
+  3. Disable non fips complaint algorithms
+  4. Should be set par process before openssl library initialization
+  5. When FIPs mode ON(1/2), calling weak algorithms  may results into process
+  abort.
+
+  @param [in]  fips_mode     0 for fips mode off, 1/2 for fips mode ON
+  @param [out] err_string    If fips mode set fails, err_string will have detail
+  failure reason.
+
+  @returns openssl set fips mode errors
+    @retval non 1 for Error
+    @retval 1 Success
+*/
+int set_fips_mode(const uint fips_mode, char err_string[OPENSSL_ERROR_LENGTH]) {
+  int rc = -1;
+  unsigned int fips_mode_old = -1;
+  unsigned long err_library = 0;
+  if (fips_mode > 2) {
+    goto EXIT;
+  }
+  fips_mode_old = FIPS_mode();
+  if (fips_mode_old == fips_mode) {
+    rc = 1;
+    goto EXIT;
+  }
+  if (!(rc = FIPS_mode_set(fips_mode))) {
+    err_library = ERR_get_error();
+    ERR_error_string_n(err_library, err_string, OPENSSL_ERROR_LENGTH - 1);
+    err_string[OPENSSL_ERROR_LENGTH - 1] = '\0';
+  }
+EXIT:
+  return rc;
+}
+#endif
+
 XError Connection_impl::activate_tls() {
-  if (nullptr == m_vio)
-    return get_socket_error(SOCKET_ECONNRESET);
+  if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
   if (nullptr != m_vioSslFd)
     return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_ALREADY_ACTIVATED};
@@ -497,6 +499,13 @@ XError Connection_impl::activate_tls() {
   if (!m_context->m_ssl_config.is_configured())
     return XError{CR_SSL_CONNECTION_ERROR, ER_TEXT_TLS_NOT_CONFIGURATED};
 
+#ifndef HAVE_WOLFSSL
+  char err_string[OPENSSL_ERROR_LENGTH] = {'\0'};
+  if (set_fips_mode((int)m_context->m_ssl_config.m_ssl_fips_mode, err_string) !=
+      1) {
+    return XError{CR_SSL_CONNECTION_ERROR, err_string};
+  }
+#endif
   auto ssl_ctx_flags = process_tls_version(
       details::null_when_empty(m_context->m_ssl_config.m_tls_version));
 
@@ -521,12 +530,9 @@ XError Connection_impl::activate_tls() {
   }
 
   if (Ssl_config::Mode::Ssl_verify_identity == m_context->m_ssl_config.m_mode) {
-    auto error = details::ssl_verify_server_cert(
-        m_vio,
-        m_hostname);
+    auto error = details::ssl_verify_server_cert(m_vio, m_hostname);
 
-    if (error)
-      return error;
+    if (error) return error;
   }
 
   m_ssl_active = true;
@@ -535,22 +541,20 @@ XError Connection_impl::activate_tls() {
 }
 
 XError Connection_impl::shutdown(const Shutdown_type how_to_shutdown) {
-  if (0 != ::shutdown(vio_fd(m_vio),
-                      details::get_shutdown_consts(how_to_shutdown)))
+  if (0 !=
+      ::shutdown(vio_fd(m_vio), details::get_shutdown_consts(how_to_shutdown)))
     return get_socket_error(socket_errno);
 
   m_connected = false;
   return XError();
 }
 
-XError Connection_impl::write(
-    const uint8_t *data,
-    const std::size_t data_length) {
+XError Connection_impl::write(const uint8_t *data,
+                              const std::size_t data_length) {
   std::size_t left_data_to_write = data_length;
   const unsigned char *data_to_send = (const unsigned char *)data;
 
-  if (nullptr == m_vio)
-    return get_socket_error(SOCKET_ECONNRESET);
+  if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
   do {
     const int result =
@@ -560,8 +564,7 @@ XError Connection_impl::write(
       const int vio_error = vio_errno(m_vio);
 
       if (SOCKET_EWOULDBLOCK == vio_error || vio_was_timeout(m_vio)) {
-        return XError{ CR_X_WRITE_TIMEOUT,
-          ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING };
+        return XError{CR_X_WRITE_TIMEOUT, ER_TEXT_CANT_TIMEOUT_WHILE_WRITTING};
       }
 
       return get_socket_error(0 != vio_error ? vio_error : SOCKET_ECONNRESET);
@@ -582,8 +585,7 @@ XError Connection_impl::read(uint8_t *data_head,
   std::size_t data_to_send = data_length;
   char *data = reinterpret_cast<char *>(data_head);
 
-  if (nullptr == m_vio)
-    return get_socket_error(SOCKET_ECONNRESET);
+  if (nullptr == m_vio) return get_socket_error(SOCKET_ECONNRESET);
 
   do {
     result = static_cast<int>(
@@ -596,8 +598,7 @@ XError Connection_impl::read(uint8_t *data_head,
         if (!vio_is_connected(m_vio))
           return get_socket_error(SOCKET_ECONNRESET);
 
-        return XError{ CR_X_READ_TIMEOUT,
-          ER_TEXT_CANT_TIMEOUT_WHILE_READING };
+        return XError{CR_X_READ_TIMEOUT, ER_TEXT_CANT_TIMEOUT_WHILE_READING};
       }
 
       vio_error = vio_error == 0 ? SOCKET_ECONNRESET : vio_error;
@@ -615,8 +616,8 @@ XError Connection_impl::read(uint8_t *data_head,
 
 XError Connection_impl::set_read_timeout(const int deadline_seconds) {
   if (nullptr == m_vio) {
-    return XError{ CR_INVALID_CONN_HANDLE,
-      ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED };
+    return XError{CR_INVALID_CONN_HANDLE,
+                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED};
   }
 
   vio_timeout(m_vio, 0, deadline_seconds);
@@ -625,8 +626,8 @@ XError Connection_impl::set_read_timeout(const int deadline_seconds) {
 
 XError Connection_impl::set_write_timeout(const int deadline_seconds) {
   if (nullptr == m_vio) {
-    return XError{ CR_INVALID_CONN_HANDLE,
-      ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED };
+    return XError{CR_INVALID_CONN_HANDLE,
+                  ER_TEXT_CANT_SET_TIMEOUT_WHEN_NOT_CONNECTED};
   }
 
   vio_timeout(m_vio, 1, deadline_seconds);
@@ -635,10 +636,7 @@ XError Connection_impl::set_write_timeout(const int deadline_seconds) {
 
 const XConnection::State &Connection_impl::state() {
   m_state.reset(new details::Connection_state(
-      m_vio,
-      m_context->m_ssl_config.is_configured(),
-      m_ssl_active,
-      m_connected,
+      m_vio, m_context->m_ssl_config.is_configured(), m_ssl_active, m_connected,
       m_connection_type));
   return *m_state;
 }

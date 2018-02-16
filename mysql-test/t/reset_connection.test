@@ -163,10 +163,8 @@ DROP DATABASE wl6797;
 --echo # FOR ERROR CASES
 --echo
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user 'user_wl6797'@'localhost';
 grant all privileges on *.* to  'user_wl6797'@'localhost';
-set sql_mode= @orig_sql_mode;
 ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 --error 1
 --exec echo "connect(con1, localhost, user_wl6797, , test); --reset_connection " | $MYSQL_TEST 2>&1

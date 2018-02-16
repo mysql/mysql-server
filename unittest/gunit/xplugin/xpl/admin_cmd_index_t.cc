@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,7 +41,7 @@ using namespace ::testing;
 
 class Admin_command_index_stub : public Admin_command_index {
  public:
-  explicit Admin_command_index_stub(ngs::Session_interface* session)
+  explicit Admin_command_index_stub(ngs::Session_interface *session)
       : Admin_command_index(session) {}
   using Admin_command_index::is_table_support_virtual_columns;
 };
@@ -59,7 +59,7 @@ class Admin_command_index_test : public ::testing::Test {
     EXPECT_CALL(encoder, send_exec_ok()).WillRepeatedly(Return(true));
   }
 
-  void set_arguments(const Any& value) {
+  void set_arguments(const Any &value) {
     list.Add()->CopyFrom(value);
     args.reset(new Admin_command_arguments_object(list));
   }
@@ -74,7 +74,7 @@ class Admin_command_index_test : public ::testing::Test {
 };
 
 namespace {
-const char* const NAMESPACE = "mysqlx";
+const char *const NAMESPACE = "mysqlx";
 #define ALPHA "alpha"
 #define BETA "beta"
 #define GAMMA "gamma"
@@ -201,7 +201,8 @@ TEST_F(Admin_command_index_test, drop_index_with_column) {
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE DROP_INDEX DROP_COLUMN(DECIMAL_COLUMN))), _,
-              _)).WillOnce(Return(ngs::Success()));
+              _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME});
   ASSERT_ERROR_CODE(ER_X_SUCCESS, command->drop(NAMESPACE, args.get()));
@@ -213,8 +214,7 @@ TEST_F(Admin_command_index_test,
       .WillOnce(Return(ngs::Success()));
 
   ngs::Error_code error;
-  ASSERT_FALSE(
-      command->is_table_support_virtual_columns(ALPHA, BETA, &error));
+  ASSERT_FALSE(command->is_table_support_virtual_columns(ALPHA, BETA, &error));
   ASSERT_ERROR_CODE(ER_INTERNAL_ERROR, error);
 }
 
@@ -224,8 +224,7 @@ TEST_F(Admin_command_index_test,
       .WillOnce(Return(ngs::Error(ER_X_ARTIFICIAL1, "artificial 1")));
 
   ngs::Error_code error;
-  ASSERT_FALSE(
-      command->is_table_support_virtual_columns(ALPHA, BETA, &error));
+  ASSERT_FALSE(command->is_table_support_virtual_columns(ALPHA, BETA, &error));
   ASSERT_ERROR_CODE(ER_X_ARTIFICIAL1, error);
 }
 
@@ -236,29 +235,28 @@ TEST_F(Admin_command_index_test,
       .WillOnce(DoAll(SetUpResultset(data), Return(ngs::Success())));
 
   ngs::Error_code error;
-  ASSERT_FALSE(
-      command->is_table_support_virtual_columns(ALPHA, BETA, &error));
+  ASSERT_FALSE(command->is_table_support_virtual_columns(ALPHA, BETA, &error));
   ASSERT_ERROR_CODE(ER_INTERNAL_ERROR, error);
 }
 
 TEST_F(Admin_command_index_test,
        is_table_support_virtual_columns_engine_present) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
   ngs::Error_code error;
-  ASSERT_FALSE(
-      command->is_table_support_virtual_columns(ALPHA, BETA, &error));
+  ASSERT_FALSE(command->is_table_support_virtual_columns(ALPHA, BETA, &error));
   ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
 }
 
 TEST_F(Admin_command_index_test, is_table_support_virtual_columns_success) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
   ngs::Error_code error;
-  ASSERT_TRUE(
-      command->is_table_support_virtual_columns(ALPHA, BETA, &error));
+  ASSERT_TRUE(command->is_table_support_virtual_columns(ALPHA, BETA, &error));
   ASSERT_ERROR_CODE(ER_X_SUCCESS, error);
 }
 
@@ -281,11 +279,8 @@ TEST_F(Admin_command_index_test, create_invalid_collection) {
 }
 
 TEST_F(Admin_command_index_test, create_invalid_index_name) {
-  set_arguments(Any::Object{SCHEMA,
-                            COLLECTION,
-                            {"name", ""},
-                            UNIQUE,
-                            {"constraint", DECIMAL_FIELD}});
+  set_arguments(Any::Object{
+      SCHEMA, COLLECTION, {"name", ""}, UNIQUE, {"constraint", DECIMAL_FIELD}});
   ASSERT_ERROR_CODE(ER_X_CMD_ARGUMENT_VALUE,
                     command->create(NAMESPACE, args.get()));
 }
@@ -303,8 +298,7 @@ TEST_F(Admin_command_index_test, create_check_virtual_support_no_collection) {
 
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_BAD_TABLE,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_BAD_TABLE, command->create(NAMESPACE, args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_check_virtual_support_goes_wrong) {
@@ -313,13 +307,13 @@ TEST_F(Admin_command_index_test, create_check_virtual_support_goes_wrong) {
 
   set_arguments(Any::Object{
       SCHEMA, COLLECTION, INDEX_NAME, UNIQUE, {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_INTERNAL_ERROR,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_INTERNAL_ERROR, command->create(NAMESPACE, args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_bad_constraint) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -331,41 +325,46 @@ TEST_F(Admin_command_index_test, create_bad_constraint) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_virtual_column) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _,
-                                    _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(DECIMAL_COLUMN, "DECIMAL",
                                             EXTRACT_PATH, "VIRTUAL NOT NULL")
-                     ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
-              _, _)).WillOnce(Return(ngs::Success()));
+                         ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
+              _, _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_SUCCESS,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _,
-                                    _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(DECIMAL_COLUMN, "DECIMAL",
                                             EXTRACT_PATH, "STORED NOT NULL")
-                     ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
-              _, _)).WillOnce(Return(ngs::Success()));
+                         ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
+              _, _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -376,8 +375,9 @@ TEST_F(Admin_command_index_test, create_regular_index_with_stored_column) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_without_column) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
   One_row_resultset data{"column is present"};
   EXPECT_CALL(data_context,
@@ -387,7 +387,8 @@ TEST_F(Admin_command_index_test, create_regular_index_without_column) {
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))), _,
-              _)).WillOnce(Return(ngs::Success()));
+              _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -398,35 +399,43 @@ TEST_F(Admin_command_index_test, create_regular_index_without_column) {
 }
 
 TEST_F(Admin_command_index_test, create_regular_index_with_two_virtual_column) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _,
-                                    _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_t_" PATH_HASH))),
-                                    _, _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS("$ix_t_" PATH_HASH))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(DECIMAL_COLUMN, "DECIMAL",
                                             EXTRACT_PATH, "VIRTUAL NOT NULL")
-                     ADD_COLUMN("$ix_t_" PATH_HASH, "TEXT",
-                                "JSON_UNQUOTE(" EXTRACT_PATH ")", "VIRTUAL")
-                     ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN) "," IDENT(
-                                            "$ix_t_" PATH_HASH)))),
-              _, _)).WillOnce(Return(ngs::Success()));
+                         ADD_COLUMN("$ix_t_" PATH_HASH, "TEXT",
+                                    "JSON_UNQUOTE(" EXTRACT_PATH ")", "VIRTUAL")
+                             ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN) "," IDENT(
+                                                    "$ix_t_" PATH_HASH)))),
+              _, _))
+      .WillOnce(Return(ngs::Success()));
 
-  set_arguments(Any::Object{SCHEMA, COLLECTION, INDEX_NAME, NOT_UNIQUE,
-                            INDEX_TYPE_PLAIN,
-                            {"constraint",
-                             Any::Array{DECIMAL_FIELD, TEXT_FIELD}}});
+  set_arguments(
+      Any::Object{SCHEMA,
+                  COLLECTION,
+                  INDEX_NAME,
+                  NOT_UNIQUE,
+                  INDEX_TYPE_PLAIN,
+                  {"constraint", Any::Array{DECIMAL_FIELD, TEXT_FIELD}}});
   ASSERT_ERROR_CODE(ER_X_SUCCESS, command->create(NAMESPACE, args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_spatial_index) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
   EXPECT_CALL(data_context,
               execute(Eq(Sql(SHOW_COLUMNS("$ix_gj_r_" PATH_HASH))), _, _))
@@ -438,8 +447,9 @@ TEST_F(Admin_command_index_test, create_spatial_index) {
           Eq(Sql(ALTER_TABLE ADD_COLUMN(
               "$ix_gj_r_" PATH_HASH, "GEOMETRY",
               "ST_GEOMFROMGEOJSON(" EXTRACT_PATH ",1,4326)", "STORED NOT NULL")
-                 ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
-          _, _)).WillOnce(Return(ngs::Success()));
+                     ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
+          _, _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -462,17 +472,19 @@ TEST_F(Admin_command_index_test, create_unique_spatial_index) {
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_create) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _,
-                                    _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(DECIMAL_COLUMN, "DECIMAL",
                                             EXTRACT_PATH, "VIRTUAL NOT NULL")
-                     ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
+                         ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
               _, _))
       .WillOnce(Return(ngs::Error(ER_X_ARTIFICIAL1, "artificial error")));
 
@@ -481,22 +493,23 @@ TEST_F(Admin_command_index_test, create_unable_to_create) {
                             INDEX_NAME,
                             NOT_UNIQUE,
                             {"constraint", DECIMAL_FIELD}});
-  ASSERT_ERROR_CODE(ER_X_ARTIFICIAL1,
-                    command->create(NAMESPACE, args.get()));
+  ASSERT_ERROR_CODE(ER_X_ARTIFICIAL1, command->create(NAMESPACE, args.get()));
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _,
-                                    _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS(DECIMAL_COLUMN))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
       execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(DECIMAL_COLUMN, "DECIMAL",
                                             EXTRACT_PATH, "VIRTUAL NOT NULL")
-                     ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
+                         ADD_INDEX("INDEX", IDENT(DECIMAL_COLUMN)))),
               _, _))
       .WillOnce(Return(ngs::Error(ER_BAD_NULL_ERROR, "bad null error")));
 
@@ -510,11 +523,13 @@ TEST_F(Admin_command_index_test, create_bd_null_error_required_field_missing) {
 }
 
 TEST_F(Admin_command_index_test, create_bd_null_error) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_INNODB_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_t_" PATH_HASH))),
-                                    _, _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS("$ix_t_" PATH_HASH))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
@@ -530,8 +545,9 @@ TEST_F(Admin_command_index_test, create_bd_null_error) {
 }
 
 TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
   EXPECT_CALL(data_context,
               execute(Eq(Sql(SHOW_COLUMNS("$ix_gj_r_" PATH_HASH))), _, _))
@@ -543,9 +559,10 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
           Eq(Sql(ALTER_TABLE ADD_COLUMN(
               "$ix_gj_r_" PATH_HASH, "GEOMETRY",
               "ST_GEOMFROMGEOJSON(" EXTRACT_PATH ",1,4326)", "STORED NOT NULL")
-                 ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
-          _, _)).WillOnce(Return(ngs::Error(ER_SPATIAL_CANT_HAVE_NULL,
-                                            "spatial cant have null")));
+                     ADD_INDEX("SPATIAL INDEX", IDENT("$ix_gj_r_" PATH_HASH)))),
+          _, _))
+      .WillOnce(Return(
+          ngs::Error(ER_SPATIAL_CANT_HAVE_NULL, "spatial cant have null")));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -558,19 +575,22 @@ TEST_F(Admin_command_index_test, create_unable_to_craete_spatial_index) {
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))),
-                                    _, _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
-      execute(Eq(Sql(ALTER_TABLE ADD_COLUMN("$ix_ft_" PATH_HASH, "TEXT",
-                                            "JSON_UNQUOTE(" EXTRACT_PATH ")",
-                                            "STORED")
-                     ADD_INDEX("FULLTEXT INDEX", IDENT("$ix_ft_" PATH_HASH)))),
-              _, _)).WillOnce(Return(ngs::Success()));
+      execute(Eq(Sql(ALTER_TABLE ADD_COLUMN(
+                  "$ix_ft_" PATH_HASH, "TEXT", "JSON_UNQUOTE(" EXTRACT_PATH ")",
+                  "STORED") ADD_INDEX("FULLTEXT INDEX",
+                                      IDENT("$ix_ft_" PATH_HASH)))),
+              _, _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,
@@ -582,11 +602,13 @@ TEST_F(Admin_command_index_test, create_fulltext_index) {
 }
 
 TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _)).WillOnce(
-      DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE), Return(ngs::Success())));
+  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_CREATE_TABLE)), _, _))
+      .WillOnce(DoAll(SetUpResultset(TABLE_WITH_MYISAM_ENGINE),
+                      Return(ngs::Success())));
 
-  EXPECT_CALL(data_context, execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))),
-                                    _, _)).WillOnce(Return(ngs::Success()));
+  EXPECT_CALL(data_context,
+              execute(Eq(Sql(SHOW_COLUMNS("$ix_ft_" PATH_HASH))), _, _))
+      .WillOnce(Return(ngs::Success()));
 
   EXPECT_CALL(
       data_context,
@@ -594,9 +616,10 @@ TEST_F(Admin_command_index_test, create_fulltext_index_with_parser) {
           Eq(Sql(
               ALTER_TABLE ADD_COLUMN("$ix_ft_" PATH_HASH, "TEXT",
                                      "JSON_UNQUOTE(" EXTRACT_PATH ")", "STORED")
-              ADD_INDEX("FULLTEXT INDEX",
-                        IDENT("$ix_ft_" PATH_HASH)) " WITH PARSER ngram")),
-          _, _)).WillOnce(Return(ngs::Success()));
+                  ADD_INDEX("FULLTEXT INDEX",
+                            IDENT("$ix_ft_" PATH_HASH)) " WITH PARSER ngram")),
+          _, _))
+      .WillOnce(Return(ngs::Success()));
 
   set_arguments(Any::Object{SCHEMA,
                             COLLECTION,

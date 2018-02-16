@@ -1,6 +1,6 @@
 drop table if exists t1,t2;
 drop database if exists mysqltest;
-SET sql_mode = 'NO_ENGINE_SUBSTITUTION,NO_AUTO_CREATE_USER';
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET SESSION information_schema_stats_expiry=0;
 create table t1 (
 col1 int not null auto_increment primary key,
@@ -503,25 +503,25 @@ delete from t1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
+  `a` char(10) CHARACTER SET koi8r COLLATE koi8r_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 alter table t1 DEFAULT CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) CHARACTER SET koi8r DEFAULT NULL
+  `a` char(10) CHARACTER SET koi8r COLLATE koi8r_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 CONVERT TO CHARACTER SET latin1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) DEFAULT NULL
+  `a` char(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 alter table t1 DEFAULT CHARACTER SET cp1251;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(10) CHARACTER SET latin1 DEFAULT NULL
+  `a` char(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=cp1251
 drop table t1;
 create table t1 (myblob longblob,mytext longtext)
@@ -1036,7 +1036,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` text
+  `a` text CHARACTER SET utf8 COLLATE utf8_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 create table t1 (a mediumtext character set latin1);
@@ -1046,7 +1046,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` longtext
+  `a` longtext CHARACTER SET utf8 COLLATE utf8_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 drop table t1;
 End of 5.0 tests
@@ -2689,8 +2689,6 @@ DROP TABLE t1;
 #                ALTER_COLUMN_EQUAL_PACK_LENGTH
 SET @orig_sql_mode = @@sql_mode;
 SET sql_mode= '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Test with '767' as index size limit.
 CREATE TABLE t1(fld1 VARCHAR(767), KEY a(fld1)) charset latin1 ENGINE= INNODB
 ROW_FORMAT=COMPACT;
@@ -2723,8 +2721,6 @@ COUNT(*)
 # Cleanup.
 DROP TABLE t1;
 SET sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 #BUG#20106553: ALTER TABLE WHICH CHANGES INDEX COMMENT IS NOT
 #              LONGER INPLACE/FAST OPERATION.
@@ -3105,8 +3101,6 @@ DROP TABLE t1;
 SET @saved_sql_mode = @@session.sql_mode;
 # Test case with no SQL_MODE enabled.
 SET SESSION sql_mode= '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
 INSERT INTO t1 VALUES('2000-01-01');
 # No warnings or error is reported
@@ -3139,8 +3133,6 @@ Warning	1264	Out of range value for column 'fld2' at row 1
 DROP TABLE t1;
 # Test case with both 'NO_ZERO_DATE and strict mode' enabled.
 SET SESSION sql_mode= @saved_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(fld1 DATE NOT NULL) ENGINE= INNODB;
 INSERT INTO t1 VALUES('2000-01-01');
 # Without patch, the following statement succeeds.
@@ -3243,8 +3235,6 @@ DROP TABLE t1, t2;
 # Test case when a non date column is converted to datetime column.
 # Test case without any sql mode enabled.
 SET SESSION sql_mode= '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
 INSERT INTO t1 VALUES('0000-00-00');
 # No error or warning is reported.
@@ -3271,8 +3261,6 @@ ALTER TABLE t1 MODIFY fld1 DATETIME NOT NULL;
 DROP TABLE t1;
 # Test case with both STRICT MODE and 'NO_ZERO_DATE' enabled.
 SET SESSION sql_mode= @saved_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (fld1 char(25)) ENGINE= INNODB;
 INSERT INTO t1 VALUES('0000-00-00');
 # Reports an error.

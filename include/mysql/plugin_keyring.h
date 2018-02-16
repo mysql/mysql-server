@@ -35,8 +35,7 @@
   st_mysql_plugin.
 */
 
-struct st_mysql_keyring
-{
+struct st_mysql_keyring {
   int interface_version;
   /*!
     Add key to the keyring.
@@ -57,7 +56,7 @@ struct st_mysql_keyring
       @retval 1 ERROR
   */
   bool (*mysql_key_store)(const char *key_id, const char *key_type,
-                          const char* user_id, const void *key, size_t key_len);
+                          const char *user_id, const void *key, size_t key_len);
   /*!
     Fetches key from the keyring.
 
@@ -159,7 +158,7 @@ struct st_mysql_keyring
 
     @return VOID
   */
-  void (*mysql_key_iterator_init)(void** key_iterator);
+  void (*mysql_key_iterator_init)(void **key_iterator);
 
   /**
     Deinitialize an iterator.
@@ -169,7 +168,7 @@ struct st_mysql_keyring
 
     @return VOID
   */
-  void (*mysql_key_iterator_deinit)(void* key_iterator);
+  void (*mysql_key_iterator_deinit)(void *key_iterator);
 
   /**
     Get details of key. Every call to this service will change
@@ -186,6 +185,7 @@ struct st_mysql_keyring
       @retval 0 OK
       @retval 1 ERROR
   */
-  bool (*mysql_key_iterator_get_key)(void* key_iterator, char *key_id, char *user_id);
+  bool (*mysql_key_iterator_get_key)(void *key_iterator, char *key_id,
+                                     char *user_id);
 };
 #endif

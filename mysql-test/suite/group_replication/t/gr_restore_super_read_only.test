@@ -1,0 +1,129 @@
+################################################################################
+# This test verifies the flow of variables SUPER_READ_ONLY and READ_ONLY by
+# group replication.
+# When executing the stop_group_replication.inc it validates that
+# SUPER_READ_ONLY and READ_ONLY is ON and clear them after.
+#
+# Test:
+#
+# 0.   The test requires two servers: M1 and M2.
+# 1.   Validate that independent of READ_ONLY and SUPER_READ_ONLY state, they
+#      will be set to OFF after start
+# 1.1. Set READ_ONLY=ON and start group replication, then READ_ONLY and
+#      SUPER_READ_ONLY should be OFF
+# 1.2. Stop group replication and READ_ONLY and SUPER_READ_ONLY should be ON
+# 1.3. Set SUPER_READ_ONLY=ON and start group replication, then READ_ONLY and
+#      SUPER_READ_ONLY should be OFF
+# 1.4. Stop group replication and READ_ONLY and SUPER_READ_ONLY should be ON
+# 2.   Validate that independent of READ_ONLY and SUPER_READ_ONLY state, they
+#      will be set to ON after shutdown
+# 2.1. Start group replication, set READ_ONLY=ON and after STOP
+#      GROUP_REPLICATION will put READ_ONLY and SUPER_READ_ONLY to ON
+# 2.2. Start group replication, set SUPER_READ_ONLY=ON and after STOP
+#      GROUP_REPLICATION will put READ_ONLY and SUPER_READ_ONLY to ON
+#
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 0. The test requires two servers: M1 and M2.
+--echo #############################################################
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo
+--echo # 1. Validate that independent of READ_ONLY and
+--echo #    SUPER_READ_ONLY state, they will be set to OFF after
+--echo #    start
+--echo #############################################################
+
+--echo
+--echo # 1.1. Set READ_ONLY=ON and start group replication, then
+--echo #      READ_ONLY and SUPER_READ_ONLY should be OFF
+--echo #############################################################
+
+--connection server2
+
+SET GLOBAL read_only= 1;
+
+--source include/start_group_replication.inc
+
+--echo # The server's super_read_only mode should be 0 here.
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--echo # The server's read_only mode should be 0 here.
+--let $assert_text= The read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--echo
+--echo # 1.2. Stop group replication and READ_ONLY and
+--echo #      SUPER_READ_ONLY should be ON
+--echo #############################################################
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 1.3. Set SUPER_READ_ONLY=ON and start group replication,
+--echo #      then READ_ONLY and SUPER_READ_ONLY should be OFF
+--echo #############################################################
+
+SET GLOBAL super_read_only= 1;
+
+--source include/start_group_replication.inc
+
+--echo # The server's super_read_only mode should be 0 here.
+--let $assert_text= The super_read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.super_read_only]" = 0;
+--source include/assert.inc
+
+--echo # The server's read_only mode should be 0 here.
+--let $assert_text= The read_only mode should be 0 here.
+--let $assert_cond= "[SELECT @@GLOBAL.read_only]" = 0;
+--source include/assert.inc
+
+--echo
+--echo # 1.4. Stop group replication and READ_ONLY and
+--echo #      SUPER_READ_ONLY should be ON
+--echo #############################################################
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 2. Validate that independent of READ_ONLY and
+--echo #    SUPER_READ_ONLY state, they will be set to ON after
+--echo #    shutdown
+--echo #############################################################
+
+--echo
+--echo # 2.1. Start group replication, set READ_ONLY=ON and after
+--echo #      STOP GROUP_REPLICATION will put READ_ONLY and
+--echo #      SUPER_READ_ONLY to ON
+--echo #############################################################
+
+--source include/start_group_replication.inc
+
+SET GLOBAL read_only= 1;
+
+--source include/stop_group_replication.inc
+
+--echo
+--echo # 2.2. Start group replication, set SUPER_READ_ONLY=ON and
+--echo #      after STOP GROUP_REPLICATION will put READ_ONLY and
+--echo #      SUPER_READ_ONLY to ON
+--echo #############################################################
+
+--source include/start_group_replication.inc
+
+SET GLOBAL super_read_only= 1;
+
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

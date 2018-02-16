@@ -25,10 +25,10 @@
 #include <sstream>
 #include <string>
 
-#include "sql/dd/impl/tables/routines.h"         // Routines
-#include "sql/dd/impl/transaction_impl.h"        // Open_dictionary_tables_ctx
-#include "sql/dd/string_type.h"                  // dd::String_type
-#include "sql/dd/types/parameter.h"              // Parameter
+#include "sql/dd/impl/tables/routines.h"   // Routines
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/string_type.h"            // dd::String_type
+#include "sql/dd/types/parameter.h"        // Parameter
 #include "sql/dd/types/weak_object.h"
 
 using dd::tables::Routines;
@@ -39,49 +39,37 @@ namespace dd {
 // Procedure_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool Procedure_impl::update_routine_name_key(Name_key *key,
-                                             Object_id schema_id,
-                                             const String_type &name) const
-{
+bool Procedure_impl::update_routine_name_key(Name_key *key, Object_id schema_id,
+                                             const String_type &name) const {
   return Procedure::update_name_key(key, schema_id, name);
 }
 
-
 ///////////////////////////////////////////////////////////////////////////
 
-bool Procedure::update_name_key(Name_key *key,
-                                Object_id schema_id,
-                                const String_type &name)
-{
-  return Routines::update_object_key(key,
-                                     schema_id,
-                                     Routine::RT_PROCEDURE,
+bool Procedure::update_name_key(Name_key *key, Object_id schema_id,
+                                const String_type &name) {
+  return Routines::update_object_key(key, schema_id, Routine::RT_PROCEDURE,
                                      name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Procedure_impl::debug_print(String_type &outb) const
-{
+void Procedure_impl::debug_print(String_type &outb) const {
   dd::Stringstream_type ss;
 
   String_type s;
   Routine_impl::debug_print(s);
 
-  ss
-  << "PROCEDURE OBJECT: { "
-  << s
-  << "} ";
+  ss << "PROCEDURE OBJECT: { " << s << "} ";
 
-  outb= ss.str();
+  outb = ss.str();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Procedure_impl::Procedure_impl(const Procedure_impl &src)
-  :Weak_object(src), Routine_impl(src)
-{ }
+    : Weak_object(src), Routine_impl(src) {}
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

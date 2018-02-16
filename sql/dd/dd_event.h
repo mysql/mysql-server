@@ -33,11 +33,10 @@ class THD;
 
 struct LEX_USER;
 
-using sql_mode_t= ulonglong;
+using sql_mode_t = ulonglong;
 
-namespace dd
-{
-  class Schema;
+namespace dd {
+class Schema;
 
 /**
    Convert new DD Event::enum_event_status to status type used in
@@ -84,8 +83,8 @@ interval_type get_old_interval_type(Event::enum_interval_field interval_field);
    @retval true  Event creation failed.
    @retval false Event creation succeeded.
 */
-bool create_event(THD *thd, const Schema &schema,
-                  const String_type &event_name, const String_type &event_body,
+bool create_event(THD *thd, const Schema &schema, const String_type &event_name,
+                  const String_type &event_body,
                   const String_type &event_body_utf8, const LEX_USER *definer,
                   Event_parse_data *event_data);
 
@@ -96,7 +95,8 @@ bool create_event(THD *thd, const Schema &schema,
   @param thd                 Thread handle
   @param event               Event to update.
   @param schema              Schema currently containing the event.
-  @param new_schema          New Schema or nullptr if the schema does not change.
+  @param new_schema          New Schema or nullptr if the schema does not
+  change.
   @param new_event_name      Updated Event name.
   @param new_event_body      Updated Event body.
   @param new_event_body_utf8 Updated Event body in utf8 format.
@@ -106,14 +106,12 @@ bool create_event(THD *thd, const Schema &schema,
   @retval true  Event updation failed.
   @retval false Event updation succeeded.
 */
-bool update_event(THD *thd, Event *event,
-                  const dd::Schema &schema,
+bool update_event(THD *thd, Event *event, const dd::Schema &schema,
                   const dd::Schema *new_schema,
                   const String_type &new_event_name,
                   const String_type &new_event_body,
                   const String_type &new_event_body_utf8,
-                  const LEX_USER *definer,
-                  Event_parse_data *event_data);
+                  const LEX_USER *definer, Event_parse_data *event_data);
 
 /**
   Update time related fields of Event object.
@@ -127,8 +125,7 @@ bool update_event(THD *thd, Event *event,
   @retval false false if update succeeded.
 */
 bool update_event_time_and_status(THD *thd, Event *event,
-                                  my_time_t last_executed,
-                                  ulonglong status);
+                                  my_time_t last_executed, ulonglong status);
 
-} // namespace dd
-#endif // DD_EVENT_INCLUDED
+}  // namespace dd
+#endif  // DD_EVENT_INCLUDED

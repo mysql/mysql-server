@@ -24,19 +24,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "map_helpers.h"
-#include "my_base.h"          // ha_rows
+#include "my_base.h"  // ha_rows
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "sql/filesort_utils.h" // Filesort_buffer
+#include "sql/filesort_utils.h"  // Filesort_buffer
 
 class Addon_fields;
 
 /* Defines used by filesort and uniques */
 
-constexpr size_t MERGEBUFF= 7;
-constexpr size_t MERGEBUFF2= 15;
+constexpr size_t MERGEBUFF = 7;
+constexpr size_t MERGEBUFF2 = 15;
 // Number of bytes used to store varlen key's length
-constexpr size_t VARLEN_PREFIX= 4;
+constexpr size_t VARLEN_PREFIX = 4;
 
 /**
   Descriptor for a merge chunk to be sort-merged.
@@ -49,58 +49,51 @@ constexpr size_t VARLEN_PREFIX= 4;
 
   We have accessors (getters/setters) for all struct members.
  */
-struct Merge_chunk
-{
-public:
+struct Merge_chunk {
+ public:
   Merge_chunk()
-    : m_current_key(NULL),
-      m_file_position(0),
-      m_buffer_start(NULL),
-      m_buffer_end(NULL),
-      m_rowcount(0),
-      m_mem_count(0),
-      m_max_keys(0)
-  {}
+      : m_current_key(NULL),
+        m_file_position(0),
+        m_buffer_start(NULL),
+        m_buffer_end(NULL),
+        m_rowcount(0),
+        m_mem_count(0),
+        m_max_keys(0) {}
 
   my_off_t file_position() const { return m_file_position; }
-  void set_file_position(my_off_t val) { m_file_position= val; }
-  void advance_file_position(my_off_t val) { m_file_position+= val; }
+  void set_file_position(my_off_t val) { m_file_position = val; }
+  void advance_file_position(my_off_t val) { m_file_position += val; }
 
   uchar *buffer_start() { return m_buffer_start; }
   const uchar *buffer_end() const { return m_buffer_end; }
 
-  void set_buffer(uchar *start, uchar *end)
-  {
-    m_buffer_start= start;
-    m_buffer_end= end;
+  void set_buffer(uchar *start, uchar *end) {
+    m_buffer_start = start;
+    m_buffer_end = end;
   }
-  void set_buffer_start(uchar *start)
-  {
-    m_buffer_start= start;
-  }
-  void set_buffer_end(uchar *end)
-  {
+  void set_buffer_start(uchar *start) { m_buffer_start = start; }
+  void set_buffer_end(uchar *end) {
     DBUG_ASSERT(m_buffer_end == NULL || end <= m_buffer_end);
     DBUG_ASSERT(m_buffer_start != nullptr);
-    m_buffer_end= end;
+    m_buffer_end = end;
   }
 
-  void init_current_key() { m_current_key= m_buffer_start; }
+  void init_current_key() { m_current_key = m_buffer_start; }
   uchar *current_key() const { return m_current_key; }
-  void advance_current_key(uint val) { m_current_key+= val; }
+  void advance_current_key(uint val) { m_current_key += val; }
 
-  void decrement_rowcount(ha_rows val) { m_rowcount-= val; }
-  void set_rowcount(ha_rows val)       { m_rowcount= val; }
-  ha_rows rowcount() const             { return m_rowcount; }
+  void decrement_rowcount(ha_rows val) { m_rowcount -= val; }
+  void set_rowcount(ha_rows val) { m_rowcount = val; }
+  ha_rows rowcount() const { return m_rowcount; }
 
   ha_rows mem_count() const { return m_mem_count; }
-  void set_mem_count(ha_rows val) { m_mem_count= val; }
+  void set_mem_count(ha_rows val) { m_mem_count = val; }
   ha_rows decrement_mem_count() { return --m_mem_count; }
 
   ha_rows max_keys() const { return m_max_keys; }
-  void set_max_keys(ha_rows val) { m_max_keys= val; }
+  void set_max_keys(ha_rows val) { m_max_keys = val; }
 
-  size_t  buffer_size() const { return m_buffer_end - m_buffer_start; }
+  size_t buffer_size() const { return m_buffer_end - m_buffer_start; }
 
   /**
     Tries to merge *this with *mc, returns true if successful.
@@ -108,57 +101,46 @@ public:
     and the space it has been allocated can be handed over to a
     buffer which is adjacent to it.
    */
-  bool merge_freed_buff(Merge_chunk *mc) const
-  {
-    if (mc->m_buffer_end == m_buffer_start)
-    {
-      mc->m_buffer_end= m_buffer_end;
-      mc->m_max_keys+= m_max_keys;
+  bool merge_freed_buff(Merge_chunk *mc) const {
+    if (mc->m_buffer_end == m_buffer_start) {
+      mc->m_buffer_end = m_buffer_end;
+      mc->m_max_keys += m_max_keys;
       return true;
-    }
-    else if (mc->m_buffer_start == m_buffer_end)
-    {
-      mc->m_buffer_start= m_buffer_start;
-      mc->m_max_keys+= m_max_keys;
+    } else if (mc->m_buffer_start == m_buffer_end) {
+      mc->m_buffer_start = m_buffer_start;
+      mc->m_max_keys += m_max_keys;
       return true;
     }
     return false;
   }
 
-private:
-  uchar   *m_current_key;  ///< The current key for this chunk.
-  my_off_t m_file_position;///< Current position in the file to be sorted.
-  uchar   *m_buffer_start; ///< Start of main-memory buffer for this chunk.
-  uchar   *m_buffer_end;   ///< End of main-memory buffer for this chunk.
-  ha_rows  m_rowcount;     ///< Number of unread rows in this chunk.
-  ha_rows  m_mem_count;    ///< Number of rows in the main-memory buffer.
-  ha_rows  m_max_keys;     ///< If we have fixed-size rows:
-                           ///    max number of rows in buffer.
+ private:
+  uchar *m_current_key;      ///< The current key for this chunk.
+  my_off_t m_file_position;  ///< Current position in the file to be sorted.
+  uchar *m_buffer_start;     ///< Start of main-memory buffer for this chunk.
+  uchar *m_buffer_end;       ///< End of main-memory buffer for this chunk.
+  ha_rows m_rowcount;        ///< Number of unread rows in this chunk.
+  ha_rows m_mem_count;       ///< Number of rows in the main-memory buffer.
+  ha_rows m_max_keys;        ///< If we have fixed-size rows:
+                             ///    max number of rows in buffer.
 };
 
-typedef Bounds_checked_array<Merge_chunk>      Merge_chunk_array;
+typedef Bounds_checked_array<Merge_chunk> Merge_chunk_array;
 
 /*
   The result of Unique or filesort; can either be stored on disk
   (in which case io_cache points to the file) or in memory in one
   of two ways. See sorted_result_in_fsbuf.
 */
-class Sort_result
-{
-public:
-  Sort_result()
-    : sorted_result_in_fsbuf(false),
-      sorted_result_end(NULL)
-  {
-  }
+class Sort_result {
+ public:
+  Sort_result() : sorted_result_in_fsbuf(false), sorted_result_end(NULL) {}
 
-  bool has_result_in_memory() const
-  {
+  bool has_result_in_memory() const {
     return sorted_result || sorted_result_in_fsbuf;
   }
 
-  bool has_result() const
-  {
+  bool has_result() const {
     return has_result_in_memory() || (io_cache && my_b_inited(io_cache));
   }
 
@@ -177,43 +159,41 @@ public:
   unique_ptr_my_free<uchar> sorted_result{nullptr};
   uchar *sorted_result_end{nullptr};
 
-  ha_rows   found_records{0};        ///< How many records in sort.
+  ha_rows found_records{0};  ///< How many records in sort.
 };
 
 /**
   A class wrapping misc buffers used for sorting.
  */
-class Filesort_info
-{
+class Filesort_info {
   /// Buffer for sorting keys.
   Filesort_buffer filesort_buffer;
 
-public:
-  Merge_chunk_array merge_chunks; ///< Array of chunk descriptors
+ public:
+  Merge_chunk_array merge_chunks;  ///< Array of chunk descriptors
 
-  Addon_fields *addon_fields{nullptr};     ///< Addon field descriptors.
+  Addon_fields *addon_fields{nullptr};  ///< Addon field descriptors.
 
-  bool      m_using_varlen_keys{false};
-  uint      m_sort_length{0};
+  bool m_using_varlen_keys{false};
+  uint m_sort_length{0};
 
-  Filesort_info(const Filesort_info&)= delete;
-  Filesort_info &operator=(const Filesort_info&)= delete;
+  Filesort_info(const Filesort_info &) = delete;
+  Filesort_info &operator=(const Filesort_info &) = delete;
 
-  Filesort_info()
-    : m_using_varlen_keys(false), m_sort_length(0)
-  {};
+  Filesort_info() : m_using_varlen_keys(false), m_sort_length(0){};
 
   /** Sort filesort_buffer */
-  void sort_buffer(Sort_param *param, uint count)
-  { filesort_buffer.sort_buffer(param, count); }
+  void sort_buffer(Sort_param *param, uint count) {
+    filesort_buffer.sort_buffer(param, count);
+  }
 
   /**
     Copies (unpacks) values appended to sorted fields from a buffer back to
     their regular positions specified by the Field::ptr pointers.
     @param buff            Buffer which to unpack the value from
   */
-  template<bool Packed_addon_fields>
-    inline void unpack_addon_fields(uchar *buff);
+  template <bool Packed_addon_fields>
+  inline void unpack_addon_fields(uchar *buff);
 
   /**
     Reads 'count' number of chunk descriptors into the merge_chunks array.
@@ -221,65 +201,62 @@ public:
     @param chunk_file File containing the descriptors.
     @param count      Number of chunks to read.
   */
-  void read_chunk_descriptors(IO_CACHE* chunk_file, uint count);
+  void read_chunk_descriptors(IO_CACHE *chunk_file, uint count);
 
   /// Are we using "addon fields"?
-  bool using_addon_fields() const
-  {
-    return addon_fields != nullptr;
-  }
+  bool using_addon_fields() const { return addon_fields != nullptr; }
 
   /**
     Accessors for filesort_buffer (@see Filesort_buffer for documentation).
   */
-  size_t space_used_for_data() const
-  { return filesort_buffer.space_used_for_data(); }
+  size_t space_used_for_data() const {
+    return filesort_buffer.space_used_for_data();
+  }
 
-  bool isfull() const
-  { return filesort_buffer.isfull(); }
+  bool isfull() const { return filesort_buffer.isfull(); }
 
-  void init_next_record_pointer()
-  { filesort_buffer.init_next_record_pointer(); }
+  void init_next_record_pointer() {
+    filesort_buffer.init_next_record_pointer();
+  }
 
-  uchar *get_next_record_pointer()
-  { return filesort_buffer.get_next_record_pointer(); }
+  uchar *get_next_record_pointer() {
+    return filesort_buffer.get_next_record_pointer();
+  }
 
-  void adjust_next_record_pointer(uint32 val)
-  { filesort_buffer.adjust_next_record_pointer(val); }
+  void adjust_next_record_pointer(uint32 val) {
+    filesort_buffer.adjust_next_record_pointer(val);
+  }
 
-  uchar* get_sorted_record(uint idx)
-  { return filesort_buffer.get_sorted_record(idx); }
+  uchar *get_sorted_record(uint idx) {
+    return filesort_buffer.get_sorted_record(idx);
+  }
 
-  uchar **get_sort_keys()
-  { return filesort_buffer.get_sort_keys(); }
+  uchar **get_sort_keys() { return filesort_buffer.get_sort_keys(); }
 
-  Bounds_checked_array<uchar> get_raw_buf()
-  { return filesort_buffer.get_raw_buf(); }
+  Bounds_checked_array<uchar> get_raw_buf() {
+    return filesort_buffer.get_raw_buf();
+  }
 
-  uchar *alloc_sort_buffer(uint num_records, uint record_length)
-  { return filesort_buffer.alloc_sort_buffer(num_records, record_length); }
+  uchar *alloc_sort_buffer(uint num_records, uint record_length) {
+    return filesort_buffer.alloc_sort_buffer(num_records, record_length);
+  }
 
-  void free_sort_buffer()
-  { filesort_buffer.free_sort_buffer(); }
+  void free_sort_buffer() { filesort_buffer.free_sort_buffer(); }
 
-  void init_record_pointers()
-  { filesort_buffer.init_record_pointers(); }
+  void init_record_pointers() { filesort_buffer.init_record_pointers(); }
 
-  size_t sort_buffer_size() const
-  { return filesort_buffer.sort_buffer_size(); }
+  size_t sort_buffer_size() const { return filesort_buffer.sort_buffer_size(); }
 
   uint sort_length() const { return m_sort_length; }
   bool using_varlen_keys() const { return m_using_varlen_keys; }
 
-  void set_sort_length(uint val, bool is_varlen)
-  {
-    m_sort_length= val;
-    m_using_varlen_keys= is_varlen;
+  void set_sort_length(uint val, bool is_varlen) {
+    m_sort_length = val;
+    m_using_varlen_keys = is_varlen;
   }
 };
 
 typedef Bounds_checked_array<uchar> Sort_buffer;
-
 
 /**
   Put all room used by freed buffer to use in adjacent buffer.
@@ -287,15 +264,12 @@ typedef Bounds_checked_array<uchar> Sort_buffer;
   Note, that we can't simply distribute memory evenly between all buffers,
   because new areas must not overlap with old ones.
 */
-template<typename Heap_type>
-void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap)
-{
-  typename Heap_type::iterator it= heap->begin();
-  typename Heap_type::iterator end= heap->end();
-  for (; it != end; ++it)
-  {
-    if (old_top->merge_freed_buff(*it))
-      return;
+template <typename Heap_type>
+void reuse_freed_buff(Merge_chunk *old_top, Heap_type *heap) {
+  typename Heap_type::iterator it = heap->begin();
+  typename Heap_type::iterator end = heap->end();
+  for (; it != end; ++it) {
+    if (old_top->merge_freed_buff(*it)) return;
   }
   DBUG_ASSERT(0);
 }

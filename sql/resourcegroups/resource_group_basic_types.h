@@ -24,18 +24,16 @@
 #define RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_
 
 #include "lex_string.h"
-#include "mysql_com.h" // NAME_LEN
-#include "sql/resourcegroups/platform/thread_attrs_api.h" // platform::cpu_id_t
+#include "mysql_com.h"                                     // NAME_LEN
+#include "sql/resourcegroups/platform/thread_attrs_api.h"  // platform::cpu_id_t
 
-namespace resourcegroups
-{
+namespace resourcegroups {
 // Definitions for resource group basic types.
-enum class Type { SYSTEM_RESOURCE_GROUP=  1, USER_RESOURCE_GROUP };
-struct Range
-{
+enum class Type { SYSTEM_RESOURCE_GROUP = 1, USER_RESOURCE_GROUP };
+struct Range {
   Range() {}
   Range(platform::cpu_id_t start, platform::cpu_id_t end)
-    : m_start(start), m_end(end) {}
+      : m_start(start), m_end(end) {}
   platform::cpu_id_t m_start;
   platform::cpu_id_t m_end;
 };
@@ -52,11 +50,10 @@ struct Range
 #define WARN_RESOURCE_GROUP_ACCESS_DENIED 0x0010
 
 class Resource_group;
-struct Resource_group_ctx
-{
+struct Resource_group_ctx {
   Resource_group *m_cur_resource_group;
   char m_switch_resource_group_str[NAME_CHAR_LEN + 1];
   int m_warn;
 };
-} // resourcegroups
-#endif // RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_
+}  // namespace resourcegroups
+#endif  // RESOURCEGROUPS_RESOURCE_GROUP_BASIC_TYPES_H_

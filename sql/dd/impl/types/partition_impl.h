@@ -28,15 +28,15 @@
 #include <new>
 
 #include "sql/dd/collection.h"
-#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/partition.h"            // dd::Partition
-#include "sql/dd/types/partition_index.h"      // IWYU pragma: keep
-#include "sql/dd/types/partition_value.h"      // IWYU pragma: keep
+#include "sql/dd/types/partition.h"        // dd::Partition
+#include "sql/dd/types/partition_index.h"  // IWYU pragma: keep
+#include "sql/dd/types/partition_value.h"  // IWYU pragma: keep
 #include "sql/dd/types/table.h"
 
 namespace dd {
@@ -56,10 +56,8 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_impl : public Entity_object_impl,
-                       public Partition
-{
-public:
+class Partition_impl : public Entity_object_impl, public Partition {
+ public:
   Partition_impl();
 
   Partition_impl(Table_impl *table);
@@ -72,7 +70,7 @@ public:
 
   virtual ~Partition_impl();
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
@@ -93,13 +91,11 @@ public:
 
   void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint)
-  { }
+  void set_ordinal_position(uint) {}
 
-  virtual uint ordinal_position() const
-  { return -1; }
+  virtual uint ordinal_position() const { return -1; }
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
@@ -110,81 +106,75 @@ public:
 
   virtual Table &table();
 
-  /* non-virtual */ const Table_impl &table_impl() const
-  { return *m_table; }
+  /* non-virtual */ const Table_impl &table_impl() const { return *m_table; }
 
-  /* non-virtual */ Table_impl &table_impl()
-  { return *m_table; }
+  /* non-virtual */ Table_impl &table_impl() { return *m_table; }
 
   /////////////////////////////////////////////////////////////////////////
   // Parent partition.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Partition *parent_partition() const
-  { return m_parent; }
+  virtual const Partition *parent_partition() const { return m_parent; }
 
-  virtual Partition *parent_partition()
-  { return const_cast<dd::Partition*>(m_parent); }
+  virtual Partition *parent_partition() {
+    return const_cast<dd::Partition *>(m_parent);
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // parent_partition_id
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id parent_partition_id() const
-  { return m_parent_partition_id; }
+  virtual Object_id parent_partition_id() const {
+    return m_parent_partition_id;
+  }
 
-  virtual void set_parent_partition_id(Object_id parent_partition_id)
-  { m_parent_partition_id= parent_partition_id; }
+  virtual void set_parent_partition_id(Object_id parent_partition_id) {
+    m_parent_partition_id = parent_partition_id;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // number.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint number() const
-  { return m_number; }
+  virtual uint number() const { return m_number; }
 
-  virtual void set_number(uint number)
-  { m_number= number; }
+  virtual void set_number(uint number) { m_number = number; }
 
   /////////////////////////////////////////////////////////////////////////
   // description_utf8.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &description_utf8() const
-  { return m_description_utf8; }
+  virtual const String_type &description_utf8() const {
+    return m_description_utf8;
+  }
 
-  virtual void set_description_utf8(const String_type &description_utf8)
-  { m_description_utf8= description_utf8; }
+  virtual void set_description_utf8(const String_type &description_utf8) {
+    m_description_utf8 = description_utf8;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // engine.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &engine() const
-  { return m_engine; }
+  virtual const String_type &engine() const { return m_engine; }
 
-  virtual void set_engine(const String_type &engine)
-  { m_engine= engine; }
+  virtual void set_engine(const String_type &engine) { m_engine = engine; }
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &comment() const
-  { return m_comment; }
+  virtual const String_type &comment() const { return m_comment; }
 
-  virtual void set_comment(const String_type &comment)
-  { m_comment= comment; }
+  virtual void set_comment(const String_type &comment) { m_comment = comment; }
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const
-  { return *m_options; }
+  virtual const Properties &options() const { return *m_options; }
 
-  virtual Properties &options()
-  { return *m_options; }
+  virtual Properties &options() { return *m_options; }
 
   virtual bool set_options_raw(const String_type &options_raw);
 
@@ -192,11 +182,11 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const
-  { return *m_se_private_data; }
+  virtual const Properties &se_private_data() const {
+    return *m_se_private_data;
+  }
 
-  virtual Properties &se_private_data()
-  { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return *m_se_private_data; }
 
   virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
@@ -206,21 +196,21 @@ public:
   // se_private_id.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id se_private_id() const
-  { return m_se_private_id; }
+  virtual Object_id se_private_id() const { return m_se_private_id; }
 
-  virtual void set_se_private_id(Object_id se_private_id)
-  { m_se_private_id= se_private_id; }
+  virtual void set_se_private_id(Object_id se_private_id) {
+    m_se_private_id = se_private_id;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id tablespace_id() const
-  { return m_tablespace_id; }
+  virtual Object_id tablespace_id() const { return m_tablespace_id; }
 
-  virtual void set_tablespace_id(Object_id tablespace_id)
-  { m_tablespace_id= tablespace_id; }
+  virtual void set_tablespace_id(Object_id tablespace_id) {
+    m_tablespace_id = tablespace_id;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Partition-value collection
@@ -228,8 +218,7 @@ public:
 
   virtual Partition_value *add_value();
 
-  virtual const Partition_values &values() const
-  { return m_values; }
+  virtual const Partition_values &values() const { return m_values; }
 
   /////////////////////////////////////////////////////////////////////////
   // Partition-index collection
@@ -237,12 +226,10 @@ public:
 
   virtual Partition_index *add_index(Index *idx);
 
-  virtual const Partition_indexes &indexes() const
-  { return m_indexes; }
+  virtual const Partition_indexes &indexes() const { return m_indexes; }
 
   /* purecov: begin deadcode */
-  virtual Partition_indexes *indexes()
-  { return &m_indexes; }
+  virtual Partition_indexes *indexes() { return &m_indexes; }
   /* purecov: end */
 
   /////////////////////////////////////////////////////////////////////////
@@ -251,59 +238,54 @@ public:
 
   virtual Partition *add_sub_partition();
 
-  virtual const Table::Partition_collection &sub_partitions() const
-  { return m_sub_partitions; }
+  virtual const Table::Partition_collection &sub_partitions() const {
+    return m_sub_partitions;
+  }
 
-  virtual Table::Partition_collection *sub_partitions()
-  { return &m_sub_partitions; }
+  virtual Table::Partition_collection *sub_partitions() {
+    return &m_sub_partitions;
+  }
 
-  virtual const Partition *parent() const
-  { return m_parent; }
-  virtual void set_parent(const Partition *parent)
-  { m_parent= parent; }
+  virtual const Partition *parent() const { return m_parent; }
+  virtual void set_parent(const Partition *parent) { m_parent = parent; }
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl()
-  { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const
-  { return Entity_object_impl::impl(); }
-  virtual Object_id id() const
-  { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const
-  { return Entity_object_impl::is_persistent(); }
-  virtual const String_type &name() const
-  { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name)
-  { Entity_object_impl::set_name(name); }
+  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const {
+    return Entity_object_impl::impl();
+  }
+  virtual Object_id id() const { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const {
+    return Entity_object_impl::is_persistent();
+  }
+  virtual const String_type &name() const { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name) {
+    Entity_object_impl::set_name(name);
+  }
 
-public:
-  static Partition_impl *restore_item(Table_impl *table)
-  {
+ public:
+  static Partition_impl *restore_item(Table_impl *table) {
     return new (std::nothrow) Partition_impl(table);
   }
 
-  static Partition_impl *restore_item(Partition_impl *part)
-  {
-    Partition_impl *p= new (std::nothrow) Partition_impl(&part->table_impl(),
-                                                         part);
+  static Partition_impl *restore_item(Partition_impl *part) {
+    Partition_impl *p =
+        new (std::nothrow) Partition_impl(&part->table_impl(), part);
     p->set_parent(part);
 
     return p;
   }
 
-  static Partition_impl *clone(const Partition_impl &other,
-                               Table_impl *table)
-  {
+  static Partition_impl *clone(const Partition_impl &other, Table_impl *table) {
     return new (std::nothrow) Partition_impl(other, table);
   }
 
   static Partition_impl *clone(const Partition_impl &other,
-                               Partition_impl *part)
-  {
+                               Partition_impl *part) {
     return new (std::nothrow) Partition_impl(other, part);
   }
 
-private:
+ private:
   // Fields.
 
   Object_id m_parent_partition_id;
@@ -334,17 +316,15 @@ private:
 ///////////////////////////////////////////////////////////////////////////
 
 /** Used to compare two partition elements. */
-struct Partition_order_comparator
-{
+struct Partition_order_comparator {
   // TODO : do we really need this ordering now ?
-  bool operator() (const dd::Partition* p1, const dd::Partition* p2) const
-  {
+  bool operator()(const dd::Partition *p1, const dd::Partition *p2) const {
     if (p1->parent_partition_id() == p2->parent_partition_id())
       return p1->number() < p2->number();
     return p1->parent_partition_id() < p2->parent_partition_id();
   }
 };
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_IMPL_INCLUDED
+#endif  // DD__PARTITION_IMPL_INCLUDED

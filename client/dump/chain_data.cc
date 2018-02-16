@@ -27,16 +27,8 @@
 using namespace Mysql::Tools::Dump;
 
 Chain_data::Chain_data(uint64 chain_id)
-  : m_chain_id(chain_id),
-  m_is_aborted(false)
-{}
+    : m_chain_id(chain_id), m_is_aborted(false) {}
 
-void Chain_data::abort()
-{
-  m_is_aborted= true;
-}
+void Chain_data::abort() { m_is_aborted = true; }
 
-bool Chain_data::is_aborted()
-{
-  return m_is_aborted;
-}
+bool Chain_data::is_aborted() { return m_is_aborted; }

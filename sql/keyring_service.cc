@@ -25,17 +25,15 @@
 #include "my_inttypes.h"
 #include "mysql/plugin.h"
 #include "mysql/plugin_keyring.h" /* keyring plugin */
-#include "sql/set_var.h"
 #include "sql/current_thd.h"
+#include "sql/set_var.h"
 #include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 
 class THD;
 
-struct Key_data
-{
-  Key_data() : result(true)
-  {}
+struct Key_data {
+  Key_data() : result(true) {}
 
   const char *key_id;
   const char *key_type_to_store;
@@ -48,69 +46,61 @@ struct Key_data
   bool result;
 };
 
-static bool key_fetch(THD*, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_fetch(key_data->key_id, key_data->key_type_to_fetch,
-      key_data->user_id, key_data->key_to_fetch, key_data->key_len_to_fetch);
+static bool key_fetch(THD *, plugin_ref plugin, void *arg) {
+  Key_data *key_data = reinterpret_cast<Key_data *>(arg);
+  plugin = my_plugin_lock(NULL, &plugin);
+  if (plugin) {
+    st_mysql_keyring *keyring = (st_mysql_keyring *)plugin_decl(plugin)->info;
+    key_data->result = keyring->mysql_key_fetch(
+        key_data->key_id, key_data->key_type_to_fetch, key_data->user_id,
+        key_data->key_to_fetch, key_data->key_len_to_fetch);
   }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
+  // this function should get executed only for the first plugin. This is why
+  // it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
   return true;
 }
 
-static bool key_store(THD*, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_store(key_data->key_id, key_data->key_type_to_store,
-      key_data->user_id, key_data->key_to_store, key_data->key_len_to_store);
+static bool key_store(THD *, plugin_ref plugin, void *arg) {
+  Key_data *key_data = reinterpret_cast<Key_data *>(arg);
+  plugin = my_plugin_lock(NULL, &plugin);
+  if (plugin) {
+    st_mysql_keyring *keyring = (st_mysql_keyring *)plugin_decl(plugin)->info;
+    key_data->result = keyring->mysql_key_store(
+        key_data->key_id, key_data->key_type_to_store, key_data->user_id,
+        key_data->key_to_store, key_data->key_len_to_store);
   }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
+  // this function should get executed only for the first plugin. This is why
+  // it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
   return true;
 }
 
-static bool key_remove(THD*, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_remove(key_data->key_id, key_data->user_id);
+static bool key_remove(THD *, plugin_ref plugin, void *arg) {
+  Key_data *key_data = reinterpret_cast<Key_data *>(arg);
+  plugin = my_plugin_lock(NULL, &plugin);
+  if (plugin) {
+    st_mysql_keyring *keyring = (st_mysql_keyring *)plugin_decl(plugin)->info;
+    key_data->result =
+        keyring->mysql_key_remove(key_data->key_id, key_data->user_id);
   }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
+  // this function should get executed only for the first plugin. This is why
+  // it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
   return true;
 }
 
-static bool key_generate(THD*, plugin_ref plugin, void *arg)
-{
-  Key_data *key_data= reinterpret_cast<Key_data*>(arg);
-  plugin= my_plugin_lock(NULL, &plugin);
-  if (plugin)
-  {
-    st_mysql_keyring *keyring=
-      (st_mysql_keyring *) plugin_decl(plugin)->info;
-    key_data->result= keyring->mysql_key_generate(key_data->key_id,
-      key_data->key_type_to_store, key_data->user_id, key_data->key_len_to_store);
+static bool key_generate(THD *, plugin_ref plugin, void *arg) {
+  Key_data *key_data = reinterpret_cast<Key_data *>(arg);
+  plugin = my_plugin_lock(NULL, &plugin);
+  if (plugin) {
+    st_mysql_keyring *keyring = (st_mysql_keyring *)plugin_decl(plugin)->info;
+    key_data->result = keyring->mysql_key_generate(
+        key_data->key_id, key_data->key_type_to_store, key_data->user_id,
+        key_data->key_len_to_store);
   }
-  //this function should get executed only for the first plugin. This is why
-  //it always returns error. plugin_foreach will stop after first iteration.
+  // this function should get executed only for the first plugin. This is why
+  // it always returns error. plugin_foreach will stop after first iteration.
   plugin_unlock(NULL, plugin);
   return true;
 }
@@ -122,18 +112,16 @@ static bool key_generate(THD*, plugin_ref plugin, void *arg)
   @sa st_mysql_keyring::mysql_key_fetch, mysql_keyring_service_st
 */
 int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                 void **key, size_t *key_len)
-{
+                 void **key, size_t *key_len) {
   Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_fetch= key_type;
-  key_data.user_id= user_id;
-  key_data.key_to_fetch= key;
-  key_data.key_len_to_fetch= key_len;
+  key_data.key_id = key_id;
+  key_data.key_type_to_fetch = key_type;
+  key_data.user_id = user_id;
+  key_data.key_to_fetch = key;
+  key_data.key_len_to_fetch = key_len;
   plugin_foreach(current_thd, key_fetch, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }
-
 
 /**
   Iterates over all active keyring plugins calls the mysql_key_store API
@@ -142,16 +130,14 @@ int my_key_fetch(const char *key_id, char **key_type, const char *user_id,
   @sa st_mysql_keyring::mysql_key_store, mysql_keyring_service_st
 */
 int my_key_store(const char *key_id, const char *key_type, const char *user_id,
-                 const void *key, size_t key_len)
-{
+                 const void *key, size_t key_len) {
   Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_store= key_type;
-  key_data.user_id= user_id;
-  key_data.key_to_store= key;
-  key_data.key_len_to_store= key_len;
-  if (keyring_access_test())
-    return 1;
+  key_data.key_id = key_id;
+  key_data.key_type_to_store = key_type;
+  key_data.user_id = user_id;
+  key_data.key_to_store = key;
+  key_data.key_len_to_store = key_len;
+  if (keyring_access_test()) return 1;
   plugin_foreach(current_thd, key_store, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }
@@ -162,13 +148,11 @@ int my_key_store(const char *key_id, const char *key_type, const char *user_id,
 
   @sa st_mysql_keyring::mysql_key_remove, mysql_keyring_service_st
 */
-int my_key_remove(const char *key_id, const char *user_id)
-{
+int my_key_remove(const char *key_id, const char *user_id) {
   Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.user_id= user_id;
-  if (keyring_access_test())
-    return 1;
+  key_data.key_id = key_id;
+  key_data.user_id = user_id;
+  if (keyring_access_test()) return 1;
   plugin_foreach(current_thd, key_remove, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }
@@ -180,16 +164,13 @@ int my_key_remove(const char *key_id, const char *user_id)
   @sa st_mysql_keyring::mysql_key_generate, mysql_keyring_service_st
 */
 int my_key_generate(const char *key_id, const char *key_type,
-                    const char *user_id, size_t key_len)
-{
-
+                    const char *user_id, size_t key_len) {
   Key_data key_data;
-  key_data.key_id= key_id;
-  key_data.key_type_to_store= key_type;
-  key_data.user_id= user_id;
-  key_data.key_len_to_store= key_len;
-  if (keyring_access_test())
-    return 1;
+  key_data.key_id = key_id;
+  key_data.key_type_to_store = key_type;
+  key_data.user_id = user_id;
+  key_data.key_len_to_store = key_len;
+  if (keyring_access_test()) return 1;
   plugin_foreach(current_thd, key_generate, MYSQL_KEYRING_PLUGIN, &key_data);
   return key_data.result;
 }

@@ -54,7 +54,7 @@ Tables_in_test
 SHOW CREATE TABLE таблица;
 Table	Create Table
 таблица	CREATE TABLE `таблица` (
-  `поле` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'комментарий поля'
+  `поле` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'комментарий поля'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='комментарий таблицы'
 SHOW FIELDS FROM таблица;
 Field	Type	Null	Key	Default	Extra
@@ -66,7 +66,7 @@ Tables_in_test
 SHOW CREATE TABLE РЮАКХЖЮ;
 Table	Create Table
 РЮАКХЖЮ	CREATE TABLE `РЮАКХЖЮ` (
-  `ОНКЕ` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
+  `ОНКЕ` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'ЙНЛЛЕМРЮПХИ ОНКЪ'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='ЙНЛЛЕМРЮПХИ РЮАКХЖШ'
 SHOW FIELDS FROM РЮАКХЖЮ;
 Field	Type	Null	Key	Default	Extra
@@ -78,7 +78,7 @@ Tables_in_test
 SHOW CREATE TABLE я┌п╟п╠п╩п╦я├п╟;
 Table	Create Table
 я┌п╟п╠п╩п╦я├п╟	CREATE TABLE `я┌п╟п╠п╩п╦я├п╟` (
-  `п©п╬п╩п╣` char(32) CHARACTER SET koi8r NOT NULL COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
+  `п©п╬п╩п╣` char(32) CHARACTER SET koi8r COLLATE koi8r_general_ci NOT NULL COMMENT 'п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ п©п╬п╩я▐'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COMMENT='п╨п╬п╪п╪п╣п╫я┌п╟я─п╦п╧ я┌п╟п╠п╩п╦я├я▀'
 SHOW FIELDS FROM я┌п╟п╠п╩п╦я├п╟;
 Field	Type	Null	Key	Default	Extra
@@ -277,7 +277,7 @@ create table t1(a char character set cp1251 default _koi8r 0xFF);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(1) CHARACTER SET cp1251 DEFAULT 'Ъ'
+  `a` char(1) CHARACTER SET cp1251 COLLATE cp1251_general_ci DEFAULT 'Ъ'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1(a char character set latin1 default _cp1251 0xFF);

@@ -37,30 +37,24 @@
 
 extern "C" {
 
-bool load_rewrite_rules_init(UDF_INIT*, UDF_ARGS*, char *message)
-{
-  if (get_rewriter_plugin_info() != NULL)
-    return 0;
+bool load_rewrite_rules_init(UDF_INIT *, UDF_ARGS *, char *message) {
+  if (get_rewriter_plugin_info() != NULL) return 0;
   strncpy(message, "Rewriter plugin needs to be installed.", MYSQL_ERRMSG_SIZE);
   return 1;
 }
 
-char *load_rewrite_rules(UDF_INIT*, UDF_ARGS*, char*,
-                         unsigned long *length, char *is_null, char*)
-{
+char *load_rewrite_rules(UDF_INIT *, UDF_ARGS *, char *, unsigned long *length,
+                         char *is_null, char *) {
   DBUG_ASSERT(get_rewriter_plugin_info() != NULL);
-  const char *message= NULL;
-  if (refresh_rules_table())
-  {
-    message= "Loading of some rule(s) failed.";
-    *length= static_cast<unsigned long>(strlen(message));
-  }
-  else
-    *is_null= 1;
+  const char *message = NULL;
+  if (refresh_rules_table()) {
+    message = "Loading of some rule(s) failed.";
+    *length = static_cast<unsigned long>(strlen(message));
+  } else
+    *is_null = 1;
 
-  return const_cast<char*>(message);
+  return const_cast<char *>(message);
 }
 
-void load_rewrite_rules_deinit(UDF_INIT*) {}
-
+void load_rewrite_rules_deinit(UDF_INIT *) {}
 }

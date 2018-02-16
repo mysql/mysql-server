@@ -25,7 +25,7 @@
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 typedef long my_time_t;
 
@@ -38,14 +38,13 @@ class Void_key;
 class Item_name_key;
 
 namespace tables {
-  class Events;
+class Events;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Event : virtual public Entity_object
-{
-public:
+class Event : virtual public Entity_object {
+ public:
   typedef Event_impl Impl;
   typedef Event Cache_partition;
   typedef tables::Events DD_table;
@@ -54,24 +53,24 @@ public:
   typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, schema_id(), name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, schema_id(), name());
+  }
 
   static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  enum enum_interval_field
-  {
-    IF_YEAR= 1,
+ public:
+  enum enum_interval_field {
+    IF_YEAR = 1,
     IF_QUARTER,
     IF_MONTH,
     IF_DAY,
@@ -93,24 +92,14 @@ public:
     IF_SECOND_MICROSECOND
   };
 
-  enum enum_event_status
-  {
-    ES_ENABLED= 1,
-    ES_DISABLED,
-    ES_SLAVESIDE_DISABLED
-  };
+  enum enum_event_status { ES_ENABLED = 1, ES_DISABLED, ES_SLAVESIDE_DISABLED };
 
-  enum enum_on_completion
-  {
-    OC_DROP= 1,
-    OC_PRESERVE
-  };
+  enum enum_on_completion { OC_DROP = 1, OC_PRESERVE };
 
-public:
-  virtual ~Event()
-  { };
+ public:
+  virtual ~Event(){};
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // schema.
   /////////////////////////////////////////////////////////////////////////
@@ -265,7 +254,7 @@ public:
 
   virtual Object_id connection_collation_id() const = 0;
   virtual void set_connection_collation_id(
-                 Object_id connection_collation_id) = 0;
+      Object_id connection_collation_id) = 0;
 
   virtual Object_id schema_collation_id() const = 0;
   virtual void set_schema_collation_id(Object_id schema_collation_id) = 0;
@@ -281,6 +270,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__EVENT_INCLUDED
+#endif  // DD__EVENT_INCLUDED

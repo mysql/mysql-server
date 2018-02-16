@@ -54,8 +54,6 @@ set global event_scheduler=off;
 set global event_scheduler= on;
 set @old_sql_mode:=@@sql_mode;
 set sql_mode=ansi;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select get_lock('test_bug16407', 60);
 get_lock('test_bug16407', 60)
 1
@@ -77,24 +75,18 @@ EVENT_SCHEMA	EVENT_NAME	SQL_MODE
 events_test	e_16407	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 "Let's check whether we change the sql_mode on ALTER EVENT"
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 alter event e_16407 do select 1;
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 EVENT_SCHEMA	EVENT_NAME	SQL_MODE
-events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	e_16407	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 drop event e_16407;
 set sql_mode="ansi";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select get_lock('ee_16407_2', 60);
 get_lock('ee_16407_2', 60)
 1
 set global event_scheduler= 1;
 "Another sql_mode test"
 set sql_mode="traditional";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table events_smode_test(ev_name char(10), a date);
 "This should never insert something"
 create event ee_16407_2 on schedule every 60 second do
@@ -114,8 +106,6 @@ insert into events_test.events_smode_test values ('ee_16407_3','1980-02-19');
 insert into events_test.events_smode_test values ('ee_16407_3','1980-02-29');
 end|
 set sql_mode=""|
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 "This will insert rows but they will be truncated"
 create event ee_16407_4 on schedule every 60 second do
 begin
@@ -125,8 +115,8 @@ insert into events_test.events_smode_test values ('ee_16407_4','10-11-1956');
 end|
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 EVENT_SCHEMA	EVENT_NAME	SQL_MODE
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 select /*2*/ user, host, db, info from information_schema.processlist
 where state = 'User lock' and info = 'select get_lock(\'ee_16407_2\', 60)';
@@ -149,8 +139,8 @@ ee_16407_4	0000-00-00
 "OK, last check before we drop them"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 EVENT_SCHEMA	EVENT_NAME	SQL_MODE
-events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_2	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_3	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 events_test	ee_16407_4	
 drop event ee_16407_2;
 drop event ee_16407_3;
@@ -163,8 +153,6 @@ get_lock('ee_16407_5', 60)
 1
 set global event_scheduler= on;
 set sql_mode='traditional';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create procedure ee_16407_5_pendant() begin insert into events_test.events_smode_test values('ee_16407_5','2001-02-29'); end|
 create procedure ee_16407_6_pendant() begin insert into events_test.events_smode_test values('ee_16407_6','2004-02-29'); end|
 create event ee_16407_5 on schedule every 60 second do
@@ -198,8 +186,8 @@ ee_16407_6	2004-02-29
 "And here we check one more time before we drop the events"
 select event_schema, event_name, sql_mode from information_schema.events order by event_schema, event_name;
 EVENT_SCHEMA	EVENT_NAME	SQL_MODE
-events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_5	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
+events_test	ee_16407_6	STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 drop event ee_16407_5;
 drop event ee_16407_6;
 drop procedure ee_16407_5_pendant;
@@ -447,9 +435,9 @@ CREATE EVENT e3 ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' DO
 SELECT 1;
 SELECT * FROM INFORMATION_SCHEMA.EVENTS ORDER BY event_name;
 EVENT_CATALOG	EVENT_SCHEMA	EVENT_NAME	DEFINER	TIME_ZONE	EVENT_BODY	EVENT_DEFINITION	EVENT_TYPE	EXECUTE_AT	INTERVAL_VALUE	INTERVAL_FIELD	SQL_MODE	STARTS	ENDS	STATUS	ON_COMPLETION	CREATED	LAST_ALTERED	LAST_EXECUTED	EVENT_COMMENT	ORIGINATOR	CHARACTER_SET_CLIENT	COLLATION_CONNECTION	DATABASE_COLLATION
-def	events_test	e1	root@localhost	+05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:58:59	2005-12-31 23:58:59	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-def	events_test	e2	root@localhost	-05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:00	2005-12-31 23:59:00	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
-def	events_test	e3	root@localhost	+00:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:01	2005-12-31 23:59:01	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+def	events_test	e1	root@localhost	+05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:58:59	2005-12-31 23:58:59	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+def	events_test	e2	root@localhost	-05:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:00	2005-12-31 23:59:00	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+def	events_test	e3	root@localhost	+00:00	SQL	SELECT 1	RECURRING	NULL	1	DAY	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	2006-01-01 00:00:00	NULL	ENABLED	NOT PRESERVE	2005-12-31 23:59:01	2005-12-31 23:59:01	NULL		1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW EVENTS;
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 events_test	e1	root@localhost	+05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
@@ -457,13 +445,13 @@ events_test	e2	root@localhost	-05:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NU
 events_test	e3	root@localhost	+00:00	RECURRING	NULL	1	DAY	2006-01-01 00:00:00	NULL	ENABLED	1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE EVENT e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	+05:00	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+e1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	+05:00	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE EVENT e2;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	-05:00	CREATE DEFINER=`root`@`localhost` EVENT `e2` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+e2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	-05:00	CREATE DEFINER=`root`@`localhost` EVENT `e2` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 SHOW CREATE EVENT e3;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION	+00:00	CREATE DEFINER=`root`@`localhost` EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
+e3	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	+00:00	CREATE DEFINER=`root`@`localhost` EVENT `e3` ON SCHEDULE EVERY 1 DAY STARTS '2006-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1	latin1	latin1_swedish_ci	utf8mb4_0900_ai_ci
 The following should fail, and nothing should be altered.
 ALTER EVENT e1 ON SCHEDULE EVERY 1 HOUR STARTS '1999-01-01 00:00:00'
   ENDS '1999-01-02 00:00:00';
@@ -650,16 +638,8 @@ DROP USER mysqltest_u1@localhost;
 DROP EVENT IF EXISTS e1;
 DROP EVENT IF EXISTS e2;
 
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER mysqltest_u1@localhost;
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 SET GLOBAL READ_ONLY = 1;
 
@@ -751,7 +731,7 @@ DROP USER mysqltest_u1@localhost;
 
 drop procedure if exists p;
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x3ff00;
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;

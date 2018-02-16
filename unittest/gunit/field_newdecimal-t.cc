@@ -32,13 +32,12 @@
 
 namespace field_newdecimal_unittest {
 
-using my_testing::chars_2_decimal;
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
+using my_testing::chars_2_decimal;
 
-class FieldNewDecimalTest : public ::testing::Test
-{
-protected:
+class FieldNewDecimalTest : public ::testing::Test {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -49,30 +48,27 @@ protected:
   Field_set *create_field_set(TYPELIB *tl);
 };
 
-
-class Mock_field_new_decimal : public Field_new_decimal
-{
+class Mock_field_new_decimal : public Field_new_decimal {
   uchar buffer[MAX_FIELD_WIDTH];
   uchar null_byte;
-  void initialize()
-  {
-    ptr= buffer;
+  void initialize() {
+    ptr = buffer;
     memset(buffer, 0, MAX_FIELD_WIDTH);
-    null_byte= '\0';
+    null_byte = '\0';
     set_null_ptr(&null_byte, 1);
   }
 
-public:
+ public:
   Mock_field_new_decimal(int decimals)
-    : Field_new_decimal(0,                      // ptr_arg
-                        8,                      // len_arg
-                        NULL,                   // null_ptr_arg
-                        1,                      // null_bit_arg
-                        Field::NONE,            // auto_flags_arg
-                        "field_name",           // field_name_arg
-                        decimals,               // dec_arg
-                        false,                  // zero_arg
-                        false)                  // unsigned_arg
+      : Field_new_decimal(0,             // ptr_arg
+                          8,             // len_arg
+                          NULL,          // null_ptr_arg
+                          1,             // null_bit_arg
+                          Field::NONE,   // auto_flags_arg
+                          "field_name",  // field_name_arg
+                          decimals,      // dec_arg
+                          false,         // zero_arg
+                          false)         // unsigned_arg
   {
     initialize();
   }
@@ -85,16 +81,15 @@ public:
                          const longlong expected_int_result,
                          const double expected_real_result,
                          const int expected_error_no,
-                         const type_conversion_status expected_status)
-  {
+                         const type_conversion_status expected_status) {
     char buff[MAX_FIELD_WIDTH];
     String str(buff, sizeof(buff), &my_charset_bin);
     String unused;
 
     Mock_error_handler error_handler(table->in_use, expected_error_no);
-    type_conversion_status err= store(store_value, length, &my_charset_latin1);
+    type_conversion_status err = store(store_value, length, &my_charset_latin1);
     val_str(&str, &unused);
-  
+
     EXPECT_STREQ(expected_string_result, str.ptr());
     EXPECT_EQ(expected_int_result, val_int());
     EXPECT_EQ(expected_real_result, val_real());
@@ -103,19 +98,16 @@ public:
     EXPECT_EQ(expected_status, err);
     EXPECT_EQ((expected_error_no == 0 ? 0 : 1), error_handler.handle_called());
   }
-
 };
 
-
-TEST_F(FieldNewDecimalTest, StoreLegalStringValues)
-{
+TEST_F(FieldNewDecimalTest, StoreLegalStringValues) {
   // Alows storing this range [-999.999, 999.999]
   Mock_field_new_decimal field_dec(3);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   {
     SCOPED_TRACE("");
@@ -124,71 +116,63 @@ TEST_F(FieldNewDecimalTest, StoreLegalStringValues)
   }
   {
     SCOPED_TRACE("");
-    field_dec.test_store_string(STRING_WITH_LEN("0"), "0.000", 0, 0,
-                                0, TYPE_OK);
+    field_dec.test_store_string(STRING_WITH_LEN("0"), "0.000", 0, 0, 0,
+                                TYPE_OK);
   }
 }
 
-
-TEST_F(FieldNewDecimalTest, StoreIllegalStringValues)
-{
+TEST_F(FieldNewDecimalTest, StoreIllegalStringValues) {
   // Alows storing this range [-999.999, 999.999]
   Mock_field_new_decimal field_dec(3);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   // Truncated (precision beyond 3 decimals is lost)
   {
     SCOPED_TRACE("");
-    field_dec.test_store_string(STRING_WITH_LEN("10.0101"), "10.010",
-                                10, 10.01,
+    field_dec.test_store_string(STRING_WITH_LEN("10.0101"), "10.010", 10, 10.01,
                                 WARN_DATA_TRUNCATED, TYPE_NOTE_TRUNCATED);
   }
   {
     SCOPED_TRACE("");
-    field_dec.test_store_string(STRING_WITH_LEN("10.0109"), "10.011",
-                                10, 10.011,
-                                WARN_DATA_TRUNCATED, TYPE_NOTE_TRUNCATED);
+    field_dec.test_store_string(STRING_WITH_LEN("10.0109"), "10.011", 10,
+                                10.011, WARN_DATA_TRUNCATED,
+                                TYPE_NOTE_TRUNCATED);
   }
   // Values higher and lower than valid range for the decimal
   {
     SCOPED_TRACE("");
-    field_dec.test_store_string(STRING_WITH_LEN("10000"), "999.999",
-                                1000, 999.999,
-                                ER_WARN_DATA_OUT_OF_RANGE,
+    field_dec.test_store_string(STRING_WITH_LEN("10000"), "999.999", 1000,
+                                999.999, ER_WARN_DATA_OUT_OF_RANGE,
                                 TYPE_WARN_OUT_OF_RANGE);
   }
 
   // Values higher and lower than valid range for the decimal
   {
     SCOPED_TRACE("");
-    field_dec.test_store_string(STRING_WITH_LEN("-10000"), "-999.999",
-                                -1000, -999.999,
-                                ER_WARN_DATA_OUT_OF_RANGE,
+    field_dec.test_store_string(STRING_WITH_LEN("-10000"), "-999.999", -1000,
+                                -999.999, ER_WARN_DATA_OUT_OF_RANGE,
                                 TYPE_WARN_OUT_OF_RANGE);
   }
 }
 
-
-static void test_store_internal(Field_new_decimal *field,
-                                my_decimal *value,
+static void test_store_internal(Field_new_decimal *field, my_decimal *value,
                                 const char *expected_string_result,
                                 const longlong expected_int_result,
                                 const double expected_real_result,
                                 const int conversion_error,
                                 const int expected_error_no,
-                                const type_conversion_status expected_status)
-{
+                                const type_conversion_status expected_status) {
   char buff[MAX_FIELD_WIDTH];
   String str(buff, sizeof(buff), &my_charset_bin);
   String unused;
 
   Mock_error_handler error_handler(field->table->in_use, expected_error_no);
-  type_conversion_status err=
-    store_internal_with_error_check(field, conversion_error, value);
+  type_conversion_status err =
+      store_internal_with_error_check(field, conversion_error, value);
   field->val_str(&str, &unused);
   EXPECT_STREQ(expected_string_result, str.ptr());
   EXPECT_EQ(expected_int_result, field->val_int());
@@ -197,21 +181,19 @@ static void test_store_internal(Field_new_decimal *field,
   EXPECT_EQ(expected_status, err);
 }
 
-
 /**
   Test store_internal_with_error_check(). This is an internal store
   function for Field_new_decimal. The function does not modify the
   NULL value of the field so we don't test field.is_null()
 */
-TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
-{
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues) {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -228,8 +210,8 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
   // Legal values
   {
     SCOPED_TRACE("");
-    test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01,
-                        E_DEC_OK, 0, TYPE_OK);
+    test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01, E_DEC_OK, 0,
+                        TYPE_OK);
   }
   {
     SCOPED_TRACE("");
@@ -240,8 +222,8 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
   // Legal values, but rounded
   {
     SCOPED_TRACE("");
-    test_store_internal(&field_dec, &d10_01001, "10.0100", 10, 10.01,
-                        E_DEC_OK, WARN_DATA_TRUNCATED, TYPE_NOTE_TRUNCATED);
+    test_store_internal(&field_dec, &d10_01001, "10.0100", 10, 10.01, E_DEC_OK,
+                        WARN_DATA_TRUNCATED, TYPE_NOTE_TRUNCATED);
   }
   {
     SCOPED_TRACE("");
@@ -255,19 +237,17 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
   }
 }
 
-
 /**
   Test store_internal_with_error_check() - out of range valuse
 */
-TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
-{
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange) {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   my_decimal dTooHigh;
   my_decimal dTooLow;
@@ -287,9 +267,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
                         E_DEC_OK, ER_WARN_DATA_OUT_OF_RANGE,
                         TYPE_WARN_OUT_OF_RANGE);
   }
-
 }
-
 
 /**
   Test store_internal_with_error_check() - Test first parameter: the error.
@@ -299,15 +277,14 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
   input decimal value because E_DEC_OVERFLOW indicates that the decimal
   conversion got a number that was too high/low.
 */
-TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
-{
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow) {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -333,7 +310,6 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
     test_store_internal(&field_dec, &dInsignificant, "99.9999", 100, 99.9999,
                         E_DEC_OVERFLOW, ER_WARN_DATA_OUT_OF_RANGE,
                         TYPE_WARN_OUT_OF_RANGE);
-
   }
   {
     SCOPED_TRACE("");
@@ -348,7 +324,6 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
     test_store_internal(&field_dec, &dMin10_01, "-99.9999", -100, -99.9999,
                         E_DEC_OVERFLOW, ER_WARN_DATA_OUT_OF_RANGE,
                         TYPE_WARN_OUT_OF_RANGE);
-
   }
   {
     SCOPED_TRACE("");
@@ -357,7 +332,6 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
                         TYPE_WARN_OUT_OF_RANGE);
   }
 }
-
 
 /**
   Test store_internal_with_error_check() - Test first parameter: the error.
@@ -370,15 +344,14 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
   automatically changed like in the E_DEC_OVERFLOW case tested
   above.
 */
-TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
-{
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated) {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   my_decimal dMin10_01;
@@ -391,7 +364,6 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
   EXPECT_EQ(0, chars_2_decimal("0.00000000001", &dInsignificant));
   EXPECT_EQ(0, chars_2_decimal("1000", &dTooHigh));
   EXPECT_EQ(0, chars_2_decimal("-1000", &dTooLow));
-
 
   // Conversion went fine
   {
@@ -432,34 +404,32 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
   }
 }
 
-
 /**
   Test store_internal_with_error_check() - Test first parameter: the error.
 
   Any E_DEC_* value other than E_DEC_OK, E_DEC_TRUNCATED and
   E_DEC_OVERFLOW will be ignored.
 */
-TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckRestOfParams)
-{
+TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckRestOfParams) {
   // Alows storing this range [-99.9999, 99.9999]
   Mock_field_new_decimal field_dec(4);
   Fake_TABLE table(&field_dec);
-  table.in_use= thd();
+  table.in_use = thd();
   field_dec.make_writable();
   field_dec.make_readable();
-  thd()->check_for_truncated_fields= CHECK_FIELD_WARN;
+  thd()->check_for_truncated_fields = CHECK_FIELD_WARN;
 
   my_decimal d10_01;
   EXPECT_EQ(0, chars_2_decimal("10.01", &d10_01));
 
-  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01,
-                      E_DEC_DIV_ZERO, 0, TYPE_OK);
+  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01, E_DEC_DIV_ZERO,
+                      0, TYPE_OK);
 
-  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01,
-                      E_DEC_BAD_NUM, 0, TYPE_OK);
+  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01, E_DEC_BAD_NUM,
+                      0, TYPE_OK);
 
-  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01,
-                      E_DEC_OOM, 0, TYPE_OK);
+  test_store_internal(&field_dec, &d10_01, "10.0100", 10, 10.01, E_DEC_OOM, 0,
+                      TYPE_OK);
 }
 
-}
+}  // namespace field_newdecimal_unittest

@@ -25,30 +25,25 @@
 #include <new>
 
 #include "my_dbug.h"
-#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/raw/object_keys.h"       // Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
-#include "sql/sql_const.h"            // MAX_INTERVAL_VALUE_LENGTH
+#include "sql/sql_const.h"  // MAX_INTERVAL_VALUE_LENGTH
 
 namespace dd {
 namespace tables {
 
-
-const Parameter_type_elements &Parameter_type_elements::instance()
-{
-  static Parameter_type_elements *s_instance= new Parameter_type_elements();
+const Parameter_type_elements &Parameter_type_elements::instance() {
+  static Parameter_type_elements *s_instance = new Parameter_type_elements();
   return *s_instance;
 }
 
-Parameter_type_elements::Parameter_type_elements()
-{
+Parameter_type_elements::Parameter_type_elements() {
   m_target_def.set_table_name("parameter_type_elements");
 
-  m_target_def.add_field(FIELD_PARAMETER_ID,
-                         "FIELD_PARAMETER_ID",
+  m_target_def.add_field(FIELD_PARAMETER_ID, "FIELD_PARAMETER_ID",
                          "parameter_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_ELEMENT_INDEX,
-                         "FIELD_ELEMENT_INDEX",
+  m_target_def.add_field(FIELD_ELEMENT_INDEX, "FIELD_ELEMENT_INDEX",
                          "element_index INT UNSIGNED NOT NULL");
   // Fail if the max length of enum/set elements is increased.
   // If it's changed, the corresponding column length must be
@@ -58,8 +53,7 @@ Parameter_type_elements::Parameter_type_elements()
 
   // Leave room for four bytes per character, which is used
   // by e.g. utf8mb4, i.e. 255 * 4 = 1020 bytes.
-  m_target_def.add_field(FIELD_NAME,
-                         "FIELD_NAME",
+  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARBINARY(1020) NOT NULL");
 
   m_target_def.add_index(INDEX_PK_PARAMETER_ID_ELEMENT_INDEX,
@@ -68,8 +62,7 @@ Parameter_type_elements::Parameter_type_elements()
   // We may have multiple similar element names. Do we plan to deprecate it?
   // m_target_def.add_index("UNIQUE KEY(column_id, name)");
 
-  m_target_def.add_foreign_key(FK_PARAMETER_ID,
-                               "FK_PARAMETER_ID",
+  m_target_def.add_foreign_key(FK_PARAMETER_ID, "FK_PARAMETER_ID",
                                "FOREIGN KEY (parameter_id) REFERENCES "
                                "parameters(id)");
 }
@@ -77,25 +70,23 @@ Parameter_type_elements::Parameter_type_elements()
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Parameter_type_elements::create_key_by_parameter_id(
-  Object_id parameter_id)
-{
+    Object_id parameter_id) {
   return new (std::nothrow) Parent_id_range_key(
-        INDEX_PK_PARAMETER_ID_ELEMENT_INDEX, FIELD_PARAMETER_ID, parameter_id);
+      INDEX_PK_PARAMETER_ID_ELEMENT_INDEX, FIELD_PARAMETER_ID, parameter_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 /* purecov: begin deadcode */
-Object_key *Parameter_type_elements::create_primary_key(
-  Object_id parameter_id, int index)
-{
-  return new (std::nothrow) Composite_pk(INDEX_PK_PARAMETER_ID_ELEMENT_INDEX,
-                                         FIELD_PARAMETER_ID, parameter_id,
-                                         FIELD_ELEMENT_INDEX, index);
+Object_key *Parameter_type_elements::create_primary_key(Object_id parameter_id,
+                                                        int index) {
+  return new (std::nothrow)
+      Composite_pk(INDEX_PK_PARAMETER_ID_ELEMENT_INDEX, FIELD_PARAMETER_ID,
+                   parameter_id, FIELD_ELEMENT_INDEX, index);
 }
 /* purecov: end */
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

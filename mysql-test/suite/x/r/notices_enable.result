@@ -1,89 +1,3 @@
-check with password function which is deprecated
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'test\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 164
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: ""
-  field: ""
-  field: "*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29\000"
-  field: "\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1681\nmsg: \"\\\'PASSWORD\\\' is deprecated and will be removed in a future release.\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 check with dropping db which doesn't exists
 Mysqlx.Notice.Frame {
   type: 1
@@ -638,12 +552,6 @@ Mysqlx.Sql.StmtExecuteOk {
 
 checking character data type
 Error is returned instead of warning for insert operation with xplugin
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 3090\nmsg: \"Changing sql mode \\\'NO_AUTO_CREATE_USER\\\' is deprecated. It will be removed in a future release.\"\n }"
-}
-
 Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
@@ -6795,12 +6703,6 @@ Mysqlx.Notice.Frame {
 }
 
 Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 3090\nmsg: \"Changing sql mode \\\'NO_AUTO_CREATE_USER\\\' is deprecated. It will be removed in a future release.\"\n }"
-}
-
-Mysqlx.Notice.Frame {
   type: 3
   scope: LOCAL
   payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
@@ -7595,8 +7497,8 @@ Try to enable fixed notice, should be ok
 
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 169]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 864]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 168]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 857]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -8040,92 +7942,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-check with password function which is deprecated
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'test\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 164
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: ""
-  field: ""
-  field: "*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29\000"
-  field: "\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1681\nmsg: \"\\\'PASSWORD\\\' is deprecated and will be removed in a future release.\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 
 0 rows affected
 Mysqlx.Notice.Frame {
@@ -8147,73 +7963,6 @@ disable warnings notice and observe stats
 
 command ok
 Namespace 'xplugin' is deprecated, please use 'mysqlx' instead
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'test\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 164
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: ""
-  field: ""
-  field: "*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29\000"
-  field: "\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 enable account_expired notice and check stats
 Mysqlx.Sql.StmtExecuteOk {
 }
@@ -8326,8 +8075,8 @@ Mysqlx.Resultset.FetchDone {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 6]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 2]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 2]
@@ -8336,91 +8085,6 @@ Mysqlx.Ok {
 }
 ok
 # restart: 
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'test\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 164
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: ""
-  field: ""
-  field: "*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29\000"
-  field: "\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1681\nmsg: \"\\\'PASSWORD\\\' is deprecated and will be removed in a future release.\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 
 0 rows affected
 Mysqlx.Notice.Frame {
@@ -8438,8 +8102,8 @@ Mysqlx.Notice.Frame {
 Mysqlx.Sql.StmtExecuteOk {
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 4]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 4]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 1]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]
@@ -8449,91 +8113,6 @@ Mysqlx.Ok {
 ok
 # restart: 
 create user noti@localhost identified by 'noti';
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: DECIMAL
-  name: "1/0"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  fractional_digits: 4
-  length: 7
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'test\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 164
-}
-
-Mysqlx.Resultset.ColumnMetaData {
-  type: BYTES
-  name: "password(\'\')"
-  original_name: ""
-  table: ""
-  original_table: ""
-  schema: ""
-  catalog: "def"
-  collation: 45
-  length: 0
-}
-
-Mysqlx.Resultset.Row {
-  field: ""
-  field: ""
-  field: "*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29\000"
-  field: "\000"
-}
-
-Mysqlx.Resultset.FetchDone {
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1681\nmsg: \"\\\'PASSWORD\\\' is deprecated and will be removed in a future release.\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 1
-  scope: LOCAL
-  payload: "Mysqlx.Notice.Warning { level: WARNING\ncode: 1365\nmsg: \"Division by 0\"\n }"
-}
-
-Mysqlx.Notice.Frame {
-  type: 3
-  scope: LOCAL
-  payload: "Mysqlx.Notice.SessionStateChanged { param: ROWS_AFFECTED\nvalue {\n  type: V_UINT\n  v_unsigned_int: 0\n}\n }"
-}
-
-Mysqlx.Sql.StmtExecuteOk {
-}
-
 While executing use mysql:
 Got expected error: Access denied for user 'noti'@'localhost' to database 'mysql' (code 1044)
 Mysqlx.Error {
@@ -8543,8 +8122,8 @@ Mysqlx.Error {
   sql_state: "3D000"
 }
 
-Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 2]
-Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 3]
+Verify [Status variable "Mysqlx_notice_other_sent" needs to have a value of 1]
+Verify [Status variable "Mysqlx_notice_warning_sent" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_disable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_enable_notices" needs to have a value of 0]
 Verify [Status variable "Mysqlx_stmt_list_notices" needs to have a value of 0]

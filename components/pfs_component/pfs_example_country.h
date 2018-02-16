@@ -43,9 +43,8 @@ extern PFS_engine_table_share_proxy country_st_share;
 extern native_mutex_t LOCK_country_records_array;
 
 /* A structure to denote a single row of the table. */
-class Country_record
-{
-public:
+class Country_record {
+ public:
   char name[20];
   unsigned int name_length;
   char continent_name[20];
@@ -65,95 +64,58 @@ public:
 extern Country_record country_records_array[COUNTRY_MAX_ROWS];
 
 /* A class to define position of cursor in table. */
-class Country_POS
-{
-private:
+class Country_POS {
+ private:
   unsigned int m_index;
 
-public:
+ public:
   ~Country_POS(){};
-  Country_POS()
-  {
-    m_index = 0;
-  }
+  Country_POS() { m_index = 0; }
 
-  bool
-  has_more()
-  {
-    if (m_index < COUNTRY_MAX_ROWS)
-      return true;
+  bool has_more() {
+    if (m_index < COUNTRY_MAX_ROWS) return true;
     return false;
   }
-  void
-  next()
-  {
-    m_index++;
-  }
+  void next() { m_index++; }
 
-  void
-  reset()
-  {
-    m_index = 0;
-  }
+  void reset() { m_index = 0; }
 
-  unsigned int
-  get_index()
-  {
-    return m_index;
-  }
+  unsigned int get_index() { return m_index; }
 
-  void
-  set_at(unsigned int index)
-  {
-    m_index = index;
-  }
+  void set_at(unsigned int index) { m_index = index; }
 
-  void
-  set_at(Country_POS *pos)
-  {
-    m_index = pos->m_index;
-  }
+  void set_at(Country_POS *pos) { m_index = pos->m_index; }
 
-  void
-  set_after(Country_POS *pos)
-  {
-    m_index = pos->m_index + 1;
-  }
+  void set_after(Country_POS *pos) { m_index = pos->m_index + 1; }
 };
 
-class Country_index
-{
-public:
+class Country_index {
+ public:
   virtual ~Country_index(){};
 
   virtual bool match(Country_record *record) = 0;
 };
 
 /* An index on Country Name */
-class Country_index_by_name : public Country_index
-{
-public:
+class Country_index_by_name : public Country_index {
+ public:
   PSI_plugin_key_string m_continent_name;
   char m_continent_name_buffer[20];
 
   PSI_plugin_key_string m_country_name;
   char m_country_name_buffer[20];
 
-  bool
-  match(Country_record *record)
-  {
+  bool match(Country_record *record) {
     return mysql_service_pfs_plugin_table->match_key_string(
-             false, record->name, record->name_length, &m_country_name) &&
-           mysql_service_pfs_plugin_table->match_key_string(false,
-                                       record->continent_name,
-                                       record->continent_name_length,
-                                       &m_continent_name);
+               false, record->name, record->name_length, &m_country_name) &&
+           mysql_service_pfs_plugin_table->match_key_string(
+               false, record->continent_name, record->continent_name_length,
+               &m_continent_name);
   }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct
-{
+typedef struct {
   /* Current position instance */
   Country_POS m_pos;
   /* Next position instance */
@@ -174,26 +136,19 @@ void country_close_table(PSI_table_handle *handle);
 int country_rnd_next(PSI_table_handle *handle);
 int country_rnd_init(PSI_table_handle *h, bool scan);
 int country_rnd_pos(PSI_table_handle *handle);
-int country_index_init(PSI_table_handle *handle,
-                       unsigned int idx,
-                       bool sorted,
+int country_index_init(PSI_table_handle *handle, unsigned int idx, bool sorted,
                        PSI_index_handle **index);
-int country_index_read(PSI_index_handle *index,
-                       PSI_key_reader *reader,
-                       unsigned int idx,
-                       int find_flag);
+int country_index_read(PSI_index_handle *index, PSI_key_reader *reader,
+                       unsigned int idx, int find_flag);
 int country_index_next(PSI_table_handle *handle);
 void country_reset_position(PSI_table_handle *handle);
-int country_read_column_value(PSI_table_handle *handle,
-                              PSI_field *field,
+int country_read_column_value(PSI_table_handle *handle, PSI_field *field,
                               unsigned int index);
 int country_write_row_values(PSI_table_handle *handle);
-int country_write_column_value(PSI_table_handle *handle,
-                               PSI_field *field,
+int country_write_column_value(PSI_table_handle *handle, PSI_field *field,
                                unsigned int index);
 int country_update_row_values(PSI_table_handle *handle);
-int country_update_column_value(PSI_table_handle *handle,
-                                PSI_field *field,
+int country_update_column_value(PSI_table_handle *handle, PSI_field *field,
                                 unsigned int index);
 int country_delete_row_values(PSI_table_handle *handle);
 int country_delete_all_rows(void);

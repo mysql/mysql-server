@@ -30,16 +30,15 @@
 #include "my_loglevel.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
-#include "sql/derror.h"                 /* ER_DEFAULT */
-#include "sql/log.h"                    /* error_log_printf */
+#include "sql/derror.h" /* ER_DEFAULT */
+#include "sql/log.h"    /* error_log_printf */
 #include "sql/table.h"
 
 class THD;
 
 /**  Enum for ACL tables */
-typedef enum ACL_TABLES
-{
-  TABLE_USER= 0,
+typedef enum ACL_TABLES {
+  TABLE_USER = 0,
   TABLE_DB,
   TABLE_TABLES_PRIV,
   TABLE_COLUMNS_PRIV,
@@ -49,18 +48,16 @@ typedef enum ACL_TABLES
   TABLE_DEFAULT_ROLES,
   TABLE_DYNAMIC_PRIV,
   TABLE_PASSWORD_HISTORY,
-  LAST_ENTRY  /* Must always be at the end */
+  LAST_ENTRY /* Must always be at the end */
 } ACL_TABLES;
-
 
 /**
   Class to validate the flawlessness of ACL table
   before performing ACL operations.
 */
-class Acl_table_intact : public Table_check_intact
-{
-public:
-  Acl_table_intact(THD *c_thd) : thd(c_thd) { has_keys= true; }
+class Acl_table_intact : public Table_check_intact {
+ public:
+  Acl_table_intact(THD *c_thd) : thd(c_thd) { has_keys = true; }
 
   /**
     Checks whether an ACL table is intact.
@@ -74,41 +71,36 @@ public:
     @retval  false  OK
     @retval  true   There was an error.
   */
-  bool check(TABLE *table, ACL_TABLES acl_table)
-  {
+  bool check(TABLE *table, ACL_TABLES acl_table) {
     return Table_check_intact::check(thd, table,
                                      &(mysql_acl_table_defs[acl_table]));
   }
 
-protected:
+ protected:
   void report_error(uint code, const char *fmt, ...)
-    MY_ATTRIBUTE((format(printf, 3, 4)))
-  {
+      MY_ATTRIBUTE((format(printf, 3, 4))) {
     va_list args;
     va_start(args, fmt);
 
     if (code == 0)
       error_log_printf(WARNING_LEVEL, fmt, args);
-    else if (code == ER_CANNOT_LOAD_FROM_TABLE_V2)
-    {
+    else if (code == ER_CANNOT_LOAD_FROM_TABLE_V2) {
       char *db_name, *table_name;
-      db_name= va_arg(args, char *);
-      table_name= va_arg(args, char *);
+      db_name = va_arg(args, char *);
+      table_name = va_arg(args, char *);
       my_error(code, MYF(ME_ERRORLOG), db_name, table_name);
-    }
-    else
+    } else
       my_printv_error(code, ER_THD(thd, code), MYF(ME_ERRORLOG), args);
 
     va_end(args);
   }
 
-private:
+ private:
   THD *thd;
   static const TABLE_FIELD_DEF mysql_acl_table_defs[];
 };
 
-
-int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no, bool drop,
-                       LEX_USER *user_from, LEX_USER *user_to);
+int handle_grant_table(THD *thd, TABLE_LIST *tables, ACL_TABLES table_no,
+                       bool drop, LEX_USER *user_from, LEX_USER *user_to);
 
 #endif /* SQL_USER_TABLE_INCLUDED */

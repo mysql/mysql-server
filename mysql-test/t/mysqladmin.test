@@ -1,10 +1,8 @@
-
 #
 # Test "mysqladmin ping"
 #
 
 --exec $MYSQLADMIN --no-defaults --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1
-
 
 #
 # Bug#10608 mysqladmin breaks on "database" variable in my.cnf
@@ -63,7 +61,56 @@ EOF
 --echo # Using --defaults-extra-file option with 'cnf_file'.
 --exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
 
+# Testing with non-empty --defaults-extra-file with .cnf extension.
+--write_file $MYSQLTEST_VARDIR/tmp/cnf_test.cnf
+[client]
+host = 127.0.0.1
+EOF
+
+--exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/cnf_test.cnf -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+
+--remove_file $MYSQLTEST_VARDIR/tmp/cnf_test.cnf
+
+# Uncomment the following scenarios after Bug#27406735 is fixed
+# Testing with non-existing defaults-extra-file
+#--error 1
+#--exec $MYSQLADMIN --defaults-extra-file=$MYSQLTEST_VARDIR/tmp/nonexistent.cnf -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping < /dev/null > /dev/null 2>&1
+
+# Testing with non-existing defaults-file
+#--error 1
+#--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/nonexistent.cnf -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --show-warnings ping < /dev/null > /dev/null  2>&1
+
+# Testing defaults-file with with no .cnf or .ini extension
+--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/cnf_file -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --show-warnings ping 2>&1
 --remove_file $MYSQLTEST_VARDIR/tmp/cnf_file
+
+# Testing with non-empty --defaults-file with .cnf extension
+--write_file $MYSQLTEST_VARDIR/tmp/cnf_test_df.cnf
+[client]
+host = 127.0.0.1
+EOF
+
+--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/cnf_test_df.cnf -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT ping 2>&1
+--remove_file $MYSQLTEST_VARDIR/tmp/cnf_test_df.cnf
+
+# Using option relative
+--exec $MYSQLADMIN -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --sleep=1 --count=2 extended status < /dev/null > /dev/null  2>&1
+
+# Running mysqladmin with --compress
+--exec $MYSQLADMIN -uroot -h localhost --password="" -S $MASTER_MYSOCK -P $MASTER_MYPORT --compress --skip-verbose ping 2>&1
+
+# Testing option --login-path
+CREATE USER testadmin_user1;
+FLUSH PRIVILEGES;
+--exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path1 --user=testadmin_user1 --host=127.0.0.1 2>&1
+--exec $MYSQLADMIN --no-defaults --login-path=test-login-path1 --port=$MASTER_MYPORT ping 2>&1
+DROP USER testadmin_user1;
+
+# Using --server-public-key-path and --get-server-public-key
+CREATE USER tester@localhost IDENTIFIED WITH caching_sha2_password BY 'abcd';
+--exec $MYSQLADMIN --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED -utester -pabcd --server-public-key-path=$MYSQL_TEST_DIR/std_data/rsa_public_key.pem ping
+--exec $MYSQLADMIN --host=127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED -utester -pabcd --get-server-public-key ping
+DROP USER tester@localhost;
 
 --echo #
 --echo # Bug#12688860 : SECURITY RECOMMENDATION: PASSWORDS ON CLI
@@ -92,6 +139,5 @@ EOF
 
 --echo # cleanup
 --remove_file $admin_outfile
-
 
 --echo End of tests

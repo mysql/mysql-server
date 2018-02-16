@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,22 +24,21 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/********************************************************************//**
-@file include/btr0types.h
-The index tree general types
+/** @file include/btr0types.h
+ The index tree general types
 
-Created 2/17/1996 Heikki Tuuri
-*************************************************************************/
+ Created 2/17/1996 Heikki Tuuri
+ *************************************************************************/
 
 #ifndef btr0types_h
 #define btr0types_h
 
 #include "univ.i"
 
-#include "rem0types.h"
-#include "page0types.h"
-#include "sync0rw.h"
 #include "page0size.h"
+#include "page0types.h"
+#include "rem0types.h"
+#include "sync0rw.h"
 
 /** Persistent cursor */
 struct btr_pcur_t;
@@ -50,18 +49,17 @@ struct btr_search_t;
 
 /** Is search system enabled.
 Search system is protected by array of latches. */
-extern bool	btr_search_enabled;
+extern bool btr_search_enabled;
 
 /** Number of adaptive hash index partition. */
-extern ulong	btr_ahi_parts;
+extern ulong btr_ahi_parts;
 
 /** The size of a reference to data stored on a different page.
 The reference is stored at the end of the prefix of the field
 in the index record. */
-#define BTR_EXTERN_FIELD_REF_SIZE	FIELD_REF_SIZE
+#define BTR_EXTERN_FIELD_REF_SIZE FIELD_REF_SIZE
 
 /** If the data don't exceed the size, the data are stored locally. */
-#define BTR_EXTERN_LOCAL_STORED_MAX_SIZE	\
-	(BTR_EXTERN_FIELD_REF_SIZE * 2)
+#define BTR_EXTERN_LOCAL_STORED_MAX_SIZE (BTR_EXTERN_FIELD_REF_SIZE * 2)
 
 #endif

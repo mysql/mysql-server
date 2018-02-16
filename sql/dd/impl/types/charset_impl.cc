@@ -26,9 +26,9 @@
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/dd/impl/raw/object_keys.h"
-#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
-#include "sql/dd/impl/tables/character_sets.h" // Character_sets
-#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/raw/raw_record.h"         // Raw_record
+#include "sql/dd/impl/tables/character_sets.h"  // Character_sets
+#include "sql/dd/impl/transaction_impl.h"       // Open_dictionary_tables_ctx
 
 using dd::tables::Character_sets;
 
@@ -38,13 +38,9 @@ namespace dd {
 // Charset_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset_impl::validate() const
-{
-  if (m_default_collation_id == INVALID_OBJECT_ID)
-  {
-    my_error(ER_INVALID_DD_OBJECT,
-             MYF(0),
-             DD_table::instance().name().c_str(),
+bool Charset_impl::validate() const {
+  if (m_default_collation_id == INVALID_OBJECT_ID) {
+    my_error(ER_INVALID_DD_OBJECT, MYF(0), DD_table::instance().name().c_str(),
              "Collation ID is not set");
     return true;
   }
@@ -54,25 +50,22 @@ bool Charset_impl::validate() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset_impl::restore_attributes(const Raw_record &r)
-{
+bool Charset_impl::restore_attributes(const Raw_record &r) {
   restore_id(r, Character_sets::FIELD_ID);
   restore_name(r, Character_sets::FIELD_NAME);
 
-  m_mb_max_length= r.read_uint(Character_sets::FIELD_MB_MAX_LENGTH);
-  m_comment=       r.read_str(Character_sets::FIELD_COMMENT);
+  m_mb_max_length = r.read_uint(Character_sets::FIELD_MB_MAX_LENGTH);
+  m_comment = r.read_str(Character_sets::FIELD_COMMENT);
 
-  m_default_collation_id=
-    r.read_ref_id(
-      Character_sets::FIELD_DEFAULT_COLLATION_ID);
+  m_default_collation_id =
+      r.read_ref_id(Character_sets::FIELD_DEFAULT_COLLATION_ID);
 
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset_impl::store_attributes(Raw_record *r)
-{
+bool Charset_impl::store_attributes(Raw_record *r) {
   return store_id(r, Character_sets::FIELD_ID) ||
          store_name(r, Character_sets::FIELD_NAME) ||
          r->store_ref_id(Character_sets::FIELD_DEFAULT_COLLATION_ID,
@@ -83,31 +76,29 @@ bool Charset_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_id_key(Id_key *key, Object_id id)
-{
+bool Charset::update_id_key(Id_key *key, Object_id id) {
   key->update(id);
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Charset::update_name_key(Name_key *key, const String_type &name)
-{ return Character_sets::update_object_key(key, name); }
+bool Charset::update_name_key(Name_key *key, const String_type &name) {
+  return Character_sets::update_object_key(key, name);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Object_table &Charset_impl::object_table() const
-{
+const Object_table &Charset_impl::object_table() const {
   return DD_table::instance();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Charset_impl::register_tables(Open_dictionary_tables_ctx *otx)
-{
+void Charset_impl::register_tables(Open_dictionary_tables_ctx *otx) {
   otx->add_table<Character_sets>();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

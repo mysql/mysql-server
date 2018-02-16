@@ -23,11 +23,11 @@
 #ifndef PLUGIN_PFS_TABLE_PLUGIN_pfs_example_employee_salary_H_
 #define PLUGIN_PFS_TABLE_PLUGIN_pfs_example_employee_salary_H_
 
-#include <algorithm>
-#include <vector>
-#include <mysql/plugin.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
+#include <mysql/plugin.h>
+#include <algorithm>
+#include <vector>
 
 /* Service handle */
 extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
@@ -42,9 +42,8 @@ extern PFS_engine_table_share_proxy esalary_st_share;
 extern mysql_mutex_t LOCK_esalary_records_array;
 
 /* A structure to denote a single row of the table. */
-struct
-{
-public:
+struct {
+ public:
   PSI_int e_number;
   PSI_bigint e_salary;
   char e_dob[20];
@@ -64,65 +63,33 @@ public:
 extern std::vector<Esalary_Record> esalary_records_vector;
 
 /* A class to define position of cursor in table. */
-class Esalary_POS
-{
-private:
+class Esalary_POS {
+ private:
   unsigned int m_index;
 
-public:
+ public:
   ~Esalary_POS(){};
-  Esalary_POS()
-  {
-    m_index = 0;
-  }
+  Esalary_POS() { m_index = 0; }
 
-  bool
-  has_more()
-  {
-    if (m_index < esalary_records_vector.size())
-      return true;
+  bool has_more() {
+    if (m_index < esalary_records_vector.size()) return true;
     return false;
   }
-  void
-  next()
-  {
-    m_index++;
-  }
+  void next() { m_index++; }
 
-  void
-  reset()
-  {
-    m_index = 0;
-  }
+  void reset() { m_index = 0; }
 
-  unsigned int
-  get_index()
-  {
-    return m_index;
-  }
+  unsigned int get_index() { return m_index; }
 
-  void
-  set_at(unsigned int index)
-  {
-    m_index = index;
-  }
+  void set_at(unsigned int index) { m_index = index; }
 
-  void
-  set_at(Esalary_POS* pos)
-  {
-    m_index = pos->m_index;
-  }
+  void set_at(Esalary_POS *pos) { m_index = pos->m_index; }
 
-  void
-  set_after(Esalary_POS* pos)
-  {
-    m_index = pos->m_index + 1;
-  }
+  void set_after(Esalary_POS *pos) { m_index = pos->m_index + 1; }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct
-{
+typedef struct {
   /* Current position instance */
   Esalary_POS m_pos;
   /* Next position instance */
@@ -132,35 +99,28 @@ typedef struct
   Esalary_Record current_row;
 } Esalary_Table_Handle;
 
-PSI_table_handle* esalary_open_table(PSI_pos** pos);
-void esalary_close_table(PSI_table_handle* handle);
-int esalary_rnd_next(PSI_table_handle* handle);
-int esalary_rnd_init(PSI_table_handle* h, bool scan);
-int esalary_rnd_pos(PSI_table_handle* handle);
-int esalary_index_init(PSI_table_handle* handle,
-                       uint idx,
-                       bool sorted,
-                       PSI_index_handle** index);
-int esalary_index_read(PSI_index_handle* index,
-                       PSI_key_reader* reader,
-                       unsigned int idx,
-                       int find_flag);
-int esalary_index_next(PSI_table_handle* handle);
-void esalary_reset_position(PSI_table_handle* handle);
-int esalary_read_column_value(PSI_table_handle* handle,
-                              PSI_field* field,
+PSI_table_handle *esalary_open_table(PSI_pos **pos);
+void esalary_close_table(PSI_table_handle *handle);
+int esalary_rnd_next(PSI_table_handle *handle);
+int esalary_rnd_init(PSI_table_handle *h, bool scan);
+int esalary_rnd_pos(PSI_table_handle *handle);
+int esalary_index_init(PSI_table_handle *handle, uint idx, bool sorted,
+                       PSI_index_handle **index);
+int esalary_index_read(PSI_index_handle *index, PSI_key_reader *reader,
+                       unsigned int idx, int find_flag);
+int esalary_index_next(PSI_table_handle *handle);
+void esalary_reset_position(PSI_table_handle *handle);
+int esalary_read_column_value(PSI_table_handle *handle, PSI_field *field,
                               uint index);
-int esalary_write_row_values(PSI_table_handle* handle);
-int esalary_write_column_value(PSI_table_handle* handle,
-                               PSI_field* field,
+int esalary_write_row_values(PSI_table_handle *handle);
+int esalary_write_column_value(PSI_table_handle *handle, PSI_field *field,
                                unsigned int index);
-int esalary_update_row_values(PSI_table_handle* handle);
-int esalary_update_column_value(PSI_table_handle* handle,
-                                PSI_field* field,
+int esalary_update_row_values(PSI_table_handle *handle);
+int esalary_update_column_value(PSI_table_handle *handle, PSI_field *field,
                                 unsigned int index);
-int esalary_delete_row_values(PSI_table_handle* handle);
+int esalary_delete_row_values(PSI_table_handle *handle);
 int esalary_delete_all_rows(void);
 unsigned long long esalary_get_row_count(void);
-void init_esalary_share(PFS_engine_table_share_proxy* share);
+void init_esalary_share(PFS_engine_table_share_proxy *share);
 
 #endif /* PLUGIN_PFS_TABLE_PLUGIN_pfs_example_employee_salary_H_ */

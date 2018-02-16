@@ -26,8 +26,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "mysqld_error.h"  // ER_*
-#include "sql/sql_error.h" // Sql_condition
+#include "mysqld_error.h"   // ER_*
+#include "sql/sql_error.h"  // Sql_condition
 
 class String;
 class THD;
@@ -38,16 +38,13 @@ struct TABLE_LIST;
   Internal error handlers are exception handlers used by the server
   implementation.
 */
-class Internal_error_handler
-{
-protected:
-  Internal_error_handler() :
-    m_prev_internal_handler(NULL)
-  {}
+class Internal_error_handler {
+ protected:
+  Internal_error_handler() : m_prev_internal_handler(NULL) {}
 
   virtual ~Internal_error_handler() {}
 
-public:
+ public:
   /**
     Handle a sql condition.
     This method can be implemented by a subclass to achieve any of the
@@ -75,37 +72,29 @@ public:
     @param msg the error message for the condition raised.
     @return true if the condition is handled
   */
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg) = 0;
+                                const char *msg) = 0;
 
-private:
+ private:
   Internal_error_handler *m_prev_internal_handler;
   friend class THD;
 };
-
 
 /**
   Implements the trivial error handler which cancels all error states
   and prevents an SQLSTATE to be set.
 */
 
-class Dummy_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD*,
-                                uint,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
+class Dummy_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
     /* Ignore error */
     return true;
   }
 };
-
 
 /**
   Implements the error handler for SET_VAR hint.
@@ -115,39 +104,30 @@ public:
   since valid value is restored.
 */
 
-class Set_var_error_handler : public Internal_error_handler
-{
-public:
+class Set_var_error_handler : public Internal_error_handler {
+ public:
   Set_var_error_handler(bool ignore_warn_arg)
-    : Internal_error_handler(), ignore_warn(ignore_warn_arg),
-      ignore_subsequent_messages(false)
-  {}
+      : Internal_error_handler(),
+        ignore_warn(ignore_warn_arg),
+        ignore_subsequent_messages(false) {}
 
-  virtual bool handle_condition(THD*,
-                                uint,
-                                const char*,
-                                Sql_condition::enum_severity_level* level,
-                                const char*)
-  {
-    if (*level == Sql_condition::SL_ERROR)
-      (*level)= Sql_condition::SL_WARNING;
+  virtual bool handle_condition(THD *, uint, const char *,
+                                Sql_condition::enum_severity_level *level,
+                                const char *) {
+    if (*level == Sql_condition::SL_ERROR) (*level) = Sql_condition::SL_WARNING;
 
-    if (ignore_subsequent_messages)
-      return true;
-    ignore_subsequent_messages= true;
+    if (ignore_subsequent_messages) return true;
+    ignore_subsequent_messages = true;
 
     return ignore_warn;
   }
 
-  void reset_state()
-  {
-    ignore_subsequent_messages= false;
-  }
-private:
+  void reset_state() { ignore_subsequent_messages = false; }
+
+ private:
   bool ignore_warn;
   bool ignore_subsequent_messages;
 };
-
 
 /**
   This class is an internal error handler implementation for
@@ -156,16 +136,12 @@ private:
   This class is intended to silence such warnings.
 */
 
-class Drop_table_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+class Drop_table_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg);
+                                const char *msg);
 };
-
 
 /**
   Internal error handler to process an error from MDL_context::upgrade_lock()
@@ -173,27 +149,24 @@ public:
   LOCK TABLES LOCAL.
 */
 
-class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
+class MDL_deadlock_and_lock_abort_error_handler
+    : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
     if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
-      m_need_reopen= true;
+      m_need_reopen = true;
 
     return m_need_reopen;
   }
 
   bool need_reopen() const { return m_need_reopen; };
-  void init() { m_need_reopen= false; };
-private:
+  void init() { m_need_reopen = false; };
+
+ private:
   bool m_need_reopen;
 };
-
 
 /**
    An Internal_error_handler that suppresses errors regarding views'
@@ -216,14 +189,11 @@ private:
     handles SELECT from views. The two methods should not clash.
 
 */
-class View_error_handler : public Internal_error_handler
-{
+class View_error_handler : public Internal_error_handler {
   TABLE_LIST *m_top_view;
 
-public:
-  View_error_handler(TABLE_LIST *top_view) :
-  m_top_view(top_view)
-  {}
+ public:
+  View_error_handler(TABLE_LIST *top_view) : m_top_view(top_view) {}
   virtual bool handle_condition(THD *thd, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *level,
                                 const char *message);
@@ -233,21 +203,14 @@ public:
   This internal handler is used to trap ER_NO_SUCH_TABLE.
 */
 
-class No_such_table_error_handler : public Internal_error_handler
-{
-public:
-  No_such_table_error_handler()
-    : m_handled_errors(0), m_unhandled_errors(0)
-  {}
+class No_such_table_error_handler : public Internal_error_handler {
+ public:
+  No_such_table_error_handler() : m_handled_errors(0), m_unhandled_errors(0) {}
 
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
-    if (sql_errno == ER_NO_SUCH_TABLE)
-    {
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
+    if (sql_errno == ER_NO_SUCH_TABLE) {
       m_handled_errors++;
       return true;
     }
@@ -260,8 +223,7 @@ public:
     Returns true if one or more ER_NO_SUCH_TABLE errors have been
     trapped and no other errors have been seen. false otherwise.
   */
-  bool safely_trapped_errors() const
-  {
+  bool safely_trapped_errors() const {
     /*
       If m_unhandled_errors != 0, something else, unanticipated, happened,
       so the error is not trapped but returned to the caller.
@@ -270,25 +232,21 @@ public:
     return ((m_handled_errors > 0) && (m_unhandled_errors == 0));
   }
 
-private:
+ private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
-
 
 /**
   This internal handler implements downgrade from SL_ERROR to SL_WARNING
   for statements which support IGNORE.
 */
 
-class Ignore_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+class Ignore_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg);
+                                const char *msg);
 };
 
 /**
@@ -297,30 +255,24 @@ public:
   not affect SELECT statements.
 */
 
-class Strict_error_handler : public Internal_error_handler
-{
-public:
-  enum enum_set_select_behavior
-  {
+class Strict_error_handler : public Internal_error_handler {
+ public:
+  enum enum_set_select_behavior {
     DISABLE_SET_SELECT_STRICT_ERROR_HANDLER,
     ENABLE_SET_SELECT_STRICT_ERROR_HANDLER
   };
 
   Strict_error_handler()
-    : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER)
-  {}
+      : m_set_select_behavior(DISABLE_SET_SELECT_STRICT_ERROR_HANDLER) {}
 
   Strict_error_handler(enum_set_select_behavior param)
-    : m_set_select_behavior(param)
-  {}
+      : m_set_select_behavior(param) {}
 
-  virtual bool handle_condition(THD *thd,
-                                uint sql_errno,
-                                const char* sqlstate,
+  virtual bool handle_condition(THD *thd, uint sql_errno, const char *sqlstate,
                                 Sql_condition::enum_severity_level *level,
-                                const char* msg);
+                                const char *msg);
 
-private:
+ private:
   /*
     For SELECT and SET statement, we do not always give error in STRICT mode.
     For triggers, Strict_error_handler is pushed in the beginning of statement.
@@ -340,39 +292,28 @@ private:
   makes sure this is done.
 */
 
-class Tablespace_name_error_handler : public Internal_error_handler
-{
-public:
-  bool handle_condition(THD*,
-                        uint sql_errno,
-                        const char*,
-                        Sql_condition::enum_severity_level*,
-                        const char*)
-  {
+class Tablespace_name_error_handler : public Internal_error_handler {
+ public:
+  bool handle_condition(THD *, uint sql_errno, const char *,
+                        Sql_condition::enum_severity_level *, const char *) {
     return (sql_errno == ER_WRONG_TABLESPACE_NAME ||
             sql_errno == ER_TOO_LONG_IDENT);
   }
 };
-
 
 /*
   Disable ER_TOO_LONG_KEY for creation of system tables.
   TODO: This is a Workaround due to bug#20629014.
   Remove this internal error handler when the bug is fixed.
 */
-class Key_length_error_handler : public Internal_error_handler
-{
-public:
-  virtual bool handle_condition(THD *,
-                                uint sql_errno,
-                                const char*,
+class Key_length_error_handler : public Internal_error_handler {
+ public:
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
                                 Sql_condition::enum_severity_level *,
-                                const char*)
-  {
+                                const char *) {
     return (sql_errno == ER_TOO_LONG_KEY);
   }
 };
-
 
 /**
   Error handler class to convert ER_LOCK_DEADLOCK error to
@@ -381,23 +322,20 @@ public:
   Handler is pushed for opening a table or acquiring a MDL lock on
   tables for INFORMATION_SCHEMA views (system views) operations.
 */
-class Info_schema_error_handler : public Internal_error_handler
-{
-public:
+class Info_schema_error_handler : public Internal_error_handler {
+ public:
   Info_schema_error_handler(THD *thd, const String *schema_name,
-                             const String *table_name);
+                            const String *table_name);
 
   Info_schema_error_handler(THD *thd, const String *tablespace_name);
 
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*);
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *);
 
   bool is_error_handled() const { return m_error_handled; }
 
-private:
+ private:
   bool m_can_deadlock;
 
   // Schema name
@@ -413,8 +351,7 @@ private:
   Mdl_object_type m_object_type;
 
   // Flag to indicate whether deadlock error is handled by the handler or not.
-  bool m_error_handled= false;
+  bool m_error_handled = false;
 };
 
-
-#endif // ERROR_HANDLER_INCLUDED
+#endif  // ERROR_HANDLER_INCLUDED

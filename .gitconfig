@@ -26,7 +26,7 @@
 #   git config --local include.path ../.gitconfig
 #
 [filter "codeformat"]
-	clean = clang-format --style=file
+	clean = clang-format --assume-filename=%f --style=file
 [merge]
 	renormalize = true
 

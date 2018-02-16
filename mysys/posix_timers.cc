@@ -31,10 +31,10 @@
 
 #include <errno.h>
 #include <signal.h>
-#include <string.h>         /* memset */
+#include <string.h> /* memset */
 #include <sys/time.h>
 
-#include "my_timer.h"       /* my_timer_t */
+#include "my_timer.h" /* my_timer_t */
 
 /**
   Timer expiration notification thread.
@@ -42,23 +42,14 @@
   @param  arg   Event info.
 */
 
-static void timer_notify_thread_func(sigval arg)
-{
-  my_timer_t *timer= static_cast<my_timer_t*>(arg.sival_ptr);
+static void timer_notify_thread_func(sigval arg) {
+  my_timer_t *timer = static_cast<my_timer_t *>(arg.sival_ptr);
   timer->notify_function(timer);
 }
 
+int my_timer_initialize() { return 0; }
 
-int my_timer_initialize()
-{
-  return 0;
-}
-
-
-void my_timer_deinitialize()
-{
-}
-
+void my_timer_deinitialize() {}
 
 /**
   Create a timer object.
@@ -69,23 +60,21 @@ void my_timer_deinitialize()
           On error, -1 is returned, and errno is set to indicate the error.
 */
 
-int my_timer_create(my_timer_t *timer)
-{
+int my_timer_create(my_timer_t *timer) {
   struct sigevent sigev;
 
   memset(&sigev, 0, sizeof(sigev));
 
-  sigev.sigev_notify= SIGEV_THREAD;
-  sigev.sigev_value.sival_ptr= timer;
-  sigev.sigev_notify_function= &timer_notify_thread_func;
+  sigev.sigev_notify = SIGEV_THREAD;
+  sigev.sigev_value.sival_ptr = timer;
+  sigev.sigev_notify_function = &timer_notify_thread_func;
 
-#ifdef __sun // CLOCK_MONOTONIC not supported on Solaris even if it compiles.
+#ifdef __sun  // CLOCK_MONOTONIC not supported on Solaris even if it compiles.
   return timer_create(CLOCK_REALTIME, &sigev, &timer->id);
 #else
   return timer_create(CLOCK_MONOTONIC, &sigev, &timer->id);
 #endif
 }
-
 
 /**
   Set the time until the next expiration of the timer.
@@ -97,16 +86,14 @@ int my_timer_create(my_timer_t *timer)
           On error, -1 is returned, and errno is set to indicate the error.
 */
 
-int my_timer_set(my_timer_t *timer, unsigned long time)
-{
+int my_timer_set(my_timer_t *timer, unsigned long time) {
   struct itimerspec spec;
-  spec.it_interval.tv_sec= 0;
-  spec.it_interval.tv_nsec= 0;
-  spec.it_value.tv_sec= static_cast<time_t>(time / 1000);
-  spec.it_value.tv_nsec= static_cast<long>((time % 1000) * 1000000);
+  spec.it_interval.tv_sec = 0;
+  spec.it_interval.tv_nsec = 0;
+  spec.it_value.tv_sec = static_cast<time_t>(time / 1000);
+  spec.it_value.tv_nsec = static_cast<long>((time % 1000) * 1000000);
   return timer_settime(timer->id, 0, &spec, NULL);
 }
-
 
 /**
   Cancel the timer.
@@ -119,28 +106,26 @@ int my_timer_set(my_timer_t *timer, unsigned long time)
           On error, -1 is returned, and errno is set to indicate the error.
 */
 
-int my_timer_cancel(my_timer_t *timer, int *state)
-{
+int my_timer_cancel(my_timer_t *timer, int *state) {
   int status;
   struct itimerspec old_spec;
 
   /* A zeroed initial expiration value disarms the timer. */
   struct itimerspec zero_spec;
-  zero_spec.it_interval.tv_sec= 0;
-  zero_spec.it_interval.tv_nsec= 0;
-  zero_spec.it_value.tv_sec= 0;
-  zero_spec.it_value.tv_nsec= 0;
+  zero_spec.it_interval.tv_sec = 0;
+  zero_spec.it_interval.tv_nsec = 0;
+  zero_spec.it_value.tv_sec = 0;
+  zero_spec.it_value.tv_nsec = 0;
 
   /*
     timer_settime returns the amount of time before the timer
     would have expired or zero if the timer was disarmed.
   */
-  if (! (status= timer_settime(timer->id, 0, &zero_spec, &old_spec)))
-    *state= (old_spec.it_value.tv_sec || old_spec.it_value.tv_nsec);
+  if (!(status = timer_settime(timer->id, 0, &zero_spec, &old_spec)))
+    *state = (old_spec.it_value.tv_sec || old_spec.it_value.tv_nsec);
 
   return status;
 }
-
 
 /**
   Delete a timer object.
@@ -148,8 +133,4 @@ int my_timer_cancel(my_timer_t *timer, int *state)
   @param  timer   Timer object.
 */
 
-void my_timer_delete(my_timer_t *timer)
-{
-  timer_delete(timer->id);
-}
-
+void my_timer_delete(my_timer_t *timer) { timer_delete(timer->id); }

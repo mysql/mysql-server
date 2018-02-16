@@ -1015,10 +1015,8 @@ DROP EVENT IF EXISTS e2;
 # Check that an ordinary user can not create/update/drop events in the
 # read-only mode.
 
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER mysqltest_u1@localhost;
 GRANT EVENT ON *.* TO mysqltest_u1@localhost;
-set sql_mode= @orig_sql_mode;
 
 --echo
 
@@ -1202,7 +1200,7 @@ DROP USER mysqltest_u1@localhost;
 drop procedure if exists p;
 --enable_warnings
 set @old_mode= @@sql_mode;
-set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x3ff00;
+set @@sql_mode= cast(pow(2,33)-1 as unsigned integer) & ~0x1003ff00;
 create event e1 on schedule every 1 day do select 1;
 select @@sql_mode into @full_mode;
 set @@sql_mode= @old_mode;

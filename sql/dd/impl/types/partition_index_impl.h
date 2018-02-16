@@ -28,13 +28,13 @@
 #include <memory>
 #include <new>
 
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/object_id.h"
 #include "sql/dd/properties.h"
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/index.h"
-#include "sql/dd/types/partition_index.h"       // dd::Partition_index
+#include "sql/dd/types/partition_index.h"  // dd::Partition_index
 
 namespace dd {
 
@@ -53,21 +53,18 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_index_impl : public Weak_object_impl,
-                             public Partition_index
-{
-public:
+class Partition_index_impl : public Weak_object_impl, public Partition_index {
+ public:
   Partition_index_impl();
 
   Partition_index_impl(Partition_impl *partition, Index *index);
 
-  Partition_index_impl(const Partition_index_impl &src,
-                       Partition_impl *parent, Index *index);
+  Partition_index_impl(const Partition_index_impl &src, Partition_impl *parent,
+                       Index *index);
 
-  virtual ~Partition_index_impl()
-  { }
+  virtual ~Partition_index_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
@@ -82,13 +79,11 @@ public:
 
   void debug_print(String_type &outb) const;
 
-  void set_ordinal_position(uint)
-  { }
+  void set_ordinal_position(uint) {}
 
-  virtual uint ordinal_position() const
-  { return -1; }
+  virtual uint ordinal_position() const { return -1; }
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
@@ -99,8 +94,7 @@ public:
 
   virtual Partition &partition();
 
-  Partition_impl &partition_impl()
-  { return *m_partition; }
+  Partition_impl &partition_impl() { return *m_partition; }
 
   /////////////////////////////////////////////////////////////////////////
   // Index.
@@ -114,11 +108,9 @@ public:
   // Options.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &options() const
-  { return *m_options; }
+  virtual const Properties &options() const { return *m_options; }
 
-  virtual Properties &options()
-  { return *m_options; }
+  virtual Properties &options() { return *m_options; }
 
   virtual bool set_options_raw(const String_type &options_raw);
 
@@ -126,11 +118,11 @@ public:
   // se_private_data.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Properties &se_private_data() const
-  { return *m_se_private_data; }
+  virtual const Properties &se_private_data() const {
+    return *m_se_private_data;
+  }
 
-  virtual Properties &se_private_data()
-  { return *m_se_private_data; }
+  virtual Properties &se_private_data() { return *m_se_private_data; }
 
   virtual bool set_se_private_data_raw(const String_type &se_private_data_raw);
 
@@ -140,26 +132,25 @@ public:
   // Tablespace.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual Object_id tablespace_id() const
-  { return m_tablespace_id; }
+  virtual Object_id tablespace_id() const { return m_tablespace_id; }
 
-  virtual void set_tablespace_id(Object_id tablespace_id)
-  { m_tablespace_id= tablespace_id; }
+  virtual void set_tablespace_id(Object_id tablespace_id) {
+    m_tablespace_id = tablespace_id;
+  }
 
-public:
-  static Partition_index_impl *restore_item(Partition_impl *partition)
-  {
+ public:
+  static Partition_index_impl *restore_item(Partition_impl *partition) {
     return new (std::nothrow) Partition_index_impl(partition, NULL);
   }
 
   static Partition_index_impl *clone(const Partition_index_impl &other,
                                      Partition_impl *partition);
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-private:
+ private:
   // Fields.
 
   std::unique_ptr<Properties> m_options;
@@ -182,17 +173,15 @@ private:
   the same order as Index objects for the table.
 */
 
-struct Partition_index_order_comparator
-{
-  bool operator()(const dd::Partition_index* pi1,
-                  const dd::Partition_index* pi2) const
-  {
+struct Partition_index_order_comparator {
+  bool operator()(const dd::Partition_index *pi1,
+                  const dd::Partition_index *pi2) const {
     return pi1->index().ordinal_position() < pi2->index().ordinal_position();
   }
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_INDEX_IMPL_INCLUDED
+#endif  // DD__PARTITION_INDEX_IMPL_INCLUDED

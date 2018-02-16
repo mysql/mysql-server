@@ -18,7 +18,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c2` varchar(4) CHARACTER SET utf8 NOT NULL DEFAULT '',
-  `c3` char(4) CHARACTER SET utf8 DEFAULT NULL
+  `c3` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 INSERT IGNORE INTO t1 VALUES ('aaaabbbbccccdddd','aaaabbbbccccdddd','aaaabbbbccccdddd');
 Warnings:
@@ -35,7 +35,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
+  `a` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE t1;
@@ -63,7 +63,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` char(4) CHARACTER SET utf8 DEFAULT NULL,
+  `a` char(4) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   KEY `key_a` (`a`(3))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ANALYZE TABLE t1;

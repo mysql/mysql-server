@@ -23,25 +23,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_PSI_MUTEX_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_MUTEX_SERVICE_H
 
-#include <mysql/components/services/psi_mutex_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/psi_mutex_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_mutex_v1)
-  /** @sa register_mutex_v1_t. */
-  register_mutex_v1_t register_mutex;
-  /** @sa init_mutex_v1_t. */
-  init_mutex_v1_t init_mutex;
-  /** @sa destroy_mutex_v1_t. */
-  destroy_mutex_v1_t destroy_mutex;
-  /** @sa start_mutex_wait_v1_t. */
-  start_mutex_wait_v1_t start_mutex_wait;
-  /** @sa end_mutex_wait_v1_t. */
-  end_mutex_wait_v1_t end_mutex_wait;
-  /** @sa unlock_mutex_v1_t. */
-  unlock_mutex_v1_t unlock_mutex;
+/** @sa register_mutex_v1_t. */
+register_mutex_v1_t register_mutex;
+/** @sa init_mutex_v1_t. */
+init_mutex_v1_t init_mutex;
+/** @sa destroy_mutex_v1_t. */
+destroy_mutex_v1_t destroy_mutex;
+/** @sa start_mutex_wait_v1_t. */
+start_mutex_wait_v1_t start_mutex_wait;
+/** @sa end_mutex_wait_v1_t. */
+end_mutex_wait_v1_t end_mutex_wait;
+/** @sa unlock_mutex_v1_t. */
+unlock_mutex_v1_t unlock_mutex;
 END_SERVICE_DEFINITION(psi_mutex_v1)
 
 #define REQUIRES_PSI_MUTEX_SERVICE REQUIRES_SERVICE(psi_mutex_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_MUTEX_SERVICE_H */
-

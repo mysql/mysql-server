@@ -78,7 +78,8 @@ eval CHANGE MASTER TO MASTER_USER='root', MASTER_HOST='127.0.0.1', MASTER_PORT=$
 
 connection master;
 SET SQL_LOG_BIN=0;
---eval GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY '$passwd'
+--eval CREATE USER rpl@127.0.0.1 IDENTIFIED BY '$passwd'
+--eval GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1
 SET SQL_LOG_BIN=1;
 
 connection slave;

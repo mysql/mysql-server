@@ -64,13 +64,17 @@ Mysqlx.Crud.Insert {
 }
 -->endmacro
 
--->macro Insert  %MODEL%  %TABLE%  %ROWS%  %UPSERT%  %ERROR%
+
+-->macro Insert_raw  %MODEL%  %TABLE%  %PAYLOAD%
 Mysqlx.Crud.Insert {
   data_model: %MODEL%
   collection { name: '%TABLE%' schema: 'xtest'}
-  %ROWS%
-  upsert: %UPSERT%
+  %PAYLOAD%
 }
+-->endmacro
+
+-->macro Insert  %MODEL%  %TABLE%  %ROWS%  %UPSERT%  %ERROR%
+-->callmacro Insert_raw	%MODEL%	%TABLE%	%ROWS% upsert:%UPSERT%
 -->expecterror %ERROR%
 -->recvresult
 -->endmacro

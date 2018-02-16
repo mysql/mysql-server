@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,3 +22,8 @@
 
 ADD_SUBDIRECTORY(driver)
 
+IF(XPLUGIN_ADDITIONAL_TESTS_PATH)
+  IF(EXISTS ${XPLUGIN_ADDITIONAL_TESTS_PATH}/)
+    ADD_SUBDIRECTORY(${XPLUGIN_ADDITIONAL_TESTS_PATH} "${CMAKE_CURRENT_BINARY_DIR}/extra_xtests")
+  ENDIF()
+ENDIF()

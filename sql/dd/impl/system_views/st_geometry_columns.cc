@@ -25,14 +25,12 @@
 namespace dd {
 namespace system_views {
 
-const St_geometry_columns &St_geometry_columns::instance()
-{
-  static St_geometry_columns *s_instance= new St_geometry_columns();
+const St_geometry_columns &St_geometry_columns::instance() {
+  static St_geometry_columns *s_instance = new St_geometry_columns();
   return *s_instance;
 }
 
-St_geometry_columns::St_geometry_columns()
-{
+St_geometry_columns::St_geometry_columns() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
@@ -47,15 +45,15 @@ St_geometry_columns::St_geometry_columns()
                          "cols.DATA_TYPE");
 
   m_target_def.add_from("INFORMATION_SCHEMA.COLUMNS cols");
-  m_target_def.add_from("LEFT JOIN "
-                        "  INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS srs "
-                        "  ON (cols.SRS_ID = srs.SRS_ID)");
+  m_target_def.add_from(
+      "LEFT JOIN "
+      "  INFORMATION_SCHEMA.ST_SPATIAL_REFERENCE_SYSTEMS srs "
+      "  ON (cols.SRS_ID = srs.SRS_ID)");
 
   m_target_def.add_where(
-    "DATA_TYPE IN ('geometry','point','linestring','polygon', 'multipoint',"
-    "              'multilinestring', 'multipolygon','geomcollection')");
-
+      "DATA_TYPE IN ('geometry','point','linestring','polygon', 'multipoint',"
+      "              'multilinestring', 'multipolygon','geomcollection')");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

@@ -36,34 +36,26 @@ extern "C" void mock_error_handler_hook(uint err, const char *str, myf MyFlags);
   An alternative error_handler for non-server unit tests since it does
   not rely on THD.  It sets the global error handler function.
 */
-class Mock_global_error_handler
-{
-public:
-  Mock_global_error_handler(uint expected_error):
-    m_expected_error(expected_error),
-    m_handle_called(0)
-  {
-    current= this;
-    m_old_error_handler_hook= error_handler_hook;
+class Mock_global_error_handler {
+ public:
+  Mock_global_error_handler(uint expected_error)
+      : m_expected_error(expected_error), m_handle_called(0) {
+    current = this;
+    m_old_error_handler_hook = error_handler_hook;
     error_handler_hook = mock_error_handler_hook;
   }
 
-  virtual ~Mock_global_error_handler()
-  {
-    if (m_expected_error == 0)
-    {
+  virtual ~Mock_global_error_handler() {
+    if (m_expected_error == 0) {
       EXPECT_EQ(0, m_handle_called);
-    }
-    else
-    {
+    } else {
       EXPECT_GT(m_handle_called, 0);
     }
-    error_handler_hook= m_old_error_handler_hook;
-    current= NULL;
+    error_handler_hook = m_old_error_handler_hook;
+    current = NULL;
   }
 
-  void error_handler(uint err)
-  {
+  void error_handler(uint err) {
     EXPECT_EQ(m_expected_error, err);
     ++m_handle_called;
   }
@@ -72,89 +64,70 @@ public:
 
   static Mock_global_error_handler *current;
 
-private:
+ private:
   uint m_expected_error;
-  int  m_handle_called;
+  int m_handle_called;
 
   void (*m_old_error_handler_hook)(uint, const char *, myf);
 };
 
-Mock_global_error_handler *Mock_global_error_handler::current= NULL;
+Mock_global_error_handler *Mock_global_error_handler::current = NULL;
 
 /*
   Error handler function.
 */
-extern "C" void mock_error_handler_hook(uint err, const char*, myf)
-{
+extern "C" void mock_error_handler_hook(uint err, const char *, myf) {
   if (Mock_global_error_handler::current)
     Mock_global_error_handler::current->error_handler(err);
 }
 
 namespace my_alloc_unittest {
 
-const size_t num_iterations= 1ULL;
+const size_t num_iterations = 1ULL;
 
-class MyAllocTest : public ::testing::TestWithParam<size_t>
-{
-protected:
-  virtual void SetUp()
-  {
+class MyAllocTest : public ::testing::TestWithParam<size_t> {
+ protected:
+  virtual void SetUp() {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_root, 1024, 0);
   }
-  virtual void TearDown()
-  {
-    free_root(&m_root, MYF(0));
-  }
-  size_t   m_num_objects;
+  virtual void TearDown() { free_root(&m_root, MYF(0)); }
+  size_t m_num_objects;
   MEM_ROOT m_root;
 };
 
-class MyPreAllocTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
+class MyPreAllocTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
     init_alloc_root(PSI_NOT_INSTRUMENTED, &m_prealloc_root, 1024, 2048);
   }
-  virtual void TearDown()
-  {
-    free_root(&m_prealloc_root, MYF(0));
-  }
-  size_t   m_num_objects;
+  virtual void TearDown() { free_root(&m_prealloc_root, MYF(0)); }
+  size_t m_num_objects;
   MEM_ROOT m_prealloc_root;
 };
 
+size_t test_values[] = {100, 1000, 10000, 100000};
 
+INSTANTIATE_TEST_CASE_P(MyAlloc, MyAllocTest, ::testing::ValuesIn(test_values));
 
-size_t test_values[]= {100, 1000, 10000, 100000 };
-
-INSTANTIATE_TEST_CASE_P(MyAlloc, MyAllocTest,
-                        ::testing::ValuesIn(test_values));
-
-TEST_P(MyAllocTest, NoMemoryLimit)
-{
-  m_num_objects= GetParam();
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-  {
-    for (size_t objcount= 0; objcount < m_num_objects; ++objcount)
+TEST_P(MyAllocTest, NoMemoryLimit) {
+  m_num_objects = GetParam();
+  for (size_t ix = 0; ix < num_iterations; ++ix) {
+    for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
       alloc_root(&m_root, 100);
   }
 }
 
-TEST_P(MyAllocTest, WithMemoryLimit)
-{
-  m_num_objects= GetParam();
+TEST_P(MyAllocTest, WithMemoryLimit) {
+  m_num_objects = GetParam();
   set_memroot_max_capacity(&m_root, num_iterations * m_num_objects * 100);
-  for (size_t ix= 0; ix < num_iterations; ++ix)
-  {
-    for (size_t objcount= 0; objcount < m_num_objects; ++objcount)
+  for (size_t ix = 0; ix < num_iterations; ++ix) {
+    for (size_t objcount = 0; objcount < m_num_objects; ++objcount)
       alloc_root(&m_root, 100);
   }
 }
 
-TEST_F(MyAllocTest, CheckErrorReporting)
-{
-  const void *null_pointer= NULL;
+TEST_F(MyAllocTest, CheckErrorReporting) {
+  const void *null_pointer = NULL;
   EXPECT_TRUE(alloc_root(&m_root, 1000));
   set_memroot_max_capacity(&m_root, 100);
   EXPECT_EQ(null_pointer, alloc_root(&m_root, 1000));
@@ -164,23 +137,20 @@ TEST_F(MyAllocTest, CheckErrorReporting)
   EXPECT_EQ(1, error_handler.handle_called());
 }
 
-TEST_F(MyAllocTest, MoveConstructorDoesNotLeak)
-{
+TEST_F(MyAllocTest, MoveConstructorDoesNotLeak) {
   MEM_ROOT alloc1(PSI_NOT_INSTRUMENTED, 512);
   (void)alloc1.Alloc(10);
   MEM_ROOT alloc2(PSI_NOT_INSTRUMENTED, 512);
   (void)alloc2.Alloc(30);
-  alloc1= std::move(alloc2);
+  alloc1 = std::move(alloc2);
 }
 
-TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations)
-{
+TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations) {
   MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
-  void *ptr= alloc.Alloc(600);
+  void *ptr = alloc.Alloc(600);
   alloc.ClearForReuse();
 
-  if (alloc.allocated_size() == 0)
-  {
+  if (alloc.allocated_size() == 0) {
     /*
       The MEM_ROOT was all cleared out (probably because we're running under
       Valgrind/ASAN), so we are obviously not doing any reuse. Moreover,
@@ -191,8 +161,8 @@ TEST_F(MyAllocTest, ExceptionalBlocksAreNotReusedForLargerAllocations)
   }
 
   // The allocated block is too small to satisfy this new, larger allocation.
-  void *ptr2= alloc.Alloc(605);
+  void *ptr2 = alloc.Alloc(605);
   EXPECT_NE(ptr, ptr2);
 }
 
-}
+}  // namespace my_alloc_unittest

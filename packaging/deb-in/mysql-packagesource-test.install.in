@@ -24,6 +24,7 @@
 usr/bin/mysql_client_test
 usr/bin/mysqltest
 usr/bin/mysqlxtest
+@DEB_INSTALL_MAN_TEST@
 # plugins
 usr/lib/mysql/plugin/auth.so
 usr/lib/mysql/plugin/auth_test_plugin.so

@@ -48,8 +48,7 @@ typedef struct PSI_idle_locker PSI_idle_locker;
   This memory is provided by the instrumented code for performance reasons.
   @sa start_idle_wait_v1_t.
 */
-struct PSI_idle_locker_state_v1
-{
+struct PSI_idle_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current thread. */
@@ -71,7 +70,8 @@ typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
   @return an idle locker, or NULL
 */
 typedef struct PSI_idle_locker *(*start_idle_wait_v1_t)(
-  struct PSI_idle_locker_state_v1 *state, const char *src_file, unsigned int src_line);
+    struct PSI_idle_locker_state_v1 *state, const char *src_file,
+    unsigned int src_line);
 
 /**
   Record an idle instrumentation wait end event.

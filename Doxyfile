@@ -102,7 +102,7 @@ PROJECT_NAME           = MySQL
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 9.0.0-dmr
+PROJECT_NUMBER         = 8.0.6-tr
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -879,7 +879,6 @@ INPUT                  = ./client \
                          ./plugin/test_service_sql_api \
                          ./plugin/version_token \
                          ./plugin/pfs_table_plugin \
-                         ./rapid \
                          ./sql \
                          ./sql-common \
                          ./storage \
@@ -1062,7 +1061,7 @@ INPUT_FILTER           =
 # need to set EXTENSION_MAPPING for the extension otherwise the files are not
 # properly processed by doxygen.
 
-FILTER_PATTERNS        = "*/sql/mysqld.cc=./doxygen_resources/doxygen-filter-mysqld"
+FILTER_PATTERNS        = "*/sql/mysqld.cc=perl ./doxygen_resources/doxygen-filter-mysqld"
 
 # If the FILTER_SOURCE_FILES tag is set to YES, the input filter (if set using
 # INPUT_FILTER) will also be used to filter the input files that are used for

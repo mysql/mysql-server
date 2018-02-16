@@ -33,8 +33,7 @@
 #include "plugin/semisync/semisync_master.h"
 #include "sql/sql_class.h"
 
-struct Slave
-{
+struct Slave {
   THD *thd;
   Vio *vio;
 
@@ -55,9 +54,8 @@ typedef Slave_vector::iterator Slave_vector_it;
   add_slave: maintain a new semisync slave's information
   remove_slave: remove a semisync slave's information
  */
-class Ack_receiver : public ReplSemiSyncBase
-{
-public:
+class Ack_receiver : public ReplSemiSyncBase {
+ public:
   Ack_receiver();
   ~Ack_receiver();
 
@@ -101,20 +99,16 @@ public:
   */
   void run();
 
-  void setTraceLevel(unsigned long trace_level)
-  {
-    trace_level_= trace_level;
-  }
+  void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 
-  bool init()
-  {
+  bool init() {
     setTraceLevel(rpl_semi_sync_master_trace_level);
-    if (rpl_semi_sync_master_enabled)
-      return start();
+    if (rpl_semi_sync_master_enabled) return start();
     return false;
   }
-private:
-  enum status {ST_UP, ST_DOWN, ST_STOPPING};
+
+ private:
+  enum status { ST_UP, ST_DOWN, ST_STOPPING };
   uint8 m_status;
   /*
     Protect m_status, m_slaves_changed and m_slaves. ack thread and other
@@ -127,9 +121,9 @@ private:
   Slave_vector m_slaves;
   my_thread_handle m_pid;
 
-/* Declare them private, so no one can copy the object. */
+  /* Declare them private, so no one can copy the object. */
   Ack_receiver(const Ack_receiver &ack_receiver);
-  Ack_receiver& operator=(const Ack_receiver &ack_receiver);
+  Ack_receiver &operator=(const Ack_receiver &ack_receiver);
 
   void set_stage_info(const PSI_stage_info &stage);
   void wait_for_slave_connection();

@@ -47,8 +47,7 @@
   @sa mysql_rwlock_unlock
   @sa mysql_rwlock_destroy
 */
-struct mysql_rwlock_t
-{
+struct mysql_rwlock_t {
   /** The real rwlock */
   native_rw_lock_t m_rwlock;
   /**
@@ -69,8 +68,7 @@ struct mysql_rwlock_t
   @sa mysql_prlock_unlock
   @sa mysql_prlock_destroy
 */
-struct mysql_prlock_t
-{
+struct mysql_prlock_t {
   /** The real prlock */
   rw_pr_lock_t m_prlock;
   /**

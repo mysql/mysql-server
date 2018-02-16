@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,29 +25,24 @@
 #ifndef X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
 #define X_PROTOCOL_PLUGIN_FILE_OUTPUT_H
 
-#include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
+#include <google/protobuf/descriptor.h>
 #include <algorithm>
 #include <memory>
-#include <string>
 #include <set>
-#include <vector>
+#include <string>
 #include <utility>
-
+#include <vector>
 
 class Chain_file_output {
  public:
   using ZeroCopyOutputStream = google::protobuf::io::ZeroCopyOutputStream;
-  using Context              = google::protobuf::compiler::GeneratorContext;
+  using Context = google::protobuf::compiler::GeneratorContext;
 
  public:
-  explicit Chain_file_output(const std::string &name)
-  : m_name(name) {
-  }
+  explicit Chain_file_output(const std::string &name) : m_name(name) {}
 
-  ~Chain_file_output() {
-    close();
-  }
+  ~Chain_file_output() { close(); }
 
   void close() {
     if (nullptr != m_chain_file) {
@@ -59,9 +54,7 @@ class Chain_file_output {
     }
   }
 
-  void append_chain(
-      Context *context,
-      const std::string &chain) {
+  void append_chain(Context *context, const std::string &chain) {
     start_output_if_not_started(context);
     writeln("    \"", chain, "\",");
   }
@@ -94,9 +87,7 @@ class Chain_file_output {
     }
   }
 
-  bool write_bin(
-      const char *buffer,
-      size_t size) {
+  bool write_bin(const char *buffer, size_t size) {
     void *data;
     int data_size;
 
@@ -108,8 +99,7 @@ class Chain_file_output {
       buffer += pushed;
       size -= pushed;
 
-      if (pushed < data_size)
-        m_chain_file->BackUp(data_size - pushed);
+      if (pushed < data_size) m_chain_file->BackUp(data_size - pushed);
     }
 
     return 0 == size;
@@ -119,22 +109,16 @@ class Chain_file_output {
     return write_bin(value.c_str(), value.length());
   }
 
-  template<typename... Types>
-  bool write(
-      const std::string &value,
-      Types&&... values) {
-    if (!write(value))
-      return false;
+  template <typename... Types>
+  bool write(const std::string &value, Types &&... values) {
+    if (!write(value)) return false;
 
     return write(std::forward<Types>(values)...);
   }
 
-  template<typename... Types>
-  bool writeln(
-      const std::string &value,
-      Types&&... values) {
-    if (!write(value))
-      return false;
+  template <typename... Types>
+  bool writeln(const std::string &value, Types &&... values) {
+    if (!write(value)) return false;
 
     return write(std::forward<Types>(values)..., "\n");
   }

@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @file
 
@@ -36,28 +35,27 @@
 #include <unistd.h>
 #endif
 
-#include "m_string.h"                  // my_stpcpy
+#include "m_string.h"  // my_stpcpy
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "my_time.h"                   // my_init_time
-#include "sql/mysqld.h"                // connection_events_loop_aborted(), ...
+#include "my_time.h"     // my_init_time
+#include "sql/mysqld.h"  // connection_events_loop_aborted(), ...
 
 #ifdef _WIN32
-#include <process.h> // getpid
+#include <process.h>  // getpid
 #endif
 
-void unireg_init(ulong options)
-{
+void unireg_init(ulong options) {
   DBUG_ENTER("unireg_init");
 
   error_handler_hook = my_message_stderr;
   set_connection_events_loop_aborted(false);
 
-  current_pid=(ulong) getpid();		/* Save for later ref */
-  my_init_time();			/* Init time-functions (read zone) */
+  current_pid = (ulong)getpid(); /* Save for later ref */
+  my_init_time();                /* Init time-functions (read zone) */
 
-  (void) my_stpcpy(reg_ext,".frm");
-  reg_ext_length= 4;
-  specialflag= options;  /* Set options from argv */
+  (void)my_stpcpy(reg_ext, ".frm");
+  reg_ext_length = 4;
+  specialflag = options; /* Set options from argv */
   DBUG_VOID_RETURN;
 }

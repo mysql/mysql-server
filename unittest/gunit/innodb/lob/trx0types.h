@@ -28,4 +28,4 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 
-#endif // _trx0types_h_
+#endif  // _trx0types_h_

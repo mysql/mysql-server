@@ -99,8 +99,6 @@ SET internal_tmp_mem_storage_engine=DEFAULT;
 # Bug#25894783 WL9603: CAN'T FIND RECORD IN '/TMP/#SQL6E16_3_4'
 #
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @sav_big= (SELECT COALESCE(@session.big_tables, 0));
 SET SESSION big_tables=1;
 CREATE TABLE `C` (

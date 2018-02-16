@@ -25,11 +25,10 @@
 
 class THD;
 
-
 /*
   Function prototypes
 */
 
-bool mysqld_help (THD *thd, const char *text);
+bool mysqld_help(THD *thd, const char *text);
 
 #endif /* SQL_HELP_INCLUDED */

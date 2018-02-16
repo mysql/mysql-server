@@ -48,8 +48,6 @@ TABLESPACE = "innodb_system");
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '"innodb_system")' at line 3
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode = 'ANSI_QUOTES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=COPY, ADD PARTITION
 (PARTITION twentythousands VALUES LESS THAN (30000)
 TABLESPACE = 'innodb_system');
@@ -61,8 +59,6 @@ ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION thirtythousands VALUES LESS THAN (40000)
 TABLESPACE = `innodb_file_per_table`);
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 ALGORITHM=DEFAULT, ADD PARTITION
 (PARTITION fortythousands VALUES LESS THAN (50000)
 (SUBPARTITION p40k_1 TABLESPACE = innodb_system DATA DIRECTORY = 'MYSQL_TMP_DIR',
@@ -261,8 +257,6 @@ SUBPARTITION BY KEY (b)
  (SUBPARTITION subpart31 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB,
   SUBPARTITION subpart32 TABLESPACE = `innodb_file_per_table` DATA DIRECTORY = 'MYSQL_TMP_DIR/' ENGINE = InnoDB)) */
 SET @@sql_mode = 'ANSI_QUOTES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL innodb_file_per_table = ON;
 FLUSH TABLES;
 SHOW CREATE TABLE t1;
@@ -335,8 +329,6 @@ ERROR 0A000: ALGORITHM=COPY/INPLACE is not supported for this operation. Try ALG
 ALTER TABLE t1 ALGORITHM=DEFAULT, DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t1#p#hundreds#sp#subpart21` because it is in a general tablespace. It must be file-per-table.
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t2 DISCARD TABLESPACE;
 ERROR 42000: InnoDB: Cannot discard table `test/t2#p#tens#sp#subpart11` because it is in a general tablespace. It must be file-per-table.
 call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation.");

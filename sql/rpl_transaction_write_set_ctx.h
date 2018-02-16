@@ -37,9 +37,8 @@
   Its value is reset on Transaction_ctx::cleanup().
   Its value is set through service service_rpl_transaction_ctx.
 */
-class Rpl_transaction_write_set_ctx
-{
-public:
+class Rpl_transaction_write_set_ctx {
+ public:
   Rpl_transaction_write_set_ctx();
   virtual ~Rpl_transaction_write_set_ctx() {}
 
@@ -83,7 +82,8 @@ public:
   /*
     function to check if the transaction was marked as having missing keys.
 
-    @retval true  If the transaction was marked as being referenced by a foreign key
+    @retval true  If the transaction was marked as being referenced by a foreign
+    key
   */
   bool get_has_related_foreign_keys();
 
@@ -93,7 +93,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void add_savepoint(char* name);
+  void add_savepoint(char *name);
 
   /**
     Function to delete a SAVEPOINT identifier in the savepoint map in the
@@ -101,7 +101,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void del_savepoint(char* name);
+  void del_savepoint(char *name);
 
   /**
     Function to delete all data added to write set and savepoint since
@@ -109,7 +109,7 @@ public:
 
     @param[in] name - the identifier name of the SAVEPOINT.
   */
-  void rollback_to_savepoint(char* name);
+  void rollback_to_savepoint(char *name);
 
   /**
     Function to push savepoint data to a list and clear the savepoint map in
@@ -123,7 +123,7 @@ public:
   */
   void restore_savepoint_list();
 
-private:
+ private:
   std::vector<uint64> write_set;
   bool m_has_missing_keys;
   bool m_has_related_foreign_keys;
@@ -142,4 +142,4 @@ private:
   std::list<std::map<std::string, size_t>> savepoint_list;
 };
 
-#endif	/* RPL_TRANSACTION_WRITE_SET_CTX_H */
+#endif /* RPL_TRANSACTION_WRITE_SET_CTX_H */

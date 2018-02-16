@@ -93,7 +93,6 @@ extern CHARSET_INFO my_charset_ucs2_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_ucs2_unicode_520_ci;
 extern CHARSET_INFO my_charset_ucs2_vietnamese_ci;
 
-
 extern CHARSET_INFO my_charset_utf32_general_ci;
 extern CHARSET_INFO my_charset_utf32_bin;
 extern CHARSET_INFO my_charset_utf32_german2_uca_ci;
@@ -119,7 +118,6 @@ extern CHARSET_INFO my_charset_utf32_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf32_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf32_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf32_vietnamese_ci;
-
 
 extern CHARSET_INFO my_charset_utf16_general_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_ci;
@@ -150,7 +148,6 @@ extern CHARSET_INFO my_charset_utf16_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf16_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf16_vietnamese_ci;
 
-
 extern CHARSET_INFO my_charset_utf8_tolower_ci;
 extern CHARSET_INFO my_charset_utf8_bin;
 extern CHARSET_INFO my_charset_utf8_general_mysql500_ci;
@@ -177,7 +174,6 @@ extern CHARSET_INFO my_charset_utf8_croatian_uca_ci;
 extern CHARSET_INFO my_charset_utf8_sinhala_uca_ci;
 extern CHARSET_INFO my_charset_utf8_unicode_520_ci;
 extern CHARSET_INFO my_charset_utf8_vietnamese_ci;
-
 
 extern CHARSET_INFO my_charset_utf8mb4_general_ci;
 extern CHARSET_INFO my_charset_utf8mb4_unicode_ci;
@@ -255,13 +251,11 @@ extern CHARSET_INFO my_charset_utf8mb4_ru_0900_as_cs;
 
 extern CHARSET_INFO my_charset_gb18030_unicode_520_ci;
 
-
-bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
-{
+bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused))) {
   CHARSET_INFO *cs;
 
   add_compiled_collation(&my_charset_bin);
-  
+
   add_compiled_collation(&my_charset_latin1);
   add_compiled_collation(&my_charset_latin1_bin);
   add_compiled_collation(&my_charset_latin1_german2_ci);
@@ -357,7 +351,6 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf8_sinhala_uca_ci);
   add_compiled_collation(&my_charset_utf8_unicode_520_ci);
   add_compiled_collation(&my_charset_utf8_vietnamese_ci);
-
 
   add_compiled_collation(&my_charset_utf8mb4_general_ci);
   add_compiled_collation(&my_charset_utf8mb4_bin);
@@ -462,7 +455,6 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf16_unicode_520_ci);
   add_compiled_collation(&my_charset_utf16_vietnamese_ci);
 
-
   add_compiled_collation(&my_charset_utf32_general_ci);
   add_compiled_collation(&my_charset_utf32_bin);
   add_compiled_collation(&my_charset_utf32_unicode_ci);
@@ -491,8 +483,7 @@ bool init_compiled_charsets(myf flags MY_ATTRIBUTE((unused)))
   add_compiled_collation(&my_charset_utf32_vietnamese_ci);
 
   /* Copy compiled charsets */
-  for (cs=compiled_charsets; cs->name; cs++)
-    add_compiled_collation(cs);
-  
+  for (cs = compiled_charsets; cs->name; cs++) add_compiled_collation(cs);
+
   return false;
 }

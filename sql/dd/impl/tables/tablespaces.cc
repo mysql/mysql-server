@@ -24,74 +24,58 @@
 
 #include <new>
 
-#include "sql/dd/impl/raw/object_keys.h"   // dd::Global_name_key
+#include "sql/dd/impl/raw/object_keys.h"  // dd::Global_name_key
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
-#include "sql/dd/impl/types/tablespace_impl.h" // dd::Tablespace_impl
+#include "sql/dd/impl/types/tablespace_impl.h"  // dd::Tablespace_impl
 
 namespace dd {
 namespace tables {
 
-const Tablespaces &Tablespaces::instance()
-{
-  static Tablespaces *s_instance= new Tablespaces();
+const Tablespaces &Tablespaces::instance() {
+  static Tablespaces *s_instance = new Tablespaces();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Tablespaces::Tablespaces()
-{
+Tablespaces::Tablespaces() {
   m_target_def.set_table_name("tablespaces");
 
-  m_target_def.add_field(FIELD_ID,
-                         "FIELD_ID",
+  m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   // We allow name lengths up to 259 bytes, which may be needed for InnoDB
   // implicit tablespaces (schema + table + partition + subpartition).
-  m_target_def.add_field(FIELD_NAME,
-                         "FIELD_NAME",
+  m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(259) NOT NULL COLLATE utf8_bin");
-  m_target_def.add_field(FIELD_OPTIONS,
-                         "FIELD_OPTIONS",
-                         "options MEDIUMTEXT");
-  m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
-                         "FIELD_SE_PRIVATE_DATA",
+  m_target_def.add_field(FIELD_OPTIONS, "FIELD_OPTIONS", "options MEDIUMTEXT");
+  m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
-  m_target_def.add_field(FIELD_COMMENT,
-                         "FIELD_COMMENT",
+  m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",
                          "comment VARCHAR(2048) NOT NULL");
-  m_target_def.add_field(FIELD_ENGINE,
-                         "FIELD_ENGINE",
+  m_target_def.add_field(FIELD_ENGINE, "FIELD_ENGINE",
                          "engine VARCHAR(64) NOT NULL");
 
-  m_target_def.add_index(INDEX_PK_ID,
-                         "INDEX_PK_ID",
-                         "PRIMARY KEY(id)");
-  m_target_def.add_index(INDEX_UK_NAME,
-                         "INDEX_UK_NAME",
-                         "UNIQUE KEY(name)");
+  m_target_def.add_index(INDEX_PK_ID, "INDEX_PK_ID", "PRIMARY KEY(id)");
+  m_target_def.add_index(INDEX_UK_NAME, "INDEX_UK_NAME", "UNIQUE KEY(name)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Tablespace*
-Tablespaces::create_entity_object(const Raw_record &) const
-{
+Tablespace *Tablespaces::create_entity_object(const Raw_record &) const {
   return new (std::nothrow) Tablespace_impl();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 bool Tablespaces::update_object_key(Global_name_key *key,
-                                    const String_type &tablespace_name)
-{
+                                    const String_type &tablespace_name) {
   key->update(FIELD_NAME, tablespace_name);
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

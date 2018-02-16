@@ -39,4 +39,4 @@ extern const uchar *skip_trailing_unalgn(const uchar *ptr, size_t len);
 extern const uchar *skip_trailing_4byte(const uchar *ptr, size_t len);
 extern const uchar *skip_trailing_8byte(const uchar *ptr, size_t len);
 
-}
+}  // namespace skip_trailing_space_unittest

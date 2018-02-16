@@ -52,8 +52,7 @@
 #define PSI_CURRENT_FILE_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_file_bootstrap
-{
+struct PSI_file_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -71,8 +70,7 @@ struct PSI_file_bootstrap
   Performance Schema file Interface, version 1.
   @since PSI_FILE_VERSION_1
 */
-struct PSI_file_service_v1
-{
+struct PSI_file_service_v1 {
   /** @sa register_file_v1_t. */
   register_file_v1_t register_file;
   /** @sa create_file_v1_t. */
@@ -89,10 +87,10 @@ struct PSI_file_service_v1
   end_file_open_wait_v1_t end_file_open_wait;
   /** @sa end_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_file_open_wait_and_bind_to_descriptor_v1_t
-    end_file_open_wait_and_bind_to_descriptor;
+      end_file_open_wait_and_bind_to_descriptor;
   /** @sa end_temp_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_temp_file_open_wait_and_bind_to_descriptor_v1_t
-    end_temp_file_open_wait_and_bind_to_descriptor;
+      end_temp_file_open_wait_and_bind_to_descriptor;
   /** @sa start_file_wait_v1_t. */
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */

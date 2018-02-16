@@ -40,7 +40,6 @@ class Table_map_log_event;
 typedef Table_map_log_event Mapped_table;
 #endif
 
-
 /**
   Maps table id's (integers) to table pointers.
 
@@ -49,31 +48,28 @@ typedef Table_map_log_event Mapped_table;
   In the server, "table pointer" means TABLE*.
 */
 class table_mapping {
-
-private:
+ private:
   MEM_ROOT m_mem_root;
 
-public:
-
+ public:
   enum enum_error {
-      ERR_NO_ERROR = 0,
-      ERR_LIMIT_EXCEEDED,
-      ERR_MEMORY_ALLOCATION
+    ERR_NO_ERROR = 0,
+    ERR_LIMIT_EXCEEDED,
+    ERR_MEMORY_ALLOCATION
   };
 
   table_mapping();
   ~table_mapping();
 
-  Mapped_table* get_table(ulonglong table_id);
+  Mapped_table *get_table(ulonglong table_id);
 
-  int       set_table(ulonglong table_id, Mapped_table* table);
-  int       remove_table(ulonglong table_id);
-  void      clear_tables();
-  ulong     count() const { return m_table_ids.size(); }
+  int set_table(ulonglong table_id, Mapped_table *table);
+  int remove_table(ulonglong table_id);
+  void clear_tables();
+  ulong count() const { return m_table_ids.size(); }
 
-private:
-
-  struct entry { 
+ private:
+  struct entry {
     ulonglong table_id;
     union {
       Mapped_table *table;

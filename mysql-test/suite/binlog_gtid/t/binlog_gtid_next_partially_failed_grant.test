@@ -39,7 +39,7 @@ CREATE USER u1@h;
 SELECT user FROM mysql.user where user='u1';
 
 --let $saved_master_pos=query_get_value('SHOW MASTER STATUS', Position, 1)
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 --echo #
 --echo # u1@h should not have been granted any permission

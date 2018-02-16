@@ -48,16 +48,13 @@ class Raw_record;
   @return false - on success.
 */
 bool Entity_object_table_impl::restore_object_from_record(
-  Open_dictionary_tables_ctx *otx,
-  const Raw_record &record,
-  Entity_object **o) const
-{
+    Open_dictionary_tables_ctx *otx, const Raw_record &record,
+    Entity_object **o) const {
   DBUG_ENTER("Entity_object_table_impl::restore_object_from_record");
 
   // Create object instance.
 
-  std::unique_ptr<Entity_object> obj(
-    this->create_entity_object(record));
+  std::unique_ptr<Entity_object> obj(this->create_entity_object(record));
 
   /*
     Restore object attributes from the found record.
@@ -65,18 +62,16 @@ bool Entity_object_table_impl::restore_object_from_record(
     Restore collections within this object.
   */
   if (obj->impl()->restore_attributes(record) ||
-      obj->impl()->restore_children(otx) ||
-      obj->impl()->validate())
-  {
-    *o= NULL;
+      obj->impl()->restore_children(otx) || obj->impl()->validate()) {
+    *o = NULL;
     DBUG_RETURN(true);
   }
 
-  *o= obj.release();
+  *o = obj.release();
 
   DBUG_RETURN(false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

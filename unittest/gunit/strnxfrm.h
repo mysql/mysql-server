@@ -34,25 +34,19 @@
 
 namespace strnxfrm_unittest {
 
-extern "C"
-size_t
-strnxfrm_orig(const CHARSET_INFO *cs,
-              uchar *dst, size_t dstlen, uint nweights,
-              const uchar *src, size_t srclen, uint flags);
-extern "C"
-size_t
-strnxfrm_orig_unrolled(const CHARSET_INFO *cs,
-                       uchar *dst, size_t dstlen, uint nweights,
-                       const uchar *src, size_t srclen, uint flags);
-extern "C"
-size_t
-strnxfrm_new(const CHARSET_INFO *cs,
-             uchar *dst, size_t dstlen, uint nweights,
-             const uchar *src, size_t srclen, uint flags);
-extern "C"
-size_t
-strnxfrm_new_unrolled(const CHARSET_INFO *cs,
-                      uchar *dst, size_t dstlen, uint nweights,
-                      const uchar *src, size_t srclen, uint flags);
+extern "C" size_t strnxfrm_orig(const CHARSET_INFO *cs, uchar *dst,
+                                size_t dstlen, uint nweights, const uchar *src,
+                                size_t srclen, uint flags);
+extern "C" size_t strnxfrm_orig_unrolled(const CHARSET_INFO *cs, uchar *dst,
+                                         size_t dstlen, uint nweights,
+                                         const uchar *src, size_t srclen,
+                                         uint flags);
+extern "C" size_t strnxfrm_new(const CHARSET_INFO *cs, uchar *dst,
+                               size_t dstlen, uint nweights, const uchar *src,
+                               size_t srclen, uint flags);
+extern "C" size_t strnxfrm_new_unrolled(const CHARSET_INFO *cs, uchar *dst,
+                                        size_t dstlen, uint nweights,
+                                        const uchar *src, size_t srclen,
+                                        uint flags);
 
-}
+}  // namespace strnxfrm_unittest

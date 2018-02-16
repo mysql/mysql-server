@@ -125,7 +125,7 @@ SET @@session.table_open_cache = 0;
 ####################################################################
 
 --disable_warnings
-SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache ';
+SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache';
 --enable_warnings
 
 

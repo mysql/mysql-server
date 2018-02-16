@@ -208,4 +208,4 @@ TEST(IsvalidTest, bug26476445_2) {
   gis::is_valid(m_srs2.get(), &mpy2, "unittest", &result);
   EXPECT_TRUE(result);
 }
-}  // namespace geometries_unittest
+}  // namespace isvalid_unittest

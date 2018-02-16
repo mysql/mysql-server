@@ -1,10 +1,6 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 USE test;
 drop table if exists tb3;
 create table tb3 (
@@ -240,13 +236,11 @@ Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ERROR 42000: You are not allowed to create a user with GRANT
 grant ALL  on priv_db.* to test_noprivs@localhost;
 revoke UPDATE  on priv_db.* from test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.* to test_yesprivs@localhost;
@@ -321,8 +315,7 @@ grant TRIGGER on *.* to test_noprivs@localhost;
 grant ALL  on priv_db.t1 to test_noprivs@localhost;
 revoke UPDATE  on priv_db.t1 from test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE on priv_db.t1 to test_yesprivs@localhost;
@@ -379,14 +372,12 @@ revoke ALL PRIVILEGES, GRANT OPTION FROM test_noprivs@localhost;
 grant TRIGGER on *.* to test_noprivs@localhost;
 grant SELECT (f1), INSERT (f1) on priv_db.t1 to test_noprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 revoke ALL PRIVILEGES, GRANT OPTION FROM test_yesprivs@localhost;
 grant TRIGGER on *.* to test_yesprivs@localhost;
 grant UPDATE (f1) on priv_db.t1 to test_yesprivs@localhost;
 show grants for test_noprivs;
-Grants for test_noprivs@%
-GRANT TRIGGER ON *.* TO `test_noprivs`@`%`
+ERROR 42000: There is no such grant defined for user 'test_noprivs' on host '%'
 show grants;
 Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO `test_noprivs`@`localhost`
@@ -737,9 +728,8 @@ drop database if exists priv_db;
 drop user test_yesprivs@localhost;
 drop user test_noprivs@localhost;
 drop user test_noprivs;
+ERROR HY000: Operation DROP USER failed for 'test_noprivs'@'%'
 use test;
 drop table tb3;
 set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;

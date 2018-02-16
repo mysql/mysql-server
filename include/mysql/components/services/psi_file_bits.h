@@ -60,8 +60,7 @@ struct PSI_file_locker;
 typedef struct PSI_file_locker PSI_file_locker;
 
 /** Operation performed on an instrumented file. */
-enum PSI_file_operation
-{
+enum PSI_file_operation {
   /** File creation, as in @c create(). */
   PSI_FILE_CREATE = 0,
   /** Temporary file creation, as in @c create_temp_file(). */
@@ -110,8 +109,7 @@ typedef enum PSI_file_operation PSI_file_operation;
   @since PSI_FILE_VERSION_1
   This structure is used to register an instrumented file.
 */
-struct PSI_file_info_v1
-{
+struct PSI_file_info_v1 {
   /**
     Pointer to the key assigned to the registered file.
   */
@@ -143,8 +141,7 @@ typedef struct PSI_file_info_v1 PSI_file_info_v1;
   @sa get_thread_file_stream_locker_v1_t
   @sa get_thread_file_descriptor_locker_v1_t
 */
-struct PSI_file_locker_state_v1
-{
+struct PSI_file_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current operation. */
@@ -175,8 +172,7 @@ typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
   @param count the size of the info array
 */
 typedef void (*register_file_v1_t)(const char *category,
-                                   struct PSI_file_info_v1 *info,
-                                   int count);
+                                   struct PSI_file_info_v1 *info, int count);
 
 /**
   Create a file instrumentation for a created file.
@@ -198,11 +194,8 @@ typedef void (*create_file_v1_t)(PSI_file_key key, const char *name, File file);
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker *(*get_thread_file_name_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  PSI_file_key key,
-  enum PSI_file_operation op,
-  const char *name,
-  const void *identity);
+    struct PSI_file_locker_state_v1 *state, PSI_file_key key,
+    enum PSI_file_operation op, const char *name, const void *identity);
 
 /**
   Get a file stream instrumentation locker.
@@ -212,9 +205,8 @@ typedef struct PSI_file_locker *(*get_thread_file_name_locker_v1_t)(
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker *(*get_thread_file_stream_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  struct PSI_file *file,
-  enum PSI_file_operation op);
+    struct PSI_file_locker_state_v1 *state, struct PSI_file *file,
+    enum PSI_file_operation op);
 
 /**
   Get a file instrumentation locker.
@@ -224,9 +216,8 @@ typedef struct PSI_file_locker *(*get_thread_file_stream_locker_v1_t)(
   @return a file locker, or NULL
 */
 typedef struct PSI_file_locker *(*get_thread_file_descriptor_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  File file,
-  enum PSI_file_operation op);
+    struct PSI_file_locker_state_v1 *state, File file,
+    enum PSI_file_operation op);
 
 /**
   Start a file instrumentation open operation.
@@ -245,7 +236,7 @@ typedef void (*start_file_open_wait_v1_t)(struct PSI_file_locker *locker,
   @return an instrumented file handle
 */
 typedef struct PSI_file *(*end_file_open_wait_v1_t)(
-  struct PSI_file_locker *locker, void *result);
+    struct PSI_file_locker *locker, void *result);
 
 /**
   End a file instrumentation open operation, for non stream files.
@@ -253,7 +244,7 @@ typedef struct PSI_file *(*end_file_open_wait_v1_t)(
   @param file the file number assigned by open() or create() for this file.
 */
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)(
-  struct PSI_file_locker *locker, File file);
+    struct PSI_file_locker *locker, File file);
 
 /**
   End a file instrumentation open operation, for non stream temporary files.
@@ -262,7 +253,7 @@ typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)(
   @param filename the file name generated during temporary file creation.
 */
 typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)(
-  struct PSI_file_locker *locker, File file, const char *filename);
+    struct PSI_file_locker *locker, File file, const char *filename);
 
 /**
   Record a file instrumentation start event.
@@ -272,8 +263,7 @@ typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)(
   @param src_line the source line number
 */
 typedef void (*start_file_wait_v1_t)(struct PSI_file_locker *locker,
-                                     size_t count,
-                                     const char *src_file,
+                                     size_t count, const char *src_file,
                                      unsigned int src_line);
 
 /**
@@ -309,12 +299,12 @@ typedef void (*start_file_close_wait_v1_t)(struct PSI_file_locker *locker,
 typedef void (*end_file_close_wait_v1_t)(struct PSI_file_locker *locker,
                                          int rc);
 
- /**
-  Rename a file instrumentation close operation.
-  @param locker the file locker.
-  @param old_name name of the file to be renamed.
-  @param new_name name of the file after rename.
-  @param rc the rename operation return code (0 for success).
+/**
+ Rename a file instrumentation close operation.
+ @param locker the file locker.
+ @param old_name name of the file to be renamed.
+ @param new_name name of the file after rename.
+ @param rc the rename operation return code (0 for success).
 */
 typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *old_name,

@@ -109,8 +109,6 @@ Note	1276	Field or reference 'test.t2.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,(/* select#2 */ select count(0) from `test`.`t1` where ((`test`.`t1`.`b` = `test`.`t2`.`a`) and (concat(`test`.`t1`.`b`,`test`.`t1`.`c`) = concat('0',`test`.`t2`.`a`,'01')))) AS `x` from `test`.`t2` order by `test`.`t2`.`a`
 DROP TABLE t1,t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a TIMESTAMP);
 INSERT INTO t1 VALUES (NOW()),(NOW()),(NOW());
 SELECT * FROM t1 WHERE a > '2008-01-01' AND a = '0000-00-00';

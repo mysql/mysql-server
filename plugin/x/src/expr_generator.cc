@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -98,8 +98,8 @@ void Expression_generator::generate(const Mysqlx::Expr::Identifier &arg,
   m_qb->quote_identifier_if_needed(arg.name());
 }
 
-void Expression_generator::generate(const Mysqlx::Expr::ColumnIdentifier &arg)
-    const {
+void Expression_generator::generate(
+    const Mysqlx::Expr::ColumnIdentifier &arg) const {
   bool has_schema_name = arg.has_schema_name() && !arg.schema_name().empty();
 
   if (has_schema_name && arg.has_table_name() == false)
@@ -173,8 +173,8 @@ void Expression_generator::generate(const Document_path &arg) const {
   m_qb->equote();
 }
 
-void Expression_generator::generate(const Mysqlx::Expr::FunctionCall &arg)
-    const {
+void Expression_generator::generate(
+    const Mysqlx::Expr::FunctionCall &arg) const {
   generate(arg.name(), true);
   m_qb->put("(");
   if (is_native_mysql_json_function(arg.name().name()))
@@ -197,8 +197,8 @@ void Expression_generator::generate(const Mysqlx::Datatypes::Any &arg) const {
   }
 }
 
-void Expression_generator::generate(const Mysqlx::Datatypes::Scalar &arg)
-    const {
+void Expression_generator::generate(
+    const Mysqlx::Datatypes::Scalar &arg) const {
   switch (arg.type()) {
     case Mysqlx::Datatypes::Scalar::V_UINT:
       m_qb->put(arg.v_unsigned_int());
@@ -321,8 +321,8 @@ void Expression_generator::generate_for_each(
   (this->*generate_fun)(*end);
 }
 
-void Expression_generator::generate_unquote_param(const Mysqlx::Expr::Expr &arg)
-    const {
+void Expression_generator::generate_unquote_param(
+    const Mysqlx::Expr::Expr &arg) const {
   if (arg.type() == Mysqlx::Expr::Expr::IDENT &&
       arg.identifier().document_path_size() > 0) {
     m_qb->put("JSON_UNQUOTE(");
@@ -414,7 +414,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg,
         m_qb->put(")");
         break;
       }
-    // Fall through.
+      // Fall through.
 
     default:
       m_qb->put("(");
@@ -456,8 +456,8 @@ void Expression_generator::generate_json_literal_param(
   }
 }
 
-void Expression_generator::generate_cont_in_param(const Mysqlx::Expr::Expr &arg)
-    const {
+void Expression_generator::generate_cont_in_param(
+    const Mysqlx::Expr::Expr &arg) const {
   switch (arg.type()) {
     case Mysqlx::Expr::Expr::IDENT:
       if (arg.identifier().document_path_size() < 1)
@@ -554,20 +554,29 @@ struct Interval_unit_validator {
 
   bool operator()(const char *source) const {
     // keep patterns in asc order
-    static const char *const patterns[] = {
-        "DAY",              "DAY_HOUR",           "DAY_MICROSECOND",
-        "DAY_MINUTE",       "DAY_SECOND",         "HOUR",
-        "HOUR_MICROSECOND", "HOUR_MINUTE",        "HOUR_SECOND",
-        "MICROSECOND",      "MINUTE",             "MINUTE_MICROSECOND",
-        "MINUTE_SECOND",    "MONTH",              "QUARTER",
-        "SECOND",           "SECOND_MICROSECOND", "WEEK",
-        "YEAR",             "YEAR_MONTH"};
+    static const char *const patterns[] = {"DAY",
+                                           "DAY_HOUR",
+                                           "DAY_MICROSECOND",
+                                           "DAY_MINUTE",
+                                           "DAY_SECOND",
+                                           "HOUR",
+                                           "HOUR_MICROSECOND",
+                                           "HOUR_MINUTE",
+                                           "HOUR_SECOND",
+                                           "MICROSECOND",
+                                           "MINUTE",
+                                           "MINUTE_MICROSECOND",
+                                           "MINUTE_SECOND",
+                                           "MONTH",
+                                           "QUARTER",
+                                           "SECOND",
+                                           "SECOND_MICROSECOND",
+                                           "WEEK",
+                                           "YEAR",
+                                           "YEAR_MONTH"};
 
-    return std::binary_search(
-        std::begin(patterns),
-        std::end(patterns),
-        source,
-        Is_less());
+    return std::binary_search(std::begin(patterns), std::end(patterns), source,
+                              Is_less());
   }
 
   const char *const m_error_msg;
@@ -623,8 +632,8 @@ void Expression_generator::date_expression(const Mysqlx::Expr::Operator &arg,
   m_qb->put(")");
 }
 
-void Expression_generator::cast_expression(const Mysqlx::Expr::Operator &arg)
-    const {
+void Expression_generator::cast_expression(
+    const Mysqlx::Expr::Operator &arg) const {
   if (arg.param_size() != 2)
     throw Error(ER_X_EXPR_BAD_NUM_ARGS,
                 "CAST expression requires exactly two parameters.");
@@ -653,8 +662,8 @@ void Expression_generator::binary_expression(const Mysqlx::Expr::Operator &arg,
 }
 
 namespace {
-using Operator_ptr = ngs::function<
-    void(const Expression_generator *, const Mysqlx::Expr::Operator &)>;
+using Operator_ptr = ngs::function<void(const Expression_generator *,
+                                        const Mysqlx::Expr::Operator &)>;
 using Operator_bind = std::pair<const char *const, Operator_ptr>;
 
 struct Is_operator_less {
@@ -717,11 +726,9 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const {
       {"||", ngs::bind(&Gen::binary_operator, _1, _2, " OR ")},
       {"~", ngs::bind(&Gen::unary_operator, _1, _2, "~")}};
 
-  const Operator_bind *op = std::lower_bound(
-      std::begin(operators),
-      std::end(operators),
-      arg.name(),
-      Is_operator_less());
+  const Operator_bind *op =
+      std::lower_bound(std::begin(operators), std::end(operators), arg.name(),
+                       Is_operator_less());
 
   if (op == std::end(operators) ||
       std::strcmp(arg.name().c_str(), op->first) != 0)
@@ -730,8 +737,8 @@ void Expression_generator::generate(const Mysqlx::Expr::Operator &arg) const {
   op->second(this, arg);
 }
 
-void Expression_generator::asterisk_operator(const Mysqlx::Expr::Operator &arg)
-    const {
+void Expression_generator::asterisk_operator(
+    const Mysqlx::Expr::Operator &arg) const {
   switch (arg.param_size()) {
     case 0:
       m_qb->put("*");
@@ -761,8 +768,8 @@ void Expression_generator::nullary_operator(const Mysqlx::Expr::Operator &arg,
   m_qb->put(str);
 }
 
-Expression_generator Expression_generator::clone(Query_string_builder *qb)
-    const {
+Expression_generator Expression_generator::clone(
+    Query_string_builder *qb) const {
   return Expression_generator(qb, m_args, m_default_schema, m_is_relational);
 }
 

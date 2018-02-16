@@ -88,10 +88,9 @@ String *EvalExprToCharset(Item *expr, String *out);
 class Regexp_facade {
  public:
   explicit Regexp_facade(uint flags)
-    : m_flags(flags),
-      m_current_subject(static_cast<const char*>(nullptr), 0,
-                        regexp_lib_charset)
-  {}
+      : m_flags(flags),
+        m_current_subject(static_cast<const char *>(nullptr), 0,
+                          regexp_lib_charset) {}
 
   /**
     Sets the pattern if called for the first time or the pattern_expr is

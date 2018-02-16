@@ -22,8 +22,7 @@
 
 #include "unittest/mytap/tap.h"
 
-int main()
-{
+int main() {
   plan(4);
   ok1(1);
   ok1(1);

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,17 +30,14 @@
 namespace ngs {
 
 class Vio_interface {
-public:
-  enum class Direction {
-    k_read = 0,
-    k_write = 1
-  };
+ public:
+  enum class Direction { k_read = 0, k_write = 1 };
 
-  virtual ssize_t read(uchar* buffer, ssize_t bytes_to_send) = 0;
-  virtual ssize_t write(const uchar* buffer, ssize_t bytes_to_send) = 0;
+  virtual ssize_t read(uchar *buffer, ssize_t bytes_to_send) = 0;
+  virtual ssize_t write(const uchar *buffer, ssize_t bytes_to_send) = 0;
 
   virtual void set_timeout(const Direction direction,
-      const uint32_t timeout) = 0;
+                           const uint32_t timeout) = 0;
 
   virtual void set_state(const PSI_socket_state state) = 0;
   virtual void set_thread_owner() = 0;
@@ -56,7 +53,6 @@ public:
   virtual ~Vio_interface() = default;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_VIO_INTERFACE_H_
-
+#endif  // _NGS_VIO_INTERFACE_H_

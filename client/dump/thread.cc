@@ -24,9 +24,6 @@
 
 #include "client/dump/thread.h"
 
-void my_boost::thread::join()
-{
-  if (my_thread_join(&m_thread, NULL))
-    throw std::exception();
+void my_boost::thread::join() {
+  if (my_thread_join(&m_thread, NULL)) throw std::exception();
 }
-

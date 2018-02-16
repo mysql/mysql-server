@@ -29,16 +29,12 @@
 using namespace Mysql::Tools::Dump;
 
 Mysql_chain_element_options::Mysql_chain_element_options(
-  Mysql::Tools::Base::Abstract_connection_program* program)
-  : m_program(program)
-{}
+    Mysql::Tools::Base::Abstract_connection_program *program)
+    : m_program(program) {}
 
-void Mysql_chain_element_options::create_options()
-{
-}
+void Mysql_chain_element_options::create_options() {}
 
-Mysql::Tools::Base::Abstract_connection_program*
-  Mysql_chain_element_options::get_program() const
-{
+Mysql::Tools::Base::Abstract_connection_program *
+Mysql_chain_element_options::get_program() const {
   return m_program;
 }

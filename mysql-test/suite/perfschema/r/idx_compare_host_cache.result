@@ -73,10 +73,8 @@ select `User`, `Host` from mysql.`user` where `user` like '2001:%';
 User	Host
 select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
 User	Host
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (SELECT REPLACE(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER 'user4'@'santa.claus.ipv4.example.com';
 GRANT SELECT ON test.* TO 'user4'@'santa.claus.ipv4.example.com';
-SET sql_mode= @orig_sql_mode;
 SET global debug= "+d,vio_peer_addr_fake_ipv4,getnameinfo_fake_ipv4,getaddrinfo_fake_good_ipv4";
 SELECT "Con4 is alive" AS "";
 

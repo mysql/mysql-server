@@ -40,73 +40,59 @@
   @param  s2 pointer to record 2
   @return true/false according to sorting order
  */
-inline
-bool cmp_varlen_keys(Bounds_checked_array<st_sort_field> sort_field_array,
-                     bool use_hash, const uchar *s1, const uchar *s2)
-{
-  const uchar *kp1= s1 + Sort_param::size_of_varlength_field;
-  const uchar *kp2= s2 + Sort_param::size_of_varlength_field;
+inline bool cmp_varlen_keys(
+    Bounds_checked_array<st_sort_field> sort_field_array, bool use_hash,
+    const uchar *s1, const uchar *s2) {
+  const uchar *kp1 = s1 + Sort_param::size_of_varlength_field;
+  const uchar *kp2 = s2 + Sort_param::size_of_varlength_field;
   int res;
-  for (const st_sort_field &sort_field : sort_field_array)
-  {
+  for (const st_sort_field &sort_field : sort_field_array) {
     uint kp1_len, kp2_len, kp_len;
-    if (sort_field.maybe_null)
-    {
-      const int k1_nullbyte= *kp1++;
-      const int k2_nullbyte= *kp2++;
-      if (k1_nullbyte != k2_nullbyte)
-        return k1_nullbyte < k2_nullbyte;
-      if (k1_nullbyte == 0 || k1_nullbyte == 0xff)
-      {
-        if (!sort_field.is_varlen)
-        {
-          kp1+= sort_field.length;
-          kp2+= sort_field.length;
+    if (sort_field.maybe_null) {
+      const int k1_nullbyte = *kp1++;
+      const int k2_nullbyte = *kp2++;
+      if (k1_nullbyte != k2_nullbyte) return k1_nullbyte < k2_nullbyte;
+      if (k1_nullbyte == 0 || k1_nullbyte == 0xff) {
+        if (!sort_field.is_varlen) {
+          kp1 += sort_field.length;
+          kp2 += sort_field.length;
         }
-        continue; // Both key parts are null, nothing to compare
+        continue;  // Both key parts are null, nothing to compare
       }
     }
-    if (sort_field.is_varlen)
-    {
+    if (sort_field.is_varlen) {
       DBUG_ASSERT(uint4korr(kp1) >= 4);
       DBUG_ASSERT(uint4korr(kp2) >= 4);
 
-      kp1_len= uint4korr(kp1) - 4;
-      kp1+= 4;
+      kp1_len = uint4korr(kp1) - 4;
+      kp1 += 4;
 
-      kp2_len= uint4korr(kp2) - 4;
-      kp2+= 4;
+      kp2_len = uint4korr(kp2) - 4;
+      kp2 += 4;
 
-      kp_len= std::min(kp1_len, kp2_len);
-    }
-    else
-    {
-      kp_len= kp1_len= kp2_len= sort_field.length;
+      kp_len = std::min(kp1_len, kp2_len);
+    } else {
+      kp_len = kp1_len = kp2_len = sort_field.length;
     }
 
-    res= memcmp(kp1, kp2, kp_len);
+    res = memcmp(kp1, kp2, kp_len);
 
-    if (res)
-      return res < 0;
-    if (kp1_len != kp2_len)
-    {
+    if (res) return res < 0;
+    if (kp1_len != kp2_len) {
       if (sort_field.reverse)
         return kp2_len < kp1_len;
       else
         return kp1_len < kp2_len;
     }
 
-    kp1+= kp1_len;
-    kp2+= kp2_len;
+    kp1 += kp1_len;
+    kp2 += kp2_len;
   }
 
-  if (use_hash)
-  {
+  if (use_hash) {
     // Compare hashes at the end of sort keys
     return memcmp(kp1, kp2, 8) < 0;
-  }
-  else
-  {
+  } else {
     return false;
   }
 }

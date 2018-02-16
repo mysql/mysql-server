@@ -39,12 +39,12 @@
 
 extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];
 
-extern USED_MEM* my_once_root_block;
-extern uint	 my_once_extra;
+extern USED_MEM *my_once_root_block;
+extern uint my_once_extra;
 
 extern struct st_my_file_info my_file_info_default[MY_NFILE];
 
 extern ulonglong query_performance_frequency, query_performance_offset,
-                 query_performance_offset_micros;
+    query_performance_offset_micros;
 
 #endif /* MYSYS_MY_STATIC_INCLUDED */

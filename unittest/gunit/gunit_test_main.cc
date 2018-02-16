@@ -33,34 +33,22 @@
 #include "mysql/psi/mysql_mutex.h"
 
 class Cost_constant_cache;
-CHARSET_INFO *system_charset_info= NULL;
+CHARSET_INFO *system_charset_info = NULL;
 class THD;
 
 namespace {
 
-bool opt_use_tap= false;
-bool opt_unit_help= false;
+bool opt_use_tap = false;
+bool opt_unit_help = false;
 
-struct my_option unittest_options[] =
-{
-  { "tap-output", 1, "TAP (default) or gunit output.",
-    &opt_use_tap, &opt_use_tap, NULL,
-    GET_BOOL, OPT_ARG,
-    opt_use_tap, 0, 1, 0,
-    0, NULL
-  },
-  { "help", 2, "Help.",
-    &opt_unit_help, &opt_unit_help, NULL,
-    GET_BOOL, NO_ARG,
-    opt_unit_help, 0, 1, 0,
-    0, NULL
-  },
-  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
-};
+struct my_option unittest_options[] = {
+    {"tap-output", 1, "TAP (default) or gunit output.", &opt_use_tap,
+     &opt_use_tap, NULL, GET_BOOL, OPT_ARG, opt_use_tap, 0, 1, 0, 0, NULL},
+    {"help", 2, "Help.", &opt_unit_help, &opt_unit_help, NULL, GET_BOOL, NO_ARG,
+     opt_unit_help, 0, 1, 0, 0, NULL},
+    {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}};
 
-
-extern "C" bool get_one_option(int, const struct my_option *, char *)
-{
+extern "C" bool get_one_option(int, const struct my_option *, char *) {
   return false;
 }
 
@@ -68,22 +56,17 @@ extern "C" bool get_one_option(int, const struct my_option *, char *)
 
 // Some globals needed for merge_small_tests.cc
 mysql_mutex_t LOCK_open;
-uint    opt_debug_sync_timeout= 0;
-thread_local MEM_ROOT **THR_MALLOC= nullptr;
-thread_local THD *current_thd= nullptr;
+uint opt_debug_sync_timeout = 0;
+thread_local MEM_ROOT **THR_MALLOC = nullptr;
+thread_local THD *current_thd = nullptr;
 // Needed for linking with opt_costconstantcache.cc and Fake_Cost_model_server
-Cost_constant_cache *cost_constant_cache= NULL;
+Cost_constant_cache *cost_constant_cache = NULL;
 
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
+extern "C" void sql_alloc_error_handler(void) { ADD_FAILURE(); }
 
 extern void install_tap_listener();
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
@@ -92,13 +75,13 @@ int main(int argc, char **argv)
 
   if (handle_options(&argc, &argv, unittest_options, get_one_option))
     return EXIT_FAILURE;
-  if (opt_use_tap)
-    install_tap_listener();
+  if (opt_use_tap) install_tap_listener();
   if (opt_unit_help)
-    printf("\n\nTest options: [--[enable-]tap-output] output TAP "
-           "rather than googletest format\n");
+    printf(
+        "\n\nTest options: [--[enable-]tap-output] output TAP "
+        "rather than googletest format\n");
 
-  const int retval= RUN_ALL_TESTS();
+  const int retval = RUN_ALL_TESTS();
   mysql_mutex_destroy(&LOCK_open);
   my_end(0);
   return retval;

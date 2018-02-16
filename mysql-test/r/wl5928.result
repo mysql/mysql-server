@@ -1,8 +1,6 @@
 # WL#5928: Most statements should clear the diagnostic area
 SELECT @@max_heap_table_size INTO @old_max_heap_table_size;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Throw error, run some queries that shouldn't change diagnostics.
 #

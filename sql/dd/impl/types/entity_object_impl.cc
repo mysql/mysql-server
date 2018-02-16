@@ -24,16 +24,15 @@
 
 #include <new>
 
-#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
 #include <rapidjson/document.h>
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
-#include "sql/dd/impl/raw/object_keys.h" // dd::Primary_id_key
-#include "sql/dd/impl/raw/raw_record.h" // dd::Raw_new_record
-#include "sql/dd/impl/sdi_impl.h"    // sdi read/write functions
-
+#include "sql/dd/impl/raw/object_keys.h"  // dd::Primary_id_key
+#include "sql/dd/impl/raw/raw_record.h"   // dd::Raw_new_record
+#include "sql/dd/impl/sdi_impl.h"         // sdi read/write functions
 
 namespace dd {
 
@@ -43,8 +42,7 @@ class Object_key;
 class Sdi_rcontext;
 class Sdi_wcontext;
 
-void Entity_object_impl::set_primary_key_value(const Raw_new_record &r)
-{
+void Entity_object_impl::set_primary_key_value(const Raw_new_record &r) {
   /*
     Don't set primary key value if object has one assigned already.
     Raw_new_record::get_insert_id() doesn't work correctly if value for
@@ -55,65 +53,57 @@ void Entity_object_impl::set_primary_key_value(const Raw_new_record &r)
     that parent entity has new ID which was not used before (and hence
     children primary keys based on this ID will be new too).
   */
-  if (m_id == INVALID_OBJECT_ID)
-    m_id= r.get_insert_id();
+  if (m_id == INVALID_OBJECT_ID) m_id = r.get_insert_id();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *Entity_object_impl::create_primary_key() const
-{
+Object_key *Entity_object_impl::create_primary_key() const {
   return new (std::nothrow) Primary_id_key(id());
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Entity_object_impl::restore_id(const Raw_record &r, int field_idx)
-{
-  m_id= r.read_int(field_idx);
+void Entity_object_impl::restore_id(const Raw_record &r, int field_idx) {
+  m_id = r.read_int(field_idx);
   fix_has_new_primary_key();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Entity_object_impl::restore_name(const Raw_record &r, int field_idx)
-{
-  m_name= r.read_str(field_idx);
+void Entity_object_impl::restore_name(const Raw_record &r, int field_idx) {
+  m_name = r.read_str(field_idx);
 }
 ///////////////////////////////////////////////////////////////////////////
 
-bool Entity_object_impl::store_id(Raw_record *r, int field_idx)
-{
+bool Entity_object_impl::store_id(Raw_record *r, int field_idx) {
   return r->store_pk_id(field_idx, m_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Entity_object_impl::store_name(Raw_record *r, int field_idx, bool is_null)
-{
+bool Entity_object_impl::store_name(Raw_record *r, int field_idx,
+                                    bool is_null) {
   return r->store(field_idx, m_name, is_null);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Entity_object_impl::store_name(Raw_record *r, int field_idx)
-{
+bool Entity_object_impl::store_name(Raw_record *r, int field_idx) {
   return store_name(r, field_idx, false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-void Entity_object_impl::serialize(Sdi_wcontext*, Sdi_writer *w) const
-{
+void Entity_object_impl::serialize(Sdi_wcontext *, Sdi_writer *w) const {
   write(w, m_name, STRING_WITH_LEN("name"));
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Entity_object_impl::deserialize(Sdi_rcontext*, const RJ_Value &val)
-{
+bool Entity_object_impl::deserialize(Sdi_rcontext *, const RJ_Value &val) {
   return read(&m_name, val, "name");
 }
 
 ///////////////////////////////////////////////////////////////////////////
-}
+}  // namespace dd

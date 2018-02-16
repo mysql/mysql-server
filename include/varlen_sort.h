@@ -43,7 +43,7 @@
 */
 struct varlen_element {
   varlen_element(unsigned char *ptr_arg, size_t elem_size_arg)
-    : ptr(ptr_arg), elem_size(elem_size_arg) {}
+      : ptr(ptr_arg), elem_size(elem_size_arg) {}
 
   varlen_element(varlen_element &other) = delete;
 
@@ -51,153 +51,138 @@ struct varlen_element {
     In this case, we need to own the memory ourselves. It is really only used
     when std::sort wants to do an insertion sort and needs a temporary element.
   */
-  varlen_element(varlen_element &&other)
-    : elem_size(other.elem_size)
-  {
-    if (other.mem != nullptr)
-    {
-      mem= std::move(other.mem);
-    }
-    else
-    {
+  varlen_element(varlen_element &&other) : elem_size(other.elem_size) {
+    if (other.mem != nullptr) {
+      mem = std::move(other.mem);
+    } else {
       mem.reset(new unsigned char[other.elem_size]);
       memcpy(mem.get(), other.ptr, elem_size);
     }
-    ptr= mem.get();
+    ptr = mem.get();
   }
 
-  varlen_element& operator=(const varlen_element &other) = delete;
-  varlen_element& operator=(varlen_element &&other)
-  {
+  varlen_element &operator=(const varlen_element &other) = delete;
+  varlen_element &operator=(varlen_element &&other) {
     DBUG_ASSERT(elem_size == other.elem_size);
     memcpy(ptr, other.ptr, elem_size);
     return *this;
   }
 
   std::unique_ptr<unsigned char[]> mem;
-  unsigned char *ptr= nullptr;
+  unsigned char *ptr = nullptr;
   size_t elem_size = 0;
 };
 
 // ValueSwappable.
-static inline void swap(const varlen_element &a, const varlen_element &b)
-{
+static inline void swap(const varlen_element &a, const varlen_element &b) {
   DBUG_ASSERT(a.elem_size == b.elem_size);
   std::swap_ranges(a.ptr, a.ptr + a.elem_size, b.ptr);
 }
 
 // Conceptually similar to a _pointer_ to an uchar[N].
 class varlen_iterator {
-public:
+ public:
   varlen_iterator(unsigned char *ptr_arg, size_t elem_size_arg)
-    : ptr(ptr_arg), elem_size(elem_size_arg) {}
+      : ptr(ptr_arg), elem_size(elem_size_arg) {}
 
   // Iterator (required for InputIterator).
   varlen_element operator*() const { return varlen_element{ptr, elem_size}; }
-  varlen_iterator& operator++() { ptr+= elem_size; return *this; }
+  varlen_iterator &operator++() {
+    ptr += elem_size;
+    return *this;
+  }
 
   // EqualityComparable (required for InputIterator).
-  bool operator== (const varlen_iterator &other) const
-  {
+  bool operator==(const varlen_iterator &other) const {
     return ptr == other.ptr && elem_size == other.elem_size;
   }
 
   // InputIterator (required for ForwardIterator).
-  bool operator!= (const varlen_iterator &other) const
-  {
+  bool operator!=(const varlen_iterator &other) const {
     return !(*this == other);
   }
 
-  varlen_element operator->() const
-  {
-    return varlen_element{ptr, elem_size};
-  }
+  varlen_element operator->() const { return varlen_element{ptr, elem_size}; }
 
   // DefaultConstructible (required for ForwardIterator).
   varlen_iterator() {}
 
   // ForwardIterator (required for RandomAccessIterator).
-  varlen_iterator operator++(int)
-  {
-    varlen_iterator copy= *this;
-    ptr+= elem_size;
+  varlen_iterator operator++(int) {
+    varlen_iterator copy = *this;
+    ptr += elem_size;
     return copy;
   }
 
   // BidirectionalIterator (required for RandomAccessIterator).
-  varlen_iterator& operator--() { ptr-= elem_size; return *this; }
-  varlen_iterator operator--(int)
-  {
-    varlen_iterator copy= *this;
-    ptr-= elem_size;
+  varlen_iterator &operator--() {
+    ptr -= elem_size;
+    return *this;
+  }
+  varlen_iterator operator--(int) {
+    varlen_iterator copy = *this;
+    ptr -= elem_size;
     return copy;
   }
 
   // RandomAccessIterator.
-  varlen_iterator& operator+=(size_t n)
-  {
-    ptr+= elem_size * n;
+  varlen_iterator &operator+=(size_t n) {
+    ptr += elem_size * n;
     return *this;
   }
 
-  varlen_iterator& operator-=(size_t n)
-  {
-    ptr-= elem_size * n;
+  varlen_iterator &operator-=(size_t n) {
+    ptr -= elem_size * n;
     return *this;
   }
 
-  varlen_iterator operator+(size_t n) const
-  {
+  varlen_iterator operator+(size_t n) const {
     return varlen_iterator{ptr + elem_size * n, elem_size};
   }
 
-  varlen_iterator operator-(size_t n) const
-  {
+  varlen_iterator operator-(size_t n) const {
     return varlen_iterator{ptr - elem_size * n, elem_size};
   }
 
-  ptrdiff_t operator-(const varlen_iterator& other) const
-  {
+  ptrdiff_t operator-(const varlen_iterator &other) const {
     DBUG_ASSERT(elem_size == other.elem_size);
     DBUG_ASSERT((ptr - other.ptr) % elem_size == 0);
     return (ptr - other.ptr) / elem_size;
   }
 
-  varlen_element operator[](size_t i) const
-  {
+  varlen_element operator[](size_t i) const {
     return varlen_element{ptr + i * elem_size, elem_size};
   }
 
-  bool operator<(varlen_iterator& other) const
-  {
+  bool operator<(varlen_iterator &other) const {
     DBUG_ASSERT(elem_size == other.elem_size);
     return ptr < other.ptr;
   }
 
-  bool operator>(varlen_iterator& other) const {
+  bool operator>(varlen_iterator &other) const {
     DBUG_ASSERT(elem_size == other.elem_size);
     return ptr > other.ptr;
   }
 
-  bool operator>=(varlen_iterator& other) const {
+  bool operator>=(varlen_iterator &other) const {
     DBUG_ASSERT(elem_size == other.elem_size);
     return ptr >= other.ptr;
   }
 
-  bool operator<=(varlen_iterator& other) const {
+  bool operator<=(varlen_iterator &other) const {
     DBUG_ASSERT(elem_size == other.elem_size);
     return ptr <= other.ptr;
   }
 
-private:
-  unsigned char *ptr= nullptr;
+ private:
+  unsigned char *ptr = nullptr;
   size_t elem_size = 0;
 };
 
 namespace std {
 
 // Required for Iterator.
-template<>
+template <>
 struct iterator_traits<varlen_iterator> : iterator_traits<varlen_element *> {};
 
 }  // namespace std
@@ -206,15 +191,13 @@ struct iterator_traits<varlen_iterator> : iterator_traits<varlen_element *> {};
   Compare should be a functor that takes in two T*.
   T does not need to be char or uchar.
 */
-template<class T, class Compare>
-inline void varlen_sort(T *first, T *last, size_t elem_size, Compare comp)
-{
+template <class T, class Compare>
+inline void varlen_sort(T *first, T *last, size_t elem_size, Compare comp) {
   std::sort(varlen_iterator(pointer_cast<unsigned char *>(first), elem_size),
             varlen_iterator(pointer_cast<unsigned char *>(last), elem_size),
-    [comp](const varlen_element &a, const varlen_element &b)
-    {
-      return comp(pointer_cast<T *>(a.ptr), pointer_cast<T *>(b.ptr));
-    });
+            [comp](const varlen_element &a, const varlen_element &b) {
+              return comp(pointer_cast<T *>(a.ptr), pointer_cast<T *>(b.ptr));
+            });
 }
 
 #endif  // !defined(VARLEN_SORT_INCLUDED)

@@ -45,8 +45,7 @@ struct TABLE;
 struct THR_LOCK;
 
 /** A row in the table */
-struct st_row_applier_filters
-{
+struct st_row_applier_filters {
   /* The name of the channel */
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
@@ -84,11 +83,10 @@ struct st_row_applier_filters
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_applier_filters */
-class table_replication_applier_filters : public PFS_engine_table
-{
+class table_replication_applier_filters : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-private:
+ private:
   /**
     Make a row by an object of Rpl_pfs_filter.
 
@@ -110,7 +108,7 @@ private:
   /** Next position. */
   pos_t m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -120,14 +118,12 @@ protected:
 
     @retval 0 if HAVE_REPLICATION is defined, else HA_ERR_RECORD_DELETED.
   */
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_replication_applier_filters();
 
-public:
+ public:
   ~table_replication_applier_filters();
 
   /** Table share. */

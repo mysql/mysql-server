@@ -308,7 +308,7 @@ Mysqlx.Crud.Delete {
 -->echo ######### list_clients #########
 -->sql
 create user unpriv@localhost;
-set password for unpriv@localhost = password('x');
+set password for unpriv@localhost = 'x';
 -->endsql
 -->stmtadmin list_clients
 -->recvresult

@@ -108,8 +108,6 @@ DROP TABLE t3,t2,t1;
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
@@ -558,7 +556,6 @@ DROP TABLE t1;
 SET sql_mode='ERROR_FOR_DIVISION_BY_ZERO,STRICT_ALL_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a TINYINT);
 INSERT INTO t1 VALUES(2/0);
 ERROR 22012: Division by 0
@@ -625,8 +622,6 @@ NULL	82	0	84
 NULL	92	93	0
 DROP TABLE t1;
 SET sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 #
 # Part 5 : Test cases for the non transactional (MyIsam) engine.
@@ -634,8 +629,6 @@ Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be r
 CREATE TABLE t1 (a INT) ENGINE = MyISAM;
 INSERT INTO t1 VALUES (1),(NULL),(2);
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 CHANGE a a INT NOT NULL;
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 2
@@ -824,22 +817,18 @@ SET sql_mode= @org_mode;
 SET sql_mode='STRICT_TRANS_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t2 (a int default 0, b int primary key) engine=innodb;
 INSERT INTO t2 VALUES (0, 17);
 LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t2 (a, @b) SET b= @b + 2;
 ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
 DROP TABLE t2;
 SET sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#18662043 - ASSERT IN MY_OK() IN SQL_CMD_SIGNAL::EXECUTE
 #
 SET sql_mode='STRICT_TRANS_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE PROCEDURE p1()
 BEGIN
 # warning
@@ -854,8 +843,6 @@ Warning	1261	Unhandled user-defined warning condition
 DROP PROCEDURE p1;
 # Restore the orginal sql_mode
 SET sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug #19873291 : MYSQL_EXECUTE_COMMAND(THD*): ASSERTION
 #                 `THD->IS_ERROR() || THD->KILLED' FAILED

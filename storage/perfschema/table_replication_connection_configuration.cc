@@ -45,68 +45,64 @@
 THR_LOCK table_replication_connection_configuration::m_table_lock;
 
 Plugin_table table_replication_connection_configuration::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "replication_connection_configuration",
-  /* Definition */
-  "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
-  "  HOST CHAR(60) collate utf8_bin not null,\n"
-  "  PORT INTEGER not null,\n"
-  "  USER CHAR(32) collate utf8_bin not null,\n"
-  "  NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,\n"
-  "  AUTO_POSITION ENUM('1','0') not null,\n"
-  "  SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,\n"
-  "  SSL_CA_FILE VARCHAR(512) not null,\n"
-  "  SSL_CA_PATH VARCHAR(512) not null,\n"
-  "  SSL_CERTIFICATE VARCHAR(512) not null,\n"
-  "  SSL_CIPHER VARCHAR(512) not null,\n"
-  "  SSL_KEY VARCHAR(512) not null,\n"
-  "  SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,\n"
-  "  SSL_CRL_FILE VARCHAR(255) not null,\n"
-  "  SSL_CRL_PATH VARCHAR(255) not null,\n"
-  "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
-  "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
-  "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
-  "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
-  "  TLS_VERSION VARCHAR(255) not null,\n"
-  "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
-  "  GET_PUBLIC_KEY ENUM('YES', 'NO') not null,\n"
-  "  PRIMARY KEY (channel_name) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "replication_connection_configuration",
+    /* Definition */
+    "  CHANNEL_NAME CHAR(64) collate utf8_general_ci not null,\n"
+    "  HOST CHAR(60) collate utf8_bin not null,\n"
+    "  PORT INTEGER not null,\n"
+    "  USER CHAR(32) collate utf8_bin not null,\n"
+    "  NETWORK_INTERFACE CHAR(60) collate utf8_bin not null,\n"
+    "  AUTO_POSITION ENUM('1','0') not null,\n"
+    "  SSL_ALLOWED ENUM('YES','NO','IGNORED') not null,\n"
+    "  SSL_CA_FILE VARCHAR(512) not null,\n"
+    "  SSL_CA_PATH VARCHAR(512) not null,\n"
+    "  SSL_CERTIFICATE VARCHAR(512) not null,\n"
+    "  SSL_CIPHER VARCHAR(512) not null,\n"
+    "  SSL_KEY VARCHAR(512) not null,\n"
+    "  SSL_VERIFY_SERVER_CERTIFICATE ENUM('YES','NO') not null,\n"
+    "  SSL_CRL_FILE VARCHAR(255) not null,\n"
+    "  SSL_CRL_PATH VARCHAR(255) not null,\n"
+    "  CONNECTION_RETRY_INTERVAL INTEGER not null,\n"
+    "  CONNECTION_RETRY_COUNT BIGINT unsigned not null,\n"
+    "  HEARTBEAT_INTERVAL DOUBLE(10,3) unsigned not null\n"
+    "  COMMENT 'Number of seconds after which a heartbeat will be sent .',\n"
+    "  TLS_VERSION VARCHAR(255) not null,\n"
+    "  PUBLIC_KEY_PATH VARCHAR(512) not null,\n"
+    "  GET_PUBLIC_KEY ENUM('YES', 'NO') not null,\n"
+    "  PRIMARY KEY (channel_name) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_replication_connection_configuration::m_share = {
-  &pfs_readonly_acl,
-  table_replication_connection_configuration::create,
-  NULL, /* write_row */
-  NULL, /* delete_all_rows */
-  table_replication_connection_configuration::get_row_count, /* records */
-  sizeof(pos_t),                                  /* ref length */
-  &m_table_lock,
-  &m_table_def,
-  true, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_readonly_acl,
+    table_replication_connection_configuration::create,
+    NULL, /* write_row */
+    NULL, /* delete_all_rows */
+    table_replication_connection_configuration::get_row_count, /* records */
+    sizeof(pos_t),                                             /* ref length */
+    &m_table_lock,
+    &m_table_def,
+    true, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_rpl_connection_config::match(Master_info *mi)
-{
-  if (m_fields >= 1)
-  {
+bool PFS_index_rpl_connection_config::match(Master_info *mi) {
+  if (m_fields >= 1) {
     st_row_connect_config row;
 
     /* Mutex locks not necessary for channel name. */
     row.channel_name_length =
-      mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
+        mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
     memcpy(row.channel_name, mi->get_channel(), row.channel_name_length);
 
-    if (!m_key.match_not_null(row.channel_name, row.channel_name_length))
-    {
+    if (!m_key.match_not_null(row.channel_name, row.channel_name_length)) {
       return false;
     }
   }
@@ -114,33 +110,24 @@ PFS_index_rpl_connection_config::match(Master_info *mi)
   return true;
 }
 
-PFS_engine_table *
-table_replication_connection_configuration::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_replication_connection_configuration::create(
+    PFS_engine_table_share *) {
   return new table_replication_connection_configuration();
 }
 
 table_replication_connection_configuration::
-  table_replication_connection_configuration()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0)
-{
-}
+    table_replication_connection_configuration()
+    : PFS_engine_table(&m_share, &m_pos), m_pos(0), m_next_pos(0) {}
 
 table_replication_connection_configuration::
-  ~table_replication_connection_configuration()
-{
-}
+    ~table_replication_connection_configuration() {}
 
-void
-table_replication_connection_configuration::reset_position(void)
-{
+void table_replication_connection_configuration::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-ha_rows
-table_replication_connection_configuration::get_row_count()
-{
+ha_rows table_replication_connection_configuration::get_row_count() {
   /*
      We actually give the MAX_CHANNELS rather than the current
      number of channels
@@ -148,9 +135,7 @@ table_replication_connection_configuration::get_row_count()
   return channel_map.get_max_channels();
 }
 
-int
-table_replication_connection_configuration::rnd_next(void)
-{
+int table_replication_connection_configuration::rnd_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
   Master_info *mi;
@@ -159,12 +144,10 @@ table_replication_connection_configuration::rnd_next(void)
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
-       m_pos.next())
-  {
+       m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
-    {
+    if (mi && mi->host[0]) {
       res = make_row(mi);
       m_next_pos.set_after(&m_pos);
     }
@@ -175,10 +158,7 @@ table_replication_connection_configuration::rnd_next(void)
   return res;
 }
 
-int
-table_replication_connection_configuration::rnd_pos(
-  const void *pos)
-{
+int table_replication_connection_configuration::rnd_pos(const void *pos) {
   int res = HA_ERR_RECORD_DELETED;
 
   Master_info *mi;
@@ -187,8 +167,7 @@ table_replication_connection_configuration::rnd_pos(
 
   set_position(pos);
 
-  if ((mi = channel_map.get_mi_at_pos(m_pos.m_index)))
-  {
+  if ((mi = channel_map.get_mi_at_pos(m_pos.m_index))) {
     res = make_row(mi);
   }
 
@@ -197,10 +176,8 @@ table_replication_connection_configuration::rnd_pos(
   return res;
 }
 
-int
-table_replication_connection_configuration::index_init(
-  uint idx MY_ATTRIBUTE((unused)), bool)
-{
+int table_replication_connection_configuration::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_rpl_connection_config *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_connection_config);
@@ -209,9 +186,7 @@ table_replication_connection_configuration::index_init(
   return 0;
 }
 
-int
-table_replication_connection_configuration::index_next(void)
-{
+int table_replication_connection_configuration::index_next(void) {
   int res = HA_ERR_END_OF_FILE;
 
   Master_info *mi;
@@ -220,14 +195,11 @@ table_replication_connection_configuration::index_next(void)
 
   for (m_pos.set_at(&m_next_pos);
        m_pos.m_index < channel_map.get_max_channels() && res != 0;
-       m_pos.next())
-  {
+       m_pos.next()) {
     mi = channel_map.get_mi_at_pos(m_pos.m_index);
 
-    if (mi && mi->host[0])
-    {
-      if (m_opened_index->match(mi))
-      {
+    if (mi && mi->host[0]) {
+      if (m_opened_index->match(mi)) {
         res = make_row(mi);
         m_next_pos.set_after(&m_pos);
       }
@@ -239,9 +211,7 @@ table_replication_connection_configuration::index_next(void)
   return res;
 }
 
-int
-table_replication_connection_configuration::make_row(Master_info *mi)
-{
+int table_replication_connection_configuration::make_row(Master_info *mi) {
   char *temp_store;
 
   DBUG_ASSERT(mi != NULL);
@@ -250,8 +220,8 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   mysql_mutex_lock(&mi->rli->data_lock);
 
   m_row.channel_name_length = strlen(mi->get_channel());
-  memcpy(
-    m_row.channel_name, (char *)mi->get_channel(), m_row.channel_name_length);
+  memcpy(m_row.channel_name, (char *)mi->get_channel(),
+         m_row.channel_name_length);
 
   m_row.host_length = strlen(mi->host);
   memcpy(m_row.host, mi->host, m_row.host_length);
@@ -267,12 +237,9 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   m_row.network_interface_length = strlen(temp_store);
   memcpy(m_row.network_interface, temp_store, m_row.network_interface_length);
 
-  if (mi->is_auto_position())
-  {
+  if (mi->is_auto_position()) {
     m_row.auto_position = PS_RPL_YES;
-  }
-  else
-  {
+  } else {
     m_row.auto_position = PS_RPL_NO;
   }
 
@@ -302,12 +269,9 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   m_row.ssl_key_length = strlen(temp_store);
   memcpy(m_row.ssl_key, temp_store, m_row.ssl_key_length);
 
-  if (mi->ssl_verify_server_cert)
-  {
+  if (mi->ssl_verify_server_cert) {
     m_row.ssl_verify_server_certificate = PS_RPL_YES;
-  }
-  else
-  {
+  } else {
     m_row.ssl_verify_server_certificate = PS_RPL_NO;
   }
 
@@ -341,93 +305,90 @@ table_replication_connection_configuration::make_row(Master_info *mi)
   return 0;
 }
 
-int
-table_replication_connection_configuration::read_row_values(
-  TABLE *table,
-  unsigned char *,
-  Field **fields,
-  bool read_all)
-{
+int table_replication_connection_configuration::read_row_values(TABLE *table,
+                                                                unsigned char *,
+                                                                Field **fields,
+                                                                bool read_all) {
   Field *f;
 
   DBUG_ASSERT(table->s->null_bytes == 0);
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /** channel_name */
-        set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
-        break;
-      case 1: /** host */
-        set_field_char_utf8(f, m_row.host, m_row.host_length);
-        break;
-      case 2: /** port */
-        set_field_ulong(f, m_row.port);
-        break;
-      case 3: /** user */
-        set_field_char_utf8(f, m_row.user, m_row.user_length);
-        break;
-      case 4: /** network_interface */
-        set_field_char_utf8(
-          f, m_row.network_interface, m_row.network_interface_length);
-        break;
-      case 5: /** auto_position */
-        set_field_enum(f, m_row.auto_position);
-        break;
-      case 6: /** ssl_allowed */
-        set_field_enum(f, m_row.ssl_allowed);
-        break;
-      case 7: /**ssl_ca_file */
-        set_field_varchar_utf8(f, m_row.ssl_ca_file, m_row.ssl_ca_file_length);
-        break;
-      case 8: /** ssl_ca_path */
-        set_field_varchar_utf8(f, m_row.ssl_ca_path, m_row.ssl_ca_path_length);
-        break;
-      case 9: /** ssl_certificate */
-        set_field_varchar_utf8(
-          f, m_row.ssl_certificate, m_row.ssl_certificate_length);
-        break;
-      case 10: /** ssl_cipher */
-        set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
-        break;
-      case 11: /** ssl_key */
-        set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
-        break;
-      case 12: /** ssl_verify_server_certificate */
-        set_field_enum(f, m_row.ssl_verify_server_certificate);
-        break;
-      case 13: /** ssl_crl_file */
-        set_field_varchar_utf8(
-          f, m_row.ssl_crl_file, m_row.ssl_crl_file_length);
-        break;
-      case 14: /** ssl_crl_path */
-        set_field_varchar_utf8(
-          f, m_row.ssl_crl_path, m_row.ssl_crl_path_length);
-        break;
-      case 15: /** connection_retry_interval */
-        set_field_ulong(f, m_row.connection_retry_interval);
-        break;
-      case 16: /** connect_retry_count */
-        set_field_ulonglong(f, m_row.connection_retry_count);
-        break;
-      case 17: /** number of seconds after which heartbeat will be sent */
-        set_field_double(f, m_row.heartbeat_interval);
-        break;
-      case 18: /** tls_version */
-        set_field_varchar_utf8(f, m_row.tls_version, m_row.tls_version_length);
-        break;
-      case 19: /** master_public_key_path */
-        set_field_varchar_utf8(
-          f, m_row.public_key_path, m_row.public_key_path_length);
-        break;
-      case 20: /** get_master_public_key */
-        set_field_enum(f, m_row.get_public_key);
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /** channel_name */
+          set_field_char_utf8(f, m_row.channel_name, m_row.channel_name_length);
+          break;
+        case 1: /** host */
+          set_field_char_utf8(f, m_row.host, m_row.host_length);
+          break;
+        case 2: /** port */
+          set_field_ulong(f, m_row.port);
+          break;
+        case 3: /** user */
+          set_field_char_utf8(f, m_row.user, m_row.user_length);
+          break;
+        case 4: /** network_interface */
+          set_field_char_utf8(f, m_row.network_interface,
+                              m_row.network_interface_length);
+          break;
+        case 5: /** auto_position */
+          set_field_enum(f, m_row.auto_position);
+          break;
+        case 6: /** ssl_allowed */
+          set_field_enum(f, m_row.ssl_allowed);
+          break;
+        case 7: /**ssl_ca_file */
+          set_field_varchar_utf8(f, m_row.ssl_ca_file,
+                                 m_row.ssl_ca_file_length);
+          break;
+        case 8: /** ssl_ca_path */
+          set_field_varchar_utf8(f, m_row.ssl_ca_path,
+                                 m_row.ssl_ca_path_length);
+          break;
+        case 9: /** ssl_certificate */
+          set_field_varchar_utf8(f, m_row.ssl_certificate,
+                                 m_row.ssl_certificate_length);
+          break;
+        case 10: /** ssl_cipher */
+          set_field_varchar_utf8(f, m_row.ssl_cipher, m_row.ssl_cipher_length);
+          break;
+        case 11: /** ssl_key */
+          set_field_varchar_utf8(f, m_row.ssl_key, m_row.ssl_key_length);
+          break;
+        case 12: /** ssl_verify_server_certificate */
+          set_field_enum(f, m_row.ssl_verify_server_certificate);
+          break;
+        case 13: /** ssl_crl_file */
+          set_field_varchar_utf8(f, m_row.ssl_crl_file,
+                                 m_row.ssl_crl_file_length);
+          break;
+        case 14: /** ssl_crl_path */
+          set_field_varchar_utf8(f, m_row.ssl_crl_path,
+                                 m_row.ssl_crl_path_length);
+          break;
+        case 15: /** connection_retry_interval */
+          set_field_ulong(f, m_row.connection_retry_interval);
+          break;
+        case 16: /** connect_retry_count */
+          set_field_ulonglong(f, m_row.connection_retry_count);
+          break;
+        case 17: /** number of seconds after which heartbeat will be sent */
+          set_field_double(f, m_row.heartbeat_interval);
+          break;
+        case 18: /** tls_version */
+          set_field_varchar_utf8(f, m_row.tls_version,
+                                 m_row.tls_version_length);
+          break;
+        case 19: /** master_public_key_path */
+          set_field_varchar_utf8(f, m_row.public_key_path,
+                                 m_row.public_key_path_length);
+          break;
+        case 20: /** get_master_public_key */
+          set_field_enum(f, m_row.get_public_key);
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }

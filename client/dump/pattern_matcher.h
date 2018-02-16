@@ -27,25 +27,24 @@
 
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
-namespace Detail{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
+namespace Detail {
 
-class Pattern_matcher
-{
-public:
-  static bool is_pattern_matched(
-    const std::string& to_match, const std::string& pattern, size_t i= 0,
-    size_t j= 0);
+class Pattern_matcher {
+ public:
+  static bool is_pattern_matched(const std::string &to_match,
+                                 const std::string &pattern, size_t i = 0,
+                                 size_t j = 0);
 
-private:
+ private:
   Pattern_matcher();
 };
 
-}
-}
-}
-}
+}  // namespace Detail
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

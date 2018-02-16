@@ -43,64 +43,40 @@
   Index 1 on digest array (0 based).
   Index 2 on buckets (0 based).
 */
-struct pos_esmh_by_digest : public PFS_double_index
-{
-  pos_esmh_by_digest() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_esmh_by_digest : public PFS_double_index {
+  pos_esmh_by_digest() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_digest(void)
-  {
-    return (m_index_1 < digest_max);
-  }
+  inline bool has_more_digest(void) { return (m_index_1 < digest_max); }
 
-  inline void
-  next_digest(void)
-  {
+  inline void next_digest(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_buckets(void)
-  {
-    return (m_index_2 < NUMBER_OF_BUCKETS);
-  }
+  inline bool has_more_buckets(void) { return (m_index_2 < NUMBER_OF_BUCKETS); }
 
-  inline void
-  next_bucket(void)
-  {
-    m_index_2++;
-  }
+  inline void next_bucket(void) { m_index_2++; }
 };
 
-class PFS_index_esmh_by_digest : public PFS_engine_index
-{
-public:
+class PFS_index_esmh_by_digest : public PFS_engine_index {
+ public:
   PFS_index_esmh_by_digest()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("SCHEMA_NAME"),
-      m_key_2("DIGEST"),
-      m_key_3("BUCKET_NUMBER")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("SCHEMA_NAME"),
+        m_key_2("DIGEST"),
+        m_key_3("BUCKET_NUMBER") {}
 
-  ~PFS_index_esmh_by_digest()
-  {
-  }
+  ~PFS_index_esmh_by_digest() {}
 
   bool match_digest(PFS_statements_digest_stat *pfs);
   bool match_bucket(ulong bucket_index);
 
-private:
+ private:
   PFS_key_schema m_key_1;
   PFS_key_digest m_key_2;
   PFS_key_bucket_number m_key_3;
@@ -111,16 +87,14 @@ private:
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST.
 */
 
-struct PFS_esmh_by_digest_bucket
-{
+struct PFS_esmh_by_digest_bucket {
   /** Column COUNT_BUCKET. */
   ulonglong m_count_bucket;
   /** Column COUNT_BUCKET_AND_LOWER. */
   ulonglong m_count_bucket_and_lower;
 };
 
-struct PFS_esmh_by_digest_histogram
-{
+struct PFS_esmh_by_digest_histogram {
   /** Columns SCHEMA_NAME, DIGEST. */
   PFS_digest_row m_digest;
 
@@ -128,8 +102,7 @@ struct PFS_esmh_by_digest_histogram
   PFS_esmh_by_digest_bucket m_buckets[NUMBER_OF_BUCKETS];
 };
 
-struct row_esmh_by_digest
-{
+struct row_esmh_by_digest {
   /*
     No need to repeat SCHEMA_NAME, DIGEST here,
     only materialize the parts of the row that changes per bucket.
@@ -149,11 +122,10 @@ struct row_esmh_by_digest
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTOGRAM_BY_DIGEST. */
-class table_esmh_by_digest : public PFS_engine_table
-{
+class table_esmh_by_digest : public PFS_engine_table {
   typedef pos_esmh_by_digest pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -168,24 +140,20 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esmh_by_digest();
 
-public:
-  ~table_esmh_by_digest()
-  {
-  }
+ public:
+  ~table_esmh_by_digest() {}
 
-protected:
+ protected:
   void materialize(PFS_statements_digest_stat *stat);
   int make_row(PFS_statements_digest_stat *stat, ulong bucket_index);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

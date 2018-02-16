@@ -42,31 +42,23 @@
   Position of a cursor on abstract table
   PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS.
 */
-struct pos_connect_attr_by_thread_by_attr : public PFS_double_index
-{
-  pos_connect_attr_by_thread_by_attr() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_connect_attr_by_thread_by_attr : public PFS_double_index {
+  pos_connect_attr_by_thread_by_attr() : PFS_double_index(0, 0) {}
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 };
 
 /** Cursor CURSOR_BY_THREAD_CONNECT_ATTR. */
-class cursor_by_thread_connect_attr : public PFS_engine_table
-{
-public:
+class cursor_by_thread_connect_attr : public PFS_engine_table {
+ public:
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -74,26 +66,16 @@ public:
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
 
-  virtual int
-  index_init(uint, bool)
-  {
-    return 1;
-  }
-  virtual int
-  index_next()
-  {
-    return 1;
-  }
+  virtual int index_init(uint, bool) { return 1; }
+  virtual int index_next() { return 1; }
 
-protected:
+ protected:
   cursor_by_thread_connect_attr(const PFS_engine_table_share *share);
 
-public:
-  ~cursor_by_thread_connect_attr()
-  {
-  }
+ public:
+  ~cursor_by_thread_connect_attr() {}
 
-protected:
+ protected:
   virtual int make_row(PFS_thread *thread, uint ordinal) = 0;
 
   /** Current position. */

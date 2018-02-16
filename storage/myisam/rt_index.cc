@@ -1,5 +1,5 @@
 /* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
-   
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -31,21 +31,18 @@
 #define PICK_BY_AREA
 /*#define PICK_BY_PERIMETER*/
 
-struct stPageLevel
-{
+struct stPageLevel {
   uint level;
   my_off_t offs;
 };
 
-struct stPageList
-{   
+struct stPageList {
   ulong n_pages;
   ulong m_pages;
   stPageLevel *pages;
 };
 
-
-/* 
+/*
    Find next key in r-tree according to search_flag recursively
 
    NOTES
@@ -54,22 +51,20 @@ struct stPageList
    RETURN
      -1	 Error
      0   Found
-     1   Not found 
+     1   Not found
 */
 
 static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
-			  uint nod_cmp_flag, my_off_t page, int level)
-{
+                          uint nod_cmp_flag, my_off_t page, int level) {
   uchar *k;
   uchar *last;
   uint nod_flag;
   int res;
   uchar *page_buf;
   int k_len;
-  uint *saved_key = (uint*) (info->rtree_recursion_state) + level;
-  
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
-  {
+  uint *saved_key = (uint *)(info->rtree_recursion_state) + level;
+
+  if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
     return -1;
   }
@@ -78,30 +73,23 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
   nod_flag = mi_test_if_nod(page_buf);
 
   k_len = keyinfo->keylength - info->s->base.rec_reflength;
-  
-  if(info->rtree_recursion_depth >= level)
-  {
+
+  if (info->rtree_recursion_depth >= level) {
     k = page_buf + *saved_key;
-  }
-  else
-  {
+  } else {
     k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   }
   last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag))
-  {
-    if (nod_flag) 
-    { 
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) {
+    if (nod_flag) {
       /* this is an internal node in the tree */
-      if (!(res = rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k, 
-                            info->last_rkey_length, nod_cmp_flag)))
-      {
+      if (!(res = rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k,
+                                info->last_rkey_length, nod_cmp_flag))) {
         switch ((res = rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag,
-                                      _mi_kpos(nod_flag, k), level + 1)))
-        {
+                                      _mi_kpos(nod_flag, k), level + 1))) {
           case 0: /* found - exit from recursion */
-            *saved_key = (uint) (k - page_buf);
+            *saved_key = (uint)(k - page_buf);
             goto ok;
           case 1: /* not found - continue searching */
             info->rtree_recursion_depth = level;
@@ -111,30 +99,24 @@ static int rtree_find_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint search_flag,
             goto err1;
         }
       }
-    }
-    else 
-    { 
+    } else {
       /* this is a leaf */
-      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k, 
-                         info->last_rkey_length, search_flag))
-      {
+      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, k,
+                         info->last_rkey_length, search_flag)) {
         uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
         info->lastpos = _mi_dpos(info, 0, after_key);
         info->lastkey_length = k_len + info->s->base.rec_reflength;
         memcpy(info->lastkey, k, info->lastkey_length);
         info->rtree_recursion_depth = level;
-        *saved_key = (uint) (last - page_buf);
+        *saved_key = (uint)(last - page_buf);
 
-        if (after_key < last)
-        {
+        if (after_key < last) {
           info->int_keypos = info->buff;
           info->int_maxpos = info->buff + (last - after_key);
           memcpy(info->buff, after_key, last - after_key);
           info->buff_used = 0;
-        }
-        else
-        {
-	  info->buff_used = 1;
+        } else {
+          info->buff_used = 1;
         }
 
         res = 0;
@@ -154,7 +136,6 @@ err1:
   return -1;
 }
 
-
 /*
   Find first key in r-tree according to search_flag condition
 
@@ -163,7 +144,7 @@ err1:
    info			Handler to MyISAM file
    uint keynr		Key number to use
    key			Key to search for
-   key_length		Length of 'key' 
+   key_length		Length of 'key'
    search_flag		Bitmap of flags how to do the search
 
   RETURN
@@ -172,15 +153,13 @@ err1:
     1   Not found
 */
 
-int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length, 
-                    uint search_flag)
-{
+int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
+                     uint search_flag) {
   my_off_t root;
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-  {
+  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     // This is assumed to happen only when the index is empty. If that
     // doesn't hold, the code in mi_rkey() that checks the record
     // count has to be changed.
@@ -203,14 +182,13 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
 
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
-  
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+
+  nod_cmp_flag =
+      ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? MBR_WITHIN : MBR_INTERSECT);
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
 
-
-/* 
+/*
    Find next key in r-tree according to search_flag condition
 
   SYNOPSIS
@@ -225,50 +203,44 @@ int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
      1   Not found
 */
 
-int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
-{
+int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag) {
   my_off_t root;
   uint nod_cmp_flag;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
   if (info->update & HA_STATE_DELETED)
     return rtree_find_first(info, keynr, info->lastkey, info->lastkey_length,
-			    search_flag);
+                            search_flag);
 
-  if (!info->buff_used)
-  {
-    uchar *key= info->int_keypos;
+  if (!info->buff_used) {
+    uchar *key = info->int_keypos;
 
-    while (key < info->int_maxpos)
-    {
-      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, key, 
-                         info->last_rkey_length, search_flag))
-      {
+    while (key < info->int_maxpos) {
+      if (!rtree_key_cmp(keyinfo->seg, info->first_mbr_key, key,
+                         info->last_rkey_length, search_flag)) {
         uchar *after_key = key + keyinfo->keylength;
 
-        info->lastpos= _mi_dpos(info, 0, after_key);
+        info->lastpos = _mi_dpos(info, 0, after_key);
         memcpy(info->lastkey, key, info->lastkey_length);
 
         if (after_key < info->int_maxpos)
-	  info->int_keypos= after_key;
+          info->int_keypos = after_key;
         else
-	  info->buff_used= 1;
+          info->buff_used = 1;
         return 0;
       }
-      key+= keyinfo->keylength;
+      key += keyinfo->keylength;
     }
   }
-  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-  {
+  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
-  
-  nod_cmp_flag = ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? 
-        MBR_WITHIN : MBR_INTERSECT);
+
+  nod_cmp_flag =
+      ((search_flag & (MBR_EQUAL | MBR_WITHIN)) ? MBR_WITHIN : MBR_INTERSECT);
   return rtree_find_req(info, keyinfo, search_flag, nod_cmp_flag, root, 0);
 }
-
 
 /*
   Get next key in r-tree recursively
@@ -282,51 +254,42 @@ int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag)
     1   Not found
 */
 
-static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length, 
-                         my_off_t page, int level)
-{
+static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
+                         my_off_t page, int level) {
   uchar *k;
   uchar *last;
   uint nod_flag;
   int res;
   uchar *page_buf;
   uint k_len;
-  uint *saved_key = (uint*) (info->rtree_recursion_state) + level;
-  
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
-    return -1;
+  uint *saved_key = (uint *)(info->rtree_recursion_state) + level;
+
+  if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length))) return -1;
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
 
   k_len = keyinfo->keylength - info->s->base.rec_reflength;
 
-  if(info->rtree_recursion_depth >= level)
-  {
+  if (info->rtree_recursion_depth >= level) {
     k = page_buf + *saved_key;
-    if (!nod_flag)
-    {
+    if (!nod_flag) {
       /* Only leaf pages contain data references. */
       /* Need to check next key with data reference. */
       k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
     }
-  }
-  else
-  {
+  } else {
     k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   }
   last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag))
-  {
-    if (nod_flag) 
-    { 
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag)) {
+    if (nod_flag) {
       /* this is an internal node in the tree */
-      switch ((res = rtree_get_req(info, keyinfo, key_length, 
-                                  _mi_kpos(nod_flag, k), level + 1)))
-      {
+      switch ((res = rtree_get_req(info, keyinfo, key_length,
+                                   _mi_kpos(nod_flag, k), level + 1))) {
         case 0: /* found - exit from recursion */
-          *saved_key = (uint) (k - page_buf);
+          *saved_key = (uint)(k - page_buf);
           goto ok;
         case 1: /* not found - continue searching */
           info->rtree_recursion_depth = level;
@@ -335,9 +298,7 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
         case -1: /* error */
           goto err1;
       }
-    }
-    else 
-    { 
+    } else {
       /* this is a leaf */
       uchar *after_key = rt_PAGE_NEXT_KEY(k, k_len, nod_flag);
       info->lastpos = _mi_dpos(info, 0, after_key);
@@ -345,18 +306,15 @@ static int rtree_get_req(MI_INFO *info, MI_KEYDEF *keyinfo, uint key_length,
       memcpy(info->lastkey, k, info->lastkey_length);
 
       info->rtree_recursion_depth = level;
-      *saved_key = (uint) (k - page_buf);
+      *saved_key = (uint)(k - page_buf);
 
-      if (after_key < last)
-      {
-        info->int_keypos = (uchar*)saved_key;
+      if (after_key < last) {
+        info->int_keypos = (uchar *)saved_key;
         memcpy(info->buff, page_buf, keyinfo->block_length);
         info->int_maxpos = rt_PAGE_END(info->buff);
         info->buff_used = 0;
-      }
-      else
-      {
-	info->buff_used = 1;
+      } else {
+        info->buff_used = 1;
       }
 
       res = 0;
@@ -375,7 +333,6 @@ err1:
   return -1;
 }
 
-
 /*
   Get first key in r-tree
 
@@ -385,25 +342,22 @@ err1:
     1	Not found
 */
 
-int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
-{
+int rtree_get_first(MI_INFO *info, uint keynr, uint key_length) {
   my_off_t root;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-  {
+  if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
 
   info->rtree_recursion_depth = -1;
   info->buff_used = 1;
-  
+
   return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
-
-/* 
+/*
   Get next key in r-tree
 
   RETURN
@@ -412,33 +366,29 @@ int rtree_get_first(MI_INFO *info, uint keynr, uint key_length)
     1	Not found
 */
 
-int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
-{
-  my_off_t root= info->s->state.key_root[keynr];
+int rtree_get_next(MI_INFO *info, uint keynr, uint key_length) {
+  my_off_t root = info->s->state.key_root[keynr];
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
 
-  if (root == HA_OFFSET_ERROR)
-  {
+  if (root == HA_OFFSET_ERROR) {
     set_my_errno(HA_ERR_END_OF_FILE);
     return -1;
   }
-  
-  if (!info->buff_used && !info->page_changed)
-  {
+
+  if (!info->buff_used && !info->page_changed) {
     uint k_len = keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
-    uchar *key = info->buff + *(int*)info->int_keypos + k_len + 
+    uchar *key = info->buff + *(int *)info->int_keypos + k_len +
                  info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(key) */
-    uchar *after_key = key + k_len + info->s->base.rec_reflength; 
+    uchar *after_key = key + k_len + info->s->base.rec_reflength;
 
     info->lastpos = _mi_dpos(info, 0, after_key);
     info->lastkey_length = k_len + info->s->base.rec_reflength;
     memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
 
-    *(uint*)info->int_keypos = (uint) (key - info->buff);
-    if (after_key >= info->int_maxpos)
-    {
+    *(uint *)info->int_keypos = (uint)(key - info->buff);
+    if (after_key >= info->int_maxpos) {
       info->buff_used = 1;
     }
 
@@ -448,33 +398,29 @@ int rtree_get_next(MI_INFO *info, uint keynr, uint key_length)
   return rtree_get_req(info, keyinfo, key_length, root, 0);
 }
 
-
-/*
-  Choose non-leaf better key for insertion
-*/
+  /*
+    Choose non-leaf better key for insertion
+  */
 
 #ifdef PICK_BY_PERIMETER
-static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-			     uint key_length, uchar *page_buf, uint nod_flag)
-{
+static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                             uint key_length, uchar *page_buf, uint nod_flag) {
   double increase;
   double best_incr = DBL_MAX;
   double perimeter;
-  double best_perimeter= 0.0;
-  uchar *best_key= NULL;
+  double best_perimeter = 0.0;
+  uchar *best_key = NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
-  {
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag)) {
     if ((increase = rtree_perimeter_increase(keyinfo->seg, k, key, key_length,
-					     &perimeter)) == -1)
+                                             &perimeter)) == -1)
       return NULL;
-    if ((increase < best_incr)||
-	(increase == best_incr && perimeter < best_perimeter))
-    {
+    if ((increase < best_incr) ||
+        (increase == best_incr && perimeter < best_perimeter)) {
       best_key = k;
-      best_perimeter= perimeter;
+      best_perimeter = perimeter;
       best_incr = increase;
     }
   }
@@ -484,27 +430,24 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 #endif /*PICK_BY_PERIMETER*/
 
 #ifdef PICK_BY_AREA
-static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-			     uint key_length, uchar *page_buf, uint nod_flag)
-{
+static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                             uint key_length, uchar *page_buf, uint nod_flag) {
   double increase;
-  double best_incr= 0.0;
+  double best_incr = 0.0;
   double area;
-  double best_area= 0.0;
-  uchar *best_key= NULL;
+  double best_area = 0.0;
+  uchar *best_key = NULL;
   uchar *k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   uchar *last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
-  {
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag)) {
     /* The following is safe as -1.0 is an exact number */
-    if ((increase = rtree_area_increase(keyinfo->seg, k, key, key_length, 
+    if ((increase = rtree_area_increase(keyinfo->seg, k, key, key_length,
                                         &area)) == -1.0)
       return NULL;
     /* The following should be safe, even if we compare doubles */
     if (!best_key || increase < best_incr ||
-        ((increase == best_incr) && (area < best_area)))
-    {
+        ((increase == best_incr) && (area < best_area))) {
       best_key = k;
       best_area = area;
       best_incr = increase;
@@ -524,19 +467,17 @@ static uchar *rtree_pick_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     1	Child was split
 */
 
-static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-                            uint key_length, my_off_t page, my_off_t *new_page, 
-                            int ins_level, int level)
-{
+static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                            uint key_length, my_off_t page, my_off_t *new_page,
+                            int ins_level, int level) {
   uchar *k;
   uint nod_flag;
   uchar *page_buf;
   int res;
   DBUG_ENTER("rtree_insert_req");
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length + 
-                                     MI_MAX_KEY_BUFF)))
-  {
+  if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length +
+                                      MI_MAX_KEY_BUFF))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
@@ -544,17 +485,17 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
   DBUG_PRINT("rtree", ("page: %lu  level: %d  ins_level: %d  nod_flag: %u",
-                       (ulong) page, level, ins_level, nod_flag));
+                       (ulong)page, level, ins_level, nod_flag));
 
   if ((ins_level == -1 && nod_flag) ||       /* key: go down to leaf */
       (ins_level > -1 && ins_level > level)) /* branch: go down to ins_level */
-  { 
-    if ((k = rtree_pick_key(info, keyinfo, key, key_length, page_buf, 
-                             nod_flag)) == NULL)
+  {
+    if ((k = rtree_pick_key(info, keyinfo, key, key_length, page_buf,
+                            nod_flag)) == NULL)
       goto err1;
-    switch ((res = rtree_insert_req(info, keyinfo, key, key_length, 
-                     _mi_kpos(nod_flag, k), new_page, ins_level, level + 1)))
-    {
+    switch ((res = rtree_insert_req(info, keyinfo, key, key_length,
+                                    _mi_kpos(nod_flag, k), new_page, ins_level,
+                                    level + 1))) {
       case 0: /* child was not split */
       {
         rtree_combine_rect(keyinfo->seg, k, key, k, key_length);
@@ -566,15 +507,15 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
       {
         uchar *new_key = page_buf + keyinfo->block_length + nod_flag;
         /* set proper MBR for key */
-        if (rtree_set_key_mbr(info, keyinfo, k, key_length, 
-                            _mi_kpos(nod_flag, k)))
+        if (rtree_set_key_mbr(info, keyinfo, k, key_length,
+                              _mi_kpos(nod_flag, k)))
           goto err1;
         /* add new key for new page */
         _mi_kpointer(info, new_key - nod_flag, *new_page);
         if (rtree_set_key_mbr(info, keyinfo, new_key, key_length, *new_page))
           goto err1;
-        res = rtree_add_key(info, keyinfo, new_key, key_length, 
-                           page_buf, new_page);
+        res = rtree_add_key(info, keyinfo, new_key, key_length, page_buf,
+                            new_page);
         if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
           goto err1;
         goto ok;
@@ -585,9 +526,7 @@ static int rtree_insert_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
         goto err1;
       }
     }
-  }
-  else
-  { 
+  } else {
     res = rtree_add_key(info, keyinfo, key, key_length, page_buf, new_page);
     if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
       goto err1;
@@ -601,7 +540,6 @@ err1:
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
-
 /*
   Insert key into the tree
 
@@ -611,17 +549,15 @@ err1:
     1	Root was split
 */
 
-static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key, 
-                             uint key_length, int ins_level)
-{
+static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
+                              uint key_length, int ins_level) {
   my_off_t old_root;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
   int res;
   my_off_t new_page;
   DBUG_ENTER("rtree_insert_level");
 
-  if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-  {
+  if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     if ((old_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) == HA_OFFSET_ERROR)
       DBUG_RETURN(-1);
     info->buff_used = 1;
@@ -633,16 +569,15 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
     DBUG_RETURN(res);
   }
 
-  switch ((res = rtree_insert_req(info, keyinfo, key, key_length, 
-                                  old_root, &new_page, ins_level, 0)))
-  {
+  switch ((res = rtree_insert_req(info, keyinfo, key, key_length, old_root,
+                                  &new_page, ins_level, 0))) {
     case 0: /* root was not split */
     {
       break;
     }
     case 1: /* root was split, grow a new root */
-    { 
-      uchar *new_root_buf= info->buff + info->s->base.max_key_block_length;
+    {
+      uchar *new_root_buf = info->buff + info->s->base.max_key_block_length;
       my_off_t new_root;
       uchar *new_key;
       uint nod_flag = info->s->base.key_reflength;
@@ -651,7 +586,7 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
 
       mi_putint(new_root_buf, 2, nod_flag);
       if ((new_root = _mi_new(info, keyinfo, DFLT_INIT_HITS)) ==
-	  HA_OFFSET_ERROR)
+          HA_OFFSET_ERROR)
         goto err1;
 
       new_key = new_root_buf + keyinfo->block_length + nod_flag;
@@ -659,24 +594,24 @@ static int rtree_insert_level(MI_INFO *info, uint keynr, uchar *key,
       _mi_kpointer(info, new_key - nod_flag, old_root);
       if (rtree_set_key_mbr(info, keyinfo, new_key, key_length, old_root))
         goto err1;
-      if (rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf, NULL) 
-          == -1)
+      if (rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
+                        NULL) == -1)
         goto err1;
       _mi_kpointer(info, new_key - nod_flag, new_page);
       if (rtree_set_key_mbr(info, keyinfo, new_key, key_length, new_page))
         goto err1;
-      if (rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf, NULL) 
-          == -1)
+      if (rtree_add_key(info, keyinfo, new_key, key_length, new_root_buf,
+                        NULL) == -1)
         goto err1;
-      if (_mi_write_keypage(info, keyinfo, new_root,
-                            DFLT_INIT_HITS, new_root_buf))
+      if (_mi_write_keypage(info, keyinfo, new_root, DFLT_INIT_HITS,
+                            new_root_buf))
         goto err1;
       info->s->state.key_root[keynr] = new_root;
       DBUG_PRINT("rtree", ("new root page: %lu  level: %d  nod_flag: %u",
-                           (ulong) new_root, 0, mi_test_if_nod(new_root_buf)));
+                           (ulong)new_root, 0, mi_test_if_nod(new_root_buf)));
 
       break;
-err1:
+    err1:
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     default:
@@ -688,7 +623,6 @@ err1:
   DBUG_RETURN(res);
 }
 
-
 /*
   Insert key into the tree - interface function
 
@@ -697,34 +631,32 @@ err1:
     0	OK
 */
 
-int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length)
-{
+int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
   DBUG_ENTER("rtree_insert");
   DBUG_RETURN((!key_length ||
-               (rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ?
-              -1 : 0);
+               (rtree_insert_level(info, keynr, key, key_length, -1) == -1))
+                  ? -1
+                  : 0);
 }
 
-
-/* 
-  Fill reinsert page buffer 
+/*
+  Fill reinsert page buffer
 
   RETURN
     -1	Error
     0	OK
 */
 
-static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page, 
-                                    int level)
-{
+static int rtree_fill_reinsert_list(stPageList *ReinsertList, my_off_t page,
+                                    int level) {
   DBUG_ENTER("rtree_fill_reinsert_list");
-  DBUG_PRINT("rtree", ("page: %lu  level: %d", (ulong) page, level));
-  if (ReinsertList->n_pages == ReinsertList->m_pages)
-  {
+  DBUG_PRINT("rtree", ("page: %lu  level: %d", (ulong)page, level));
+  if (ReinsertList->n_pages == ReinsertList->m_pages) {
     ReinsertList->m_pages += REINSERT_BUFFER_INC;
-    if (!(ReinsertList->pages = (stPageLevel*)my_realloc(mi_key_memory_stPageList_pages,
-                                                         (uchar*)ReinsertList->pages, 
-      ReinsertList->m_pages * sizeof(stPageLevel), MYF(MY_ALLOW_ZERO_PTR))))
+    if (!(ReinsertList->pages = (stPageLevel *)my_realloc(
+              mi_key_memory_stPageList_pages, (uchar *)ReinsertList->pages,
+              ReinsertList->m_pages * sizeof(stPageLevel),
+              MYF(MY_ALLOW_ZERO_PTR))))
       goto err1;
   }
   /* save page to ReinsertList */
@@ -737,7 +669,6 @@ err1:
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
-
 /*
   Go down and delete key from the tree
 
@@ -748,10 +679,9 @@ err1:
     2	Empty leaf
 */
 
-static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-                           uint key_length, my_off_t page, uint *page_size, 
-                           stPageList *ReinsertList, int level)
-{
+static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                            uint key_length, my_off_t page, uint *page_size,
+                            stPageList *ReinsertList, int level) {
   uchar *k;
   uchar *last;
   ulong i;
@@ -760,46 +690,40 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
   int res;
   DBUG_ENTER("rtree_delete_req");
 
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
-  {
+  if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length))) {
     set_my_errno(HA_ERR_OUT_OF_MEM);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
   if (!_mi_fetch_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
   nod_flag = mi_test_if_nod(page_buf);
-  DBUG_PRINT("rtree", ("page: %lu  level: %d  nod_flag: %u",
-                       (ulong) page, level, nod_flag));
+  DBUG_PRINT("rtree", ("page: %lu  level: %d  nod_flag: %u", (ulong)page, level,
+                       nod_flag));
 
   k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   last = rt_PAGE_END(page_buf);
 
-  for (i = 0; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag), ++i)
-  {
-    if (nod_flag)
-    { 
+  for (i = 0; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag), ++i) {
+    if (nod_flag) {
       /* not leaf */
-      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN))
-      {
-        switch ((res = rtree_delete_req(info, keyinfo, key, key_length, 
-                  _mi_kpos(nod_flag, k), page_size, ReinsertList, level + 1)))
-        {
+      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN)) {
+        switch ((res = rtree_delete_req(info, keyinfo, key, key_length,
+                                        _mi_kpos(nod_flag, k), page_size,
+                                        ReinsertList, level + 1))) {
           case 0: /* deleted */
-          { 
+          {
             /* test page filling */
-            if (*page_size + key_length >= rt_PAGE_MIN_SIZE(keyinfo->block_length)) 
-            { 
+            if (*page_size + key_length >=
+                rt_PAGE_MIN_SIZE(keyinfo->block_length)) {
               /* OK */
               /* Calculate a new key value (MBR) for the shrinked block. */
-              if (rtree_set_key_mbr(info, keyinfo, k, key_length, 
-                                  _mi_kpos(nod_flag, k)))
+              if (rtree_set_key_mbr(info, keyinfo, k, key_length,
+                                    _mi_kpos(nod_flag, k)))
                 goto err1;
-              if (_mi_write_keypage(info, keyinfo, page,
-                                    DFLT_INIT_HITS, page_buf))
+              if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS,
+                                    page_buf))
                 goto err1;
-            }
-            else
-            { 
+            } else {
               /*
                 Too small: delete key & add it descendant to reinsert list.
                 Store position and level of the block so that it can be
@@ -818,12 +742,12 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
                 level later to reintegrate the subtrees.
               */
               rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-              if (_mi_write_keypage(info, keyinfo, page,
-                                    DFLT_INIT_HITS, page_buf))
+              if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS,
+                                    page_buf))
                 goto err1;
               *page_size = mi_getint(page_buf);
             }
-            
+
             goto ok;
           }
           case 1: /* not found - continue searching */
@@ -833,37 +757,30 @@ static int rtree_delete_req(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
           case 2: /* vacuous case: last key in the leaf */
           {
             rtree_delete_key(info, page_buf, k, key_length, nod_flag);
-            if (_mi_write_keypage(info, keyinfo, page,
-                                  DFLT_INIT_HITS, page_buf))
+            if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS,
+                                  page_buf))
               goto err1;
             *page_size = mi_getint(page_buf);
             res = 0;
             goto ok;
           }
           default: /* error */
-          case -1:
-          {
+          case -1: {
             goto err1;
           }
         }
       }
-    }
-    else  
-    {
+    } else {
       /* leaf */
-      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_EQUAL | MBR_DATA))
-      {
+      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length,
+                         MBR_EQUAL | MBR_DATA)) {
         rtree_delete_key(info, page_buf, k, key_length, nod_flag);
         *page_size = mi_getint(page_buf);
-        if (*page_size == 2) 
-        {
+        if (*page_size == 2) {
           /* last key in the leaf */
           res = 2;
-          if (_mi_dispose(info, keyinfo, page, DFLT_INIT_HITS))
-            goto err1;
-        }
-        else
-        {
+          if (_mi_dispose(info, keyinfo, page, DFLT_INIT_HITS)) goto err1;
+        } else {
           res = 0;
           if (_mi_write_keypage(info, keyinfo, page, DFLT_INIT_HITS, page_buf))
             goto err1;
@@ -881,7 +798,6 @@ err1:
   DBUG_RETURN(-1); /* purecov: inspected */
 }
 
-
 /*
   Delete key - interface function
 
@@ -890,29 +806,25 @@ err1:
     0	Deleted
 */
 
-int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
-{
+int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length) {
   uint page_size;
   stPageList ReinsertList;
   my_off_t old_root;
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
   DBUG_ENTER("rtree_delete");
 
-  if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
-  {
+  if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR) {
     set_my_errno(HA_ERR_END_OF_FILE);
     DBUG_RETURN(-1); /* purecov: inspected */
   }
-  DBUG_PRINT("rtree", ("starting deletion at root page: %lu",
-                       (ulong) old_root));
+  DBUG_PRINT("rtree", ("starting deletion at root page: %lu", (ulong)old_root));
 
   ReinsertList.pages = NULL;
   ReinsertList.n_pages = 0;
   ReinsertList.m_pages = 0;
-  
-  switch (rtree_delete_req(info, keyinfo, key, key_length, old_root, 
-                                 &page_size, &ReinsertList, 0))
-  {
+
+  switch (rtree_delete_req(info, keyinfo, key, key_length, old_root, &page_size,
+                           &ReinsertList, 0)) {
     case 2: /* empty */
     {
       info->s->state.key_root[keynr] = HA_OFFSET_ERROR;
@@ -922,55 +834,48 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
     {
       uint nod_flag;
       ulong i;
-      for (i = 0; i < ReinsertList.n_pages; ++i)
-      {
+      for (i = 0; i < ReinsertList.n_pages; ++i) {
         uchar *page_buf;
         uchar *k;
         uchar *last;
 
-        if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
-        {
+        if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length))) {
           set_my_errno(HA_ERR_OUT_OF_MEM);
           goto err1;
         }
-        if (!_mi_fetch_keypage(info, keyinfo, ReinsertList.pages[i].offs, 
+        if (!_mi_fetch_keypage(info, keyinfo, ReinsertList.pages[i].offs,
                                DFLT_INIT_HITS, page_buf, 0))
           goto err1;
         nod_flag = mi_test_if_nod(page_buf);
         DBUG_PRINT("rtree", ("reinserting keys from "
                              "page: %lu  level: %d  nod_flag: %u",
-                             (ulong) ReinsertList.pages[i].offs,
+                             (ulong)ReinsertList.pages[i].offs,
                              ReinsertList.pages[i].level, nod_flag));
 
         k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
         last = rt_PAGE_END(page_buf);
-        for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag))
-        {
+        for (; k < last; k = rt_PAGE_NEXT_KEY(k, key_length, nod_flag)) {
           int res;
-          if ((res= rtree_insert_level(info, keynr, k, key_length,
-                                       ReinsertList.pages[i].level)) == -1)
-          {
+          if ((res = rtree_insert_level(info, keynr, k, key_length,
+                                        ReinsertList.pages[i].level)) == -1) {
             goto err1;
           }
-          if (res)
-          {
+          if (res) {
             ulong j;
             DBUG_PRINT("rtree", ("root has been split, adjust levels"));
-            for (j= i; j < ReinsertList.n_pages; j++)
-            {
+            for (j = i; j < ReinsertList.n_pages; j++) {
               ReinsertList.pages[j].level++;
               DBUG_PRINT("rtree", ("keys from page: %lu  now level: %d",
-                                   (ulong) ReinsertList.pages[i].offs,
+                                   (ulong)ReinsertList.pages[i].offs,
                                    ReinsertList.pages[i].level));
             }
           }
         }
         if (_mi_dispose(info, keyinfo, ReinsertList.pages[i].offs,
-            DFLT_INIT_HITS))
+                        DFLT_INIT_HITS))
           goto err1;
       }
-      if (ReinsertList.pages)
-        my_free(ReinsertList.pages);
+      if (ReinsertList.pages) my_free(ReinsertList.pages);
 
       /* check for redundant root (not leaf, 1 child) and eliminate */
       if ((old_root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
@@ -980,18 +885,16 @@ int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length)
         goto err1;
       nod_flag = mi_test_if_nod(info->buff);
       page_size = mi_getint(info->buff);
-      if (nod_flag && (page_size == 2 + key_length + nod_flag))
-      {
-        my_off_t new_root = _mi_kpos(nod_flag,
-                                     rt_PAGE_FIRST_KEY(info->buff, nod_flag));
-        if (_mi_dispose(info, keyinfo, old_root, DFLT_INIT_HITS))
-          goto err1;
+      if (nod_flag && (page_size == 2 + key_length + nod_flag)) {
+        my_off_t new_root =
+            _mi_kpos(nod_flag, rt_PAGE_FIRST_KEY(info->buff, nod_flag));
+        if (_mi_dispose(info, keyinfo, old_root, DFLT_INIT_HITS)) goto err1;
         info->s->state.key_root[keynr] = new_root;
       }
-      info->update= HA_STATE_DELETED;
+      info->update = HA_STATE_DELETED;
       DBUG_RETURN(0);
 
-err1:
+    err1:
       DBUG_RETURN(-1); /* purecov: inspected */
     }
     case 1: /* not found */
@@ -1007,17 +910,15 @@ err1:
   }
 }
 
-
-/* 
-  Estimate number of suitable keys in the tree 
+/*
+  Estimate number of suitable keys in the tree
 
   RETURN
     estimated value
 */
 
-ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key, 
-                       uint key_length, uint flag)
-{
+ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key, uint key_length,
+                       uint flag) {
   MI_KEYDEF *keyinfo = info->s->keyinfo + keynr;
   my_off_t root;
   uint i = 0;
@@ -1029,12 +930,11 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
   double area = 0;
   ha_rows res = 0;
 
-  if (flag & MBR_DISJOINT)
-    return info->state->records;
+  if (flag & MBR_DISJOINT) return info->state->records;
 
   if ((root = info->s->state.key_root[keynr]) == HA_OFFSET_ERROR)
     return HA_POS_ERROR;
-  if (!(page_buf = (uchar*)my_alloca((uint)keyinfo->block_length)))
+  if (!(page_buf = (uchar *)my_alloca((uint)keyinfo->block_length)))
     return HA_POS_ERROR;
   if (!_mi_fetch_keypage(info, keyinfo, root, DFLT_INIT_HITS, page_buf, 0))
     goto err1;
@@ -1045,55 +945,37 @@ ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key,
   k = rt_PAGE_FIRST_KEY(page_buf, nod_flag);
   last = rt_PAGE_END(page_buf);
 
-  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag), ++i)
-  {
-    if (nod_flag)
-    {
+  for (; k < last; k = rt_PAGE_NEXT_KEY(k, k_len, nod_flag), ++i) {
+    if (nod_flag) {
       double k_area = rtree_rect_volume(keyinfo->seg, k, key_length);
 
       /* The following should be safe, even if we compare doubles */
-      if (k_area == 0)
-      {
-        if (flag & (MBR_CONTAIN | MBR_INTERSECT))
-        {
+      if (k_area == 0) {
+        if (flag & (MBR_CONTAIN | MBR_INTERSECT)) {
           area += 1;
-        }
-        else if (flag & (MBR_WITHIN | MBR_EQUAL))
-        {
+        } else if (flag & (MBR_WITHIN | MBR_EQUAL)) {
           if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN))
             area += 1;
-        }
-        else
+        } else
           goto err1;
-      }
-      else
-      {
-        if (flag & (MBR_CONTAIN | MBR_INTERSECT))
-        {
-          area += rtree_overlapping_area(keyinfo->seg, key, k, key_length) / 
-                  k_area;
-        }
-        else if (flag & (MBR_WITHIN | MBR_EQUAL))
-        {
+      } else {
+        if (flag & (MBR_CONTAIN | MBR_INTERSECT)) {
+          area +=
+              rtree_overlapping_area(keyinfo->seg, key, k, key_length) / k_area;
+        } else if (flag & (MBR_WITHIN | MBR_EQUAL)) {
           if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, MBR_WITHIN))
-            area += rtree_rect_volume(keyinfo->seg, key, key_length) /
-                    k_area;
-        }
-        else
+            area += rtree_rect_volume(keyinfo->seg, key, key_length) / k_area;
+        } else
           goto err1;
       }
-    }
-    else
-    {
-      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, flag))
-        ++res;
+    } else {
+      if (!rtree_key_cmp(keyinfo->seg, key, k, key_length, flag)) ++res;
     }
   }
-  if (nod_flag)
-  {
+  if (nod_flag) {
     if (i)
-      res = (ha_rows) (area / i * info->state->records);
-    else 
+      res = (ha_rows)(area / i * info->state->records);
+    else
       res = HA_POS_ERROR;
   }
 

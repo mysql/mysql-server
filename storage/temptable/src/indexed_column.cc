@@ -25,14 +25,14 @@ TempTable Indexed Column implementation. */
 
 #include <limits> /* std::numeric_limits */
 
-#include "my_dbug.h"               /* DBUG_ASSERT() */
-#include "sql/field.h"             /* Field */
-#include "sql/key.h"               /* KEY */
+#include "my_dbug.h"   /* DBUG_ASSERT() */
+#include "sql/field.h" /* Field */
+#include "sql/key.h"   /* KEY */
 #include "storage/temptable/include/temptable/indexed_column.h" /* temptable::Indexed_column */
 
 namespace temptable {
 
-Indexed_column::Indexed_column(const KEY_PART_INFO& mysql_key_part)
+Indexed_column::Indexed_column(const KEY_PART_INFO &mysql_key_part)
     : m_mysql_key_part(&mysql_key_part) {
   DBUG_ASSERT(mysql_key_part.field->field_index <=
               std::numeric_limits<decltype(m_mysql_field_index)>::max());
@@ -66,7 +66,7 @@ Indexed_column::Indexed_column(const KEY_PART_INFO& mysql_key_part)
   }
 }
 
-const CHARSET_INFO* Indexed_column::field_charset(const Field& field) {
+const CHARSET_INFO *Indexed_column::field_charset(const Field &field) {
   /* Decide if we should use charset+collation for comparisons, or rely on pure
    * binary data. */
   switch (field.key_type()) {
@@ -84,4 +84,4 @@ const CHARSET_INFO* Indexed_column::field_charset(const Field& field) {
       return nullptr;
   }
 }
-}
+}  // namespace temptable

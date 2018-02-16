@@ -23,8 +23,8 @@
 #ifndef DD__INDEX_STAT_INCLUDED
 #define DD__INDEX_STAT_INCLUDED
 
-#include "sql/dd/types/entity_object.h"       // Entity_object
-#include "sql/dd/types/entity_object_table.h" // Entity_object_table
+#include "sql/dd/types/entity_object.h"        // Entity_object
+#include "sql/dd/types/entity_object_table.h"  // Entity_object_table
 
 namespace dd {
 
@@ -34,19 +34,18 @@ class Composite_4char_key;
 class Index_stat_impl;
 
 namespace tables {
-  class Index_stats;
+class Index_stats;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_stat : virtual public Entity_object
-{
-public:
+class Index_stat : virtual public Entity_object {
+ public:
   typedef Index_stat_impl Impl;
   typedef tables::Index_stats DD_table;
   typedef Composite_4char_key Name_key;
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // schema name.
   /////////////////////////////////////////////////////////////////////////
@@ -88,11 +87,10 @@ public:
 
   virtual ulonglong cached_time() const = 0;
   virtual void set_cached_time(ulonglong cached_time) = 0;
-
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__INDEX_STAT_INCLUDED
+#endif  // DD__INDEX_STAT_INCLUDED

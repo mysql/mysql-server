@@ -25,23 +25,20 @@
 #ifndef SHARED_MEMORY_CONNECTION_INCLUDED
 #define SHARED_MEMORY_CONNECTION_INCLUDED
 
-
 #include <Windows.h>
 #include <string>
 
 class Channel_info;
 class THD;
 
-
 /**
   This class abstract a shared memory listener to listen for connection
   events that connect via the shared memory.
 */
-class Shared_mem_listener
-{
+class Shared_mem_listener {
   std::string m_shared_mem_name;
   HANDLE m_connect_file_map;
-  char* m_connect_map;
+  char *m_connect_map;
   HANDLE m_connect_named_mutex;
   HANDLE m_event_connect_request;
   HANDLE m_event_connect_answer;
@@ -52,46 +49,45 @@ class Shared_mem_listener
   char *m_temp_buffer;
 
   HANDLE m_handle_client_file_map;
-  char  *m_handle_client_map;
+  char *m_handle_client_map;
   HANDLE m_event_client_wrote;
-  HANDLE m_event_client_read;    // for transfer data server <-> client
+  HANDLE m_event_client_read;  // for transfer data server <-> client
   HANDLE m_event_server_wrote;
   HANDLE m_event_server_read;
   HANDLE m_event_conn_closed;
 
   void close_shared_mem();
 
-public:
+ public:
   /**
     Constructor to create shared memory listener.
 
     @param  shared_memory_base_name pointer to shared memory base name.
   */
   Shared_mem_listener(const std::string *shared_memory_base_name)
-  : m_shared_mem_name(*shared_memory_base_name),
-    m_connect_file_map(0),
-    m_connect_map(0),
-    m_connect_named_mutex(NULL),
-    m_event_connect_request(0),
-    m_event_connect_answer(0),
-    m_sa_event(0),
-    m_sa_mapping(0),
-    m_temp_buffer(0),
-    m_connect_number(1),
-    m_handle_client_file_map(0),
-    m_handle_client_map(0),
-    m_event_client_wrote(0),
-    m_event_client_read(0),
-    m_event_server_wrote(0),
-    m_event_server_read(0),
-    m_event_conn_closed(0)
-  { }
+      : m_shared_mem_name(*shared_memory_base_name),
+        m_connect_file_map(0),
+        m_connect_map(0),
+        m_connect_named_mutex(NULL),
+        m_event_connect_request(0),
+        m_event_connect_answer(0),
+        m_sa_event(0),
+        m_sa_mapping(0),
+        m_temp_buffer(0),
+        m_connect_number(1),
+        m_handle_client_file_map(0),
+        m_handle_client_map(0),
+        m_event_client_wrote(0),
+        m_event_client_read(0),
+        m_event_server_wrote(0),
+        m_event_server_read(0),
+        m_event_conn_closed(0) {}
 
   /**
     Set up a listener.
 
-    @retval false listener listener has been setup successfully to listen for connect events
-            true  failure in setting up the listener.
+    @retval false listener listener has been setup successfully to listen for
+    connect events true  failure in setting up the listener.
   */
   bool setup_listener();
 
@@ -101,7 +97,7 @@ public:
     @retval Channel_info   Channel_info object abstracting the connected client
                            details for processing this connection.
   */
-  Channel_info* listen_for_connection_event();
+  Channel_info *listen_for_connection_event();
 
   /**
     Close the listener.
@@ -109,4 +105,4 @@ public:
   void close_listener();
 };
 
-#endif // SHARED_MEMORY_CONNECTION_INCLUDED
+#endif  // SHARED_MEMORY_CONNECTION_INCLUDED

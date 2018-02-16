@@ -40,7 +40,6 @@
 */
 typedef unsigned int PSI_cond_key;
 
-
 /**
   @def PSI_COND_VERSION_1
   Performance Schema Cond Interface number for version 1.
@@ -70,8 +69,7 @@ struct PSI_cond_locker;
 typedef struct PSI_cond_locker PSI_cond_locker;
 
 /** Operation performed on an instrumented condition. */
-enum PSI_cond_operation
-{
+enum PSI_cond_operation {
   /** Wait. */
   PSI_COND_WAIT = 0,
   /** Wait, with timeout. */
@@ -84,8 +82,7 @@ typedef enum PSI_cond_operation PSI_cond_operation;
   @since PSI_COND_VERSION_1
   This structure is used to register an instrumented cond.
 */
-struct PSI_cond_info_v1
-{
+struct PSI_cond_info_v1 {
   /**
     Pointer to the key assigned to the registered cond.
   */
@@ -115,8 +112,7 @@ typedef struct PSI_cond_info_v1 PSI_cond_info_v1;
   This memory is provided by the instrumented code for performance reasons.
   @sa start_cond_wait_v1_t
 */
-struct PSI_cond_locker_state_v1
-{
+struct PSI_cond_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current operation. */
@@ -143,8 +139,7 @@ typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
   @param count the size of the info array
 */
 typedef void (*register_cond_v1_t)(const char *category,
-                                   struct PSI_cond_info_v1 *info,
-                                   int count);
+                                   struct PSI_cond_info_v1 *info, int count);
 
 /**
   Cond instrumentation initialisation API.
@@ -183,12 +178,9 @@ typedef void (*broadcast_cond_v1_t)(struct PSI_cond *cond);
   @return a cond locker, or NULL
 */
 typedef struct PSI_cond_locker *(*start_cond_wait_v1_t)(
-  struct PSI_cond_locker_state_v1 *state,
-  struct PSI_cond *cond,
-  struct PSI_mutex *mutex,
-  enum PSI_cond_operation op,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_cond_locker_state_v1 *state, struct PSI_cond *cond,
+    struct PSI_mutex *mutex, enum PSI_cond_operation op, const char *src_file,
+    unsigned int src_line);
 
 /**
   Record a condition instrumentation wait end event.

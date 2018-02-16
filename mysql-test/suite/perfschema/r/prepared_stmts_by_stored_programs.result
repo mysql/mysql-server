@@ -8,8 +8,6 @@ b CHAR(10),
 name CHAR(10)
 );
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t VALUES (1,"kuchipudi","Vempati");
 INSERT INTO t VALUES (2,"odissi","Mohapatra");
 INSERT INTO t VALUES (3,"kathak","Maharaj");

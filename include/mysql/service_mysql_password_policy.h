@@ -46,23 +46,27 @@ extern "C" struct mysql_password_policy_service_st {
   /**
     Validates a password.
 
-    @sa my_validate_password_policy, st_mysql_validate_password::validate_password
+    @sa my_validate_password_policy,
+    st_mysql_validate_password::validate_password
   */
   int (*my_validate_password_policy_func)(const char *, unsigned int);
   /**
     Evaluates the strength of a password in a scale 0-100
 
-    @sa my_calculate_password_strength, st_mysql_validate_password::get_password_strength
+    @sa my_calculate_password_strength,
+    st_mysql_validate_password::get_password_strength
   */
   int (*my_calculate_password_strength_func)(const char *, unsigned int);
-} *mysql_password_policy_service;
+} * mysql_password_policy_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define my_validate_password_policy(buffer, length) \
-  mysql_password_policy_service->my_validate_password_policy_func(buffer, length)
-#define my_calculate_password_strength(buffer, length) \
-  mysql_password_policy_service->my_calculate_password_strength_func(buffer, length)
+#define my_validate_password_policy(buffer, length)                       \
+  mysql_password_policy_service->my_validate_password_policy_func(buffer, \
+                                                                  length)
+#define my_calculate_password_strength(buffer, length)                       \
+  mysql_password_policy_service->my_calculate_password_strength_func(buffer, \
+                                                                     length)
 
 #else
 

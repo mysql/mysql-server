@@ -30,22 +30,20 @@
 #include "client/base/message_data.h"
 #include "client/base/mysql_query_runner.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_connection_provider
-{
-public:
-  virtual ~I_connection_provider()
-  {}
-  virtual Mysql::Tools::Base::Mysql_query_runner* get_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler)= 0;
+class I_connection_provider {
+ public:
+  virtual ~I_connection_provider() {}
+  virtual Mysql::Tools::Base::Mysql_query_runner *get_runner(
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

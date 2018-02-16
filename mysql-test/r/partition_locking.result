@@ -634,8 +634,6 @@ UNIX_TIMESTAMP('2011-01-01 00:00:00') % 3 as part,
 time_t	part	part2
 1293829200	0	0
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t3
 (a timestamp DEFAULT 0,
 b char(10),

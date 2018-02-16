@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -44,8 +44,10 @@ bool Admin_command_index::is_table_support_virtual_columns(
     const std::string &schema, const std::string &name,
     ngs::Error_code *error) const {
   Query_string_builder qb;
-  qb.put("SHOW CREATE TABLE ").quote_identifier(schema).dot().quote_identifier(
-      name);
+  qb.put("SHOW CREATE TABLE ")
+      .quote_identifier(schema)
+      .dot()
+      .quote_identifier(name);
 
   std::string create_stmt;
   Sql_data_result result(m_session->data_context());
@@ -53,16 +55,14 @@ bool Admin_command_index::is_table_support_virtual_columns(
     result.query(qb.get());
     if (result.size() != 1) {
       log_error(
-          "Unable to get creation stmt for collection '%s';"
-          " query result size: %lu",
+          ER_XPLUGIN_FAILED_TO_GET_CREATION_STMT,
           std::string(schema.empty() ? name : schema + "." + name).c_str(),
           static_cast<unsigned long>(result.size()));  // NOLINT(runtime/int)
       *error = ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
       return false;
     }
     result.skip().get(create_stmt);
-  }
-  catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &e) {
     log_debug(
         "Unable to get creation stmt for collection '%s';"
         " exception message: '%s'",
@@ -75,11 +75,9 @@ bool Admin_command_index::is_table_support_virtual_columns(
   static const char *const engine = "ENGINE=";
   std::string::size_type pos = create_stmt.find(engine);
   if (pos == std::string::npos) {
-    log_error(
-        "Unable to get engine info for collection '%s';"
-        " creation stmt: %s",
-        std::string(schema.empty() ? name : schema + "." + name).c_str(),
-        create_stmt.c_str());
+    log_error(ER_XPLUGIN_FAILED_TO_GET_ENGINE_INFO,
+              std::string(schema.empty() ? name : schema + "." + name).c_str(),
+              create_stmt.c_str());
     *error = ngs::Error(ER_INTERNAL_ERROR, "Error executing statement");
     return false;
   }
@@ -97,15 +95,15 @@ Admin_command_index::Index_type_id Admin_command_index::get_type_id(
   std::transform(name.begin(), name.end(), name.begin(), ::toupper);
   auto i = std::find_if(INDEX_TYPE.begin(), INDEX_TYPE.end(),
                         [&name](const char *const arg) {
-    return std::strcmp(name.c_str(), arg) == 0;
-  });
+                          return std::strcmp(name.c_str(), arg) == 0;
+                        });
   return i == INDEX_TYPE.end()
              ? Index_type_id::UNSUPPORTED
              : static_cast<Index_type_id>(i - INDEX_TYPE.begin());
 }
 
-std::string Admin_command_index::get_default_field_type(const Index_type_id id)
-    const {
+std::string Admin_command_index::get_default_field_type(
+    const Index_type_id id) const {
   switch (id) {
     case Index_type_id::INDEX:
       return "TEXT(64)";
@@ -224,8 +222,10 @@ ngs::Error_code Admin_command_index::create(const std::string &name_space,
   if (error) return error;
 
   Query_string_builder qb;
-  qb.put("ALTER TABLE ").quote_identifier(schema).dot().quote_identifier(
-      collection);
+  qb.put("ALTER TABLE ")
+      .quote_identifier(schema)
+      .dot()
+      .quote_identifier(collection);
 
   for (const auto &f : fields) {
     const bool is_field_exists = f->is_column_exists(
@@ -287,21 +287,24 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
     const std::string &index_name,
     std::vector<std::string> *column_names) const {
   Query_string_builder qb;
-  qb.put("SELECT column_name, COUNT(index_name) AS count"
-         " FROM information_schema.statistics WHERE table_name=")
+  qb.put(
+        "SELECT column_name, COUNT(index_name) AS count"
+        " FROM information_schema.statistics WHERE table_name=")
       .quote_string(collection)
       .put(" AND table_schema=")
       .quote_string(schema)
-      .put(" AND column_name IN ("
-           "SELECT BINARY column_name FROM information_schema.statistics"
-           " WHERE table_name=")
+      .put(
+          " AND column_name IN ("
+          "SELECT BINARY column_name FROM information_schema.statistics"
+          " WHERE table_name=")
       .quote_string(collection)
       .put(" AND table_schema=")
       .quote_string(schema)
       .put(" AND index_name=")
       .quote_string(index_name)
-      .put(" AND column_name RLIKE '^\\\\$ix_[[:alnum:]_]+[[:xdigit:]]+$')"
-           " GROUP BY column_name HAVING count = 1");
+      .put(
+          " AND column_name RLIKE '^\\\\$ix_[[:alnum:]_]+[[:xdigit:]]+$')"
+          " GROUP BY column_name HAVING count = 1");
 
   Sql_data_result result(m_session->data_context());
   try {
@@ -311,8 +314,7 @@ ngs::Error_code Admin_command_index::get_index_generated_column_names(
     do {
       column_names->push_back(result.get<std::string>());
     } while (result.next_row());
-  }
-  catch (const ngs::Error_code &e) {
+  } catch (const ngs::Error_code &e) {
     return e;
   }
 
@@ -461,8 +463,8 @@ bool Admin_command_index::Index_field::is_column_exists(
   return resultset.get_row_list().size() > 0;
 }
 
-void Admin_command_index::Index_field::add_column(Query_string_builder *qb)
-    const {
+void Admin_command_index::Index_field::add_column(
+    Query_string_builder *qb) const {
   qb->put(" ADD COLUMN ").quote_identifier(m_name).put(" ");
   add_type(qb);
   qb->put(" GENERATED ALWAYS AS (");
@@ -472,8 +474,8 @@ void Admin_command_index::Index_field::add_column(Query_string_builder *qb)
   if (m_is_required) qb->put(" NOT NULL");
 }
 
-void Admin_command_index::Index_field::add_field(Query_string_builder *qb)
-    const {
+void Admin_command_index::Index_field::add_field(
+    Query_string_builder *qb) const {
   qb->quote_identifier(m_name);
   add_length(qb);
 }
@@ -487,8 +489,8 @@ Admin_command_index::Index_field::get_type_id(const std::string &type_name) {
        "TEXT",    "GEOJSON",   "FULLTEXT"}};
   auto i = std::find_if(VALID_TYPES.begin(), VALID_TYPES.end(),
                         [&type_name](const char *const arg) {
-    return std::strcmp(type_name.c_str(), arg) == 0;
-  });
+                          return std::strcmp(type_name.c_str(), arg) == 0;
+                        });
   return i == VALID_TYPES.end()
              ? Field_type_id::UNSUPPORTED
              : static_cast<Field_type_id>(i - VALID_TYPES.begin());
@@ -501,10 +503,11 @@ class Index_numeric_field : public Admin_command_index::Index_field {
                       const int32_t precision, const int32_t scale,
                       const bool is_unsigned, const std::string &path,
                       const bool is_required, const bool is_virtual_allowed)
-      : Index_field(path, is_required, get_prefix(prefix, precision, scale,
-                                                  is_unsigned, is_required) +
-                                           docpath_hash(path),
-                    is_virtual_allowed),
+      : Index_field(
+            path, is_required,
+            get_prefix(prefix, precision, scale, is_unsigned, is_required) +
+                docpath_hash(path),
+            is_virtual_allowed),
         m_type_name(type_name),
         m_precision(precision),
         m_scale(scale),

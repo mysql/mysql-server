@@ -75,8 +75,7 @@ struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
 
 /** State of an instrumented socket. */
-enum PSI_socket_state
-{
+enum PSI_socket_state {
   /** Idle, waiting for the next command. */
   PSI_SOCKET_STATE_IDLE = 1,
   /** Active, executing a command. */
@@ -85,8 +84,7 @@ enum PSI_socket_state
 typedef enum PSI_socket_state PSI_socket_state;
 
 /** Operation performed on an instrumented socket. */
-enum PSI_socket_operation
-{
+enum PSI_socket_operation {
   /** Socket creation, as in @c socket() or @c socketpair(). */
   PSI_SOCKET_CREATE = 0,
   /** Socket connection, as in @c connect(), @c listen() and @c accept(). */
@@ -125,8 +123,7 @@ typedef enum PSI_socket_operation PSI_socket_operation;
   @since PSI_SOCKET_VERSION_1
   This structure is used to register an instrumented socket.
 */
-struct PSI_socket_info_v1
-{
+struct PSI_socket_info_v1 {
   /**
     Pointer to the key assigned to the registered socket.
   */
@@ -156,8 +153,7 @@ typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
   This memory is provided by the instrumented code for performance reasons.
   @sa start_socket_wait_v1_t
 */
-struct PSI_socket_locker_state_v1
-{
+struct PSI_socket_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current socket. */
@@ -221,12 +217,9 @@ typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
   @return a socket locker, or NULL
 */
 typedef struct PSI_socket_locker *(*start_socket_wait_v1_t)(
-  struct PSI_socket_locker_state_v1 *state,
-  struct PSI_socket *socket,
-  enum PSI_socket_operation op,
-  size_t count,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_socket_locker_state_v1 *state, struct PSI_socket *socket,
+    enum PSI_socket_operation op, size_t count, const char *src_file,
+    unsigned int src_line);
 
 /**
   Record a socket instrumentation end event.

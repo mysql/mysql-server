@@ -32,7 +32,6 @@ class String;
 
 namespace options_parser {
 
-
 /**
   Parses options string into a map of keys and values, raises
   an error if parsing is unsuccessful.
@@ -47,6 +46,6 @@ namespace options_parser {
 bool parse_string(String *str, std::map<std::string, std::string> *map,
                   const char *func_name);
 
-} // options_parser
+}  // namespace options_parser
 
-#endif // OPTIONS_PARSER_H_INCLUDED
+#endif  // OPTIONS_PARSER_H_INCLUDED

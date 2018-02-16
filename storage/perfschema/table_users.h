@@ -44,58 +44,47 @@ struct PFS_user;
 /**
   A row of PERFORMANCE_SCHEMA.USERS.
 */
-struct row_users
-{
+struct row_users {
   /** Column USER. */
   PFS_user_row m_user;
   /** Columns CURRENT_CONNECTIONS, TOTAL_CONNECTIONS. */
   PFS_connection_stat_row m_connection_stat;
 };
 
-class PFS_index_users_by_user : public PFS_index_users
-{
-public:
-  PFS_index_users_by_user() : PFS_index_users(&m_key), m_key("USER")
-  {
-  }
+class PFS_index_users_by_user : public PFS_index_users {
+ public:
+  PFS_index_users_by_user() : PFS_index_users(&m_key), m_key("USER") {}
 
-  ~PFS_index_users_by_user()
-  {
-  }
+  ~PFS_index_users_by_user() {}
 
   virtual bool match(PFS_user *pfs);
 
-private:
+ private:
   PFS_key_user m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.USERS. */
-class table_users : public cursor_by_user
-{
-public:
+class table_users : public cursor_by_user {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
   static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   table_users();
 
-public:
-  ~table_users()
-  {
-  }
+ public:
+  ~table_users() {}
 
   int index_init(uint idx, bool sorted);
 
-private:
+ private:
   virtual int make_row(PFS_user *pfs);
 
   /** Table share lock. */

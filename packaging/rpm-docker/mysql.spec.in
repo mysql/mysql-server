@@ -23,7 +23,7 @@
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
-%global milestone    dmr
+%global milestone    tr
 
 # Pass path to mecab lib
 %{?with_mecab: %global mecab_option -DWITH_MECAB=%{with_mecab}}
@@ -405,7 +405,7 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 9.0.0-0.1
+* Thu Dec 07 2017 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.6-0.1
 - Change the global milestone to 'dmr'
 - Move mysqlx to default plugin
 - Add mysqlbackup

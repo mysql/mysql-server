@@ -31,40 +31,36 @@ using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
 int64 Abstract_connection_provider::Message_handler_wrapper::pass_message(
-  const Mysql::Tools::Base::Message_data& message)
-{
-  if (m_message_handler != NULL)
-  {
+    const Mysql::Tools::Base::Message_data &message) {
+  if (m_message_handler != NULL) {
     return (*m_message_handler)(message) ? -1 : 0;
   }
   return 0;
 }
 
 Abstract_connection_provider::Message_handler_wrapper::Message_handler_wrapper(
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler)
-  : m_message_handler(message_handler)
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler)
+    : m_message_handler(message_handler) {}
 
-Mysql::Tools::Base::Mysql_query_runner*
-  Abstract_connection_provider::create_new_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-      message_handler)
-{
-  MYSQL* connection= m_connection_factory->create_connection();
-  if (!connection)
-    return nullptr;
-  Message_handler_wrapper* message_wrapper=
-    new Message_handler_wrapper(message_handler);
-  auto *callback = new std::function<int64(const Mysql::Tools::Base::Message_data&)>(
-    std::bind(&Message_handler_wrapper::pass_message, message_wrapper, _1));
-  auto cleanup_callback = [message_wrapper]{ delete message_wrapper; };
+Mysql::Tools::Base::Mysql_query_runner *
+Abstract_connection_provider::create_new_runner(
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler) {
+  MYSQL *connection = m_connection_factory->create_connection();
+  if (!connection) return nullptr;
+  Message_handler_wrapper *message_wrapper =
+      new Message_handler_wrapper(message_handler);
+  auto *callback =
+      new std::function<int64(const Mysql::Tools::Base::Message_data &)>(
+          std::bind(&Message_handler_wrapper::pass_message, message_wrapper,
+                    _1));
+  auto cleanup_callback = [message_wrapper] { delete message_wrapper; };
 
   return &((new Mysql::Tools::Base::Mysql_query_runner(connection))
-    ->add_message_callback(callback, cleanup_callback));
+               ->add_message_callback(callback, cleanup_callback));
 }
 
 Abstract_connection_provider::Abstract_connection_provider(
-  Mysql::Tools::Base::I_connection_factory* connection_factory)
-  : m_connection_factory(connection_factory)
-{}
+    Mysql::Tools::Base::I_connection_factory *connection_factory)
+    : m_connection_factory(connection_factory) {}

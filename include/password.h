@@ -35,9 +35,8 @@
 struct rand_struct *get_sql_rand();
 
 // extern "C" since it is an (undocumented) part of the libmysql ABI.
-extern "C"
-void my_make_scrambled_password(char *to, const char *password,
-                                size_t pass_len);
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len);
 void my_make_scrambled_password_sha1(char *to, const char *password,
                                      size_t pass_len);
 

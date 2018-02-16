@@ -35,7 +35,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lot0lob.h"
 #include "zlob0int.h"
 
-#define Fname(x) const char* fname = x;
+#define Fname(x) const char *fname = x;
 #define LOG(x) \
   { std::cout << fname << ":" << x << std::endl; }
 
@@ -71,7 +71,7 @@ void z_first_page_basic_test() {
 
 void basic_insert_test(ulint size) {
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, size);
+  byte *lob = lob_data::generate_lob(&lobid, size);
 
   trx_id_t trxid = 28;
 
@@ -91,9 +91,9 @@ void basic_insert_test(ulint size) {
 
 void basic_insert_test_2() {
   lobid_t lobid;
-  std::pair<byte*, ulint> result = lob_data::get_lob(&lobid, "earth215kb.jpg");
+  std::pair<byte *, ulint> result = lob_data::get_lob(&lobid, "earth215kb.jpg");
 
-  byte* lob = result.first;
+  byte *lob = result.first;
   ulint size = result.second;
 
   std::cout << "lobid=" << lobid << ", size=" << size << std::endl;
@@ -112,10 +112,10 @@ void basic_insert_test_2() {
 
 void basic_insert_read_test() {
   lobid_t lobid;
-  std::pair<byte*, ulint> result =
+  std::pair<byte *, ulint> result =
       lob_data::get_lob(&lobid, "/home/innodb/x.avi");
 
-  byte* lob = result.first;
+  byte *lob = result.first;
   ulint size = result.second;
 
   std::cout << "lobid=" << lobid << ", size=" << size << std::endl;
@@ -144,7 +144,7 @@ void z_replace_generic(ulint size, ulint offset, ulint replace_len) {
 
   const ulint SIZE = size;
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   /* Ensure that the requested replace length is within limits. */
   ulint can_be_replaced = SIZE - offset;
@@ -173,7 +173,7 @@ void z_replace_generic(ulint size, ulint offset, ulint replace_len) {
   lobid_t lobid2;
   trx_id_t trx2 = 300;
   ulint replace_offset = offset;
-  byte* replace_lob = lob_data::generate_lob(&lobid2, '|', replace_len);
+  byte *replace_lob = lob_data::generate_lob(&lobid2, '|', replace_len);
   ulint l1 =
       zlob::z_replace(trx2, ref, replace_offset, replace_len, replace_lob);
 
@@ -232,7 +232,7 @@ void z_insert_middle_generic(ulint size, ulint offset, ulint insert_len) {
   Fname("z_insert_middle_generic");
   const ulint SIZE = size;
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   LOG("lob_size=" << size << ", offset=" << offset << ", len=" << insert_len);
 
@@ -255,7 +255,7 @@ void z_insert_middle_generic(ulint size, ulint offset, ulint insert_len) {
   lobid_t lobid2;
   trx_id_t trx2 = 300;
   ulint insert_offset = offset;
-  byte* insert_lob = lob_data::generate_lob(&lobid2, '|', insert_len);
+  byte *insert_lob = lob_data::generate_lob(&lobid2, '|', insert_len);
   zlob::z_insert_middle(trx2, ref, insert_offset, insert_lob, insert_len);
 
   /* Fetch the older LOB that has been originally inserted. */
@@ -299,7 +299,7 @@ void z_remove_middle_generic(ulint size, ulint offset, ulint remove_len) {
   LOG("size=" << size << ", offset=" << offset << ", len=" << remove_len);
   const ulint SIZE = size;
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trx1 = 100;
 
@@ -534,5 +534,4 @@ TEST(z_replace, ReplaceStressKB500) {
   for (ulint offset = 0; offset <= lob_size; offset += 500) {
     z_replace_generic(lob_size, offset, replace_len);
   }
-
 }

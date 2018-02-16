@@ -31,14 +31,13 @@
 #include "my_inttypes.h"  // IWYU pragma: keep
 #include "mysql.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Mysql_field
-{
-public:
-  Mysql_field(MYSQL_FIELD* field);
+class Mysql_field {
+ public:
+  Mysql_field(MYSQL_FIELD *field);
 
   std::string get_name() const;
 
@@ -48,15 +47,15 @@ public:
 
   enum enum_field_types get_type() const;
 
-private:
+ private:
   std::string m_name;
   unsigned int m_charsetnr;
   unsigned int m_flags;
   enum enum_field_types m_type;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

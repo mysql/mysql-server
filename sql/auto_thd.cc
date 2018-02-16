@@ -26,23 +26,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "sql/log.h"
-#include "sql/sql_class.h"            // THD
-#include "sql/sql_thd_internal_api.h" // create_thd / destroy_thd
+#include "sql/sql_class.h"             // THD
+#include "sql/sql_thd_internal_api.h"  // create_thd / destroy_thd
 
 /**
   Create THD object and initialize internal variables.
 */
-Auto_THD::Auto_THD() :
-  thd(create_thd(false, true, false, 0))
-{
+Auto_THD::Auto_THD() : thd(create_thd(false, true, false, 0)) {
   thd->push_internal_handler(this);
 }
 
 /**
   Deinitialize THD.
 */
-Auto_THD::~Auto_THD()
-{
+Auto_THD::~Auto_THD() {
   thd->pop_internal_handler();
   destroy_thd(thd);
 }
@@ -58,26 +55,25 @@ Auto_THD::~Auto_THD()
 
   @return This function always return false.
 */
-bool Auto_THD::handle_condition(THD *thd MY_ATTRIBUTE((unused)),
-  uint sql_errno,
-  const char *sqlstate,
-  Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-  const char *msg)
-{
-  int log_err_level= 0;
+bool Auto_THD::handle_condition(
+    THD *thd MY_ATTRIBUTE((unused)), uint sql_errno, const char *sqlstate,
+    Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
+    const char *msg) {
+  int log_err_level = 0;
 
   if (*level == Sql_condition::SL_WARNING)
-    log_err_level= WARNING_LEVEL;
+    log_err_level = WARNING_LEVEL;
   else if (*level == Sql_condition::SL_ERROR)
-    log_err_level= ERROR_LEVEL;
+    log_err_level = ERROR_LEVEL;
   else if (*level == Sql_condition::SL_NOTE)
-    log_err_level= INFORMATION_LEVEL;
+    log_err_level = INFORMATION_LEVEL;
 
-  LogEvent().type(LOG_TYPE_ERROR)
-            .prio(log_err_level)
-            .errcode(sql_errno)
-            .sqlstate(sqlstate)
-            .verbatim(msg);
+  LogEvent()
+      .type(LOG_TYPE_ERROR)
+      .prio(log_err_level)
+      .errcode(sql_errno)
+      .sqlstate(sqlstate)
+      .verbatim(msg);
 
   return false;
 }

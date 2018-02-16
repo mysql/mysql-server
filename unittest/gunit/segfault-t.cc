@@ -30,14 +30,12 @@
 
 namespace segfault_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class FatalSignalDeathTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
+class FatalSignalDeathTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
     ::testing::FLAGS_gtest_death_test_style = "threadsafe";
     initializer.SetUp();
   }
@@ -46,9 +44,7 @@ protected:
   Server_initializer initializer;
 };
 
-
-TEST_F(FatalSignalDeathTest, Abort)
-{
+TEST_F(FatalSignalDeathTest, Abort) {
 #if defined(_WIN32)
   EXPECT_DEATH_IF_SUPPORTED(abort(), ".* UTC - mysqld got exception.*");
 #else
@@ -56,74 +52,65 @@ TEST_F(FatalSignalDeathTest, Abort)
 #endif
 }
 
-
-TEST_F(FatalSignalDeathTest, Segfault)
-{
+TEST_F(FatalSignalDeathTest, Segfault) {
 #if defined(_WIN32)
-  int *pint= NULL;
+  int *pint = NULL;
   /*
    After upgrading from gtest 1.5 to 1.6 this segfault is no longer
    caught by handle_fatal_signal(). We get an empty error message from the
    gtest library instead.
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, "");
 #elif defined(__SANITIZE_ADDRESS__)
-  /* gcc 4.8.1 with '-fsanitize=address -O1' */
-  /* Newer versions of ASAN give other error message, disable it */
-  // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
+/* gcc 4.8.1 with '-fsanitize=address -O1' */
+/* Newer versions of ASAN give other error message, disable it */
+// EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");
 #else
-  int *pint= NULL;
+  int *pint = NULL;
   /*
    On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
    And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
   */
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal .*");
+  EXPECT_DEATH_IF_SUPPORTED(*pint = 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 
-
 // Verifies that my_safe_utoa behaves like sprintf(_, "%llu", _)
-TEST(PrintUtilities, Utoa)
-{
+TEST(PrintUtilities, Utoa) {
   char buff[22];
-  ulonglong intarr[]= { 0, 1, 8, 12, 1234, 88888, ULONG_MAX, ULLONG_MAX };
+  ulonglong intarr[] = {0, 1, 8, 12, 1234, 88888, ULONG_MAX, ULLONG_MAX};
   char sprintbuff[22];
-  for (size_t ix= 0; ix < array_elements(intarr); ++ix)
-  {
+  for (size_t ix = 0; ix < array_elements(intarr); ++ix) {
     char *my_res;
     sprintf(sprintbuff, "%llu", intarr[ix]);
-    my_res= my_safe_utoa(10, intarr[ix], &buff[sizeof(buff)-1]);
+    my_res = my_safe_utoa(10, intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
-    if (intarr[ix] <= ULONG_MAX)
-    {
-      sprintf(sprintbuff, "%lu", (ulong) intarr[ix]);
-      my_res= my_safe_utoa(10, (ulong) intarr[ix], &buff[sizeof(buff)-1]);
+    if (intarr[ix] <= ULONG_MAX) {
+      sprintf(sprintbuff, "%lu", (ulong)intarr[ix]);
+      my_res = my_safe_utoa(10, (ulong)intarr[ix], &buff[sizeof(buff) - 1]);
       EXPECT_STREQ(sprintbuff, my_res);
     }
   }
 }
 
-
 // Verifies that my_safe_itoa behaves like sprintf(_, "%lld", _)
-TEST(PrintUtilities, Itoa)
-{
+TEST(PrintUtilities, Itoa) {
   char buff[22];
   char sprintbuff[22];
-  longlong intarr[]= { 0, 1, 8, 12, 1234, 88888, LONG_MAX, LLONG_MAX };
+  longlong intarr[] = {0, 1, 8, 12, 1234, 88888, LONG_MAX, LLONG_MAX};
 
-  for (size_t ix= 0; ix < array_elements(intarr); ++ix)
-  {
+  for (size_t ix = 0; ix < array_elements(intarr); ++ix) {
     char *my_res;
     sprintf(sprintbuff, "%lld", intarr[ix]);
-    my_res= my_safe_itoa(10, intarr[ix], &buff[sizeof(buff)-1]);
+    my_res = my_safe_itoa(10, intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
     ll2str(intarr[ix], buff, 10, 0);
     EXPECT_STREQ(sprintbuff, buff);
 
     sprintf(sprintbuff, "%lld", -intarr[ix]);
-    my_res= my_safe_itoa(10, -intarr[ix], &buff[sizeof(buff)-1]);
+    my_res = my_safe_itoa(10, -intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
     // This one fails ....
@@ -132,43 +119,40 @@ TEST(PrintUtilities, Itoa)
     //  << "failed for " << -intarr[ix];
 
     sprintf(sprintbuff, "%llx", intarr[ix]);
-    my_res= my_safe_itoa(16, intarr[ix], &buff[sizeof(buff)-1]);
+    my_res = my_safe_itoa(16, intarr[ix], &buff[sizeof(buff) - 1]);
     EXPECT_STREQ(sprintbuff, my_res);
 
     ll2str(intarr[ix], buff, 16, 0);
     EXPECT_STREQ(sprintbuff, buff);
 
     sprintf(sprintbuff, "%llx", -intarr[ix]);
-    my_res= my_safe_itoa(16, -intarr[ix], &buff[sizeof(buff)-1]);
-    EXPECT_STREQ(sprintbuff, my_res)
-      << "failed for " << -intarr[ix];
+    my_res = my_safe_itoa(16, -intarr[ix], &buff[sizeof(buff) - 1]);
+    EXPECT_STREQ(sprintbuff, my_res) << "failed for " << -intarr[ix];
 
     ll2str(-intarr[ix], buff, 16, 0);
     EXPECT_STREQ(sprintbuff, buff);
   }
 }
 
-
 // Various tests for my_safe_snprintf.
-TEST(PrintUtilities, Printf)
-{
+TEST(PrintUtilities, Printf) {
   char buff[512];
   char sprintfbuff[512];
-  const char *null_str= NULL;
+  const char *null_str = NULL;
 
   my_safe_snprintf(buff, sizeof(buff), "hello");
   EXPECT_STREQ("hello", buff);
- 
+
   my_safe_snprintf(buff, sizeof(buff), "hello %s hello", "hello");
   EXPECT_STREQ("hello hello hello", buff);
   my_safe_snprintf(buff, sizeof(buff), "hello %s hello", null_str);
   EXPECT_STREQ("hello (null) hello", buff);
- 
+
   my_safe_snprintf(buff, sizeof(buff), "hello %d hello", 42);
   EXPECT_STREQ("hello 42 hello", buff);
   my_safe_snprintf(buff, sizeof(buff), "hello %i hello", 42);
   EXPECT_STREQ("hello 42 hello", buff);
-  my_safe_snprintf(buff, sizeof(buff), "hello %u hello", (unsigned) 42);
+  my_safe_snprintf(buff, sizeof(buff), "hello %u hello", (unsigned)42);
   EXPECT_STREQ("hello 42 hello", buff);
 
   my_safe_snprintf(buff, sizeof(buff), "hello %llu hello", ULLONG_MAX);
@@ -183,15 +167,16 @@ TEST(PrintUtilities, Printf)
   EXPECT_STREQ("hello ffffffd6 hello", buff);
   EXPECT_STREQ(sprintfbuff, buff);
 
-  my_safe_snprintf(buff, sizeof(buff), "hello %llx hello", (longlong) -42);
-  sprintf(sprintfbuff, "hello %llx hello", (longlong) -42);
+  my_safe_snprintf(buff, sizeof(buff), "hello %llx hello", (longlong)-42);
+  sprintf(sprintfbuff, "hello %llx hello", (longlong)-42);
   EXPECT_STREQ("hello ffffffffffffffd6 hello", buff);
   EXPECT_STREQ(sprintfbuff, buff);
 
-  void *p= this;
+  void *p = this;
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
-  snprintf(sprintfbuff, sizeof(sprintfbuff), "hello 0x%llx hello", (long long)p);
+  snprintf(sprintfbuff, sizeof(sprintfbuff), "hello 0x%llx hello",
+           (long long)p);
   EXPECT_STREQ(sprintfbuff, buff) << "my_safe_snprintf:" << buff;
 }
 
-}
+}  // namespace segfault_unittest

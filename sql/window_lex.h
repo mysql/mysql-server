@@ -27,20 +27,14 @@
 /**
   Cf. SQL 2003 7.11 \<window frame units\> and class PT_border
 */
-enum enum_window_frame_unit
-{
-  WFU_ROWS,
-  WFU_RANGE,
-  WFU_GROUPS
-};
-
+enum enum_window_frame_unit { WFU_ROWS, WFU_RANGE, WFU_GROUPS };
 
 /**
   Cf. SQL 2003 7.11 \<window frame extent\> and class PT_border
   The Window::comparators array depends on the order of values in this enum.
 */
 enum enum_window_border_type {
-  WBT_CURRENT_ROW= 0,
+  WBT_CURRENT_ROW = 0,
   WBT_VALUE_PRECEDING,
   WBT_VALUE_FOLLOWING,
   WBT_UNBOUNDED_PRECEDING,
@@ -60,21 +54,11 @@ enum enum_window_frame_exclusion {
 /**
   Cf. SQL 2011 6.10 null treatment
 */
-enum enum_null_treatment
-{
-  NT_NONE,
-  NT_RESPECT_NULLS,
-  NT_IGNORE_NULLS
-};
+enum enum_null_treatment { NT_NONE, NT_RESPECT_NULLS, NT_IGNORE_NULLS };
 
 /**
   Cf. SQL 2011 6.10 from first or last
 */
-enum enum_from_first_last
-{
-  NFL_NONE,
-  NFL_FROM_FIRST,
-  NFL_FROM_LAST
-};
+enum enum_from_first_last { NFL_NONE, NFL_FROM_FIRST, NFL_FROM_LAST };
 
 #endif /* WINDOW_LEX_INCLUDED */

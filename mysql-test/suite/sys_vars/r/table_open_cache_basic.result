@@ -77,7 +77,7 @@ ERROR 42000: Incorrect argument type to variable 'table_open_cache'
 SET @@session.table_open_cache = 0;
 ERROR HY000: Variable 'table_open_cache' is a GLOBAL variable and should be set with SET GLOBAL
 '#----------------------FN_DYNVARS_001_06------------------------#'
-SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache ';
+SELECT @@global.table_open_cache = VARIABLE_VALUE FROM performance_schema.global_variables WHERE VARIABLE_NAME='table_open_cache';
 @@global.table_open_cache = VARIABLE_VALUE
 1
 '#---------------------FN_DYNVARS_001_09----------------------#'

@@ -261,8 +261,6 @@ ERROR HY000: Slave channel 'channel_2' does not exist.
 # CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_1';
 # CHANGE REPLICATION FILTER REPLICATE_WILD_DO_TABLE=(db%.t1%) FOR CHANNEL 'channel_1';
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'db1'
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -270,16 +268,12 @@ Replicate_Ignore_Table = 'global_db.t1'
 Replicate_Wild_Do_Table = 'db%.t1%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 9.2 SHOW SLAVE STATUS FOR CHANNEL 'channel_3' displays replication
 # filters set by the following commands:
 # CHANGE REPLICATION FILTER REPLICATE_IGNORE_DB=(db33) FOR CHANNEL 'channel_3';
 # CHANGE REPLICATION FILTER REPLICATE_WILD_IGNORE_TABLE=(db%.t1%) FOR CHANNEL 'channel_3';
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ''
 Replicate_Ignore_DB = 'db33'
 Replicate_Do_Table = ''
@@ -287,15 +281,11 @@ Replicate_Ignore_Table = 'global_db.t1'
 Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = 'db%.t1%'
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 9.3 SHOW SLAVE STATUS FOR CHANNEL 'channel_4' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_REWRITE_DB=(db4->db44) FOR CHANNEL 'channel_4';
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ''
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -303,15 +293,11 @@ Replicate_Ignore_Table = 'global_db.t1'
 Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = '(db4,db44)'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 9.4 SHOW SLAVE STATUS FOR CHANNEL 'channel_5' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_DO_TABLE=(db5.t1) FOR CHANNEL 'channel_5';
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ''
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = 'db5.t1'
@@ -319,15 +305,11 @@ Replicate_Ignore_Table = 'global_db.t1'
 Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 9.5 SHOW SLAVE STATUS FOR CHANNEL 'channel_6' displays replication
 # filters set by the following command:
 # CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE=(db6.t1) FOR CHANNEL 'channel_6';
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ''
 Replicate_Ignore_DB = ''
 Replicate_Do_Table = ''
@@ -335,8 +317,6 @@ Replicate_Ignore_Table = 'db6.t1'
 Replicate_Wild_Do_Table = ''
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 10. Verify that performance_schema.replication_applier_filters can
 # display correct replication filters for all channels.
@@ -379,8 +359,6 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db2,`db32`,`db,3`), REPLICATE_DO_DB =
 # Replicate_Wild_Ignore_Table = ''
 # Replicate_Rewrite_DB = ''
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'db1,my_db3,my_db4'
 Replicate_Ignore_DB = 'my_initfiledb3'
 Replicate_Do_Table = ''
@@ -388,8 +366,6 @@ Replicate_Ignore_Table = 'db3.initfilet3'
 Replicate_Wild_Do_Table = 'initfiled%.t%'
 Replicate_Wild_Ignore_Table = ''
 Replicate_Rewrite_DB = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 13. Verify that performance_schema.replication_applier_filters can
 # display correct replication filters for all channels after

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,15 +32,11 @@ namespace ngs {
 class Connection_vio;
 
 class Ssl_context_interface {
-public:
-  virtual bool setup(const char* tls_version,
-                     const char* ssl_key,
-                     const char* ssl_ca,
-                     const char* ssl_capath,
-                     const char* ssl_cert,
-                     const char* ssl_cipher,
-                     const char* ssl_crl,
-                     const char* ssl_crlpath) = 0;
+ public:
+  virtual bool setup(const char *tls_version, const char *ssl_key,
+                     const char *ssl_ca, const char *ssl_capath,
+                     const char *ssl_cert, const char *ssl_cipher,
+                     const char *ssl_crl, const char *ssl_crlpath) = 0;
   virtual bool activate_tls(Connection_vio &conn,
                             const int handshake_timeout) = 0;
 
@@ -51,8 +47,6 @@ public:
   virtual ~Ssl_context_interface() = default;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_SSL_CONTEXT_INTERFACE_H_
-
-
+#endif  // _NGS_SSL_CONTEXT_INTERFACE_H_

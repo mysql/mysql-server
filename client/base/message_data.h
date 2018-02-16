@@ -30,12 +30,11 @@
 
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
-enum Message_type
-{
+enum Message_type {
   Message_type_info,
   Message_type_note,
   Message_type_warning,
@@ -46,43 +45,37 @@ enum Message_type
 /**
   Structure to represent message from server sent after executing query.
  */
-class Message_data
-{
-public:
+class Message_data {
+ public:
   Message_data(uint64 code, std::string message, Message_type message_type);
-  virtual ~Message_data()
-  { }
+  virtual ~Message_data() {}
   uint64 get_code() const;
   std::string get_message() const;
   Message_type get_message_type() const;
   std::string get_message_type_string() const;
 
-  static const char* message_type_strings[];
+  static const char *message_type_strings[];
   static const int message_type_strings_count;
   /**
     Prints errors, warnings and notes to standard error.
   */
   virtual void print_error(std::string program_name) const;
 
-private:
+ private:
   uint64 m_code;
   std::string m_message;
   Message_type m_message_type;
 };
 
-
-class Warning_data: public Message_data
-{
-public:
-  Warning_data(uint64 code, std::string message, Message_type message_type):
-    Message_data(code, message, message_type)
-  { }
+class Warning_data : public Message_data {
+ public:
+  Warning_data(uint64 code, std::string message, Message_type message_type)
+      : Message_data(code, message, message_type) {}
   void print_error(std::string program_name) const;
 };
 
-
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

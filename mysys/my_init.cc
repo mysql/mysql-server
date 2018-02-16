@@ -81,52 +81,46 @@
 
 /* WSAStartup needs winsock library*/
 #pragma comment(lib, "ws2_32")
-bool have_tcpip=0;
+bool have_tcpip = 0;
 static bool my_win_init();
 #endif
 
-#define SCALE_SEC       100
-#define SCALE_USEC      10000
+#define SCALE_SEC 100
+#define SCALE_USEC 10000
 
-bool my_init_done= false;
-ulong  my_thread_stack_size= 65536;
-MYSQL_FILE *mysql_stdin= NULL;
+bool my_init_done = false;
+ulong my_thread_stack_size = 65536;
+MYSQL_FILE *mysql_stdin = NULL;
 static MYSQL_FILE instrumented_stdin;
 
-
-static ulong atoi_octal(const char *str)
-{
+static ulong atoi_octal(const char *str) {
   long int tmp;
-  while (*str && my_isspace(&my_charset_latin1, *str))
-    str++;
-  str2int(str,
-	  (*str == '0' ? 8 : 10),       /* Octalt or decimalt */
-	  0, INT_MAX, &tmp);
-  return (ulong) tmp;
+  while (*str && my_isspace(&my_charset_latin1, *str)) str++;
+  str2int(str, (*str == '0' ? 8 : 10), /* Octalt or decimalt */
+          0, INT_MAX, &tmp);
+  return (ulong)tmp;
 }
-
 
 #if defined(MY_MSCRT_DEBUG)
-int set_crt_report_leaks()
-{
+int set_crt_report_leaks() {
   HANDLE hLogFile;
 
-  _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF        // debug allocation on
-                 | _CRTDBG_LEAK_CHECK_DF     // leak checks on exit
-                 | _CRTDBG_CHECK_ALWAYS_DF   // memory check (slow)
-                 );
+  _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF       // debug allocation on
+                 | _CRTDBG_LEAK_CHECK_DF    // leak checks on exit
+                 | _CRTDBG_CHECK_ALWAYS_DF  // memory check (slow)
+  );
 
-  return ((
-    NULL == (hLogFile= GetStdHandle(STD_ERROR_HANDLE)) ||
-    -1 == _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE) ||
-    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_WARN, hLogFile) ||
-    -1 == _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE) ||
-    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ERROR, hLogFile) ||
-    -1 == _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE) ||
-    _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ASSERT, hLogFile)) ? 1 : 0);
+  return ((NULL == (hLogFile = GetStdHandle(STD_ERROR_HANDLE)) ||
+           -1 == _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE) ||
+           _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_WARN, hLogFile) ||
+           -1 == _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE) ||
+           _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ERROR, hLogFile) ||
+           -1 == _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE) ||
+           _CRTDBG_HFILE_ERROR == _CrtSetReportFile(_CRT_ASSERT, hLogFile))
+              ? 1
+              : 0);
 }
 #endif
-
 
 /**
   Initialize my_sys functions, resources and variables
@@ -135,77 +129,67 @@ int set_crt_report_leaks()
     @retval false Success
     @retval true  Error. Couldn't initialize environment
 */
-bool my_init()
-{
+bool my_init() {
   char *str;
 
-  if (my_init_done)
-    return false;
+  if (my_init_done) return false;
 
-  my_init_done= true;
+  my_init_done = true;
 
 #if defined(MY_MSCRT_DEBUG)
   set_crt_report_leaks();
 #endif
 
-  my_umask= 0640;                       /* Default umask for new files */
-  my_umask_dir= 0750;                   /* Default umask for new directories */
+  my_umask = 0640;     /* Default umask for new files */
+  my_umask_dir = 0750; /* Default umask for new directories */
 
   /* Default creation of new files */
-  if ((str= getenv("UMASK")) != 0)
-    my_umask= (int) (atoi_octal(str) | 0600);
+  if ((str = getenv("UMASK")) != 0) my_umask = (int)(atoi_octal(str) | 0600);
   /* Default creation of new dir's */
-  if ((str= getenv("UMASK_DIR")) != 0)
-    my_umask_dir= (int) (atoi_octal(str) | 0700);
+  if ((str = getenv("UMASK_DIR")) != 0)
+    my_umask_dir = (int)(atoi_octal(str) | 0700);
 
-  instrumented_stdin.m_file= stdin;
-  instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
-  mysql_stdin= & instrumented_stdin;
+  instrumented_stdin.m_file = stdin;
+  instrumented_stdin.m_psi = NULL; /* not yet instrumented */
+  mysql_stdin = &instrumented_stdin;
 
-  if (my_thread_global_init())
-    return true;
+  if (my_thread_global_init()) return true;
 
-  if (my_thread_init())
-    return true;
+  if (my_thread_init()) return true;
 
   /* $HOME is needed early to parse configuration files located in ~/ */
-  if ((home_dir= getenv("HOME")) != 0)
-    home_dir= intern_filename(home_dir_buff, home_dir);
+  if ((home_dir = getenv("HOME")) != 0)
+    home_dir = intern_filename(home_dir_buff, home_dir);
 
   {
     DBUG_ENTER("my_init");
-    DBUG_PROCESS((char*) (my_progname ? my_progname : "unknown"));
+    DBUG_PROCESS((char *)(my_progname ? my_progname : "unknown"));
 #ifdef _WIN32
-    if (my_win_init())
-      DBUG_RETURN(TRUE);
+    if (my_win_init()) DBUG_RETURN(TRUE);
 #endif
     DBUG_PRINT("exit", ("home: '%s'", home_dir));
     DBUG_RETURN(false);
   }
 } /* my_init */
 
-
-	/* End my_sys */
-void my_end(int infoflag)
-{
+/* End my_sys */
+void my_end(int infoflag) {
   /*
     We do not use DBUG_ENTER here, as after cleanup DBUG is no longer
     operational, so we cannot use DBUG_RETURN.
   */
 
-  FILE *info_file= (DBUG_FILE ? DBUG_FILE : stderr);
+  FILE *info_file = (DBUG_FILE ? DBUG_FILE : stderr);
 
-  if (!my_init_done)
-    return;
+  if (!my_init_done) return;
 
   if ((infoflag & MY_CHECK_ERROR) || (info_file != stderr))
 
-  {					/* Test if some file is left open */
-    if (my_file_opened | my_stream_opened)
-    {
+  { /* Test if some file is left open */
+    if (my_file_opened | my_stream_opened) {
       char ebuff[512];
-      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING),
-                  my_file_opened, my_stream_opened);
+      snprintf(ebuff, sizeof(ebuff), EE(EE_OPEN_WARNING), my_file_opened,
+               my_stream_opened);
       my_message_stderr(EE_OPEN_WARNING, ebuff, MYF(0));
       DBUG_PRINT("error", ("%s", ebuff));
       my_print_open_files();
@@ -215,55 +199,52 @@ void my_end(int infoflag)
   charset_uninit();
   my_once_free();
 
-  if ((infoflag & MY_GIVE_INFO) || (info_file != stderr))
-  {
+  if ((infoflag & MY_GIVE_INFO) || (info_file != stderr)) {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
     if (!getrusage(RUSAGE_SELF, &rus))
-      fprintf(info_file,"\n\
+      fprintf(info_file,
+              "\n\
 User time %.2f, System time %.2f\n                              \
 Maximum resident set size %ld, Integral resident set size %ld\n\
 Non-physical pagefaults %ld, Physical pagefaults %ld, Swaps %ld\n\
 Blocks in %ld out %ld, Messages in %ld out %ld, Signals %ld\n\
 Voluntary context switches %ld, Involuntary context switches %ld\n",
-	      (rus.ru_utime.tv_sec * SCALE_SEC +
-	       rus.ru_utime.tv_usec / SCALE_USEC) / 100.0,
-	      (rus.ru_stime.tv_sec * SCALE_SEC +
-	       rus.ru_stime.tv_usec / SCALE_USEC) / 100.0,
-	      rus.ru_maxrss, rus.ru_idrss,
-	      rus.ru_minflt, rus.ru_majflt,
-	      rus.ru_nswap, rus.ru_inblock, rus.ru_oublock,
-	      rus.ru_msgsnd, rus.ru_msgrcv, rus.ru_nsignals,
-	      rus.ru_nvcsw, rus.ru_nivcsw);
+              (rus.ru_utime.tv_sec * SCALE_SEC +
+               rus.ru_utime.tv_usec / SCALE_USEC) /
+                  100.0,
+              (rus.ru_stime.tv_sec * SCALE_SEC +
+               rus.ru_stime.tv_usec / SCALE_USEC) /
+                  100.0,
+              rus.ru_maxrss, rus.ru_idrss, rus.ru_minflt, rus.ru_majflt,
+              rus.ru_nswap, rus.ru_inblock, rus.ru_oublock, rus.ru_msgsnd,
+              rus.ru_msgrcv, rus.ru_nsignals, rus.ru_nvcsw, rus.ru_nivcsw);
 #endif
 #if defined(_WIN32)
-   _CrtSetReportMode( _CRT_WARN, _CRTDBG_MODE_FILE );
-   _CrtSetReportFile( _CRT_WARN, _CRTDBG_FILE_STDERR );
-   _CrtSetReportMode( _CRT_ERROR, _CRTDBG_MODE_FILE );
-   _CrtSetReportFile( _CRT_ERROR, _CRTDBG_FILE_STDERR );
-   _CrtSetReportMode( _CRT_ASSERT, _CRTDBG_MODE_FILE );
-   _CrtSetReportFile( _CRT_ASSERT, _CRTDBG_FILE_STDERR );
-   _CrtCheckMemory();
-   _CrtDumpMemoryLeaks();
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+    _CrtCheckMemory();
+    _CrtDumpMemoryLeaks();
 #endif
   }
 
-  if (!(infoflag & MY_DONT_FREE_DBUG))
-  {
-    DBUG_END();                /* Must be done before my_thread_end */
+  if (!(infoflag & MY_DONT_FREE_DBUG)) {
+    DBUG_END(); /* Must be done before my_thread_end */
   }
 
   my_thread_end();
   my_thread_global_end();
 
 #ifdef _WIN32
-  if (have_tcpip)
-    WSACleanup();
+  if (have_tcpip) WSACleanup();
 #endif /* _WIN32 */
 
-  my_init_done= false;
+  my_init_done = false;
 } /* my_end */
-
 
 #ifdef _WIN32
 /*
@@ -275,14 +256,12 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
   lseek will return -1 when we expect them to instead of crash.
 */
 
-void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
-                          const wchar_t * file, unsigned int line,
-                          uintptr_t pReserved)
-{
-  DBUG_PRINT("my",("Expression: %s  function: %s  file: %s, line: %d",
-		   expression, function, file, line));
+void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
+                          const wchar_t *file, unsigned int line,
+                          uintptr_t pReserved) {
+  DBUG_PRINT("my", ("Expression: %s  function: %s  file: %s, line: %d",
+                    expression, function, file, line));
 }
-
 
 #ifdef __MSVC_RUNTIME_CHECKS
 #include <rtcapi.h>
@@ -296,13 +275,12 @@ void my_parameter_handler(const wchar_t * expression, const wchar_t * function,
 */
 
 int handle_rtc_failure(int err_type, const char *file, int line,
-                       const char* module, const char *format, ...)
-{
+                       const char *module, const char *format, ...) {
   va_list args;
-  char   buff[2048];
+  char buff[2048];
   size_t len;
 
-  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len = snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);
@@ -315,7 +293,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
 #pragma runtime_checks("", restore)
 #endif
 
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define OFFSET_TO_EPOC ((__int64)134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
 #define MS 10000000
 
 extern bool win_init_get_system_time_as_file_time();
@@ -326,10 +304,8 @@ Windows specific timing function initialization.
     @retval TRUE  Error. Couldn't initialize environment
 
 */
-static bool win_init_time()
-{
-  if (win_init_get_system_time_as_file_time())
-    return true;
+static bool win_init_time() {
+  if (win_init_get_system_time_as_file_time()) return true;
   /* The following is used by time functions */
   FILETIME ft;
   LARGE_INTEGER li, t_cnt;
@@ -343,136 +319,109 @@ static bool win_init_time()
   li.HighPart = ft.dwHighDateTime;
   query_performance_offset = li.QuadPart - OFFSET_TO_EPOC;
   QueryPerformanceCounter(&t_cnt);
-  query_performance_offset -= (t_cnt.QuadPart /
-    query_performance_frequency * MS +
-    t_cnt.QuadPart %
-    query_performance_frequency * MS /
-    query_performance_frequency);
+  query_performance_offset -=
+      (t_cnt.QuadPart / query_performance_frequency * MS +
+       t_cnt.QuadPart % query_performance_frequency * MS /
+           query_performance_frequency);
 
   query_performance_offset_micros = query_performance_offset / 10;
 
   return false;
 }
 
-
 /*
   Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
   there as environment variables
 */
-static void win_init_registry()
-{
+static void win_init_registry() {
   HKEY key_handle;
 
-  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR)"SOFTWARE\\MySQL",
-                    0, KEY_READ, &key_handle) == ERROR_SUCCESS)
-  {
+  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, (LPCTSTR) "SOFTWARE\\MySQL", 0, KEY_READ,
+                   &key_handle) == ERROR_SUCCESS) {
     LONG ret;
-    DWORD index= 0;
+    DWORD index = 0;
     DWORD type;
     char key_name[256], key_data[1024];
-    DWORD key_name_len= sizeof(key_name) - 1;
-    DWORD key_data_len= sizeof(key_data) - 1;
+    DWORD key_name_len = sizeof(key_name) - 1;
+    DWORD key_data_len = sizeof(key_data) - 1;
 
-    while ((ret= RegEnumValue(key_handle, index++,
-                              key_name, &key_name_len,
-                              NULL, &type, (LPBYTE)&key_data,
-                              &key_data_len)) != ERROR_NO_MORE_ITEMS)
-    {
+    while ((ret = RegEnumValue(key_handle, index++, key_name, &key_name_len,
+                               NULL, &type, (LPBYTE)&key_data,
+                               &key_data_len)) != ERROR_NO_MORE_ITEMS) {
       char env_string[sizeof(key_name) + sizeof(key_data) + 2];
 
-      if (ret == ERROR_MORE_DATA)
-      {
+      if (ret == ERROR_MORE_DATA) {
         /* Registry value larger than 'key_data', skip it */
         DBUG_PRINT("error", ("Skipped registry value that was too large"));
-      }
-      else if (ret == ERROR_SUCCESS)
-      {
-        if (type == REG_SZ)
-        {
+      } else if (ret == ERROR_SUCCESS) {
+        if (type == REG_SZ) {
           strxmov(env_string, key_name, "=", key_data, NullS);
 
           /* variable for putenv must be allocated ! */
-          putenv(strdup(env_string)) ;
+          putenv(strdup(env_string));
         }
-      }
-      else
-      {
+      } else {
         /* Unhandled error, break out of loop */
         break;
       }
 
-      key_name_len= sizeof(key_name) - 1;
-      key_data_len= sizeof(key_data) - 1;
+      key_name_len = sizeof(key_name) - 1;
+      key_data_len = sizeof(key_data) - 1;
     }
 
     RegCloseKey(key_handle);
   }
 }
 
+  /*------------------------------------------------------------------
+    Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
+    According to Microsoft Developers documentation the first registry
+    entry should be enough to check if TCP/IP is installed, but as expected
+    this doesn't work on all Win32 machines :(
+  ------------------------------------------------------------------*/
 
-/*------------------------------------------------------------------
-  Name: CheckForTcpip| Desc: checks if tcpip has been installed on system
-  According to Microsoft Developers documentation the first registry
-  entry should be enough to check if TCP/IP is installed, but as expected
-  this doesn't work on all Win32 machines :(
-------------------------------------------------------------------*/
-
-#define TCPIPKEY  "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
+#define TCPIPKEY "SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters"
 #define WINSOCK2KEY "SYSTEM\\CurrentControlSet\\Services\\Winsock2\\Parameters"
-#define WINSOCKKEY  "SYSTEM\\CurrentControlSet\\Services\\Winsock\\Parameters"
+#define WINSOCKKEY "SYSTEM\\CurrentControlSet\\Services\\Winsock\\Parameters"
 
-static bool win32_have_tcpip()
-{
+static bool win32_have_tcpip() {
   HKEY hTcpipRegKey;
-  if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, TCPIPKEY, 0, KEY_READ,
-		      &hTcpipRegKey) != ERROR_SUCCESS)
-  {
-    if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, WINSOCK2KEY, 0, KEY_READ,
-		      &hTcpipRegKey) != ERROR_SUCCESS)
-    {
-      if (RegOpenKeyEx ( HKEY_LOCAL_MACHINE, WINSOCKKEY, 0, KEY_READ,
-			 &hTcpipRegKey) != ERROR_SUCCESS)
-	if (!getenv("HAVE_TCPIP") || have_tcpip)	/* Provide a workaround */
-	  return (false);
+  if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, TCPIPKEY, 0, KEY_READ, &hTcpipRegKey) !=
+      ERROR_SUCCESS) {
+    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WINSOCK2KEY, 0, KEY_READ,
+                     &hTcpipRegKey) != ERROR_SUCCESS) {
+      if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WINSOCKKEY, 0, KEY_READ,
+                       &hTcpipRegKey) != ERROR_SUCCESS)
+        if (!getenv("HAVE_TCPIP") || have_tcpip) /* Provide a workaround */
+          return (false);
     }
   }
-  RegCloseKey ( hTcpipRegKey);
+  RegCloseKey(hTcpipRegKey);
   return (true);
 }
 
-
-static bool win32_init_tcp_ip()
-{
-  if (win32_have_tcpip())
-  {
-    WORD wVersionRequested = MAKEWORD( 2, 2 );
+static bool win32_init_tcp_ip() {
+  if (win32_have_tcpip()) {
+    WORD wVersionRequested = MAKEWORD(2, 2);
     WSADATA wsaData;
- 	/* Be a good citizen: maybe another lib has already initialised
- 		sockets, so dont clobber them unless necessary */
-    if (WSAStartup( wVersionRequested, &wsaData ))
-    {
+    /* Be a good citizen: maybe another lib has already initialised
+            sockets, so dont clobber them unless necessary */
+    if (WSAStartup(wVersionRequested, &wsaData)) {
       /* Load failed, maybe because of previously loaded
-	 incompatible version; try again */
-      WSACleanup( );
-      if (!WSAStartup( wVersionRequested, &wsaData ))
-	have_tcpip=1;
-    }
-    else
-    {
-      if (wsaData.wVersion != wVersionRequested)
-      {
-	/* Version is no good, try again */
-	WSACleanup( );
-	if (!WSAStartup( wVersionRequested, &wsaData ))
-	  have_tcpip=1;
-      }
-      else
-	have_tcpip=1;
+         incompatible version; try again */
+      WSACleanup();
+      if (!WSAStartup(wVersionRequested, &wsaData)) have_tcpip = 1;
+    } else {
+      if (wsaData.wVersion != wVersionRequested) {
+        /* Version is no good, try again */
+        WSACleanup();
+        if (!WSAStartup(wVersionRequested, &wsaData)) have_tcpip = 1;
+      } else
+        have_tcpip = 1;
     }
   }
-  return(0);
+  return (0);
 }
-
 
 /**
 Windows specific initialization of my_sys functions, resources and variables
@@ -481,8 +430,7 @@ Windows specific initialization of my_sys functions, resources and variables
     @retval FALSE Success
     @retval TRUE  Error. Couldn't initialize environment
 */
-static bool my_win_init()
-{
+static bool my_win_init() {
   DBUG_ENTER("my_win_init");
 
   /* this is required to make crt functions return -1 appropriately */
@@ -498,8 +446,7 @@ static bool my_win_init()
 
   _tzset();
 
-  if (win_init_time())
-    DBUG_RETURN(TRUE);
+  if (win_init_time()) DBUG_RETURN(TRUE);
 
   win_init_registry();
   win32_init_tcp_ip();
@@ -508,63 +455,65 @@ static bool my_win_init()
 }
 #endif /* _WIN32 */
 
-PSI_stage_info stage_waiting_for_table_level_lock=
-{0, "Waiting for table level lock", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_table_level_lock = {
+    0, "Waiting for table level lock", 0, PSI_DOCUMENT_ME};
 
-PSI_stage_info stage_waiting_for_disk_space=
-{0, "Waiting for disk space", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_disk_space = {0, "Waiting for disk space", 0,
+                                               PSI_DOCUMENT_ME};
 
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
-  key_THR_LOCK_charset, key_THR_LOCK_heap,
-  key_THR_LOCK_lock, key_THR_LOCK_malloc,
-  key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
-  key_THR_LOCK_open, key_THR_LOCK_threads,
-  key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
+    key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_THR_LOCK_charset,
+    key_THR_LOCK_heap, key_THR_LOCK_lock, key_THR_LOCK_malloc,
+    key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
+    key_THR_LOCK_open, key_THR_LOCK_threads, key_TMPDIR_mutex,
+    key_THR_LOCK_myisam_mmap;
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
 
-static PSI_mutex_info all_mysys_mutexes[]=
-{
-  { &key_BITMAP_mutex, "BITMAP::mutex", 0, 0, PSI_DOCUMENT_ME},
-  { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0, PSI_DOCUMENT_ME},
-  { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_mutex, "THR_LOCK::mutex", 0, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
-};
+static PSI_mutex_info all_mysys_mutexes[] = {
+    {&key_BITMAP_mutex, "BITMAP::mutex", 0, 0, PSI_DOCUMENT_ME},
+    {&key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0, 0, PSI_DOCUMENT_ME},
+    {&key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0, 0, PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_lock, "THR_LOCK_lock", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_malloc, "THR_LOCK_malloc", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_mutex, "THR_LOCK::mutex", 0, 0, PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_myisam, "THR_LOCK_myisam", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_net, "THR_LOCK_net", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_open, "THR_LOCK_open", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_threads, "THR_LOCK_threads", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_TMPDIR_mutex, "TMPDIR_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 PSI_rwlock_key key_SAFE_HASH_lock;
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-static PSI_rwlock_info all_mysys_rwlocks[]=
-{
-  { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_rwlock_info all_mysys_rwlocks[] = {
+    {&key_SAFE_HASH_lock, "SAFE_HASH::lock", 0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
-PSI_cond_key key_IO_CACHE_SHARE_cond,
-  key_IO_CACHE_SHARE_cond_writer,
-  key_THR_COND_threads;
+PSI_cond_key key_IO_CACHE_SHARE_cond, key_IO_CACHE_SHARE_cond_writer,
+    key_THR_COND_threads;
 
 #ifdef HAVE_PSI_COND_INTERFACE
 
-static PSI_cond_info all_mysys_conds[]=
-{
-  { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0, 0, PSI_DOCUMENT_ME},
-  { &key_THR_COND_threads, "THR_COND_threads", 0, 0, PSI_DOCUMENT_ME}
-};
+static PSI_cond_info all_mysys_conds[] = {
+    {&key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0, 0, PSI_DOCUMENT_ME},
+    {&key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_THR_COND_threads, "THR_COND_threads", 0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_COND_INTERFACE */
 
 #ifdef HAVE_PSI_FILE_INTERFACE
@@ -573,100 +522,93 @@ PSI_file_key key_file_proc_meminfo;
 #endif /* HAVE_LINUX_LARGE_PAGES */
 PSI_file_key key_file_charset, key_file_cnf;
 
-static PSI_file_info all_mysys_files[]=
-{
+static PSI_file_info all_mysys_files[] = {
 #ifdef HAVE_LINUX_LARGE_PAGES
-  { &key_file_proc_meminfo, "proc_meminfo", 0, 0, PSI_DOCUMENT_ME},
+    {&key_file_proc_meminfo, "proc_meminfo", 0, 0, PSI_DOCUMENT_ME},
 #endif /* HAVE_LINUX_LARGE_PAGES */
-  { &key_file_charset, "charset", 0, 0, PSI_DOCUMENT_ME},
-  { &key_file_cnf, "cnf", 0, 0, PSI_DOCUMENT_ME}
-};
+    {&key_file_charset, "charset", 0, 0, PSI_DOCUMENT_ME},
+    {&key_file_cnf, "cnf", 0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-PSI_stage_info *all_mysys_stages[]=
-{
-  & stage_waiting_for_table_level_lock
-};
+PSI_stage_info *all_mysys_stages[] = {&stage_waiting_for_table_level_lock};
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-static PSI_memory_info all_mysys_memory[]=
-{
+static PSI_memory_info all_mysys_memory[] = {
 #ifdef _WIN32
-  { &key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_win_PACL, "win_PACL", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_win_SECURITY_ATTRIBUTES, "win_SECURITY_ATTRIBUTES", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_win_PACL, "win_PACL", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_win_IP_ADAPTER_ADDRESSES, "win_IP_ADAPTER_ADDRESSES", 0, 0,
+     PSI_DOCUMENT_ME},
 #endif
 
-  { &key_memory_max_alloca, "max_alloca", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_charset_file, "charset_file", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_charset_loader, "charset_loader", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_lf_node, "lf_node", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_lf_dynarray, "lf_dynarray", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_lf_slist, "lf_slist", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_LIST, "LIST", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_IO_CACHE, "IO_CACHE", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_KEY_CACHE, "KEY_CACHE", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_my_compress_alloc, "my_compress_alloc", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_my_err_head, "my_err_head", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_my_file_info, "my_file_info", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_MY_DIR, "MY_DIR", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_TREE, "TREE", 0, 0, PSI_DOCUMENT_ME}
-};
+    {&key_memory_max_alloca, "max_alloca", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_charset_file, "charset_file", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_charset_loader, "charset_loader", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_lf_node, "lf_node", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_lf_dynarray, "lf_dynarray", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_lf_slist, "lf_slist", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_LIST, "LIST", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_IO_CACHE, "IO_CACHE", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_KEY_CACHE, "KEY_CACHE", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_SAFE_HASH_ENTRY, "SAFE_HASH_ENTRY", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_MY_TMPDIR_full_list, "MY_TMPDIR::full_list", 0, 0,
+     PSI_DOCUMENT_ME},
+    {&key_memory_MY_BITMAP_bitmap, "MY_BITMAP::bitmap", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_my_compress_alloc, "my_compress_alloc", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_my_err_head, "my_err_head", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_my_file_info, "my_file_info", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_MY_DIR, "MY_DIR", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_TREE, "TREE", 0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-static PSI_thread_info all_mysys_thread[]=
-{
-  { &key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
-};
+static PSI_thread_info all_mysys_thread[] = {
+    {&key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #ifdef HAVE_PSI_INTERFACE
-void my_init_mysys_psi_keys()
-{
-  const char* category MY_ATTRIBUTE((unused)) = "mysys";
+void my_init_mysys_psi_keys() {
+  const char *category MY_ATTRIBUTE((unused)) = "mysys";
   int count MY_ATTRIBUTE((unused));
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
-  count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
+  count = sizeof(all_mysys_mutexes) / sizeof(all_mysys_mutexes[0]);
   mysql_mutex_register(category, all_mysys_mutexes, count);
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
+  count = sizeof(all_mysys_rwlocks) / sizeof(all_mysys_rwlocks[0]);
   mysql_rwlock_register(category, all_mysys_rwlocks, count);
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
 #ifdef HAVE_PSI_COND_INTERFACE
-  count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
+  count = sizeof(all_mysys_conds) / sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);
 #endif /* HAVE_PSI_COND_INTERFACE */
 
 #ifdef HAVE_PSI_FILE_INTERFACE
-  count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
+  count = sizeof(all_mysys_files) / sizeof(all_mysys_files[0]);
   mysql_file_register(category, all_mysys_files, count);
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  count= array_elements(all_mysys_stages);
+  count = array_elements(all_mysys_stages);
   mysql_stage_register(category, all_mysys_stages, count);
 #endif /* HAVE_PSI_STAGE_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-  count= array_elements(all_mysys_memory);
+  count = array_elements(all_mysys_memory);
   mysql_memory_register(category, all_mysys_memory, count);
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  count= array_elements(all_mysys_thread);
+  count = array_elements(all_mysys_thread);
   mysql_thread_register(category, all_mysys_thread, count);
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 }
 #endif /* HAVE_PSI_INTERFACE */
-

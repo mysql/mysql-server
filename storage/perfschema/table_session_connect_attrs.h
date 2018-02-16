@@ -37,23 +37,20 @@
 */
 
 /** Table PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS. */
-class table_session_connect_attrs : public table_session_connect
-{
-public:
+class table_session_connect_attrs : public table_session_connect {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
-  static PFS_engine_table* create(PFS_engine_table_share*);
+  static PFS_engine_table *create(PFS_engine_table_share *);
 
-protected:
+ protected:
   table_session_connect_attrs();
 
-public:
-  ~table_session_connect_attrs()
-  {
-  }
+ public:
+  ~table_session_connect_attrs() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

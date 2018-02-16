@@ -1,6 +1,4 @@
 SET sql_mode = 'ONLY_FULL_GROUP_BY,NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point (fid INTEGER NOT NULL PRIMARY KEY, g POINT);
 CREATE TABLE gis_line  (fid INTEGER NOT NULL PRIMARY KEY, g LINESTRING);
@@ -2504,13 +2502,9 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g2 GEOMETRY NOT NULL;
 ALTER TABLE t1 CHANGE COLUMN g2 h2 GEOMETRY NOT NULL;
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2575,15 +2569,11 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 ALTER TABLE t1 CHANGE COLUMN g h GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2718,13 +2708,9 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN b GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -2873,13 +2859,9 @@ SET @save_innodb_strict_mode=@@session.innodb_strict_mode;
 SET SESSION innodb_strict_mode=OFF;
 SET @save_sql_mode=@@session.sql_mode;
 SET SESSION sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 ALTER TABLE t1 MODIFY COLUMN g GEOMETRY NOT NULL;
 ERROR 22004: Invalid use of NULL value
 SET SESSION sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET SESSION innodb_strict_mode=@save_innodb_strict_mode;
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -3846,16 +3828,12 @@ ALTER TABLE t1 FORCE;
 DROP TABLE t1;
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(g GEOMETRY NOT NULL) ENGINE=ARCHIVE;
 INSERT INTO t1 VALUES (NULL), (NULL);
 ERROR 23000: Column 'g' cannot be null
 ALTER TABLE t1 FORCE;
 DROP TABLE t1;
 SET sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Bug #23023817 ST_SIMPLIFY: INVALID READS IN
 # PROTOCOL_CLASSIC::NET_STORE_DATA
 #
@@ -4006,13 +3984,9 @@ ERROR HY000: Field 'g' doesn't have a default value
 DROP TABLE t1;
 SET @save_sql_mode=@@sql_mode;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(g GEOMETRY NOT NULL DEFAULT '');
 ERROR 42000: BLOB, TEXT, GEOMETRY or JSON column 'g' can't have a default value
 SET sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (id INT, g GEOMETRY NOT NULL);
 CREATE VIEW v1 AS SELECT * FROM t1;
 INSERT IGNORE INTO v1(id) VALUES(0);

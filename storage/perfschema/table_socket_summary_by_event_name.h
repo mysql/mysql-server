@@ -49,8 +49,7 @@ struct THR_LOCK;
   A row of table
   PERFORMANCE_SCHEMA.SOCKET_SUMMARY_BY_EVENT_NAME.
 */
-struct row_socket_summary_by_event_name
-{
+struct row_socket_summary_by_event_name {
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
 
@@ -59,28 +58,22 @@ struct row_socket_summary_by_event_name
   PFS_socket_io_stat_row m_io_stat;
 };
 
-class PFS_index_socket_summary_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_socket_summary_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_socket_summary_by_event_name()
-    : PFS_engine_index(&m_key), m_key("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_socket_summary_by_event_name()
-  {
-  }
+  ~PFS_index_socket_summary_by_event_name() {}
 
   bool match(const PFS_socket_class *pfs);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.SOCKET_SUMMARY_BY_EVENT_NAME. */
-class table_socket_summary_by_event_name : public PFS_engine_table
-{
-public:
+class table_socket_summary_by_event_name : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -95,20 +88,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_socket_summary_by_event_name();
 
-public:
-  ~table_socket_summary_by_event_name()
-  {
-  }
+ public:
+  ~table_socket_summary_by_event_name() {}
 
-private:
+ private:
   int make_row(PFS_socket_class *socket_class);
 
   /** Table share lock. */
@@ -123,7 +112,7 @@ private:
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   PFS_index_socket_summary_by_event_name *m_opened_index;
 };
 

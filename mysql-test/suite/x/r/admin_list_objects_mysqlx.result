@@ -47,7 +47,7 @@ command ok
 Records: 0  Duplicates: 0  Warnings: 0
 Field	Type	Null	Key	Default	Extra
 doc	json	YES		null	
-_id	varchar(32)	NO	PRI	null	STORED GENERATED
+_id	varbinary(32)	NO	PRI	null	STORED GENERATED
 nothing	int(11)	YES		null	
 0 rows affected
 name	type

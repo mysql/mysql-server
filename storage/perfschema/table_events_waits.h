@@ -49,8 +49,7 @@ struct THR_LOCK;
 */
 
 /** A row of table_events_waits_common. */
-struct row_events_waits
-{
+struct row_events_waits {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Column EVENT_ID. */
@@ -102,67 +101,48 @@ struct row_events_waits
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
-struct pos_events_waits_current : public PFS_double_index
-{
-  pos_events_waits_current() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_events_waits_current : public PFS_double_index {
+  pos_events_waits_current() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
-struct pos_events_waits_history : public PFS_double_index
-{
-  pos_events_waits_history() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_events_waits_history : public PFS_double_index {
+  pos_events_waits_history() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_events_waits : public PFS_engine_index
-{
-public:
+class PFS_index_events_waits : public PFS_engine_index {
+ public:
   PFS_index_events_waits()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("THREAD_ID"),
-      m_key_2("EVENT_ID")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("THREAD_ID"),
+        m_key_2("EVENT_ID") {}
 
-  ~PFS_index_events_waits()
-  {
-  }
+  ~PFS_index_events_waits() {}
 
   bool match(PFS_thread *pfs);
   bool match(PFS_events_waits *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key_1;
   PFS_key_event_id m_key_2;
 };
@@ -171,19 +151,14 @@ private:
   Adapter, for table sharing the structure of
   PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT.
 */
-class table_events_waits_common : public PFS_engine_table
-{
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+class table_events_waits_common : public PFS_engine_table {
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_events_waits_common(const PFS_engine_table_share *share, void *pos);
 
-  ~table_events_waits_common()
-  {
-  }
+  ~table_events_waits_common() {}
 
   void clear_object_columns();
   int make_table_object_columns(PFS_events_waits *wait);
@@ -198,9 +173,8 @@ protected:
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_CURRENT. */
-class table_events_waits_current : public table_events_waits_common
-{
-public:
+class table_events_waits_current : public table_events_waits_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -214,15 +188,13 @@ public:
   virtual int index_next();
   virtual void reset_position(void);
 
-protected:
+ protected:
   table_events_waits_current();
 
-public:
-  ~table_events_waits_current()
-  {
-  }
+ public:
+  ~table_events_waits_current() {}
 
-private:
+ private:
   friend class table_events_waits_history;
   friend class table_events_waits_history_long;
 
@@ -243,9 +215,8 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY. */
-class table_events_waits_history : public table_events_waits_common
-{
-public:
+class table_events_waits_history : public table_events_waits_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -260,15 +231,13 @@ public:
   virtual int rnd_next();
   virtual int rnd_pos(const void *pos);
 
-protected:
+ protected:
   table_events_waits_history();
 
-public:
-  ~table_events_waits_history()
-  {
-  }
+ public:
+  ~table_events_waits_history() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */
@@ -286,9 +255,8 @@ private:
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_HISTORY_LONG. */
-class table_events_waits_history_long : public table_events_waits_common
-{
-public:
+class table_events_waits_history_long : public table_events_waits_common {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -299,15 +267,13 @@ public:
   virtual int rnd_pos(const void *pos);
   virtual void reset_position(void);
 
-protected:
+ protected:
   table_events_waits_history_long();
 
-public:
-  ~table_events_waits_history_long()
-  {
-  }
+ public:
+  ~table_events_waits_history_long() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

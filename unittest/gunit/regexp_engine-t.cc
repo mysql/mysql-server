@@ -34,9 +34,9 @@
 
 namespace regexp_engine_unittest {
 
+using my_testing::Mock_text_literal;
 using my_testing::Server_initializer;
 using my_testing::fix;
-using my_testing::Mock_text_literal;
 using my_testing::make_fixed_literal;
 
 using regexp::Regexp_engine;

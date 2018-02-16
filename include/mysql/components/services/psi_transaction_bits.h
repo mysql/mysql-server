@@ -49,8 +49,7 @@ typedef struct PSI_transaction_locker PSI_transaction_locker;
   This memory is provided by the instrumented code for performance reasons.
   @sa get_thread_transaction_locker_v1_t
 */
-struct PSI_transaction_locker_state_v1
-{
+struct PSI_transaction_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Instrumentation class. */
@@ -89,12 +88,9 @@ typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
   @return a transaction locker, or NULL
 */
 typedef struct PSI_transaction_locker *(*get_thread_transaction_locker_v1_t)(
-  struct PSI_transaction_locker_state_v1 *state,
-  const void *xid,
-  const unsigned long long *trxid,
-  int isolation_level,
-  bool read_only,
-  bool autocommit);
+    struct PSI_transaction_locker_state_v1 *state, const void *xid,
+    const unsigned long long *trxid, int isolation_level, bool read_only,
+    bool autocommit);
 
 /**
   Start a new transaction event.
@@ -113,8 +109,7 @@ typedef void (*start_transaction_v1_t)(struct PSI_transaction_locker *locker,
   @param xa_state the state of the XA transaction
 */
 typedef void (*set_transaction_xid_v1_t)(struct PSI_transaction_locker *locker,
-                                         const void *xid,
-                                         int xa_state);
+                                         const void *xid, int xa_state);
 
 /**
   Set the state of the XA transaction.
@@ -122,7 +117,7 @@ typedef void (*set_transaction_xid_v1_t)(struct PSI_transaction_locker *locker,
   @param xa_state the new state of the xa transaction
 */
 typedef void (*set_transaction_xa_state_v1_t)(
-  struct PSI_transaction_locker *locker, int xa_state);
+    struct PSI_transaction_locker *locker, int xa_state);
 
 /**
   Set the transaction gtid.
@@ -140,7 +135,7 @@ typedef void (*set_transaction_gtid_v1_t)(struct PSI_transaction_locker *locker,
   @param trxid the storage engine transaction ID
 */
 typedef void (*set_transaction_trxid_v1_t)(
-  struct PSI_transaction_locker *locker, const unsigned long long *trxid);
+    struct PSI_transaction_locker *locker, const unsigned long long *trxid);
 
 /**
   Increment a transaction event savepoint count.
@@ -148,7 +143,7 @@ typedef void (*set_transaction_trxid_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_savepoints_v1_t)(
-  struct PSI_transaction_locker *locker, unsigned long count);
+    struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Increment a transaction event rollback to savepoint count.
@@ -156,7 +151,7 @@ typedef void (*inc_transaction_savepoints_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, unsigned long count);
+    struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Increment a transaction event release savepoint count.
@@ -164,7 +159,7 @@ typedef void (*inc_transaction_rollback_to_savepoint_v1_t)(
   @param count the increment value
 */
 typedef void (*inc_transaction_release_savepoint_v1_t)(
-  struct PSI_transaction_locker *locker, unsigned long count);
+    struct PSI_transaction_locker *locker, unsigned long count);
 
 /**
   Commit or rollback the transaction.

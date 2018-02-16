@@ -31,24 +31,22 @@
 
 /* POSIX timers API. */
 #ifdef HAVE_POSIX_TIMERS
-# include <time.h>  /* timer_t */
+#include <time.h> /* timer_t */
 
-  typedef timer_t   os_timer_t;
+typedef timer_t os_timer_t;
 #elif defined(HAVE_KQUEUE_TIMERS)
-# include <sys/types.h> /* uintptr_t */
+#include <sys/types.h> /* uintptr_t */
 
-  typedef uintptr_t os_timer_t;
+typedef uintptr_t os_timer_t;
 #elif defined(_WIN32)
-  struct os_timer_t
-  {
-    HANDLE timer_handle;
-    bool timer_state;
-  };
+struct os_timer_t {
+  HANDLE timer_handle;
+  bool timer_state;
+};
 #endif
 
 /* Non-copyable timer object. */
-struct my_timer_t
-{
+struct my_timer_t {
   /* Timer ID used to identify the timer in timer requests. */
   os_timer_t id;
 

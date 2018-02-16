@@ -44,77 +44,61 @@
 #define DELIM ':'
 #endif
 
-bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
-{
+bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist) {
   char *end, *copy;
   char buff[FN_REFLEN];
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
-  Prealloced_array<char*, 10> full_list(key_memory_MY_TMPDIR_full_list);
+  Prealloced_array<char *, 10> full_list(key_memory_MY_TMPDIR_full_list);
 
-  *tmpdir= MY_TMPDIR();
-  if (!pathlist || !pathlist[0])
-  {
+  *tmpdir = MY_TMPDIR();
+  if (!pathlist || !pathlist[0]) {
     /* Get default temporary directory */
-    pathlist=getenv("TMPDIR");	/* Use this if possible */
+    pathlist = getenv("TMPDIR"); /* Use this if possible */
 #if defined(_WIN32)
-    if (!pathlist)
-      pathlist=getenv("TEMP");
-    if (!pathlist)
-      pathlist=getenv("TMP");
+    if (!pathlist) pathlist = getenv("TEMP");
+    if (!pathlist) pathlist = getenv("TMP");
 #endif
-    if (!pathlist || !pathlist[0])
-      pathlist= DEFAULT_TMPDIR;
+    if (!pathlist || !pathlist[0]) pathlist = DEFAULT_TMPDIR;
   }
-  do
-  {
+  do {
     size_t length;
-    end=strcend(pathlist, DELIM);
-    strmake(buff, pathlist, (uint) (end-pathlist));
-    length= cleanup_dirname(buff, buff);
-    if (!(copy= my_strndup(key_memory_MY_TMPDIR_full_list,
-                           buff, length, MYF(MY_WME))) ||
+    end = strcend(pathlist, DELIM);
+    strmake(buff, pathlist, (uint)(end - pathlist));
+    length = cleanup_dirname(buff, buff);
+    if (!(copy = my_strndup(key_memory_MY_TMPDIR_full_list, buff, length,
+                            MYF(MY_WME))) ||
         full_list.push_back(copy))
       DBUG_RETURN(true);
-    pathlist=end+1;
-  }
-  while (*end);
+    pathlist = end + 1;
+  } while (*end);
 
-  tmpdir->list=
-    static_cast<char**>(my_malloc(key_memory_MY_TMPDIR_full_list,
-                                  sizeof(char*) * full_list.size(),
-                                  MYF(MY_WME)));
-  if (tmpdir->list == NULL)
-    DBUG_RETURN(true);
+  tmpdir->list = static_cast<char **>(
+      my_malloc(key_memory_MY_TMPDIR_full_list,
+                sizeof(char *) * full_list.size(), MYF(MY_WME)));
+  if (tmpdir->list == NULL) DBUG_RETURN(true);
 
   mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
-  memcpy(tmpdir->list, &full_list[0], sizeof(char*) * full_list.size());
-  tmpdir->max= full_list.size() - 1;
-  tmpdir->cur= 0;
+  memcpy(tmpdir->list, &full_list[0], sizeof(char *) * full_list.size());
+  tmpdir->max = full_list.size() - 1;
+  tmpdir->cur = 0;
   DBUG_RETURN(false);
 }
 
-
-char *my_tmpdir(MY_TMPDIR *tmpdir)
-{
-  if (0 == tmpdir->max)
-    return tmpdir->list[0];
+char *my_tmpdir(MY_TMPDIR *tmpdir) {
+  if (0 == tmpdir->max) return tmpdir->list[0];
 
   MUTEX_LOCK(lock, &tmpdir->mutex);
-  char *dir= tmpdir->list[tmpdir->cur];
-  tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur + 1;
+  char *dir = tmpdir->list[tmpdir->cur];
+  tmpdir->cur = (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur + 1;
 
   return dir;
 }
 
-
-void free_tmpdir(MY_TMPDIR *tmpdir)
-{
-  if (tmpdir->list == NULL)
-    return;
-  for (uint i= 0; i <= tmpdir->max; i++)
-    my_free(tmpdir->list[i]);
+void free_tmpdir(MY_TMPDIR *tmpdir) {
+  if (tmpdir->list == NULL) return;
+  for (uint i = 0; i <= tmpdir->max; i++) my_free(tmpdir->list[i]);
   my_free(tmpdir->list);
   mysql_mutex_destroy(&tmpdir->mutex);
 }

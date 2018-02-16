@@ -31,64 +31,52 @@
 #include "my_dbug.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_extra(MYRG_INFO *info,enum ha_extra_function function,
-	       void *extra_arg)
-{
-  int error,save_error=0;
+int myrg_extra(MYRG_INFO *info, enum ha_extra_function function,
+               void *extra_arg) {
+  int error, save_error = 0;
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_extra");
-  DBUG_PRINT("info",("function: %lu", (ulong) function));
+  DBUG_PRINT("info", ("function: %lu", (ulong)function));
 
-  if (!info->children_attached)
-    DBUG_RETURN(1);
-  if (function == HA_EXTRA_CACHE)
-  {
-    info->cache_in_use=1;
-    info->cache_size= (extra_arg ? *(ulong*) extra_arg :
-		       my_default_record_cache_size);
-  }
-  else
-  {
+  if (!info->children_attached) DBUG_RETURN(1);
+  if (function == HA_EXTRA_CACHE) {
+    info->cache_in_use = 1;
+    info->cache_size =
+        (extra_arg ? *(ulong *)extra_arg : my_default_record_cache_size);
+  } else {
     if (function == HA_EXTRA_NO_CACHE ||
         function == HA_EXTRA_PREPARE_FOR_UPDATE)
-      info->cache_in_use=0;
-    if (function == HA_EXTRA_RESET_STATE)
-    {
-      info->current_table=0;
-      info->last_used_table=info->open_tables;
+      info->cache_in_use = 0;
+    if (function == HA_EXTRA_RESET_STATE) {
+      info->current_table = 0;
+      info->last_used_table = info->open_tables;
     }
-    for (file=info->open_tables ; file != info->end_table ; file++)
-    {
-      if ((error=mi_extra(file->table, function, extra_arg)))
-	save_error=error;
+    for (file = info->open_tables; file != info->end_table; file++) {
+      if ((error = mi_extra(file->table, function, extra_arg)))
+        save_error = error;
     }
   }
   DBUG_RETURN(save_error);
 }
 
-
-int myrg_reset(MYRG_INFO *info)
-{
-  int save_error= 0;
+int myrg_reset(MYRG_INFO *info) {
+  int save_error = 0;
   MYRG_TABLE *file;
   DBUG_ENTER("myrg_reset");
 
-  info->cache_in_use=0;
-  info->current_table=0;
-  info->last_used_table= info->open_tables;
+  info->cache_in_use = 0;
+  info->current_table = 0;
+  info->last_used_table = info->open_tables;
 
   /*
     This is normally called with detached children.
     Return OK as this is the normal case.
   */
-  if (!info->children_attached)
-    DBUG_RETURN(0);
+  if (!info->children_attached) DBUG_RETURN(0);
 
-  for (file=info->open_tables ; file != info->end_table ; file++)
-  {
+  for (file = info->open_tables; file != info->end_table; file++) {
     int error;
-    if ((error= mi_reset(file->table)))
-      save_error=error;
+    if ((error = mi_reset(file->table))) save_error = error;
   }
   DBUG_RETURN(save_error);
 }

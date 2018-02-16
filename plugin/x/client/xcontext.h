@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,18 +36,17 @@
 #include "plugin/x/client/xconnection_config.h"
 #include "plugin/x/client/xssl_config.h"
 
-
 namespace xcl {
 
 class Context {
  public:
-  Ssl_config            m_ssl_config;
-  Connection_config     m_connection_config;
-  bool                  m_consume_all_notices { true };
-  XProtocol::Client_id  m_client_id         { XCL_CLIENT_ID_NOT_VALID };
-  XError                m_global_error;
+  Ssl_config m_ssl_config;
+  Connection_config m_connection_config;
+  bool m_consume_all_notices{true};
+  XProtocol::Client_id m_client_id{XCL_CLIENT_ID_NOT_VALID};
+  XError m_global_error;
   // Default value equal to lenght of DateTime when no time part is present
-  std::uint32_t         m_datetime_length_discriminator = 10;
+  std::uint32_t m_datetime_length_discriminator = 10;
 };
 
 }  // namespace xcl

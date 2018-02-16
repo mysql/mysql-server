@@ -27,6 +27,4 @@
 void _mi_report_crashed(MI_INFO *file MY_ATTRIBUTE((unused)),
                         const char *message MY_ATTRIBUTE((unused)),
                         const char *sfile MY_ATTRIBUTE((unused)),
-                        uint sline MY_ATTRIBUTE((unused)))
-{
-}
+                        uint sline MY_ATTRIBUTE((unused))) {}

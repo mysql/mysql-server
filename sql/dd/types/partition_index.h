@@ -23,10 +23,9 @@
 #ifndef DD__PARTITION_INDEX_INCLUDED
 #define DD__PARTITION_INDEX_INCLUDED
 
-
-#include "sql/dd/sdi_fwd.h"           // dd::Sdi_wcontext
-#include "sql/dd/types/index.h"       // dd::Index
-#include "sql/dd/types/weak_object.h" // dd::Weak_object
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
+#include "sql/dd/types/index.h"        // dd::Index
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 
@@ -39,20 +38,18 @@ class Properties;
 class Tablespace;
 
 namespace tables {
-  class Index_partitions;
+class Index_partitions;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_index : virtual public Weak_object
-{
-public:
+class Partition_index : virtual public Weak_object {
+ public:
   typedef Partition_index_impl Impl;
   typedef tables::Index_partitions DD_table;
 
-public:
-  virtual ~Partition_index()
-  { };
+ public:
+  virtual ~Partition_index(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Partition.
@@ -70,8 +67,7 @@ public:
 
   virtual Index &index() = 0;
 
-  const String_type &name() const
-  { return index().name(); }
+  const String_type &name() const { return index().name(); }
 
   /////////////////////////////////////////////////////////////////////////
   // Options.
@@ -90,9 +86,9 @@ public:
 
   virtual Properties &se_private_data() = 0;
   virtual bool set_se_private_data_raw(
-                 const String_type &se_private_data_raw) = 0;
+      const String_type &se_private_data_raw) = 0;
 
-  virtual void set_se_private_data(const Properties &se_private_data)= 0;
+  virtual void set_se_private_data(const Properties &se_private_data) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Tablespace.
@@ -100,7 +96,6 @@ public:
 
   virtual Object_id tablespace_id() const = 0;
   virtual void set_tablespace_id(Object_id tablespace_id) = 0;
-
 
   /**
     Converts *this into json.
@@ -115,7 +110,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -136,6 +130,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_INDEX_INCLUDED
+#endif  // DD__PARTITION_INDEX_INCLUDED

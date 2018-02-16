@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -26,16 +26,13 @@
 
 namespace ngs {
 
-Vio_wrapper::Vio_wrapper(Vio *vio)
-  : m_vio(vio)
-{}
+Vio_wrapper::Vio_wrapper(Vio *vio) : m_vio(vio) {}
 
-
-ssize_t Vio_wrapper::read(uchar* buffer, ssize_t bytes_to_send) {
+ssize_t Vio_wrapper::read(uchar *buffer, ssize_t bytes_to_send) {
   return vio_read(m_vio, buffer, bytes_to_send);
 }
 
-ssize_t Vio_wrapper::write(const uchar* buffer, ssize_t bytes_to_send) {
+ssize_t Vio_wrapper::write(const uchar *buffer, ssize_t bytes_to_send) {
   return vio_write(m_vio, buffer, bytes_to_send);
 }
 
@@ -56,13 +53,9 @@ void Vio_wrapper::set_thread_owner() {
 #endif
 }
 
-my_socket Vio_wrapper::get_fd() {
-  return vio_fd(m_vio);
-}
+my_socket Vio_wrapper::get_fd() { return vio_fd(m_vio); }
 
-enum_vio_type Vio_wrapper::get_type() {
-  return vio_type(m_vio);
-}
+enum_vio_type Vio_wrapper::get_type() { return vio_type(m_vio); }
 
 sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {
   address.resize(256);
@@ -70,21 +63,17 @@ sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {
 
   buffer[0] = 0;
 
-  if (vio_peer_addr(m_vio, buffer, &port, address.capacity()))
-    return nullptr;
+  if (vio_peer_addr(m_vio, buffer, &port, address.capacity())) return nullptr;
 
   address.resize(strlen(buffer));
 
   return &m_vio->remote;
 }
 
-int Vio_wrapper::shutdown() {
-  return vio_shutdown(m_vio);
-}
+int Vio_wrapper::shutdown() { return vio_shutdown(m_vio); }
 
 Vio_wrapper::~Vio_wrapper() {
-  if (m_vio)
-    vio_delete(m_vio);
+  if (m_vio) vio_delete(m_vio);
 }
 
-} // namespace ngs
+}  // namespace ngs

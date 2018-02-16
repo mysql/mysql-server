@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,20 +31,19 @@
 
 #include "my_compiler.h"
 
-
 #define MYSQL41_HASH_SIZE 20 /* Hash size in bytes */
 
 void compute_mysql41_hash(uint8_t *digest, const char *buf, unsigned len)
 #if defined(HAVE_VISIBILITY_HIDDEN)
     MY_ATTRIBUTE((visibility("hidden")))
 #endif
-    ;  // NOLINT
+        ;  // NOLINT
 
-void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1, unsigned len1,
-                                const char *buf2, unsigned len2)
+void compute_mysql41_hash_multi(uint8_t *digest, const char *buf1,
+                                unsigned len1, const char *buf2, unsigned len2)
 #if defined(HAVE_VISIBILITY_HIDDEN)
     MY_ATTRIBUTE((visibility("hidden")))
 #endif
-    ;  // NOLINT
+        ;  // NOLINT
 
 #endif  // X_CLIENT_MYSQL41_HASH_H_

@@ -34,9 +34,9 @@
 
 namespace regexp_facade_unittest {
 
+using my_testing::Mock_text_literal;
 using my_testing::Server_initializer;
 using my_testing::fix;
-using my_testing::Mock_text_literal;
 using my_testing::make_fixed_literal;
 
 using namespace regexp;
@@ -120,7 +120,6 @@ TEST_F(RegexpFacadeTest, Alignment) {
 }
 
 TEST_F(RegexpFacadeTest, SetPattern) {
-
   MockRegexpFacade regex(thd(), "a");
   regex.SetPattern(nullptr);
   regex.SetPattern(nullptr);

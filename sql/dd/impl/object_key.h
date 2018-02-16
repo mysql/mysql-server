@@ -23,8 +23,7 @@
 #ifndef DD__OBJECT_KEY_INCLUDED
 #define DD__OBJECT_KEY_INCLUDED
 
-
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 namespace dd {
 
@@ -35,20 +34,18 @@ class Raw_table;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Object_key
-{
-public:
+class Object_key {
+ public:
   virtual Raw_key *create_access_key(Raw_table *t) const = 0;
 
   virtual String_type str() const = 0;
 
-public:
-  virtual ~Object_key()
-  { }
+ public:
+  virtual ~Object_key() {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__OBJECT_KEY_INCLUDED
+#endif  // DD__OBJECT_KEY_INCLUDED

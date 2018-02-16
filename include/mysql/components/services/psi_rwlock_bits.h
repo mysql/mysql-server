@@ -74,8 +74,7 @@ typedef struct PSI_rwlock_locker PSI_rwlock_locker;
   operations are "READ" or "WRITE".
   For SX-locks, operations are "SHARED", "SHARED-EXCLUSIVE" or "EXCLUSIVE".
 */
-enum PSI_rwlock_operation
-{
+enum PSI_rwlock_operation {
   /** Read lock. */
   PSI_RWLOCK_READLOCK = 0,
   /** Write lock. */
@@ -106,8 +105,7 @@ typedef enum PSI_rwlock_operation PSI_rwlock_operation;
   @since PSI_RWLOCK_VERSION_1
   This structure is used to register an instrumented rwlock.
 */
-struct PSI_rwlock_info_v1
-{
+struct PSI_rwlock_info_v1 {
   /**
     Pointer to the key assigned to the registered rwlock.
   */
@@ -139,8 +137,7 @@ typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
   @sa start_rwlock_rdwait_v1_t
   @sa start_rwlock_wrwait_v1_t
 */
-struct PSI_rwlock_locker_state_v1
-{
+struct PSI_rwlock_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current operation. */
@@ -193,11 +190,8 @@ typedef void (*destroy_rwlock_v1_t)(struct PSI_rwlock *rwlock);
   @return a rwlock locker, or NULL
 */
 typedef struct PSI_rwlock_locker *(*start_rwlock_rdwait_v1_t)(
-  struct PSI_rwlock_locker_state_v1 *state,
-  struct PSI_rwlock *rwlock,
-  enum PSI_rwlock_operation op,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_rwlock_locker_state_v1 *state, struct PSI_rwlock *rwlock,
+    enum PSI_rwlock_operation op, const char *src_file, unsigned int src_line);
 
 /**
   Record a rwlock instrumentation read wait end event.
@@ -217,11 +211,8 @@ typedef void (*end_rwlock_rdwait_v1_t)(struct PSI_rwlock_locker *locker,
   @return a rwlock locker, or NULL
 */
 typedef struct PSI_rwlock_locker *(*start_rwlock_wrwait_v1_t)(
-  struct PSI_rwlock_locker_state_v1 *state,
-  struct PSI_rwlock *rwlock,
-  enum PSI_rwlock_operation op,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_rwlock_locker_state_v1 *state, struct PSI_rwlock *rwlock,
+    enum PSI_rwlock_operation op, const char *src_file, unsigned int src_line);
 
 /**
   Record a rwlock instrumentation write wait end event.

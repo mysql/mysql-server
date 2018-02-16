@@ -24,8 +24,8 @@
 #define DD__FUNCTION_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/types/column.h"          // dd::Column::enum_column_types
-#include "sql/dd/types/routine.h"         // dd::Routine
+#include "sql/dd/types/column.h"   // dd::Column::enum_column_types
+#include "sql/dd/types/routine.h"  // dd::Routine
 
 namespace dd {
 
@@ -33,23 +33,21 @@ class Function_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Function : virtual public Routine
-{
-public:
+class Function : virtual public Routine {
+ public:
   typedef Function_impl Impl;
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_routine_name_key(key, schema_id(), name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_routine_name_key(key, schema_id(), name());
+  }
 
-  static bool update_name_key(Name_key *key,
-                              Object_id schema_id,
+  static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-public:
-  virtual ~Function()
-  { };
+ public:
+  virtual ~Function(){};
 
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // result data type.
   /////////////////////////////////////////////////////////////////////////
@@ -67,7 +65,7 @@ public:
   virtual const String_type &result_data_type_utf8() const = 0;
 
   virtual void set_result_data_type_utf8(
-                 const String_type &result_data_type_utf8) = 0;
+      const String_type &result_data_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // result_is_zerofill.
@@ -131,6 +129,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__FUNCTION_INCLUDED
+#endif  // DD__FUNCTION_INCLUDED

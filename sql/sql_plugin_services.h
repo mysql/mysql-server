@@ -21,8 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* support for Services */
-#include "service_versions.h"
 #include "mysql/services.h"
+#include "service_versions.h"
 
 /**
   @page page_ext_plugin_svc_new_service_howto How to add a new service
@@ -118,8 +118,9 @@
   structures should definitely be avoided as parts of the API.
 
   The main inconvenience is that a complex structure's definition should be
-  copied into the service's header. And if that is a frequently changed structure
-  all plugins using it will need to be recompiled every time it changes.
+  copied into the service's header. And if that is a frequently changed
+  structure all plugins using it will need to be recompiled every time it
+  changes.
 
   That is the reason why it is always better to pass individual members of
   these structures that are simpler. Even if this means passing more than just
@@ -216,8 +217,7 @@
 
   @sa plugin_add, list_of_services
 */
-struct st_service_ref
-{
+struct st_service_ref {
   /** The name of the service pointer symbol exported by the plugin */
   const char *name;
   /** The service version provided by the server */
@@ -226,165 +226,108 @@ struct st_service_ref
   void *service;
 };
 
-static struct srv_session_service_st srv_session_service_handler= {
-  srv_session_init_thread,
-  srv_session_deinit_thread,
-  srv_session_open,
-  srv_session_detach,
-  srv_session_close,
-  srv_session_server_is_available,
-  srv_session_attach
+static struct srv_session_service_st srv_session_service_handler = {
+    srv_session_init_thread, srv_session_deinit_thread,
+    srv_session_open,        srv_session_detach,
+    srv_session_close,       srv_session_server_is_available,
+    srv_session_attach};
+
+static struct command_service_st command_handler = {
+    command_service_run_command,
 };
 
-static struct command_service_st command_handler= {
-  command_service_run_command,
+static struct srv_session_info_service_st srv_session_info_handler = {
+    srv_session_info_get_thd,         srv_session_info_get_session_id,
+    srv_session_info_get_current_db,  srv_session_info_get_client_port,
+    srv_session_info_set_client_port, srv_session_info_set_connection_type,
+    srv_session_info_killed,          srv_session_info_session_count,
+    srv_session_info_thread_count};
+
+static struct thd_alloc_service_st thd_alloc_handler = {
+    thd_alloc,   thd_calloc, thd_strdup,
+    thd_strmake, thd_memdup, thd_make_lex_string};
+
+static struct thd_wait_service_st thd_wait_handler = {thd_wait_begin,
+                                                      thd_wait_end};
+
+static struct my_thread_scheduler_service my_thread_scheduler_handler = {
+    my_connection_handler_set, my_connection_handler_reset};
+
+static struct my_plugin_log_service my_plugin_log_handler = {
+    my_plugin_log_message};
+
+static struct mysql_string_service_st mysql_string_handler = {
+    mysql_string_convert_to_char_ptr, mysql_string_get_iterator,
+    mysql_string_iterator_next,       mysql_string_iterator_isupper,
+    mysql_string_iterator_islower,    mysql_string_iterator_isdigit,
+    mysql_string_to_lowercase,        mysql_string_free,
+    mysql_string_iterator_free,
 };
 
-static struct srv_session_info_service_st srv_session_info_handler= {
-  srv_session_info_get_thd,
-  srv_session_info_get_session_id,
-  srv_session_info_get_current_db,
-  srv_session_info_get_client_port,
-  srv_session_info_set_client_port,
-  srv_session_info_set_connection_type,
-  srv_session_info_killed,
-  srv_session_info_session_count,
-  srv_session_info_thread_count
+static struct mysql_malloc_service_st mysql_malloc_handler = {
+    my_malloc, my_realloc, my_claim, my_free, my_memdup, my_strdup, my_strndup};
+
+static struct mysql_password_policy_service_st mysql_password_policy_handler = {
+    my_validate_password_policy, my_calculate_password_strength};
+
+static struct mysql_parser_service_st parser_handler = {
+    mysql_parser_current_session,      mysql_parser_open_session,
+    mysql_parser_start_thread,         mysql_parser_join_thread,
+    mysql_parser_set_current_database, mysql_parser_parse,
+    mysql_parser_get_statement_type,   mysql_parser_get_statement_digest,
+    mysql_parser_get_number_params,    mysql_parser_extract_prepared_params,
+    mysql_parser_visit_tree,           mysql_parser_item_string,
+    mysql_parser_free_string,          mysql_parser_get_query,
+    mysql_parser_get_normalized_query};
+
+static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler = {
+    set_transaction_ctx,
 };
 
-static struct thd_alloc_service_st thd_alloc_handler= {
-  thd_alloc,
-  thd_calloc,
-  thd_strdup,
-  thd_strmake,
-  thd_memdup,
-  thd_make_lex_string
+static struct transaction_write_set_service_st transaction_write_set_handler = {
+    get_transaction_write_set,
 };
 
-static struct thd_wait_service_st thd_wait_handler= {
-  thd_wait_begin,
-  thd_wait_end
-};
+static struct mysql_locking_service_st locking_service_handler = {
+    mysql_acquire_locking_service_locks, mysql_release_locking_service_locks};
 
-static struct my_thread_scheduler_service my_thread_scheduler_handler= {
-  my_connection_handler_set,
-  my_connection_handler_reset
-};
+static struct security_context_service_st security_context_handler = {
+    thd_get_security_context,    thd_set_security_context,
+    security_context_create,     security_context_destroy,
+    security_context_copy,       security_context_lookup,
+    security_context_get_option, security_context_set_option};
 
-static struct my_plugin_log_service my_plugin_log_handler= {
-  my_plugin_log_message
-};
+static struct mysql_keyring_service_st mysql_keyring_handler = {
+    my_key_store, my_key_fetch, my_key_remove, my_key_generate};
 
-static struct mysql_string_service_st mysql_string_handler= {
-  mysql_string_convert_to_char_ptr,
-  mysql_string_get_iterator,
-  mysql_string_iterator_next,
-  mysql_string_iterator_isupper,
-  mysql_string_iterator_islower,
-  mysql_string_iterator_isdigit,
-  mysql_string_to_lowercase,
-  mysql_string_free,
-  mysql_string_iterator_free,
-};
+static struct plugin_registry_service_st plugin_registry_handler = {
+    mysql_plugin_registry_acquire, mysql_plugin_registry_release};
 
-static struct mysql_malloc_service_st mysql_malloc_handler=
-{
-  my_malloc,
-  my_realloc,
-  my_claim,
-  my_free,
-  my_memdup,
-  my_strdup,
-  my_strndup
-};
-
-
-static struct mysql_password_policy_service_st mysql_password_policy_handler= {
-  my_validate_password_policy,
-  my_calculate_password_strength
-};
-
-static struct mysql_parser_service_st parser_handler=
-{
-  mysql_parser_current_session,
-  mysql_parser_open_session,
-  mysql_parser_start_thread,
-  mysql_parser_join_thread,
-  mysql_parser_set_current_database,
-  mysql_parser_parse,
-  mysql_parser_get_statement_type,
-  mysql_parser_get_statement_digest,
-  mysql_parser_get_number_params,
-  mysql_parser_extract_prepared_params,
-  mysql_parser_visit_tree,
-  mysql_parser_item_string,
-  mysql_parser_free_string,
-  mysql_parser_get_query,
-  mysql_parser_get_normalized_query
-};
-
-static struct rpl_transaction_ctx_service_st rpl_transaction_ctx_handler= {
-  set_transaction_ctx,
-};
-
-static struct transaction_write_set_service_st transaction_write_set_handler= {
-  get_transaction_write_set,
-};
-
-static struct mysql_locking_service_st locking_service_handler=
-{
-  mysql_acquire_locking_service_locks,
-  mysql_release_locking_service_locks
-};
-
-static struct security_context_service_st security_context_handler={
-  thd_get_security_context,
-  thd_set_security_context,
-  security_context_create,
-  security_context_destroy,
-  security_context_copy,
-  security_context_lookup,
-  security_context_get_option,
-  security_context_set_option
-};
-
-static struct mysql_keyring_service_st mysql_keyring_handler= {
-  my_key_store,
-  my_key_fetch,
-  my_key_remove,
-  my_key_generate
-};
-
-static struct plugin_registry_service_st plugin_registry_handler={
-  mysql_plugin_registry_acquire,
-  mysql_plugin_registry_release
-};
-
-static struct st_service_ref list_of_services[]=
-{
-  { "srv_session_service",
-    VERSION_srv_session_service,&srv_session_service_handler },
-  { "command_service",     VERSION_command, &command_handler },
-  { "srv_session_info_service",
-     VERSION_srv_session_info_service, &srv_session_info_handler },
-  { "thd_alloc_service",   VERSION_thd_alloc,   &thd_alloc_handler },
-  { "thd_wait_service",    VERSION_thd_wait,    &thd_wait_handler },
-  { "my_thread_scheduler_service",
-    VERSION_my_thread_scheduler, &my_thread_scheduler_handler },
-  { "my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler },
-  { "mysql_string_service",
-    VERSION_mysql_string, &mysql_string_handler },
-  { "mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler },
-  { "mysql_password_policy_service", VERSION_mysql_password_policy, &mysql_password_policy_handler },
-  { "mysql_parser_service", VERSION_parser, &parser_handler },
-  { "rpl_transaction_ctx_service",
-    VERSION_rpl_transaction_ctx_service, &rpl_transaction_ctx_handler },
-  { "transaction_write_set_service",
-    VERSION_transaction_write_set_service, &transaction_write_set_handler },
-  { "security_context_service",
-    VERSION_security_context_service, &security_context_handler },
-  { "mysql_locking_service", VERSION_locking_service, &locking_service_handler },
-  { "mysql_keyring_service", VERSION_mysql_keyring_service, &mysql_keyring_handler},
-  { "plugin_registry_service", VERSION_plugin_registry_service, &plugin_registry_handler}
-};
-
+static struct st_service_ref list_of_services[] = {
+    {"srv_session_service", VERSION_srv_session_service,
+     &srv_session_service_handler},
+    {"command_service", VERSION_command, &command_handler},
+    {"srv_session_info_service", VERSION_srv_session_info_service,
+     &srv_session_info_handler},
+    {"thd_alloc_service", VERSION_thd_alloc, &thd_alloc_handler},
+    {"thd_wait_service", VERSION_thd_wait, &thd_wait_handler},
+    {"my_thread_scheduler_service", VERSION_my_thread_scheduler,
+     &my_thread_scheduler_handler},
+    {"my_plugin_log_service", VERSION_my_plugin_log, &my_plugin_log_handler},
+    {"mysql_string_service", VERSION_mysql_string, &mysql_string_handler},
+    {"mysql_malloc_service", VERSION_mysql_malloc, &mysql_malloc_handler},
+    {"mysql_password_policy_service", VERSION_mysql_password_policy,
+     &mysql_password_policy_handler},
+    {"mysql_parser_service", VERSION_parser, &parser_handler},
+    {"rpl_transaction_ctx_service", VERSION_rpl_transaction_ctx_service,
+     &rpl_transaction_ctx_handler},
+    {"transaction_write_set_service", VERSION_transaction_write_set_service,
+     &transaction_write_set_handler},
+    {"security_context_service", VERSION_security_context_service,
+     &security_context_handler},
+    {"mysql_locking_service", VERSION_locking_service,
+     &locking_service_handler},
+    {"mysql_keyring_service", VERSION_mysql_keyring_service,
+     &mysql_keyring_handler},
+    {"plugin_registry_service", VERSION_plugin_registry_service,
+     &plugin_registry_handler}};

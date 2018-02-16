@@ -25,7 +25,7 @@
 
 #include <stddef.h>
 
-#include "sql/dd/impl/raw/raw_record.h"   // dd::Raw_record
+#include "sql/dd/impl/raw/raw_record.h"  // dd::Raw_record
 
 struct TABLE;
 
@@ -37,29 +37,24 @@ struct Raw_key;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record_set : private Raw_record
-{
-public:
+class Raw_record_set : private Raw_record {
+ public:
   ~Raw_record_set();
 
-  Raw_record *current_record()
-  { return m_current_record; }
+  Raw_record *current_record() { return m_current_record; }
 
   bool next(Raw_record *&r);
 
-private:
+ private:
   // Note: The 'key' supplied will be freed by Raw_record_set
   Raw_record_set(TABLE *table, Raw_key *key)
-   :Raw_record(table),
-    m_key(key),
-    m_current_record(NULL)
-  { }
+      : Raw_record(table), m_key(key), m_current_record(NULL) {}
 
   bool open();
 
   friend class Raw_table;
 
-private:
+ private:
   // Raw_record_set owns m_key.
   Raw_key *m_key;
 
@@ -68,6 +63,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__RAW_RECORD_SET_INCLUDED
+#endif  // DD__RAW_RECORD_SET_INCLUDED

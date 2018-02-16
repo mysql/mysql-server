@@ -28,9 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   A simple implementation of basic math example Service.
 */
-class simple_example_math_imp
-{
-public:
+class simple_example_math_imp {
+ public:
   /**
     Calculates Greatest Common Divisor for given two non-negative numbers. Uses
     recursive algorithm to calculate result.
@@ -42,8 +41,7 @@ public:
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(calculate_gcd,
-    (int a, int b, int* result));
+  static DEFINE_BOOL_METHOD(calculate_gcd, (int a, int b, int *result));
 };
 
 #endif /* SIMPLE_EXAMPLE_MATH_IMP_H */

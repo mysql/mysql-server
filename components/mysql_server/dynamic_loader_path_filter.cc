@@ -24,21 +24,21 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
-#include <mysql_com.h> // NAME_CHAR_LEN
+#include <mysql_com.h>  // NAME_CHAR_LEN
 #include <string>
 
 #include "dynamic_loader_scheme_file.h"
 #include "my_io.h"
 #include "my_sharedlib.h"
 #include "server_component.h"
-#include "sql/sql_plugin.h" // opt_plugin_dir
+#include "sql/sql_plugin.h"  // opt_plugin_dir
 
 typedef std::string my_string;
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
-  size_t max_char_length, const CHARSET_INFO *cs,
-  bool no_error);
+                              size_t max_char_length, const CHARSET_INFO *cs,
+                              bool no_error);
 
 /**
   Checks if path specified to load is contained in plug-in directory and
@@ -53,19 +53,14 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_path_filter_imp::load,
-  (const char *urn, mysql_component_t** out_data))
-{
-  try
-  {
+                   (const char *urn, mysql_component_t **out_data)) {
+  try {
     my_string path;
-    if (check_and_make_absolute_urn(urn, path))
-    {
+    if (check_and_make_absolute_urn(urn, path)) {
       return true;
     }
     return mysql_dynamic_loader_scheme_file_imp::load(path.c_str(), out_data);
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -81,19 +76,14 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_path_filter_imp::load,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_path_filter_imp::unload,
-  (const char *urn))
-{
-  try
-  {
+                   (const char *urn)) {
+  try {
     my_string path;
-    if (check_and_make_absolute_urn(urn, path))
-    {
+    if (check_and_make_absolute_urn(urn, path)) {
       return true;
     }
     return mysql_dynamic_loader_scheme_file_imp::unload(path.c_str());
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -107,39 +97,35 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_scheme_file_path_filter_imp::unload,
   @param input_urn URN with path to validate and make absolute.
   @param [out] out_path String to put result URN to.
 */
-bool
-  mysql_dynamic_loader_scheme_file_path_filter_imp::check_and_make_absolute_urn(
-    const char* input_urn, my_string& out_path)
-{
+bool mysql_dynamic_loader_scheme_file_path_filter_imp::
+    check_and_make_absolute_urn(const char *input_urn, my_string &out_path) {
   /* Omit scheme prefix to get filename. */
-  const char* file= strstr(input_urn, "://");
-  if (file == NULL)
-  {
+  const char *file = strstr(input_urn, "://");
+  if (file == NULL) {
     return true;
   }
   /* Offset by "://" */
-  file+= 3;
+  file += 3;
 
-  size_t plugin_dir_len= strlen(opt_plugin_dir);
-  size_t input_path_len= strlen(file);
-  LEX_CSTRING dl_cstr= {file, input_path_len};
+  size_t plugin_dir_len = strlen(opt_plugin_dir);
+  size_t input_path_len = strlen(file);
+  LEX_CSTRING dl_cstr = {file, input_path_len};
   if (check_valid_path(file, input_path_len) ||
-      check_string_char_length(dl_cstr, "", NAME_CHAR_LEN,
-                                system_charset_info, 1) ||
-      plugin_dir_len + input_path_len + 1 >= FN_REFLEN)
-  {
+      check_string_char_length(dl_cstr, "", NAME_CHAR_LEN, system_charset_info,
+                               1) ||
+      plugin_dir_len + input_path_len + 1 >= FN_REFLEN) {
     return true;
   }
   /* Compile library path */
-  my_string path= opt_plugin_dir;
+  my_string path = opt_plugin_dir;
   path += '/';
   path += file;
 
-  char path_buff[FN_REFLEN+1];
-  (void) unpack_filename(path_buff, path.c_str());
+  char path_buff[FN_REFLEN + 1];
+  (void)unpack_filename(path_buff, path.c_str());
 
-  out_path= "file://";
-  out_path+= path_buff;
+  out_path = "file://";
+  out_path += path_buff;
 
   return false;
 }

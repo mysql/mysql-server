@@ -143,8 +143,8 @@
 #include <stddef.h>
 #include <string>
 
-#include "binary_log_types.h"                   // enum_field_types
-#include "my_dbug.h"                            // DBUG_ASSERT
+#include "binary_log_types.h"  // enum_field_types
+#include "my_dbug.h"           // DBUG_ASSERT
 #include "my_inttypes.h"
 
 class Field_json;
@@ -153,8 +153,7 @@ class Json_wrapper;
 class String;
 class THD;
 
-namespace json_binary
-{
+namespace json_binary {
 
 /**
   Serialize the JSON document represented by dom to binary format in
@@ -179,13 +178,18 @@ bool serialize(const THD *thd, const Json_dom *dom, String *dest);
   Object members can be looked up in O(log n) time using the lookup()
   function.
 */
-class Value
-{
-public:
-  enum enum_type : uint8
-  {
-    OBJECT, ARRAY, STRING, INT, UINT, DOUBLE,
-    LITERAL_NULL, LITERAL_TRUE, LITERAL_FALSE,
+class Value {
+ public:
+  enum enum_type : uint8 {
+    OBJECT,
+    ARRAY,
+    STRING,
+    INT,
+    UINT,
+    DOUBLE,
+    LITERAL_NULL,
+    LITERAL_TRUE,
+    LITERAL_FALSE,
     OPAQUE,
     ERROR /* Not really a type. Used to signal that an
              error was detected. */
@@ -204,8 +208,7 @@ public:
     Get a pointer to the beginning of the STRING or OPAQUE data
     represented by this instance.
   */
-  const char *get_data() const
-  {
+  const char *get_data() const {
     DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
     return m_data;
   }
@@ -214,29 +217,25 @@ public:
     Get the length in bytes of the STRING or OPAQUE value represented by
     this instance.
   */
-  uint32 get_data_length() const
-  {
+  uint32 get_data_length() const {
     DBUG_ASSERT(m_type == STRING || m_type == OPAQUE);
     return m_length;
   }
 
   /** Get the value of an INT. */
-  int64 get_int64() const
-  {
+  int64 get_int64() const {
     DBUG_ASSERT(m_type == INT);
     return m_int_value;
   }
 
   /** Get the value of a UINT. */
-  uint64 get_uint64() const
-  {
+  uint64 get_uint64() const {
     DBUG_ASSERT(m_type == UINT);
     return static_cast<uint64>(m_int_value);
   }
 
   /** Get the value of a DOUBLE. */
-  double get_double() const
-  {
+  double get_double() const {
     DBUG_ASSERT(m_type == DOUBLE);
     return m_double_value;
   }
@@ -245,8 +244,7 @@ public:
     Get the number of elements in an array, or the number of members in
     an object.
   */
-  uint32 element_count() const
-  {
+  uint32 element_count() const {
     DBUG_ASSERT(m_type == ARRAY || m_type == OBJECT);
     return m_element_count;
   }
@@ -255,8 +253,7 @@ public:
     Get the MySQL field type of an opaque value. Identifies the type of
     the value stored in the data portion of an opaque value.
   */
-  enum_field_types field_type() const
-  {
+  enum_field_types field_type() const {
     DBUG_ASSERT(m_type == OPAQUE);
     return m_field_type;
   }
@@ -269,26 +266,21 @@ public:
   bool raw_binary(const THD *thd, String *buf) const;
   bool get_free_space(const THD *thd, size_t *space) const;
   bool has_space(size_t pos, size_t needed, size_t *offset) const;
-  bool update_in_shadow(const Field_json *field,
-                        size_t pos, Json_wrapper *new_value,
-                        size_t data_offset, size_t data_length,
-                        const char *original, char *destination,
-                        bool *changed) const;
+  bool update_in_shadow(const Field_json *field, size_t pos,
+                        Json_wrapper *new_value, size_t data_offset,
+                        size_t data_length, const char *original,
+                        char *destination, bool *changed) const;
   bool remove_in_shadow(const Field_json *field, size_t pos,
                         const char *original, char *destination) const;
 
   /** Constructor for values that represent literals or errors. */
-  explicit Value(enum_type t)
-    : m_data(nullptr), m_type(t)
-  {
+  explicit Value(enum_type t) : m_data(nullptr), m_type(t) {
     DBUG_ASSERT(t == LITERAL_NULL || t == LITERAL_TRUE || t == LITERAL_FALSE ||
                 t == ERROR);
   }
 
   /** Constructor for values that represent ints or uints. */
-  explicit Value(enum_type t, int64 val)
-    : m_int_value(val), m_type(t)
-  {
+  explicit Value(enum_type t, int64 val) : m_int_value(val), m_type(t) {
     DBUG_ASSERT(t == INT || t == UINT);
   }
 
@@ -297,8 +289,7 @@ public:
 
   /** Constructor for values that represent strings. */
   Value(const char *data, uint32 len)
-    : m_data(data), m_length(len), m_type(STRING)
-  {}
+      : m_data(data), m_length(len), m_type(STRING) {}
 
   /**
     Constructor for values that represent arrays or objects.
@@ -312,16 +303,17 @@ public:
   */
   Value(enum_type t, const char *data, uint32 bytes, uint32 element_count,
         bool large)
-    : m_data(data), m_element_count(element_count), m_length(bytes),
-      m_type(t), m_large(large)
-  {
+      : m_data(data),
+        m_element_count(element_count),
+        m_length(bytes),
+        m_type(t),
+        m_large(large) {
     DBUG_ASSERT(t == ARRAY || t == OBJECT);
   }
 
   /** Constructor for values that represent opaque data. */
   Value(enum_field_types ft, const char *data, uint32 len)
-    : m_data(data), m_length(len), m_field_type(ft), m_type(OPAQUE)
-  {}
+      : m_data(data), m_length(len), m_field_type(ft), m_type(OPAQUE) {}
 
   /** Empty constructor. Produces a value that represents an error condition. */
   Value() : Value(ERROR) {}
@@ -332,13 +324,12 @@ public:
   /** Is this value an object? */
   bool is_object() const { return m_type == OBJECT; }
 
-private:
+ private:
   /*
     Instances use only one of m_data, m_int_value and m_double_value,
     so keep them in a union to save space in memory.
   */
-  union
-  {
+  union {
     /**
       Pointer to the start of the binary representation of the value. Only
       used by STRING, OPAQUE, OBJECT and ARRAY.
@@ -409,8 +400,8 @@ Value parse_binary(const char *data, size_t len);
   @retval true if an error occurred while calculating the needed space
 */
 #ifdef MYSQL_SERVER
-bool space_needed(const THD *thd, const Json_wrapper *value,
-                  bool large, size_t *needed);
+bool space_needed(const THD *thd, const Json_wrapper *value, bool large,
+                  size_t *needed);
 #endif
 
 /**
@@ -429,19 +420,15 @@ bool space_needed(const THD *thd, const Json_wrapper *value,
   next node
 */
 template <typename Func>
-bool for_each_node(const Value &value, const Func &func)
-{
-  if (func(value))
-    return true;
+bool for_each_node(const Value &value, const Func &func) {
+  if (func(value)) return true;
 
   if (value.is_array() || value.is_object())
-    for (size_t i= 0, size= value.element_count(); i < size; ++i)
-      if (for_each_node(value.element(i), func))
-        return true;
+    for (size_t i = 0, size = value.element_count(); i < size; ++i)
+      if (for_each_node(value.element(i), func)) return true;
 
   return false;
 }
-
 }
 
-#endif  /* JSON_BINARY_INCLUDED */
+#endif /* JSON_BINARY_INCLUDED */

@@ -1,0 +1,148 @@
+################################################################################
+# This test checks the basic functionality of the Group Replication replication
+# plugin: When a new server have multiple members' names in group seeds which
+# belongs to different groups.
+#
+# Notion used:
+# M1_LA  : group_replication_local_address of member1.
+# GROUP#1: group_replication_group_name of a group.
+#
+# Test:
+# 0. The test requires three servers: M1, M2 and M3.
+# 1. Bootstrap start GR on M1:- group_name: GROUP#1, local_address: M1_LA
+#    Bootstrap start GR on M2:- group_name: GROUP#2, local_address: M2_LA
+# 2. Test following scenarios for M3 to join the group:
+# a) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#1. Expect SUCCESS.
+# b) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#2.
+#    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+# c) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#1.
+#    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+# d) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#2. Expect SUCCESS.
+# 3. Clean up.
+################################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo #
+--echo # 1. Bootstrap start GR on M1 and M2.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Bootstrap start GR on M1.
+--let $group_name_server1= b0000000-7fb8-11e6-9f35-ac56a84b7f00
+--let $group_replication_group_name= $group_name_server1
+--source include/start_and_bootstrap_group_replication.inc
+--let $local_address_m1= `SELECT @@GLOBAL.group_replication_local_address;`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+# Bootstrap start GR on M2.
+--let $group_name_server2= b1111111-7fb8-11e6-9f35-ac56a84b7f11
+--let $group_replication_group_name= $group_name_server2
+--source include/start_and_bootstrap_group_replication.inc
+--let $local_address_m2= `SELECT @@GLOBAL.group_replication_local_address;`
+
+--echo #
+--echo # GROUP#1 is $group_name_server1
+--echo # GROUP#2 is $group_name_server2
+--echo #
+
+--echo #
+--echo # 2. Test new server (M3) may or may not join the group.
+--echo # a) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#1.
+--echo #    Expect SUCCESS.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $saved_gr_group_seeds = `SELECT @@GLOBAL.group_replication_group_seeds;`
+
+--replace_result $local_address_m1 M1_LA $local_address_m2 M2_LA
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m1, $local_address_m2"
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server1"
+
+--source include/start_group_replication_command.inc
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= $group_name_server1: There are two members in the group.
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+# Clean gtid_executed set.
+RESET MASTER;
+
+--echo #
+--echo # b) Have group_seeds as 'M1_LA, M2_LA' and group_name: GROUP#2.
+--echo #    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+--echo #
+--replace_result $local_address_m1 M1_LA $local_address_m2 M2_LA
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m1, $local_address_m2"
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server2"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo #
+--echo # c) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#1.
+--echo #    Expect ER_GROUP_REPLICATION_CONFIGURATION.
+--echo #
+--replace_result $local_address_m1 M1_LA $local_address_m2 M2_LA
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m2, $local_address_m1"
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server1"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo #
+--echo # d) Have group_seeds as 'M2_LA, M1_LA' and group_name: GROUP#2.
+--echo #    Expect SUCCESS.
+--echo #
+--replace_result $local_address_m1 M1_LA $local_address_m2 M2_LA
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_m2, $local_address_m1"
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_NAME= "$group_name_server2"
+
+--source include/start_group_replication_command.inc
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= $group_name_server2: There are two members in the group.
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--source include/stop_group_replication.inc
+# Clean gtid_executed set.
+RESET MASTER;
+
+--echo #
+--echo # 3. Clean up.
+--echo #
+# Add suppressions
+set session sql_log_bin=0;
+call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
+call mtr.add_suppression("The group communication engine is not ready for the member to join. Local port: *.*");
+call mtr.add_suppression("read failed");
+call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+set session sql_log_bin=1;
+
+--disable_query_log
+--eval SET @@GLOBAL.group_replication_group_seeds= "$saved_gr_group_seeds"
+--enable_query_log
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+RESET MASTER;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+RESET MASTER;
+
+--source include/group_replication_end.inc

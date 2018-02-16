@@ -26,17 +26,16 @@
 #include <sys/types.h>
 #include <string>
 
-#include "sql_string.h"                     // String
-#include "sql/dd/object_id.h"               // Object_id
-#include "sql/dd/string_type.h"             // dd::String_type
-#include "sql/handler.h"                    // ha_statistics
+#include "sql/dd/object_id.h"    // Object_id
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/handler.h"         // ha_statistics
+#include "sql_string.h"          // String
 
 class THD;
 struct TABLE_LIST;
 
 namespace dd {
 namespace info_schema {
-
 
 /**
   Get dynamic table statistics of a table and store them into
@@ -50,7 +49,6 @@ namespace info_schema {
 */
 bool update_table_stats(THD *thd, TABLE_LIST *table);
 
-
 /**
   Get dynamic index statistics of a table and store them into
   mysql.index_stats.
@@ -62,7 +60,6 @@ bool update_table_stats(THD *thd, TABLE_LIST *table);
            true on failure.
 */
 bool update_index_stats(THD *thd, TABLE_LIST *table);
-
 
 /**
   If the db is 'information_schema' then convert 'db' to
@@ -77,10 +74,8 @@ bool update_index_stats(THD *thd, TABLE_LIST *table);
 */
 bool convert_table_name_case(char *db, char *table_name);
 
-
 // Statistics that are cached.
-enum class enum_table_stats_type
-{
+enum class enum_table_stats_type {
   TABLE_ROWS,
   TABLE_AVG_ROW_LENGTH,
   DATA_LENGTH,
@@ -94,7 +89,6 @@ enum class enum_table_stats_type
   INDEX_COLUMN_CARDINALITY
 };
 
-
 /**
   The class hold dynamic table statistics for a table.
   This cache is used by internal UDF's defined for the purpose
@@ -105,12 +99,9 @@ enum class enum_table_stats_type
   multiple calls to same SE API to retrieve the statistics.
 */
 
-class Table_statistics
-{
-public:
-  Table_statistics()
-    : m_checksum(0)
-  {}
+class Table_statistics {
+ public:
+  Table_statistics() : m_checksum(0) {}
 
   /**
     Check if the stats are cached for given db.table_name.
@@ -121,16 +112,14 @@ public:
 
     @return true if stats are cached, else false.
   */
-  bool is_stat_cached_in_mem(const String &db_name,
-                             const String &table_name,
-                             const char *partition_name)
-  {
+  bool is_stat_cached_in_mem(const String &db_name, const String &table_name,
+                             const char *partition_name) {
     return (m_key == form_key(db_name, table_name, partition_name));
   }
 
-  bool is_stat_cached_in_mem(const String &db_name, const String &table_name)
-  { return is_stat_cached_in_mem(db_name, table_name, nullptr); }
-
+  bool is_stat_cached_in_mem(const String &db_name, const String &table_name) {
+    return is_stat_cached_in_mem(db_name, table_name, nullptr);
+  }
 
   /**
     Store the statistics form the given handler
@@ -142,22 +131,18 @@ public:
 
     @return void
   */
-  void cache_stats_in_mem(const String &db_name,
-                          const String &table_name,
-                          const char *partition_name,
-                          handler *file)
-  {
-    m_stats= file->stats;
-    m_checksum= file->checksum();
+  void cache_stats_in_mem(const String &db_name, const String &table_name,
+                          const char *partition_name, handler *file) {
+    m_stats = file->stats;
+    m_checksum = file->checksum();
     m_error.clear();
     set_stat_cached(db_name, table_name, partition_name);
   }
 
-  void cache_stats_in_mem(const String &db_name,
-                          const String &table_name,
-                          handler *file)
-  { cache_stats_in_mem(db_name, table_name, nullptr, file); }
-
+  void cache_stats_in_mem(const String &db_name, const String &table_name,
+                          handler *file) {
+    cache_stats_in_mem(db_name, table_name, nullptr, file);
+  }
 
   /**
     Store the statistics
@@ -169,22 +154,18 @@ public:
 
     @return void
   */
-  void cache_stats_in_mem(const String &db_name,
-                          const String &table_name,
-                          const char *partition_name,
-                          ha_statistics &stats)
-  {
-    m_stats= stats;
-    m_checksum= 0;
+  void cache_stats_in_mem(const String &db_name, const String &table_name,
+                          const char *partition_name, ha_statistics &stats) {
+    m_stats = stats;
+    m_checksum = 0;
     m_error.clear();
     set_stat_cached(db_name, table_name, partition_name);
   }
 
-  void cache_stats_in_mem(const String &db_name,
-                          const String &table_name,
-                          ha_statistics &stats)
-  { cache_stats_in_mem(db_name, table_name, nullptr, stats); }
-
+  void cache_stats_in_mem(const String &db_name, const String &table_name,
+                          ha_statistics &stats) {
+    cache_stats_in_mem(db_name, table_name, nullptr, stats);
+  }
 
   /**
     @brief
@@ -211,65 +192,37 @@ public:
 
     @return ulonglong representing value for the status being read.
   */
-  ulonglong read_stat(THD *thd,
-                      const String &schema_name_ptr,
-                      const String &table_name_ptr,
-                      const String &index_name_ptr,
-                      const char* partition_name,
-                      const String &column_name_ptr,
-                      uint index_ordinal_position,
-                      uint column_ordinal_position,
-                      const String &engine_name_ptr,
-                      dd::Object_id se_private_id,
-                      const char* ts_se_private_data,
-                      const char* tbl_se_private_data,
-                      const ulonglong &table_stat_data,
-                      const ulonglong &cached_time,
-                      enum_table_stats_type stype);
-
+  ulonglong read_stat(
+      THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+      const String &index_name_ptr, const char *partition_name,
+      const String &column_name_ptr, uint index_ordinal_position,
+      uint column_ordinal_position, const String &engine_name_ptr,
+      dd::Object_id se_private_id, const char *ts_se_private_data,
+      const char *tbl_se_private_data, const ulonglong &table_stat_data,
+      const ulonglong &cached_time, enum_table_stats_type stype);
 
   // Fetch table stats. Invokes the above method.
-  ulonglong read_stat(THD *thd,
-                      const String &schema_name_ptr,
-                      const String &table_name_ptr,
-                      const String &engine_name_ptr,
-                      const char* partition_name,
-                      dd::Object_id se_private_id,
-                      const char* ts_se_private_data,
-                      const char* tbl_se_private_data,
-                      const ulonglong &table_stat_data,
-                      const ulonglong &cached_time,
-                      enum_table_stats_type stype)
-  {
+  ulonglong read_stat(
+      THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+      const String &engine_name_ptr, const char *partition_name,
+      dd::Object_id se_private_id, const char *ts_se_private_data,
+      const char *tbl_se_private_data, const ulonglong &table_stat_data,
+      const ulonglong &cached_time, enum_table_stats_type stype) {
     const String tmp;
-    return read_stat(thd,
-                     schema_name_ptr,
-                     table_name_ptr,
-                     tmp,
-                     partition_name,
-                     tmp, 0, 0,
-                     engine_name_ptr,
-                     se_private_id,
-                     ts_se_private_data,
-                     tbl_se_private_data,
-                     table_stat_data,
-                     cached_time,
-                     stype);
+    return read_stat(thd, schema_name_ptr, table_name_ptr, tmp, partition_name,
+                     tmp, 0, 0, engine_name_ptr, se_private_id,
+                     ts_se_private_data, tbl_se_private_data, table_stat_data,
+                     cached_time, stype);
   }
 
-
   // Invalidate the cache.
-  void invalidate_cache(void)
-  {
+  void invalidate_cache(void) {
     m_key.clear();
     m_error.clear();
   }
 
-
   // Get error string. Its empty if a error is not reported.
-  inline String_type error()
-  { return m_error; }
-
+  inline String_type error() { return m_error; }
 
   /**
     Set error string for the given key. The combination of (db, table and
@@ -292,20 +245,16 @@ public:
 
     @return void
   */
-  void store_error_message(const String &db_name,
-                           const String &table_name,
+  void store_error_message(const String &db_name, const String &table_name,
                            const char *partition_name,
-                           const String_type error_msg)
-  {
-    m_stats= {};
-    m_checksum= 0;
-    m_error= error_msg;
-    m_key= form_key(db_name, table_name, partition_name);
+                           const String_type error_msg) {
+    m_stats = {};
+    m_checksum = 0;
+    m_error = error_msg;
+    m_key = form_key(db_name, table_name, partition_name);
   }
 
-
-private:
-
+ private:
   /**
     Read dynamic table/index statistics from SE API's OR by reading
     cached statistics from SELECT_LEX.
@@ -326,19 +275,13 @@ private:
 
     @return ulonglong representing value for the status being read.
   */
-  ulonglong read_stat_from_SE(THD *thd,
-                              const String &schema_name_ptr,
-                              const String &table_name_ptr,
-                              const String &index_name_ptr,
-                              const String &column_name_ptr,
-                              uint index_ordinal_position,
-                              uint column_ordinal_position,
-                              dd::Object_id se_private_id,
-                              const char* ts_se_private_data,
-                              const char* tbl_se_private_data,
-                              enum_table_stats_type stype,
-                              handlerton *hton);
-
+  ulonglong read_stat_from_SE(
+      THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+      const String &index_name_ptr, const String &column_name_ptr,
+      uint index_ordinal_position, uint column_ordinal_position,
+      dd::Object_id se_private_id, const char *ts_se_private_data,
+      const char *tbl_se_private_data, enum_table_stats_type stype,
+      handlerton *hton);
 
   /**
     Read dynamic table/index statistics by opening the table OR by reading
@@ -356,15 +299,13 @@ private:
 
     @return ulonglong representing value for the status being read.
   */
-  ulonglong read_stat_by_open_table(THD *thd,
-                                    const String &schema_name_ptr,
+  ulonglong read_stat_by_open_table(THD *thd, const String &schema_name_ptr,
                                     const String &table_name_ptr,
                                     const String &index_name_ptr,
-                                    const char* partition_name,
+                                    const char *partition_name,
                                     const String &column_name_ptr,
                                     uint column_ordinal_position,
                                     enum_table_stats_type stype);
-
 
   /**
     Mark the cache as valid for a given table. This creates a key for the
@@ -376,14 +317,14 @@ private:
 
     @returns void.
   */
-  void set_stat_cached(const String &db_name,
-                       const String &table_name,
-                       const char *partition_name)
-  { m_key= form_key(db_name, table_name, partition_name); }
+  void set_stat_cached(const String &db_name, const String &table_name,
+                       const char *partition_name) {
+    m_key = form_key(db_name, table_name, partition_name);
+  }
 
-  void set_stat_cached(const String &db_name, const String &table_name)
-  { set_stat_cached(db_name, table_name, nullptr); }
-
+  void set_stat_cached(const String &db_name, const String &table_name) {
+    set_stat_cached(db_name, table_name, nullptr);
+  }
 
   /**
     Build a key representing the table for which stats are cached.
@@ -394,15 +335,11 @@ private:
 
     @returns String_type representing the key.
   */
-  String_type form_key(const String &db_name,
-                       const String &table_name,
-                       const char *partition_name)
-  {
-    return String_type(db_name.ptr()) + "." +
-           String_type(table_name.ptr()) +
-           (partition_name ? ("."+String_type(partition_name)) : "");
+  String_type form_key(const String &db_name, const String &table_name,
+                       const char *partition_name) {
+    return String_type(db_name.ptr()) + "." + String_type(table_name.ptr()) +
+           (partition_name ? ("." + String_type(partition_name)) : "");
   }
-
 
   /**
     Return statistics of the a given type.
@@ -413,9 +350,9 @@ private:
     @returns ulonglong statistics value.
   */
   ulonglong get_stat(ha_statistics &stat, enum_table_stats_type stype);
-  inline ulonglong get_stat(enum_table_stats_type stype)
-  { return get_stat(m_stats, stype); }
-
+  inline ulonglong get_stat(enum_table_stats_type stype) {
+    return get_stat(m_stats, stype);
+  }
 
   /**
     Check if we have seen a error.
@@ -427,8 +364,7 @@ private:
              false if not.
   */
   inline bool check_error_for_key(const String &db_name,
-                                  const String &table_name)
-  {
+                                  const String &table_name) {
     if (is_stat_cached_in_mem(db_name, table_name) && !m_error.empty())
       return true;
 
@@ -436,17 +372,14 @@ private:
   }
 
   /// Set checksum
-  void set_checksum(ulonglong &&checksum)
-  { m_checksum= checksum; }
+  void set_checksum(ulonglong &&checksum) { m_checksum = checksum; }
 
   /// Get checksum
-  ulonglong get_checksum() const
-  { return m_checksum; }
+  ulonglong get_checksum() const { return m_checksum; }
 
-private:
-
+ private:
   // The cache key
-  String_type m_key; // Format '<db_name>.<table_name>'
+  String_type m_key;  // Format '<db_name>.<table_name>'
 
   // Error found when reading statistics.
   String_type m_error;
@@ -454,14 +387,12 @@ private:
   // Table checksum value retrieved from SE.
   ulonglong m_checksum;
 
-public:
-
+ public:
   // Cached statistics.
   ha_statistics m_stats;
 };
 
+}  // namespace info_schema
+}  // namespace dd
 
-} // namespace info_schema
-} // namespace dd
-
-#endif // DD_INFO_SCHEMA_TABLE_STATS_INCLUDED
+#endif  // DD_INFO_SCHEMA_TABLE_STATS_INCLUDED

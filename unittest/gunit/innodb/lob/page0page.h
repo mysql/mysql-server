@@ -28,10 +28,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "ut0byte.h"
 
-inline
-page_t*
-page_align( const void*     ptr) {
-        return((page_t*) ut_align_down(ptr, UNIV_PAGE_SIZE));
+inline page_t *page_align(const void *ptr) {
+  return ((page_t *)ut_align_down(ptr, UNIV_PAGE_SIZE));
 }
 
-#endif //  _page0page_h_
+#endif  //  _page0page_h_

@@ -31,22 +31,22 @@ TempTable Table implementation. */
 #include <utility>       /* std::pair */
 #include <vector>        /* std::vector */
 
-#include "my_base.h"              /* HA_KEY_ALG_* */
-#include "my_dbug.h"              /* DBUG_ASSERT(), DBUG_ABORT() */
-#include "sql/field.h"            /* Field */
-#include "sql/key.h"              /* KEY */
-#include "sql/table.h"            /* TABLE, TABLE_SHARE */
+#include "my_base.h"   /* HA_KEY_ALG_* */
+#include "my_dbug.h"   /* DBUG_ASSERT(), DBUG_ABORT() */
+#include "sql/field.h" /* Field */
+#include "sql/key.h"   /* KEY */
+#include "sql/table.h" /* TABLE, TABLE_SHARE */
 #include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
 #include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
-#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
+#include "storage/temptable/include/temptable/index.h"  /* temptable::Index */
 #include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
 #include "storage/temptable/include/temptable/result.h" /* temptable::Result */
-#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
-#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
+#include "storage/temptable/include/temptable/row.h"    /* temptable::Row */
+#include "storage/temptable/include/temptable/table.h"  /* temptable::Table */
 
 namespace temptable {
 
-Table::Table(TABLE* mysql_table, bool all_columns_are_fixed_size)
+Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
     : m_rows(&m_allocator),
       m_all_columns_are_fixed_size(all_columns_are_fixed_size),
       m_indexes_are_enabled(true),
@@ -79,14 +79,14 @@ Table::~Table() {
 
   if (!m_all_columns_are_fixed_size) {
     for (auto element : m_rows) {
-      Row* row = static_cast<Row*>(element);
+      Row *row = static_cast<Row *>(element);
       row->~Row();
     }
   }
 }
 
-Result Table::insert(const unsigned char* mysql_row) {
-  Storage::Element* row;
+Result Table::insert(const unsigned char *mysql_row) {
+  Storage::Element *row;
 
   try {
     row = m_rows.allocate_back();
@@ -106,8 +106,8 @@ Result Table::insert(const unsigned char* mysql_row) {
 
     new (row) Row(mysql_row, &m_allocator);
 
-    ret = static_cast<Row*>(row)->copy_to_own_memory(m_columns,
-                                                     m_mysql_row_length);
+    ret = static_cast<Row *>(row)->copy_to_own_memory(m_columns,
+                                                      m_mysql_row_length);
 
     if (ret != Result::OK) {
       m_rows.deallocate_back();
@@ -123,14 +123,14 @@ Result Table::insert(const unsigned char* mysql_row) {
 
   ret = Result::OK;
 
-  for (auto& entry : m_index_entries) {
-    Index* index = entry.m_index;
+  for (auto &entry : m_index_entries) {
+    Index *index = entry.m_index;
     Cursor insert_position;
 
     Indexed_cells indexed_cells =
         m_all_columns_are_fixed_size
-            ? Indexed_cells{static_cast<unsigned char*>(row), *index}
-            : Indexed_cells{*static_cast<Row*>(row), *index};
+            ? Indexed_cells{static_cast<unsigned char *>(row), *index}
+            : Indexed_cells{*static_cast<Row *>(row), *index};
 
     ret = index->insert(indexed_cells, &insert_position);
 
@@ -149,12 +149,12 @@ Result Table::insert(const unsigned char* mysql_row) {
   if (ret != Result::OK) {
     /* Undo the above insertions. */
     for (size_t i = 0; i < m_insert_undo.size(); ++i) {
-      Index* index = m_index_entries[i].m_index;
-      const Cursor& target = m_insert_undo[i];
+      Index *index = m_index_entries[i].m_index;
+      const Cursor &target = m_insert_undo[i];
       index->erase(target);
     }
     if (!m_all_columns_are_fixed_size) {
-      static_cast<Row*>(row)->~Row();
+      static_cast<Row *>(row)->~Row();
     }
     m_rows.deallocate_back();
   }
@@ -164,16 +164,16 @@ Result Table::insert(const unsigned char* mysql_row) {
   return ret;
 }
 
-Result Table::update(const unsigned char* mysql_row_old,
-                     const unsigned char* mysql_row_new,
-                     Storage::Element* target_row, bool reversal,
+Result Table::update(const unsigned char *mysql_row_old,
+                     const unsigned char *mysql_row_new,
+                     Storage::Element *target_row, bool reversal,
                      size_t max_index) {
 #ifndef DBUG_OFF
   if (m_all_columns_are_fixed_size) {
     DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
   } else {
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
-    Row* row_in_m_rows = reinterpret_cast<Row*>(target_row);
+    Row *row_in_m_rows = reinterpret_cast<Row *>(target_row);
     const Row row_old(mysql_row_old, nullptr);
     DBUG_ASSERT(
         row_in_m_rows->compare(m_columns, m_mysql_table->field, row_old) == 0);
@@ -189,7 +189,7 @@ Result Table::update(const unsigned char* mysql_row_old,
   if (m_all_columns_are_fixed_size) {
     memcpy(target_row, mysql_row_new, m_mysql_row_length);
   } else {
-    Row* row = reinterpret_cast<Row*>(target_row);
+    Row *row = reinterpret_cast<Row *>(target_row);
 
     *row = Row(mysql_row_new, &m_allocator);
 
@@ -218,7 +218,7 @@ Result Table::update(const unsigned char* mysql_row_old,
 
   size_t i;
   for (i = 0; i <= max_index; ++i) {
-    Index& index = *m_index_entries[i].m_index;
+    Index &index = *m_index_entries[i].m_index;
 
     const Indexed_cells indexed_cells_old(mysql_row_old, index);
     const Indexed_cells indexed_cells_new(mysql_row_new, index);
@@ -273,8 +273,9 @@ Result Table::update(const unsigned char* mysql_row_old,
 
     const Indexed_cells indexed_cells =
         m_all_columns_are_fixed_size
-            ? Indexed_cells{reinterpret_cast<unsigned char*>(target_row), index}
-            : Indexed_cells{*reinterpret_cast<Row*>(target_row), index};
+            ? Indexed_cells{reinterpret_cast<unsigned char *>(target_row),
+                            index}
+            : Indexed_cells{*reinterpret_cast<Row *>(target_row), index};
     Cursor inserted_pos;
 
     ret = index.insert(indexed_cells, &inserted_pos);
@@ -301,8 +302,8 @@ Result Table::update(const unsigned char* mysql_row_old,
   return ret;
 }
 
-Result Table::remove(const unsigned char* mysql_row_must_be,
-                     const Storage::Iterator& victim_position) {
+Result Table::remove(const unsigned char *mysql_row_must_be,
+                     const Storage::Iterator &victim_position) {
   Row row(mysql_row_must_be, &m_allocator);
 
 #ifndef DBUG_OFF
@@ -311,7 +312,7 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
   if (m_all_columns_are_fixed_size) {
   } else {
     /* *victim_position is a pointer to an `temptable::Row` object. */
-    Row* row_our = reinterpret_cast<Row*>(*victim_position);
+    Row *row_our = reinterpret_cast<Row *>(*victim_position);
     DBUG_ASSERT(row_our->compare(m_columns, m_mysql_table->field, row) == 0);
   }
 #endif /* DBUG_OFF */
@@ -319,7 +320,7 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
   if (m_indexes_are_enabled) {
     const auto index_count = m_index_entries.size();
     for (size_t i = 0; i < index_count; ++i) {
-      Index* index = m_index_entries[i].m_index;
+      Index *index = m_index_entries[i].m_index;
       const Indexed_cells cells(row, *index);
       Cursor first;
       Cursor after_last;
@@ -348,7 +349,7 @@ Result Table::remove(const unsigned char* mysql_row_must_be,
   }
 
   if (!m_all_columns_are_fixed_size) {
-    Row* row = reinterpret_cast<Row*>(*victim_position);
+    Row *row = reinterpret_cast<Row *>(*victim_position);
     row->~Row();
   }
 
@@ -365,7 +366,7 @@ void Table::indexes_create() {
   m_index_entries.reserve(number_of_indexes);
 
   for (size_t i = 0; i < number_of_indexes; ++i) {
-    const KEY& mysql_index = m_mysql_table->key_info[i];
+    const KEY &mysql_index = m_mysql_table->key_info[i];
 
     switch (mysql_index.algorithm) {
       case HA_KEY_ALG_BTREE:
@@ -387,12 +388,12 @@ void Table::indexes_create() {
 }
 
 void Table::indexes_destroy() {
-  for (auto& entry : m_index_entries) {
-    Index* index = entry.m_index;
+  for (auto &entry : m_index_entries) {
+    Index *index = entry.m_index;
 
     index->~Index();
 
-    m_allocator.deallocate(reinterpret_cast<uint8_t*>(index),
+    m_allocator.deallocate(reinterpret_cast<uint8_t *>(index),
                            entry.m_alloc_size);
   }
 

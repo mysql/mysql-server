@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -46,21 +46,17 @@
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
-
-namespace ngs
-{
+namespace ngs {
 
 class Connection_vio;
 class Output_buffer;
 
-class Protocol_encoder: public Protocol_encoder_interface
-{
-public:
-  typedef ngs::function<void (int error)> Error_handler;
+class Protocol_encoder : public Protocol_encoder_interface {
+ public:
+  typedef ngs::function<void(int error)> Error_handler;
 
   Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
-                   Error_handler ehandler,
-                   Protocol_monitor_interface &pmon);
+                   Error_handler ehandler, Protocol_monitor_interface &pmon);
 
   virtual ~Protocol_encoder();
 
@@ -68,15 +64,13 @@ public:
 
   bool send_ok() override;
   bool send_ok(const std::string &message) override;
-  bool send_init_error(const Error_code& error_code) override;
+  bool send_init_error(const Error_code &error_code) override;
 
   void send_rows_affected(uint64_t value) override;
 
-  void send_notice(
-      const Frame_type type,
-      const Frame_scope scope,
-      const std::string &data,
-      const bool force_flush = false) override;
+  void send_notice(const Frame_type type, const Frame_scope scope,
+                   const std::string &data,
+                   const bool force_flush = false) override;
 
   void send_auth_ok(const std::string &data) override;
   void send_auth_continue(const std::string &data) override;
@@ -87,7 +81,7 @@ public:
 
   bool send_column_metadata(const Encode_column_info *column_info) override;
 
-  Row_builder& row_builder() override { return m_row_builder; }
+  Row_builder &row_builder() override { return m_row_builder; }
   void start_row() override;
   void abort_row() override;
   // sends the row that was written directly into Encoder's buffer
@@ -95,7 +89,8 @@ public:
 
   Output_buffer *get_buffer() override { return m_buffer.get(); }
 
-  virtual bool send_message(int8_t type, const Message &message, bool force_buffer_flush = false) override;
+  virtual bool send_message(int8_t type, const Message &message,
+                            bool force_buffer_flush = false) override;
   virtual void on_error(int error) override;
 
   virtual Protocol_monitor_interface &get_protocol_monitor() override;
@@ -108,7 +103,7 @@ public:
     m_write_timeout = timeout;
   }
 
-private:
+ private:
   Protocol_encoder(const Protocol_encoder &) = delete;
   Protocol_encoder &operator=(const Protocol_encoder &) = delete;
 
@@ -123,34 +118,39 @@ private:
 
   Output_buffer_unique_ptr m_buffer;
 
-  Row_builder       m_row_builder;
-  Metadata_builder  m_metadata_builder;
-  Message_builder   m_empty_msg_builder;
-  Notice_builder    m_notice_builder;
+  Row_builder m_row_builder;
+  Metadata_builder m_metadata_builder;
+  Message_builder m_empty_msg_builder;
+  Notice_builder m_notice_builder;
 
   uint32_t m_write_timeout =
       static_cast<uint32_t>(Global_timeouts::Default::k_write_timeout);
 
   // add the m_out_buffer contents to the output queue... thread-safe
-  bool flush_buffer(); // ownership of buffer is taken
+  bool flush_buffer();  // ownership of buffer is taken
 
   bool enqueue_buffer(int8_t type, bool force_flush = false);
   bool send_raw_buffer(int8_t type);
 };
 
 #ifdef XPLUGIN_LOG_PROTOBUF
-#define log_message_send(MESSAGE)\
-    ::ngs::Protocol_encoder::log_protobuf("SEND", MESSAGE);
-#define log_raw_message_send(ID) \
-    ::ngs::Protocol_encoder::log_protobuf(ID);
-#define log_message_recv(MESSAGE)\
-    ::ngs::Protocol_encoder::log_protobuf("RECV", MESSAGE);
+#define log_message_send(MESSAGE) \
+  ::ngs::Protocol_encoder::log_protobuf("SEND", MESSAGE);
+#define log_raw_message_send(ID) ::ngs::Protocol_encoder::log_protobuf(ID);
+#define log_message_recv(MESSAGE) \
+  ::ngs::Protocol_encoder::log_protobuf("RECV", MESSAGE);
 #else
-#define log_message_send(MESSAGE)    do {} while (0)
-#define log_raw_message_send(ID)     do {} while (0)
-#define log_message_recv(MESSAGE)    do {} while (0)
-#endif // XPLUGIN_LOG_PRTOBUF
+#define log_message_send(MESSAGE) \
+  do {                            \
+  } while (0)
+#define log_raw_message_send(ID) \
+  do {                           \
+  } while (0)
+#define log_message_recv(MESSAGE) \
+  do {                            \
+  } while (0)
+#endif  // XPLUGIN_LOG_PRTOBUF
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_PROTOCOL_ENCODER_H_
+#endif  // _NGS_PROTOCOL_ENCODER_H_

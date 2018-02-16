@@ -43,10 +43,6 @@ ENDIF()
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
-IF(SSL_DEFINES)
-  ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
-
 SET(XPLUGIN_LOG_PROTOBUF 1 CACHE STRING "Enable logging of protobuf messages")
 
 INCLUDE(utils.cmake)

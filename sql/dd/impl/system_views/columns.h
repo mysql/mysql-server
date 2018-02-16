@@ -33,11 +33,9 @@ namespace system_views {
 /*
   The class representing INFORMATION_SCHEMA.COLUMNS system view definition.
 */
-class Columns : public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Columns : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_TABLE_CATALOG,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
@@ -66,17 +64,15 @@ public:
 
   static const Columns &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("COLUMNS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Columns::view_name(); }
+  virtual const String_type &name() const { return Columns::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__COLUMNS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__COLUMNS_INCLUDED

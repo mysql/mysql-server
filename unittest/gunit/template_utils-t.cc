@@ -26,53 +26,44 @@
 
 namespace template_utils_unittest {
 
-class Base
-{
-public:
+class Base {
+ public:
   int id() const { return 1; }
 
   // Needed to make compiler understand that it's a polymorphic class.
   virtual ~Base() {}
 };
 
-
-class Descendent : public Base
-{
-public:
+class Descendent : public Base {
+ public:
   int id() const { return 2; }
 };
 
-
-TEST(TemplateUtilsTest, DownCastReference)
-{
+TEST(TemplateUtilsTest, DownCastReference) {
   Descendent descendent;
-  Base &baseref= descendent;
-  auto descendentref= down_cast<Descendent&>(baseref);
+  Base &baseref = descendent;
+  auto descendentref = down_cast<Descendent &>(baseref);
 
   EXPECT_EQ(1, baseref.id());
   EXPECT_EQ(2, descendentref.id());
 }
 
-
-TEST(TemplateUtilsTest, DownCastRvalueReference)
-{
+TEST(TemplateUtilsTest, DownCastRvalueReference) {
   Descendent descendent;
-  Base &&baseref= Descendent();
-  auto descendentref= down_cast<Descendent&&>(baseref);
+  Base &&baseref = Descendent();
+  auto descendentref = down_cast<Descendent &&>(baseref);
 
   EXPECT_EQ(1, baseref.id());
   EXPECT_EQ(2, descendentref.id());
 }
 
-
-TEST(TemplateUtilsTest, DownCastPointer)
-{
+TEST(TemplateUtilsTest, DownCastPointer) {
   Descendent descendent;
-  Base *baseref= &descendent;
-  auto descendentref= down_cast<Descendent*>(baseref);
+  Base *baseref = &descendent;
+  auto descendentref = down_cast<Descendent *>(baseref);
 
   EXPECT_EQ(1, baseref->id());
   EXPECT_EQ(2, descendentref->id());
 }
 
-}  // namespace
+}  // namespace template_utils_unittest

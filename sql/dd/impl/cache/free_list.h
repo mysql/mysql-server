@@ -23,14 +23,13 @@
 #ifndef DD_CACHE__FREE_LIST_INCLUDED
 #define DD_CACHE__FREE_LIST_INCLUDED
 
-#include <vector>                         // vector
+#include <vector>  // vector
 
 #include "my_dbug.h"
-#include "sql/malloc_allocator.h"         // Malloc_allocator.
+#include "sql/malloc_allocator.h"  // Malloc_allocator.
 
 namespace dd {
 namespace cache {
-
 
 /**
   Template for management of a free list based on a std::vector.
@@ -49,20 +48,16 @@ namespace cache {
 */
 
 template <typename E>
-class Free_list
-{
-private:
-  typedef std::vector<E*, Malloc_allocator<E*> > List_type;
-  List_type m_list;                                         // The actual list.
+class Free_list {
+ private:
+  typedef std::vector<E *, Malloc_allocator<E *>> List_type;
+  List_type m_list;  // The actual list.
 
-public:
-  Free_list(): m_list(Malloc_allocator<E*>(PSI_INSTRUMENT_ME))
-  { }
+ public:
+  Free_list() : m_list(Malloc_allocator<E *>(PSI_INSTRUMENT_ME)) {}
 
   // Return the actual free list length.
-  size_t length() const
-  { return m_list.size(); }
-
+  size_t length() const { return m_list.size(); }
 
   /**
     Add an element to the end of the free list.
@@ -70,12 +65,10 @@ public:
     @param   element Element to add to the end of the list.
   */
 
-  void add_last(E *element)
-  {
+  void add_last(E *element) {
     DBUG_ASSERT(element != NULL && element->usage() == 0);
     m_list.push_back(element);
   }
-
 
   /**
     Remove an element from the free list.
@@ -83,22 +76,19 @@ public:
     @param   element Element to be removed from the list.
   */
 
-  void remove(E *element)
-  {
+  void remove(E *element) {
     DBUG_ASSERT(element != NULL && element->usage() == 0);
     DBUG_ASSERT(!m_list.empty());
 
-    for (typename List_type::iterator it= m_list.begin();
-          it != m_list.end(); ++it)
-        if (*it == element)
-        {
-          m_list.erase(it);
-          return;
-        }
+    for (typename List_type::iterator it = m_list.begin(); it != m_list.end();
+         ++it)
+      if (*it == element) {
+        m_list.erase(it);
+        return;
+      }
 
     DBUG_ASSERT(false); /* purecov: deadcode */
   }
-
 
   /**
     Get the least recently used element in the list, i.e., the first element.
@@ -106,30 +96,25 @@ public:
     @return  The least recently used element in the list.
   */
 
-  E *get_lru() const
-  {
+  E *get_lru() const {
     DBUG_ASSERT(!m_list.empty());
-    if (!m_list.empty())
-      return m_list.front();
+    if (!m_list.empty()) return m_list.front();
     return NULL;
   }
-
 
   /**
     Debug dump of the free list to stderr.
   */
   /* purecov: begin inspected */
-  void dump() const
-  {
+  void dump() const {
 #ifndef DBUG_OFF
-    if (m_list.empty())
-    {
+    if (m_list.empty()) {
       fprintf(stderr, "    lru-> NULL\n");
       return;
     }
     fprintf(stderr, "    lru-> ");
-    for (typename List_type::const_iterator it= m_list.begin();
-          it != m_list.end(); ++it)
+    for (typename List_type::const_iterator it = m_list.begin();
+         it != m_list.end(); ++it)
       fprintf(stderr, "%llu ", (*it)->object()->id());
     fprintf(stderr, "\n");
 #endif
@@ -137,7 +122,7 @@ public:
   /* purecov: end */
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
-#endif // DD_CACHE__FREE_LIST_INCLUDED
+#endif  // DD_CACHE__FREE_LIST_INCLUDED

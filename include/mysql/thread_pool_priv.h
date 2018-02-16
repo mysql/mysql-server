@@ -48,7 +48,6 @@
 #include "sql/sql_thd_internal_api.h"
 #include "sql/table.h"
 
-
 /**
   Called by the server when a new client connects.
 
@@ -75,8 +74,7 @@ typedef void (*end_t)(void);
    unloaded. It also contains the maximum number of threads the connection
    handler will create.
 */
-struct Connection_handler_functions
-{
+struct Connection_handler_functions {
   /**
      The maximum number of threads this connection handler will create.
   */
@@ -87,9 +85,9 @@ struct Connection_handler_functions
 };
 
 /* create thd from channel_info object */
-THD* create_thd(Channel_info* channel_info);
+THD *create_thd(Channel_info *channel_info);
 /* destroy channel_info object */
-void destroy_channel_info(Channel_info* channel_info);
+void destroy_channel_info(Channel_info *channel_info);
 /* Decrement connection counter */
 void dec_connection_count();
 /*
@@ -107,13 +105,13 @@ void thd_unlock_thread_count();
   Interface to global thread list iterator functions.
   Executes a function with signature 'void f(THD*, uint64)' for all THDs.
 */
-typedef void (do_thd_impl_uint64)(THD*, uint64);
+typedef void(do_thd_impl_uint64)(THD *, uint64);
 void do_for_all_thd(do_thd_impl_uint64, uint64);
 
 /* Needed to get access to scheduler variables */
-void* thd_get_scheduler_data(THD *thd);
+void *thd_get_scheduler_data(THD *thd);
 void thd_set_scheduler_data(THD *thd, void *data);
-PSI_thread* thd_get_psi(THD *thd);
+PSI_thread *thd_get_psi(THD *thd);
 void thd_set_psi(THD *thd, PSI_thread *psi);
 
 /* Interface to THD variables and functions */
@@ -128,9 +126,9 @@ int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
 uint thd_get_net_read_write(THD *thd);
 void thd_set_not_killable(THD *thd);
-ulong  thd_get_net_wait_timeout(THD *thd);
+ulong thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
-int thd_store_globals(THD* thd);
+int thd_store_globals(THD *thd);
 
 /* Store a table record */
 bool schema_table_store_record(THD *thd, TABLE *table);
@@ -157,8 +155,8 @@ void mysql_audit_release(THD *thd);
 /* Check if connection is still alive */
 bool thd_connection_alive(THD *thd);
 /* Close connection with possible error code */
-void close_connection(THD *thd, uint sql_errno,
-                      bool server_shutdown, bool generate_event);
+void close_connection(THD *thd, uint sql_errno, bool server_shutdown,
+                      bool generate_event);
 /* End the connection before closing it */
 void end_connection(THD *thd);
 /* Reset thread globals */
@@ -177,4 +175,4 @@ ulong get_max_connections(void);
 */
 my_thread_attr_t *get_connection_attrib(void);
 
-#endif // THREAD_POOL_PRIV_INCLUDED
+#endif  // THREAD_POOL_PRIV_INCLUDED

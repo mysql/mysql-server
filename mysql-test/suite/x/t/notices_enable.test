@@ -6,12 +6,6 @@
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/stmtexecute_query_result.tmp
 -->import assert_variable.macro
--->echo check with password function which is deprecated
-Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0,1/0,password('test'),password('')"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
-
 -->echo check with dropping db which doesn't exists
 Mysqlx.Sql.StmtExecute {
   stmt: "drop database if exists mysqltest;"
@@ -570,7 +564,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->echo setting back to default of sql_mode
 Mysqlx.Sql.StmtExecute {
-  stmt: "SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';"
+  stmt: "SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';"
 }
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 
@@ -699,7 +693,7 @@ Mysqlx.Sql.StmtExecute {
 
 -->sql
 drop table t1;
-SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 -->endsql
 
 -->echo checking warnings while creating index which is more than row size
@@ -1144,12 +1138,6 @@ EOF
 --write_file $MYSQL_TMP_DIR/stats_notices.tmp
 -->import assert_status_variable.macro
 
--->echo check with password function which is deprecated
-Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0,1/0,password('test'),password('')"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
-
 -->sql
 use mysql;
 -->endsql
@@ -1175,12 +1163,6 @@ Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 -->recvresult
-
-
-Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0,1/0,password('test'),password('')"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
 
 
 -->echo enable account_expired notice and check stats
@@ -1237,11 +1219,6 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/stats_noti.tmp
 -->import assert_status_variable.macro
-Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0,1/0,password('test'),password('')"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
-
 -->expecterror 1044
 -->sql
 use mysql;
@@ -1260,11 +1237,6 @@ EOF
 
 --write_file $MYSQL_TMP_DIR/stats_noti_no_err.tmp
 -->import assert_status_variable.macro
-Mysqlx.Sql.StmtExecute {
-  stmt: "select 1/0,1/0,password('test'),password('')"
-}
--->recvuntil Mysqlx.Sql.StmtExecuteOk
-
 -->sql
 use mysql;
 -->endsql

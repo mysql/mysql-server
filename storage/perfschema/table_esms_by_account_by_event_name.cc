@@ -45,152 +45,125 @@
 THR_LOCK table_esms_by_account_by_event_name::m_table_lock;
 
 Plugin_table table_esms_by_account_by_event_name::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "events_statements_summary_by_account_by_event_name",
-  /* Definition */
-  "  USER CHAR(32) collate utf8_bin default null,\n"
-  "  HOST CHAR(60) collate utf8_bin default null,\n"
-  "  EVENT_NAME VARCHAR(128) not null,\n"
-  "  COUNT_STAR BIGINT unsigned not null,\n"
-  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
-  "  SUM_ERRORS BIGINT unsigned not null,\n"
-  "  SUM_WARNINGS BIGINT unsigned not null,\n"
-  "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
-  "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
-  "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
-  "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
-  "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
-  "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
-  "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
-  "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
-  "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
-  "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
-  "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
-  "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
-  "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
-  "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
-  "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
-  "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
-  "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "events_statements_summary_by_account_by_event_name",
+    /* Definition */
+    "  USER CHAR(32) collate utf8_bin default null,\n"
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  EVENT_NAME VARCHAR(128) not null,\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  SUM_LOCK_TIME BIGINT unsigned not null,\n"
+    "  SUM_ERRORS BIGINT unsigned not null,\n"
+    "  SUM_WARNINGS BIGINT unsigned not null,\n"
+    "  SUM_ROWS_AFFECTED BIGINT unsigned not null,\n"
+    "  SUM_ROWS_SENT BIGINT unsigned not null,\n"
+    "  SUM_ROWS_EXAMINED BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_DISK_TABLES BIGINT unsigned not null,\n"
+    "  SUM_CREATED_TMP_TABLES BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_FULL_RANGE_JOIN BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SELECT_RANGE_CHECK BIGINT unsigned not null,\n"
+    "  SUM_SELECT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_SORT_MERGE_PASSES BIGINT unsigned not null,\n"
+    "  SUM_SORT_RANGE BIGINT unsigned not null,\n"
+    "  SUM_SORT_ROWS BIGINT unsigned not null,\n"
+    "  SUM_SORT_SCAN BIGINT unsigned not null,\n"
+    "  SUM_NO_INDEX_USED BIGINT unsigned not null,\n"
+    "  SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `ACCOUNT` (USER, HOST, EVENT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_esms_by_account_by_event_name::m_share = {
-  &pfs_truncatable_acl,
-  table_esms_by_account_by_event_name::create,
-  NULL, /* write_row */
-  table_esms_by_account_by_event_name::delete_all_rows,
-  table_esms_by_account_by_event_name::get_row_count,
-  sizeof(pos_esms_by_account_by_event_name),
-  &m_table_lock,
-  &m_table_def,
-  false, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_truncatable_acl,
+    table_esms_by_account_by_event_name::create,
+    NULL, /* write_row */
+    table_esms_by_account_by_event_name::delete_all_rows,
+    table_esms_by_account_by_event_name::get_row_count,
+    sizeof(pos_esms_by_account_by_event_name),
+    &m_table_lock,
+    &m_table_def,
+    false, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_esms_by_account_by_event_name::match(PFS_account *pfs)
-{
-  if (m_fields >= 1)
-  {
-    if (!m_key_1.match(pfs))
-    {
+bool PFS_index_esms_by_account_by_event_name::match(PFS_account *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(pfs)) {
       return false;
     }
   }
 
-  if (m_fields >= 2)
-  {
-    if (!m_key_2.match(pfs))
-    {
+  if (m_fields >= 2) {
+    if (!m_key_2.match(pfs)) {
       return false;
     }
   }
   return true;
 }
 
-bool
-PFS_index_esms_by_account_by_event_name::match(PFS_instr_class *instr_class)
-{
-  if (instr_class->is_mutable())
-  {
+bool PFS_index_esms_by_account_by_event_name::match(
+    PFS_instr_class *instr_class) {
+  if (instr_class->is_mutable()) {
     return false;
   }
 
-  if (m_fields >= 3)
-  {
-    if (!m_key_3.match(instr_class))
-    {
+  if (m_fields >= 3) {
+    if (!m_key_3.match(instr_class)) {
       return false;
     }
   }
   return true;
 }
 
-PFS_engine_table *
-table_esms_by_account_by_event_name::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_esms_by_account_by_event_name::create(
+    PFS_engine_table_share *) {
   return new table_esms_by_account_by_event_name();
 }
 
-int
-table_esms_by_account_by_event_name::delete_all_rows(void)
-{
+int table_esms_by_account_by_event_name::delete_all_rows(void) {
   reset_events_statements_by_thread();
   reset_events_statements_by_account();
   return 0;
 }
 
-ha_rows
-table_esms_by_account_by_event_name::get_row_count(void)
-{
+ha_rows table_esms_by_account_by_event_name::get_row_count(void) {
   return global_account_container.get_row_count() * statement_class_max;
 }
 
 table_esms_by_account_by_event_name::table_esms_by_account_by_event_name()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
-{
+    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
   m_normalizer = time_normalizer::get_statement();
 }
 
-void
-table_esms_by_account_by_event_name::reset_position(void)
-{
+void table_esms_by_account_by_event_name::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int
-table_esms_by_account_by_event_name::rnd_init(bool)
-{
-  return 0;
-}
+int table_esms_by_account_by_event_name::rnd_init(bool) { return 0; }
 
-int
-table_esms_by_account_by_event_name::rnd_next(void)
-{
+int table_esms_by_account_by_event_name::rnd_next(void) {
   PFS_account *account;
   PFS_statement_class *statement_class;
   bool has_more_account = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL)
-    {
+    if (account != NULL) {
       statement_class = find_statement_class(m_pos.m_index_2);
-      if (statement_class)
-      {
+      if (statement_class) {
         m_next_pos.set_after(&m_pos);
         return make_row(account, statement_class);
       }
@@ -200,20 +173,16 @@ table_esms_by_account_by_event_name::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_esms_by_account_by_event_name::rnd_pos(const void *pos)
-{
+int table_esms_by_account_by_event_name::rnd_pos(const void *pos) {
   PFS_account *account;
   PFS_statement_class *statement_class;
 
   set_position(pos);
 
   account = global_account_container.get(m_pos.m_index_1);
-  if (account != NULL)
-  {
+  if (account != NULL) {
     statement_class = find_statement_class(m_pos.m_index_2);
-    if (statement_class)
-    {
+    if (statement_class) {
       return make_row(account, statement_class);
     }
   }
@@ -221,10 +190,8 @@ table_esms_by_account_by_event_name::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int
-table_esms_by_account_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                                bool)
-{
+int table_esms_by_account_by_event_name::index_init(
+    uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_esms_by_account_by_event_name *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_esms_by_account_by_event_name);
@@ -233,29 +200,20 @@ table_esms_by_account_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-int
-table_esms_by_account_by_event_name::index_next(void)
-{
+int table_esms_by_account_by_event_name::index_next(void) {
   PFS_account *account;
   PFS_statement_class *statement_class;
   bool has_more_account = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_account; m_pos.next_account()) {
     account = global_account_container.get(m_pos.m_index_1, &has_more_account);
-    if (account != NULL)
-    {
-      if (m_opened_index->match(account))
-      {
-        do
-        {
+    if (account != NULL) {
+      if (m_opened_index->match(account)) {
+        do {
           statement_class = find_statement_class(m_pos.m_index_2);
-          if (statement_class)
-          {
-            if (m_opened_index->match(statement_class))
-            {
-              if (!make_row(account, statement_class))
-              {
+          if (statement_class) {
+            if (m_opened_index->match(statement_class)) {
+              if (!make_row(account, statement_class)) {
                 m_next_pos.set_after(&m_pos);
                 return 0;
               }
@@ -270,34 +228,28 @@ table_esms_by_account_by_event_name::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_esms_by_account_by_event_name::make_row(PFS_account *account,
-                                              PFS_statement_class *klass)
-{
+int table_esms_by_account_by_event_name::make_row(PFS_account *account,
+                                                  PFS_statement_class *klass) {
   pfs_optimistic_state lock;
 
-  if (klass->is_mutable())
-  {
+  if (klass->is_mutable()) {
     return HA_ERR_RECORD_DELETED;
   }
 
   account->m_lock.begin_optimistic_lock(&lock);
 
-  if (m_row.m_account.make_row(account))
-  {
+  if (m_row.m_account.make_row(account)) {
     return HA_ERR_RECORD_DELETED;
   }
 
   m_row.m_event_name.make_row(klass);
 
   PFS_connection_statement_visitor visitor(klass);
-  PFS_connection_iterator::visit_account(account,
-                                         true,  /* threads */
-                                         false, /* THDs */
+  PFS_connection_iterator::visit_account(account, true, /* threads */
+                                         false,         /* THDs */
                                          &visitor);
 
-  if (!account->m_lock.end_optimistic_lock(&lock))
-  {
+  if (!account->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -306,34 +258,29 @@ table_esms_by_account_by_event_name::make_row(PFS_account *account,
   return 0;
 }
 
-int
-table_esms_by_account_by_event_name::read_row_values(TABLE *table,
-                                                     unsigned char *buf,
-                                                     Field **fields,
-                                                     bool read_all)
-{
+int table_esms_by_account_by_event_name::read_row_values(TABLE *table,
+                                                         unsigned char *buf,
+                                                         Field **fields,
+                                                         bool read_all) {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /* USER */
-      case 1: /* HOST */
-        m_row.m_account.set_field(f->field_index, f);
-        break;
-      case 2: /* EVENT_NAME */
-        m_row.m_event_name.set_field(f);
-        break;
-      default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
-        m_row.m_stat.set_field(f->field_index - 3, f);
-        break;
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* USER */
+        case 1: /* HOST */
+          m_row.m_account.set_field(f->field_index, f);
+          break;
+        case 2: /* EVENT_NAME */
+          m_row.m_event_name.set_field(f);
+          break;
+        default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
+          m_row.m_stat.set_field(f->field_index - 3, f);
+          break;
       }
     }
   }

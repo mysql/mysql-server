@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,8 +41,9 @@ class Process_resultset : public ngs::Resultset_interface {
   ngs::Command_delegate &get_callbacks() override {
     return m_callback_delegate;
   }
-  const Info &get_info() const override
-  { return m_callback_delegate.get_info(); }
+  const Info &get_info() const override {
+    return m_callback_delegate.get_info();
+  }
 
  private:
   Callback_command_delegate m_callback_delegate;
@@ -65,8 +66,9 @@ class Collect_resultset : public ngs::Resultset_interface {
     return m_buffering_delegate;
   }
 
-  const Info &get_info() const override
-  { return m_buffering_delegate.get_info(); }
+  const Info &get_info() const override {
+    return m_buffering_delegate.get_info();
+  }
 
   void reset() { m_buffering_delegate.reset(); }
 
@@ -91,15 +93,17 @@ class Collect_resultset : public ngs::Resultset_interface {
 
 class Streaming_resultset : public ngs::Resultset_interface {
  public:
-  Streaming_resultset(ngs::Protocol_encoder_interface *proto, const bool compact_metadata)
+  Streaming_resultset(ngs::Protocol_encoder_interface *proto,
+                      const bool compact_metadata)
       : m_streaming_delegate(proto) {
     m_streaming_delegate.set_compact_metadata(compact_metadata);
   }
   ngs::Command_delegate &get_callbacks() override {
     return m_streaming_delegate;
   }
-  const Info &get_info() const override
-  { return m_streaming_delegate.get_info(); }
+  const Info &get_info() const override {
+    return m_streaming_delegate.get_info();
+  }
 
  private:
   Streaming_command_delegate m_streaming_delegate;

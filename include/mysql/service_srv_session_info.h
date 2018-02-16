@@ -27,16 +27,15 @@
   Service providing setters and getters for some properties of a session
 */
 
-
 #include "mysql/service_srv_session.h"
 #ifndef MYSQL_ABI_CHECK
-#include "my_thread.h"           /* my_thread_id */
+#include <stdint.h>    /* uint16_t */
+#include "m_string.h"  /* LEX_CSTRING */
+#include "my_thread.h" /* my_thread_id */
 #include "my_thread_local.h"
-#include "m_string.h"            /* LEX_CSTRING */
-#include "plugin.h"              /* MYSQL_THD */
-#include "mysql_com.h"           /* Vio for violite.h */
-#include "violite.h"             /* enum_vio_type */
-#include <stdint.h>              /* uint16_t */
+#include "mysql_com.h" /* Vio for violite.h */
+#include "plugin.h"    /* MYSQL_THD */
+#include "violite.h"   /* enum_vio_type */
 #endif
 
 extern "C" struct srv_session_info_service_st {
@@ -55,19 +54,27 @@ extern "C" struct srv_session_info_service_st {
 
   unsigned int (*session_count)();
   unsigned int (*thread_count)(const void *plugin);
-} *srv_session_info_service;
+} * srv_session_info_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define srv_session_info_get_thd(session)            srv_session_info_service->get_thd((session))
-#define srv_session_info_get_session_id(sess)        srv_session_info_service->get_session_id((sess))
-#define srv_session_info_get_current_db(sess)        srv_session_info_service->get_current_db((sess))
-#define srv_session_info_get_client_port(sess)       srv_session_info_service->get_client_port((sess))
-#define srv_session_info_set_client_port(sess, port) srv_session_info_service->set_client_port((sess), (port))
-#define srv_session_info_set_connection_type(sess, type) srv_session_info_service->set_connection_type((sess), (type))
-#define srv_session_info_killed(sess)                srv_session_info_service->killed((sess))
-#define srv_session_info_session_count(sess)         srv_session_info_service->session_count(sess)
-#define srv_session_info_thread_count(plugin)          srv_session_info_service->thread_count(plugin)
+#define srv_session_info_get_thd(session) \
+  srv_session_info_service->get_thd((session))
+#define srv_session_info_get_session_id(sess) \
+  srv_session_info_service->get_session_id((sess))
+#define srv_session_info_get_current_db(sess) \
+  srv_session_info_service->get_current_db((sess))
+#define srv_session_info_get_client_port(sess) \
+  srv_session_info_service->get_client_port((sess))
+#define srv_session_info_set_client_port(sess, port) \
+  srv_session_info_service->set_client_port((sess), (port))
+#define srv_session_info_set_connection_type(sess, type) \
+  srv_session_info_service->set_connection_type((sess), (type))
+#define srv_session_info_killed(sess) srv_session_info_service->killed((sess))
+#define srv_session_info_session_count(sess) \
+  srv_session_info_service->session_count(sess)
+#define srv_session_info_thread_count(plugin) \
+  srv_session_info_service->thread_count(plugin)
 
 #else
 
@@ -157,7 +164,6 @@ int srv_session_info_killed(MYSQL_SESSION session);
   service.
 */
 unsigned int srv_session_info_session_count();
-
 
 /**
   Returns the number opened sessions in thread initialized by srv_session

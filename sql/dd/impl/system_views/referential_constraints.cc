@@ -25,20 +25,18 @@
 namespace dd {
 namespace system_views {
 
-const Referential_constraints &Referential_constraints::instance()
-{
-  static Referential_constraints *s_instance= new Referential_constraints();
+const Referential_constraints &Referential_constraints::instance() {
+  static Referential_constraints *s_instance = new Referential_constraints();
   return *s_instance;
 }
 
-Referential_constraints::Referential_constraints()
-{
+Referential_constraints::Referential_constraints() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_CONSTRAINT_CATALOG,
-                         "CONSTRAINT_CATALOG", "cat.name");
-  m_target_def.add_field(FIELD_CONSTRAINT_SCHEMA,
-                         "CONSTRAINT_SCHEMA", "sch.name");
+  m_target_def.add_field(FIELD_CONSTRAINT_CATALOG, "CONSTRAINT_CATALOG",
+                         "cat.name");
+  m_target_def.add_field(FIELD_CONSTRAINT_SCHEMA, "CONSTRAINT_SCHEMA",
+                         "sch.name");
   m_target_def.add_field(FIELD_CONSTRAINT_NAME, "CONSTRAINT_NAME", "fk.name");
   m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_CATALOG,
                          "UNIQUE_CONSTRAINT_CATALOG",
@@ -46,11 +44,9 @@ Referential_constraints::Referential_constraints()
   m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_SCHEMA,
                          "UNIQUE_CONSTRAINT_SCHEMA",
                          "fk.referenced_table_schema");
-  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_NAME,
-                         "UNIQUE_CONSTRAINT_NAME",
+  m_target_def.add_field(FIELD_UNIQUE_CONSTRAINT_NAME, "UNIQUE_CONSTRAINT_NAME",
                          "fk.unique_constraint_name");
-  m_target_def.add_field(FIELD_MATCH_OPTION, "MATCH_OPTION",
-                         "fk.match_option");
+  m_target_def.add_field(FIELD_MATCH_OPTION, "MATCH_OPTION", "fk.match_option");
   m_target_def.add_field(FIELD_UPDATE_RULE, "UPDATE_RULE", "fk.update_rule");
   m_target_def.add_field(FIELD_DELETE_RULE, "DELETE_RULE", "fk.delete_rule");
   m_target_def.add_field(FIELD_TABLE_NAME, "TABLE_NAME", "tbl.name");
@@ -66,5 +62,5 @@ Referential_constraints::Referential_constraints()
   m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

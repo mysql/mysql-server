@@ -31,8 +31,7 @@
   An instrumented socket.
   @c MYSQL_SOCKET is a replacement for @c my_socket.
 */
-struct MYSQL_SOCKET
-{
+struct MYSQL_SOCKET {
   /** The real socket descriptor. */
   my_socket fd;
 
@@ -56,9 +55,7 @@ struct MYSQL_SOCKET
   @sa mysql_socket_getfd
   @sa mysql_socket_setfd
 */
-static inline MYSQL_SOCKET
-mysql_socket_invalid()
-{
+static inline MYSQL_SOCKET mysql_socket_invalid() {
   MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, NULL};
   return mysql_socket;
 }

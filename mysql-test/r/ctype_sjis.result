@@ -59,7 +59,7 @@ create table t1(c enum(0x9353,0x9373) character set sjis);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` enum('“S','“s') CHARACTER SET sjis DEFAULT NULL
+  `c` enum('“S','“s') CHARACTER SET sjis COLLATE sjis_japanese_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values (0x9353);
 insert into t1 values (0x9373);

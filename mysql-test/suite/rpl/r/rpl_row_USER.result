@@ -5,20 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
-CREATE USER tester IDENTIFIED BY 'test';
-GRANT ALL ON mysqltest1.* TO 'tester'@'%' IDENTIFIED BY 'test';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER tester IDENTIFIED BY 'test', ''@'localhost%';
+GRANT ALL ON mysqltest1.* TO 'tester'@'%';
 GRANT ALL ON mysqltest1.* TO ''@'localhost%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 FLUSH PRIVILEGES;
 CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
 INSERT INTO mysqltest1.t1 VALUES(1,USER());
@@ -51,9 +40,7 @@ include/sync_slave_sql_with_master.inc
 DROP DATABASE IF EXISTS mysqltest1;
 CREATE DATABASE mysqltest1;
 CREATE USER 'tester1'@'' IDENTIFIED BY 'test';
-GRANT ALL ON mysqltest1.* TO 'tester1'@'' IDENTIFIED BY 'test';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT ALL ON mysqltest1.* TO 'tester1'@'';
 FLUSH PRIVILEGES;
 CREATE TABLE mysqltest1.t1 (a INT, users VARCHAR(255), PRIMARY KEY(a));
 INSERT INTO mysqltest1.t1 VALUES(1,USER());

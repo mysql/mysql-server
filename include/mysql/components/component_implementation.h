@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENT_IMPLEMENTATION_H
 #define COMPONENT_IMPLEMENTATION_H
 
-#include <cstddef> // NULL
-#include <mysql/components/services/registry.h>
 #include <mysql/components/services/dynamic_loader.h>
+#include <mysql/components/services/registry.h>
+#include <cstddef>  // NULL
 #include "service_implementation.h"
 
 /**
@@ -84,10 +84,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
   -# If you have problem during linking on GCC with similar message:
 
-        ../../../components/mysql_server/component_mysql_server.a(server_component.cc.o):%server_component.cc:imp_...: error: undefined reference to '..._impl::...'
+        ../../../components/mysql_server/component_mysql_server.a(server_component.cc.o):%server_component.cc:imp_...:
+  error: undefined reference to '..._impl::...'
 
-    In such case you should add a new `%init()` method (it can be dummy/empty) to
-    your source file that contains service methods implementations and a call
+    In such case you should add a new `%init()` method (it can be dummy/empty)
+  to your source file that contains service methods implementations and a call
     to that method somewhere in mysqld.cc. This will help GCC not to optimize
     the required object file out of linkage. Take `mysql_string_services_init()`
     as an example. This applies only to service implementations added to the
@@ -165,18 +166,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @param source_name The source name used in other macros.
   @param name Name string with human readable name.
 */
-#define DECLARE_COMPONENT(source_name, name) \
-mysql_component_t mysql_component_ ## source_name = { \
-  name, \
-  __ ## source_name ## _provides, \
-  __ ## source_name ## _requires, \
-  __ ## source_name ## _metadata,
+#define DECLARE_COMPONENT(source_name, name)                        \
+  mysql_component_t mysql_component_##source_name = {               \
+      name, __##source_name##_provides, __##source_name##_requires, \
+      __##source_name##_metadata,
 
 /**
   A macro to end the last declaration of a Component.
 */
-#define END_DECLARE_COMPONENT() \
-};
+#define END_DECLARE_COMPONENT() }
 
 /**
   Creates a service implementation list that are provided by specified
@@ -187,9 +185,7 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param name Component name.
 */
 #define BEGIN_COMPONENT_PROVIDES(name) \
-  static struct mysql_service_ref_t \
-    __ ## name ## _provides[] = {
-
+  static struct mysql_service_ref_t __##name##_provides[] = {
 /**
   Declare a Service Implementation provided by a Component. It assumes standard
   Service Implementation name to be referenced.
@@ -199,15 +195,18 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param service A Service name for which the Service Implementation will be
     added.
 */
-#define PROVIDES_SERVICE(component, service) \
-  { #service "." #component, (void*)&SERVICE_IMPLEMENTATION(component, service) },
+#define PROVIDES_SERVICE(component, service)                \
+  {                                                         \
+    #service "." #component,                                \
+        (void *)&SERVICE_IMPLEMENTATION(component, service) \
+  }
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_PROVIDES.
 */
 #define END_COMPONENT_PROVIDES() \
-      { NULL, NULL }  \
-  };
+  { NULL, NULL }                 \
+  }
 
 /**
   A macro to specify requirements of the component. Creates a placeholder for
@@ -216,11 +215,10 @@ mysql_component_t mysql_component_ ## source_name = { \
 
   @param name Name of component.
 */
-#define BEGIN_COMPONENT_REQUIRES(name) \
-  REQUIRES_SERVICE_PLACEHOLDER(registry); \
-  static struct mysql_service_placeholder_ref_t \
-    __ ## name ## _requires[] = { \
-    REQUIRES_SERVICE(registry)
+#define BEGIN_COMPONENT_REQUIRES(name)                                    \
+  REQUIRES_SERVICE_PLACEHOLDER(registry);                                 \
+  static struct mysql_service_placeholder_ref_t __##name##_requires[] = { \
+      REQUIRES_SERVICE(registry),
 
 /**
   Creates a definition for placeholder, in which the specified required service
@@ -231,7 +229,7 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param service A referenced Service name.
 */
 #define REQUIRES_SERVICE_PLACEHOLDER(service) \
-  SERVICE_TYPE(service)* mysql_service_## service
+  SERVICE_TYPE(service) * mysql_service_##service
 
 /**
   Adds a Service requirement with a pointer to placeholder to the list of
@@ -240,14 +238,14 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param service A referenced Service name.
 */
 #define REQUIRES_SERVICE(service) \
-  { #service, (void**)&mysql_service_## service },
+  { #service, (void **)&mysql_service_##service }
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_REQUIRES.
 */
 #define END_COMPONENT_REQUIRES() \
-      { NULL, NULL }  \
-  };
+  { NULL, NULL }                 \
+  }
 
 /**
   A macro to specify metadata of the component. Creates a list of metadata.
@@ -257,9 +255,7 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param name Name of component.
 */
 #define BEGIN_COMPONENT_METADATA(name) \
-  static struct mysql_metadata_ref_t \
-    __ ## name ## _metadata[] = {
-
+  static struct mysql_metadata_ref_t __##name##_metadata[] = {
 /**
   Adds a Service requirement with a pointer to placeholder to the list of
   components.
@@ -268,30 +264,30 @@ mysql_component_t mysql_component_ ## source_name = { \
   @param value A string value of the metadata to add.
 */
 #define METADATA(key, value) \
-  {key, value },
+  { key, value }
 
 /**
   A macro to end the last declaration started with the BEGIN_COMPONENT_METADATA.
 */
 #define END_COMPONENT_METADATA() \
-      { NULL, NULL }  \
-  };
+  { NULL, NULL }                 \
+  }
 
 /* On Windows, exports from DLL need to be declared.
   Also, plug-in needs to be declared as extern "C" because MSVC
   unlike other compilers, uses C++ mangling for variables not only
   for functions. */
 #if defined(_MSC_VER)
-  #ifdef __cplusplus
-    #define DLL_EXPORT extern "C" __declspec(dllexport)
-  #else
-    #define DLL_EXPORT __declspec(dllexport)
-  #endif
+#ifdef __cplusplus
+#define DLL_EXPORT extern "C" __declspec(dllexport)
+#else
+#define DLL_EXPORT __declspec(dllexport)
+#endif
 #else /*_MSC_VER */
 #ifdef __cplusplus
-  #define DLL_EXPORT extern "C"
+#define DLL_EXPORT extern "C"
 #else
-  #define DLL_EXPORT
+#define DLL_EXPORT
 #endif
 #endif
 
@@ -304,22 +300,21 @@ mysql_component_t mysql_component_ ## source_name = { \
   Dynamic Loader supports only one Component being specified in the library.
 */
 #define DECLARE_LIBRARY_COMPONENTS \
-  mysql_component_t* library_components_list = {
-
+  mysql_component_t *library_components_list = {
 /**
   A macro to end the last declaration started with the
   DECLARE_LIBRARY_COMPONENTS.
 */
-#define END_DECLARE_LIBRARY_COMPONENTS \
-  }; \
-  DLL_EXPORT mysql_component_t* list_components() { \
-    return library_components_list;\
+#define END_DECLARE_LIBRARY_COMPONENTS              \
+  }                                                 \
+  ;                                                 \
+  DLL_EXPORT mysql_component_t *list_components() { \
+    return library_components_list;                 \
   }
 
 /**
   Defines a reference to the specified Component data info structure.
 */
-#define COMPONENT_REF(name) \
-  mysql_component_ ## name
+#define COMPONENT_REF(name) mysql_component_##name
 
 #endif /* COMPONENT_IMPLEMENTATION_H */

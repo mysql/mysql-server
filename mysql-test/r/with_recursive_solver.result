@@ -9,8 +9,6 @@
 SET @save_sql_mode=@@sql_mode$
 # "||" is nicer and shorter to read than concat():
 set sql_mode = pipes_as_concat$
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # A procedure is used to wrap WITH RECURSIVE, because we want to
 # call the query for different input set of equations.
 # Parameters: left and right member of equations, as in example above.
@@ -195,8 +193,6 @@ order by find_in_set(ln.n,eq.pivot_lines);
 end
 $
 SET @@sql_mode=@save_sql_mode$
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Unique solution
 call solver("[[2,3,1],  [5,-3,10],  [6,0,12]]", "[7,21,28]");
 left_member	right_member	list_of_free_unknowns

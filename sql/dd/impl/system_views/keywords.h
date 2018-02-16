@@ -34,31 +34,26 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.KEYWORDS system view
   definition.
 */
-class Keywords :
-        public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
-     FIELD_WORD,
-     FIELD_RESERVED,
+class Keywords : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
+    FIELD_WORD,
+    FIELD_RESERVED,
   };
 
   Keywords();
 
   static const Keywords &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("KEYWORDS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Keywords::view_name(); }
+  virtual const String_type &name() const { return Keywords::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__KEYWORDS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__KEYWORDS_INCLUDED

@@ -27,8 +27,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lob0int.h"
 
 #ifdef UNIV_DEBUG
-#define Fname(x) const char* fname = x;
-#define LOG(x) {std::cout << fname << ":" << x << std::endl;}
+#define Fname(x) const char *fname = x;
+#define LOG(x) \
+  { std::cout << fname << ":" << x << std::endl; }
 #else
 #define Fname(x)
 #define LOG(x)
@@ -335,7 +336,7 @@ void index_entry_t::purge() {
 }
 
 fil_addr_t index_entry_t::purge_version(trx_id_t trxid, flst_base_node_t *lst,
-                                  flst_base_node_t *free_list) {
+                                        flst_base_node_t *free_list) {
   /* Save the location of next node. */
   fil_addr_t next_loc = flst_get_next_addr(m_node);
 
@@ -349,7 +350,7 @@ fil_addr_t index_entry_t::purge_version(trx_id_t trxid, flst_base_node_t *lst,
   flst_add_first(free_list, m_node);
 
   /* Return the next node location. */
-  return(next_loc);
+  return (next_loc);
 }
 
 buf_block_t *node_page_t::alloc(base_node_page_t &first_page) {
@@ -376,7 +377,7 @@ buf_block_t *node_page_t::alloc(base_node_page_t &first_page) {
 }
 
 /** Allocate one index entry. */
-flst_node_t* base_node_page_t::alloc_index_entry() {
+flst_node_t *base_node_page_t::alloc_index_entry() {
   flst_base_node_t *f_list = free_list();
   fil_addr_t node_addr = flst_get_first(f_list);
   if (fil_addr_is_null(node_addr)) {

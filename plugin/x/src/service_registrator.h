@@ -38,23 +38,23 @@ namespace xpl {
 class Service_registrator {
  public:
   struct Service {
-    const char* m_name;
+    const char *m_name;
     my_h_service m_service;
   };
 
   Service_registrator();
   ~Service_registrator();
-  void register_service(const Service& service);
-  void unregister_service(const char* name);
+  void register_service(const Service &service);
+  void unregister_service(const char *name);
 
  private:
-  Service_registrator(const Service_registrator&) = delete;
-  const Service_registrator& operator==(const Service_registrator&) = delete;
+  Service_registrator(const Service_registrator &) = delete;
+  const Service_registrator &operator==(const Service_registrator &) = delete;
 
   SERVICE_TYPE(registry) * m_registry;
   my_service<SERVICE_TYPE(registry_registration)> m_registrator;
 };
 
-}  // namespace xpl
+}  // namespace xpl
 
 #endif  // MYSQLX_SERVICE_H

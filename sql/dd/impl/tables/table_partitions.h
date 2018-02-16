@@ -24,27 +24,25 @@
 #define DD_TABLES__TABLE_PARTITIONS_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 class THD;
 
 namespace dd {
-  class Object_key;
-  class Raw_record;
+class Object_key;
+class Raw_record;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_partitions : public Object_table_impl
-{
-public:
+class Table_partitions : public Object_table_impl {
+ public:
   static const Table_partitions &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_TABLE_ID,
     FIELD_PARENT_PARTITION_ID,
@@ -59,46 +57,36 @@ public:
     FIELD_TABLESPACE_ID
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_TABLE_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_TABLE_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_TABLE_ID_PARENT_PARTITION_ID_NUMBER,
     INDEX_UK_ENGINE_SE_PRIVATE_ID,
     INDEX_K_ENGINE,
     INDEX_K_TABLESPACE_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_TABLE_ID,
-    FK_TABLESPACE_ID
-  };
+  enum enum_foreign_keys { FK_TABLE_ID, FK_TABLESPACE_ID };
 
   Table_partitions();
 
   static Object_key *create_key_by_table_id(Object_id table_id);
 
   static Object_key *create_key_by_parent_partition_id(
-                       Object_id table_id, Object_id parent_partition_id);
+      Object_id table_id, Object_id parent_partition_id);
 
   static ulonglong read_table_id(const Raw_record &r);
 
-  static Object_key *create_se_private_key(
-    const String_type &engine,
-    Object_id se_private_id);
+  static Object_key *create_se_private_key(const String_type &engine,
+                                           Object_id se_private_id);
 
-  static bool get_partition_table_id(
-    THD *thd,
-    const String_type &engine,
-    ulonglong se_private_id,
-    Object_id *oid);
-
+  static bool get_partition_table_id(THD *thd, const String_type &engine,
+                                     ulonglong se_private_id, Object_id *oid);
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TABLE_PARTITIONS_INCLUDED
+#endif  // DD_TABLES__TABLE_PARTITIONS_INCLUDED

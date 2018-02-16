@@ -112,35 +112,36 @@ authenticated_as when proxy mapping should be done by the server.
 #include <windows.h>
 #endif
 
-struct MYSQL_PLUGIN_VIO_INFO
-{
-  enum { MYSQL_VIO_INVALID, MYSQL_VIO_TCP, MYSQL_VIO_SOCKET,
-         MYSQL_VIO_PIPE, MYSQL_VIO_MEMORY } protocol;
-  int socket;     /**< it's set, if the protocol is SOCKET or TCP */
+struct MYSQL_PLUGIN_VIO_INFO {
+  enum {
+    MYSQL_VIO_INVALID,
+    MYSQL_VIO_TCP,
+    MYSQL_VIO_SOCKET,
+    MYSQL_VIO_PIPE,
+    MYSQL_VIO_MEMORY
+  } protocol;
+  int socket; /**< it's set, if the protocol is SOCKET or TCP */
 #ifdef _WIN32
-  HANDLE handle;  /**< it's set, if the protocol is PIPE or MEMORY */
+  HANDLE handle; /**< it's set, if the protocol is PIPE or MEMORY */
 #endif
 };
 
 /**
   Provides plugin access to communication channel
 */
-typedef struct MYSQL_PLUGIN_VIO
-{
+typedef struct MYSQL_PLUGIN_VIO {
   /**
     Plugin provides a pointer reference and this function sets it to the
     contents of any incoming packet. Returns the packet length, or -1 if
     the plugin should terminate.
   */
-  int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio, 
-                     unsigned char **buf);
-  
+  int (*read_packet)(struct MYSQL_PLUGIN_VIO *vio, unsigned char **buf);
+
   /**
     Plugin provides a buffer with data and the length and this
     function sends it as a packet. Returns 0 on success, 1 on failure.
   */
-  int (*write_packet)(struct MYSQL_PLUGIN_VIO *vio, 
-                      const unsigned char *packet, 
+  int (*write_packet)(struct MYSQL_PLUGIN_VIO *vio, const unsigned char *packet,
                       int packet_len);
 
   /**
@@ -153,4 +154,3 @@ typedef struct MYSQL_PLUGIN_VIO
 } MYSQL_PLUGIN_VIO;
 
 #endif
-

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,34 +33,30 @@
 #include "plugin/x/client/mysqlxclient/xmessage.h"
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
-
 namespace xcl {
 namespace test {
 
-template<typename Message_type>
-class Message_from_str: public Message_type {
+template <typename Message_type>
+class Message_from_str : public Message_type {
  public:
   explicit Message_from_str(const std::string &text_message) {
-    EXPECT_TRUE(::google::protobuf::TextFormat::ParseFromString(
-        text_message,
-        this));
+    EXPECT_TRUE(
+        ::google::protobuf::TextFormat::ParseFromString(text_message, this));
   }
 };
 
-template<typename M>
+template <typename M>
 class Message_compare {
  public:
   explicit Message_compare(const std::string &text_message)
-  : m_expected_text_reformated(reformat_text_message(text_message)) {
-  }
+      : m_expected_text_reformated(reformat_text_message(text_message)) {}
 
   explicit Message_compare(const M &message) {
-    ::google::protobuf::TextFormat::PrintToString(
-        message,
-        &m_expected_text_reformated);
+    ::google::protobuf::TextFormat::PrintToString(message,
+                                                  &m_expected_text_reformated);
   }
 
-  bool operator == (const xcl::XProtocol::Message &msg) const {
+  bool operator==(const xcl::XProtocol::Message &msg) const {
     std::string msg_text;
     ::google::protobuf::TextFormat::PrintToString(msg, &msg_text);
 
@@ -84,12 +80,9 @@ class Message_compare {
     M m;
     std::string text_message_reformated;
 
-    EXPECT_TRUE(::google::protobuf::TextFormat::ParseFromString(
-        text_message,
-        &m));
-    ::google::protobuf::TextFormat::PrintToString(
-        m,
-        &text_message_reformated);
+    EXPECT_TRUE(
+        ::google::protobuf::TextFormat::ParseFromString(text_message, &m));
+    ::google::protobuf::TextFormat::PrintToString(m, &text_message_reformated);
 
     return text_message_reformated;
   }
@@ -115,7 +108,7 @@ struct Client_message {};
 
 template <>
 struct Client_message<::Mysqlx::Session::AuthenticateStart> {
-  enum  { id = ::Mysqlx::ClientMessages::SESS_AUTHENTICATE_START };
+  enum { id = ::Mysqlx::ClientMessages::SESS_AUTHENTICATE_START };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -130,7 +123,7 @@ struct Client_message<::Mysqlx::Session::AuthenticateStart> {
 
 template <>
 struct Client_message<::Mysqlx::Session::AuthenticateContinue> {
-  enum  { id = ::Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE };
+  enum { id = ::Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -145,33 +138,29 @@ struct Client_message<::Mysqlx::Session::AuthenticateContinue> {
 
 template <>
 struct Client_message<::Mysqlx::Session::Reset> {
-  enum  { id = ::Mysqlx::ClientMessages::SESS_RESET };
+  enum { id = ::Mysqlx::ClientMessages::SESS_RESET };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Session::Reset make_required() {
-    return {};
-  }
+  static ::Mysqlx::Session::Reset make_required() { return {}; }
 };
 
 template <>
 struct Client_message<::Mysqlx::Session::Close> {
-  enum  { id = ::Mysqlx::ClientMessages::SESS_CLOSE };
+  enum { id = ::Mysqlx::ClientMessages::SESS_CLOSE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Session::Close make_required() {
-    return {};
-  }
+  static ::Mysqlx::Session::Close make_required() { return {}; }
 };
 
 template <>
 struct Client_message<::Mysqlx::Sql::StmtExecute> {
-  enum  { id = ::Mysqlx::ClientMessages::SQL_STMT_EXECUTE };
+  enum { id = ::Mysqlx::ClientMessages::SQL_STMT_EXECUTE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -186,7 +175,7 @@ struct Client_message<::Mysqlx::Sql::StmtExecute> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::Find> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_FIND };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_FIND };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -201,7 +190,7 @@ struct Client_message<::Mysqlx::Crud::Find> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::Insert> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_INSERT };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_INSERT };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -216,7 +205,7 @@ struct Client_message<::Mysqlx::Crud::Insert> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::Update> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_UPDATE };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_UPDATE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -231,7 +220,7 @@ struct Client_message<::Mysqlx::Crud::Update> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::Delete> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_DELETE };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_DELETE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -246,7 +235,7 @@ struct Client_message<::Mysqlx::Crud::Delete> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::CreateView> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_CREATE_VIEW };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_CREATE_VIEW };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -262,7 +251,7 @@ struct Client_message<::Mysqlx::Crud::CreateView> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::ModifyView> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_MODIFY_VIEW };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_MODIFY_VIEW };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -277,7 +266,7 @@ struct Client_message<::Mysqlx::Crud::ModifyView> {
 
 template <>
 struct Client_message<::Mysqlx::Crud::DropView> {
-  enum  { id = ::Mysqlx::ClientMessages::CRUD_DROP_VIEW };
+  enum { id = ::Mysqlx::ClientMessages::CRUD_DROP_VIEW };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -292,46 +281,40 @@ struct Client_message<::Mysqlx::Crud::DropView> {
 
 template <>
 struct Client_message<::Mysqlx::Expect::Open> {
-  enum  { id = ::Mysqlx::ClientMessages::EXPECT_OPEN };
+  enum { id = ::Mysqlx::ClientMessages::EXPECT_OPEN };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Expect::Open make_required() {
-    return {};
-  }
+  static ::Mysqlx::Expect::Open make_required() { return {}; }
 };
 
 template <>
 struct Client_message<::Mysqlx::Expect::Close> {
-  enum  { id = ::Mysqlx::ClientMessages::EXPECT_CLOSE };
+  enum { id = ::Mysqlx::ClientMessages::EXPECT_CLOSE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Expect::Close make_required() {
-    return {};
-  }
+  static ::Mysqlx::Expect::Close make_required() { return {}; }
 };
 
 template <>
 struct Client_message<::Mysqlx::Connection::CapabilitiesGet> {
-  enum  { id = ::Mysqlx::ClientMessages::CON_CAPABILITIES_GET };
+  enum { id = ::Mysqlx::ClientMessages::CON_CAPABILITIES_GET };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Connection::CapabilitiesGet make_required() {
-    return {};
-  }
+  static ::Mysqlx::Connection::CapabilitiesGet make_required() { return {}; }
 };
 
 template <>
 struct Client_message<::Mysqlx::Connection::CapabilitiesSet> {
-  enum  { id = ::Mysqlx::ClientMessages::CON_CAPABILITIES_SET };
+  enum { id = ::Mysqlx::ClientMessages::CON_CAPABILITIES_SET };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
@@ -346,15 +329,13 @@ struct Client_message<::Mysqlx::Connection::CapabilitiesSet> {
 
 template <>
 struct Client_message<::Mysqlx::Connection::Close> {
-  enum  { id = ::Mysqlx::ClientMessages::CON_CLOSE };
+  enum { id = ::Mysqlx::ClientMessages::CON_CLOSE };
 
   static ::Mysqlx::ClientMessages::Type get_id() {
     return static_cast<::Mysqlx::ClientMessages::Type>(id);
   }
 
-  static ::Mysqlx::Connection::Close make_required() {
-    return {};
-  }
+  static ::Mysqlx::Connection::Close make_required() { return {}; }
 };
 
 template <typename Msg>
@@ -362,20 +343,18 @@ struct Server_message {};
 
 template <>
 struct Server_message<::Mysqlx::Ok> {
-  enum  { id = ::Mysqlx::ServerMessages::OK };
+  enum { id = ::Mysqlx::ServerMessages::OK };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Ok make_required() {
-    return {};
-  }
+  static ::Mysqlx::Ok make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Error> {
-  enum  { id = ::Mysqlx::ServerMessages::ERROR };
+  enum { id = ::Mysqlx::ServerMessages::ERROR };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -392,20 +371,18 @@ struct Server_message<::Mysqlx::Error> {
 
 template <>
 struct Server_message<::Mysqlx::Connection::Capabilities> {
-  enum  { id = ::Mysqlx::ServerMessages::CONN_CAPABILITIES };
+  enum { id = ::Mysqlx::ServerMessages::CONN_CAPABILITIES };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Connection::Capabilities make_required() {
-    return {};
-  }
+  static ::Mysqlx::Connection::Capabilities make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Session::AuthenticateContinue> {
-  enum  { id = ::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE };
+  enum { id = ::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -420,20 +397,18 @@ struct Server_message<::Mysqlx::Session::AuthenticateContinue> {
 
 template <>
 struct Server_message<::Mysqlx::Session::AuthenticateOk> {
-  enum  { id = ::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK };
+  enum { id = ::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Session::AuthenticateOk make_required() {
-    return {};
-  }
+  static ::Mysqlx::Session::AuthenticateOk make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Notice::Frame> {
-  enum  { id = ::Mysqlx::ServerMessages::NOTICE };
+  enum { id = ::Mysqlx::ServerMessages::NOTICE };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -448,7 +423,7 @@ struct Server_message<::Mysqlx::Notice::Frame> {
 
 template <>
 struct Server_message<::Mysqlx::Resultset::ColumnMetaData> {
-  enum  { id = ::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA };
+  enum { id = ::Mysqlx::ServerMessages::RESULTSET_COLUMN_META_DATA };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -463,33 +438,29 @@ struct Server_message<::Mysqlx::Resultset::ColumnMetaData> {
 
 template <>
 struct Server_message<::Mysqlx::Resultset::Row> {
-  enum  { id = ::Mysqlx::ServerMessages::RESULTSET_ROW };
+  enum { id = ::Mysqlx::ServerMessages::RESULTSET_ROW };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Resultset::Row make_required() {
-    return {};
-  }
+  static ::Mysqlx::Resultset::Row make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Resultset::FetchDone> {
-  enum  { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE };
+  enum { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Resultset::FetchDone make_required() {
-    return {};
-  }
+  static ::Mysqlx::Resultset::FetchDone make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Resultset::FetchDoneMoreResultsets> {
-  enum  { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS };
+  enum { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_RESULTSETS };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -502,20 +473,18 @@ struct Server_message<::Mysqlx::Resultset::FetchDoneMoreResultsets> {
 
 template <>
 struct Server_message<::Mysqlx::Sql::StmtExecuteOk> {
-  enum  { id = ::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK };
+  enum { id = ::Mysqlx::ServerMessages::SQL_STMT_EXECUTE_OK };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
   }
 
-  static ::Mysqlx::Sql::StmtExecuteOk make_required() {
-    return {};
-  }
+  static ::Mysqlx::Sql::StmtExecuteOk make_required() { return {}; }
 };
 
 template <>
 struct Server_message<::Mysqlx::Resultset::FetchDoneMoreOutParams> {
-  enum  { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS };
+  enum { id = ::Mysqlx::ServerMessages::RESULTSET_FETCH_DONE_MORE_OUT_PARAMS };
 
   static ::Mysqlx::ServerMessages::Type get_id() {
     return static_cast<::Mysqlx::ServerMessages::Type>(id);
@@ -528,9 +497,7 @@ struct Server_message<::Mysqlx::Resultset::FetchDoneMoreOutParams> {
 
 // parameter `n` can be either a string or XMessage
 MATCHER_P(Cmp_msg, n, "") {
-  Message_compare<
-    typename std::decay<
-      decltype(arg)>::type> comparer(n);
+  Message_compare<typename std::decay<decltype(arg)>::type> comparer(n);
   const bool result = comparer == arg;
 
   if (!result) {

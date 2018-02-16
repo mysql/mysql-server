@@ -22,19 +22,14 @@ select `User`, `Host` from mysql.`user` where `user` like '2001:%';
 User	Host
 select `User`, `Host` from mysql.`user` where `user` like 'santa.claus.%';
 User	Host
-create user 'user_ssl'@'santa.claus.ipv6.example.com';
+create user 'user_ssl'@'santa.claus.ipv6.example.com' REQUIRE SSL;
 create user 'user_ssl_x509'@'santa.claus.ipv6.example.com'
-  identified by 'good_password';
-grant select on test.* to 'user_ssl'@'santa.claus.ipv6.example.com'
-  REQUIRE SSL;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-grant select on test.* to 'user_ssl_x509'@'santa.claus.ipv6.example.com'
+  identified by 'good_password'
   REQUIRE SUBJECT '/C=??/ST=??/L=??/
     O=No such thing/
     CN=Santa Claus/emailAddress=santa.claus@example.com';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+grant select on test.* to 'user_ssl'@'santa.claus.ipv6.example.com',
+'user_ssl_x509'@'santa.claus.ipv6.example.com';
 select "Con1 is alive";
 Con1 is alive
 Con1 is alive

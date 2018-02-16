@@ -1606,8 +1606,6 @@ Bug#25835149
 
 SET @savmode=@@SESSION.SQL_MODE;
 SET SESSION SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `test`(
 `pk` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 `dt` DATETIME DEFAULT NULL,
@@ -1680,8 +1678,6 @@ NULL	00:00:00
 2006-10-06 00:00:00	00:00:00
 2008-07-07 00:00:00	NULL
 SET SESSION SQL_MODE=@savmode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE `test`;
 
 Bug with missing update of cached example after split_sum_func
@@ -1870,7 +1866,6 @@ OR(MAKEDATE(-3030,19)))))))))),
 DO LAST_DAY(SQRT(CAST((LAG(REPEAT('B',64),91)OVER())AS DATETIME)));
 We Must disable warning for next statement because we get two instead of
 one with -ps protocol vs plain protocol.
-DO CAST((LAG(CHAR(PASSWORD('* $')USING SJIS),223)OVER())AS DATETIME);
 DO CAST((LEAD(-197994311,60)OVER())AS DATETIME);
 DO IFNULL((NULL ),(UNIX_TIMESTAMP(LEAD(NULL,12)RESPECT NULLS OVER())));
 Assertion used to fail: !check_datetime_range(ltime)

@@ -13,14 +13,12 @@ struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
 struct PSI_socket_locker;
 typedef struct PSI_socket_locker PSI_socket_locker;
-enum PSI_socket_state
-{
+enum PSI_socket_state {
   PSI_SOCKET_STATE_IDLE = 1,
   PSI_SOCKET_STATE_ACTIVE = 2
 };
 typedef enum PSI_socket_state PSI_socket_state;
-enum PSI_socket_operation
-{
+enum PSI_socket_operation {
   PSI_SOCKET_CREATE = 0,
   PSI_SOCKET_CONNECT = 1,
   PSI_SOCKET_BIND = 2,
@@ -38,8 +36,7 @@ enum PSI_socket_operation
   PSI_SOCKET_SELECT = 14
 };
 typedef enum PSI_socket_operation PSI_socket_operation;
-struct PSI_socket_info_v1
-{
+struct PSI_socket_info_v1 {
   PSI_socket_key *m_key;
   const char *m_name;
   unsigned int m_flags;
@@ -47,8 +44,7 @@ struct PSI_socket_info_v1
   const char *m_documentation;
 };
 typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
-struct PSI_socket_locker_state_v1
-{
+struct PSI_socket_locker_state_v1 {
   unsigned int m_flags;
   struct PSI_socket *m_socket;
   struct PSI_thread *m_thread;
@@ -70,12 +66,9 @@ typedef struct PSI_socket *(*init_socket_v1_t)(PSI_socket_key key,
                                                socklen_t addr_len);
 typedef void (*destroy_socket_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_socket_locker *(*start_socket_wait_v1_t)(
-  struct PSI_socket_locker_state_v1 *state,
-  struct PSI_socket *socket,
-  enum PSI_socket_operation op,
-  size_t count,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_socket_locker_state_v1 *state, struct PSI_socket *socket,
+    enum PSI_socket_operation op, size_t count, const char *src_file,
+    unsigned int src_line);
 typedef void (*end_socket_wait_v1_t)(struct PSI_socket_locker *locker,
                                      size_t count);
 typedef void (*set_socket_state_v1_t)(struct PSI_socket *socket,
@@ -87,13 +80,11 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 typedef struct PSI_socket_info_v1 PSI_socket_info;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
-struct PSI_socket_bootstrap
-{
+struct PSI_socket_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
-struct PSI_socket_service_v1
-{
+struct PSI_socket_service_v1 {
   register_socket_v1_t register_socket;
   init_socket_v1_t init_socket;
   destroy_socket_v1_t destroy_socket;

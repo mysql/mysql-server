@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -47,8 +47,9 @@ class Sasl_plain_auth : public ngs::Authentication_interface {
 
   Response handle_continue(const std::string &data) override;
 
-  ngs::Error_code authenticate_account(const std::string &user,
-      const std::string &host, const std::string &passwd) const override;
+  ngs::Error_code authenticate_account(
+      const std::string &user, const std::string &host,
+      const std::string &passwd) const override;
 
   std::string get_auth_name() { return "PLAIN"; }
 

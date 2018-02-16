@@ -24,12 +24,12 @@
 
 #include "resource_group_sql_cmd.h"
 
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <set>
-#include <functional>
 
-#include "sql/log.h"                     // sql_print_warning
+#include "sql/log.h"  // sql_print_warning
 #include "sql/resourcegroups/thread_resource_control.h"
 
 namespace resourcegroups {
@@ -40,10 +40,8 @@ namespace resourcegroups {
   active or inactive, a pointer to a Resource control object.
 */
 
-class Resource_group
-{
-public:
-
+class Resource_group {
+ public:
   /**
     Construct a Resource_group object.
 
@@ -53,30 +51,23 @@ public:
   */
 
   Resource_group(const std::string &name, const Type type, bool enabled)
-    : m_name(name), m_type(type), m_enabled(enabled)
-  {}
+      : m_name(name), m_type(type), m_enabled(enabled) {}
 
-  const std::string &name() const
-  { return m_name; }
+  const std::string &name() const { return m_name; }
 
-  Type type() const
-  { return m_type; }
+  Type type() const { return m_type; }
 
-  bool enabled() const
-  { return m_enabled; }
+  bool enabled() const { return m_enabled; }
 
-  void set_type(Type type)
-  { m_type= type; }
+  void set_type(Type type) { m_type = type; }
 
-  void set_enabled(bool enabled)
-  { m_enabled= enabled; }
+  void set_enabled(bool enabled) { m_enabled = enabled; }
 
-  Thread_resource_control *controller()
-  { return &m_thread_resource_control; }
+  Thread_resource_control *controller() { return &m_thread_resource_control; }
 
-  const Thread_resource_control *controller() const
-  { return &m_thread_resource_control; }
-
+  const Thread_resource_control *controller() const {
+    return &m_thread_resource_control;
+  }
 
   /**
     Check if resource group is associated with threads.
@@ -85,12 +76,10 @@ public:
             else false.
   */
 
-  bool is_bound_to_threads()
-  {
+  bool is_bound_to_threads() {
     std::unique_lock<std::mutex> lock(m_set_mutex);
     return !m_pfs_thread_id_set.empty();
   }
-
 
   /**
     Is pfs thread id already exists in the set.
@@ -100,13 +89,10 @@ public:
     @return true if thread id exists in the set else false.
   */
 
-  bool is_pfs_thread_id_exists(const ulonglong pfs_thread_id)
-  {
+  bool is_pfs_thread_id_exists(const ulonglong pfs_thread_id) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
-    return
-      m_pfs_thread_id_set.find(pfs_thread_id) != m_pfs_thread_id_set.end();
+    return m_pfs_thread_id_set.find(pfs_thread_id) != m_pfs_thread_id_set.end();
   }
-
 
   /**
     Add thread_id to the thread id set associated with this resource group.
@@ -114,12 +100,10 @@ public:
     @param pfs_thread_id  PFS thread id.
   */
 
-  void add_pfs_thread_id(const ulonglong pfs_thread_id)
-  {
+  void add_pfs_thread_id(const ulonglong pfs_thread_id) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
-    (void) m_pfs_thread_id_set.insert(pfs_thread_id);
+    (void)m_pfs_thread_id_set.insert(pfs_thread_id);
   }
-
 
   /**
     Remove the PFS thread id.
@@ -127,23 +111,19 @@ public:
     @param pfs_thread_id Remove pfs thread id.
   */
 
-  void remove_pfs_thread_id(const ulonglong pfs_thread_id)
-  {
+  void remove_pfs_thread_id(const ulonglong pfs_thread_id) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
-    (void) m_pfs_thread_id_set.erase(pfs_thread_id);
+    (void)m_pfs_thread_id_set.erase(pfs_thread_id);
   }
-
 
   /**
     Clear the thread id set associated with this resource group.
   */
 
-  void clear()
-  {
+  void clear() {
     std::unique_lock<std::mutex> lock(m_set_mutex);
-    (void) m_pfs_thread_id_set.clear();
+    (void)m_pfs_thread_id_set.clear();
   }
-
 
   /**
     Apply a control function on threads associated with this resource group.
@@ -151,18 +131,14 @@ public:
     @param control_func pointer to Control function.
   */
 
-  void  apply_control_func(std::function<void(ulonglong)> control_func)
-  {
+  void apply_control_func(std::function<void(ulonglong)> control_func) {
     std::unique_lock<std::mutex> lock(m_set_mutex);
-    for(auto pfs_thread_id : m_pfs_thread_id_set)
-      control_func(pfs_thread_id);
+    for (auto pfs_thread_id : m_pfs_thread_id_set) control_func(pfs_thread_id);
   }
 
+  ~Resource_group() {}
 
-  ~Resource_group()
-   {}
-
-private:
+ private:
   /**
     Name of the resource group.
   */
@@ -196,8 +172,8 @@ private:
   /**
     Disable copy construction and assignment.
   */
-  Resource_group(const Resource_group&) = delete;
-  void operator=(const Resource_group&) = delete;
+  Resource_group(const Resource_group &) = delete;
+  void operator=(const Resource_group &) = delete;
 };
-}
-#endif // RESOURCEGROUPS_RESOURCE_GROUP_H_
+}  // namespace resourcegroups
+#endif  // RESOURCEGROUPS_RESOURCE_GROUP_H_

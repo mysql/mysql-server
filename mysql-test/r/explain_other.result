@@ -1087,16 +1087,7 @@ EXPLAIN
   }
 }
 # Check access rights checking
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT USAGE ON *.* TO 'privtest'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER 'privtest'@'localhost';
 GRANT SUPER ON *.* TO 'privtest'@'localhost';
 Warnings:
 Warning	1287	The SUPER privilege identifier is deprecated

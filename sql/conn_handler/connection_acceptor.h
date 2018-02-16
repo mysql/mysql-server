@@ -25,8 +25,8 @@
 #ifndef CONNECTION_ACCEPTOR_INCLUDED
 #define CONNECTION_ACCEPTOR_INCLUDED
 
-#include "sql/conn_handler/channel_info.h" // Channel_info
-#include "sql/conn_handler/connection_handler_manager.h" // Connection_handler_manager
+#include "sql/conn_handler/channel_info.h"                // Channel_info
+#include "sql/conn_handler/connection_handler_manager.h"  // Connection_handler_manager
 
 /**
   This class presents a generic interface to initialize and run
@@ -38,51 +38,37 @@
   callback functor object would on receiving connection event
   from the client to process the connection.
 */
-template <typename Listener> class Connection_acceptor
-{
+template <typename Listener>
+class Connection_acceptor {
   Listener *m_listener;
 
-public:
-  Connection_acceptor(Listener *listener)
-  : m_listener(listener)
-  { }
+ public:
+  Connection_acceptor(Listener *listener) : m_listener(listener) {}
 
-  ~Connection_acceptor()
-  {
-    delete m_listener;
-  }
+  ~Connection_acceptor() { delete m_listener; }
 
   /**
     Initialize a connection acceptor.
 
     @retval   return true if initialization failed, else false.
   */
-  bool init_connection_acceptor()
-  {
-    return m_listener->setup_listener();
-  }
+  bool init_connection_acceptor() { return m_listener->setup_listener(); }
 
   /**
     Connection acceptor loop to accept connections from clients.
   */
-  void connection_event_loop()
-  {
-    Connection_handler_manager *mgr= Connection_handler_manager::get_instance();
-    while (!connection_events_loop_aborted())
-    {
-      Channel_info *channel_info= m_listener->listen_for_connection_event();
-      if (channel_info != NULL)
-        mgr->process_new_connection(channel_info);
+  void connection_event_loop() {
+    Connection_handler_manager *mgr =
+        Connection_handler_manager::get_instance();
+    while (!connection_events_loop_aborted()) {
+      Channel_info *channel_info = m_listener->listen_for_connection_event();
+      if (channel_info != NULL) mgr->process_new_connection(channel_info);
     }
   }
 
   /**
     Close the listener.
   */
-  void close_listener()
-  {
-    m_listener->close_listener();
-  }
-
+  void close_listener() { m_listener->close_listener(); }
 };
-#endif // CONNECTION_ACCEPTOR_INCLUDED
+#endif  // CONNECTION_ACCEPTOR_INCLUDED

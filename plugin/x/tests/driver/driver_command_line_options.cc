@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,17 +27,14 @@
 #include <cctype>
 #include <iostream>
 
+#include "my_dbug.h"
 #include "plugin/x/generated/mysqlx_version.h"
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 #include "plugin/x/tests/driver/processor/commands/command.h"
-#include "my_dbug.h"
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
-
-void Driver_command_line_options::print_version() {
-  ::print_version();
-}
+void Driver_command_line_options::print_version() { ::print_version(); }
 
 void Driver_command_line_options::print_help() {
   print_version();
@@ -57,8 +54,7 @@ void Driver_command_line_options::print_help() {
       << "--plain-auth          Use PLAIN text authentication mechanism\n";
   std::cout
       << "--cached-auth         Use SHA256_MEMORY authentication mechanism\n";
-  std::cout
-      << "--mysql41-auth        Use MYSQL41 authentication mechanism\n";
+  std::cout << "--mysql41-auth        Use MYSQL41 authentication mechanism\n";
   std::cout << "--mysql57-compatible  Use features that are 5.7 compatible:\n";
   std::cout << "                      * limit auth-mechanisms\n";
   std::cout << "-u, --user=<user>     Connection user\n";
@@ -88,7 +84,8 @@ void Driver_command_line_options::print_help() {
                "like: user, host, password, port\n";
   std::cout << "--socket=<file>       Connection through UNIX socket\n";
   std::cout << "--use-socket          Connection through UNIX socket, using "
-               "default file name '" << MYSQLX_UNIX_ADDR << "'\n";
+               "default file name '"
+            << MYSQLX_UNIX_ADDR << "'\n";
   std::cout << "                      --use-socket* options take precedence "
                "before options like: uri, user,\n";
   std::cout << "                      host, password, port\n";
@@ -110,6 +107,7 @@ void Driver_command_line_options::print_help() {
   std::cout << "--ssl-cert            X509 cert in PEM format\n";
   std::cout << "--ssl-cipher          SSL cipher to use\n";
   std::cout << "--tls-version         TLS version to use\n";
+  std::cout << "--ssl-fips-mode       Fips mode to use\n";
   std::cout << "--connect-expired-password Allow expired password\n";
   std::cout << "--client-interactive  Connect in interactive mode\n";
   std::cout << "--quiet               Don't print out messages sent\n";
@@ -132,9 +130,8 @@ std::string Driver_command_line_options::get_socket_name() {
   return MYSQLX_UNIX_ADDR;
 }
 
-Driver_command_line_options::Driver_command_line_options(
-    const int argc,
-    char **argv)
+Driver_command_line_options::Driver_command_line_options(const int argc,
+                                                         char **argv)
     : Command_line_options(argc, argv),
       m_run_without_auth(false),
       m_has_file(false),
@@ -172,6 +169,8 @@ Driver_command_line_options::Driver_command_line_options(
       m_connection_options.ssl_key = value;
     } else if (check_arg_with_value(argv, i, "--ssl-ca", NULL, value)) {
       m_connection_options.ssl_ca = value;
+    } else if (check_arg_with_value(argv, i, "--ssl-fips-mode", NULL, value)) {
+      m_connection_options.ssl_fips_mode = value;
     } else if (check_arg_with_value(argv, i, "--ssl-ca_path", NULL, value)) {
       m_connection_options.ssl_ca_path = value;
     } else if (check_arg_with_value(argv, i, "--ssl-cert", NULL, value)) {
@@ -242,8 +241,7 @@ Driver_command_line_options::Driver_command_line_options(
     } else if (exit_code == 0) {
       const auto index_of_last_argument = argc - 1;
 
-      if (index_of_last_argument == i &&
-          std::isalnum(argv[i][0])) {
+      if (index_of_last_argument == i && std::isalnum(argv[i][0])) {
         m_connection_options.schema = argv[i];
 
         break;

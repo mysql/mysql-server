@@ -26,8 +26,7 @@
 class String;
 
 /* mysql_string_itrerator structure to provide service to plugins */
-struct st_string_iterator
-{
+struct st_string_iterator {
   String *iterator_str;
   const char *iterator_ptr;
   int ctype;

@@ -36,40 +36,31 @@
 
 namespace join_syntax_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class JoinSyntaxTest : public ParserTest
-{
-};
+class JoinSyntaxTest : public ParserTest {};
 
-
-void check_name_resolution_tables(std::initializer_list<const char*> aliases,
-                                  SQL_I_List<TABLE_LIST> tables)
-{
-  TABLE_LIST *table_list= tables.first;
-  for (auto alias : aliases)
-  {
+void check_name_resolution_tables(std::initializer_list<const char *> aliases,
+                                  SQL_I_List<TABLE_LIST> tables) {
+  TABLE_LIST *table_list = tables.first;
+  for (auto alias : aliases) {
     ASSERT_FALSE(table_list == NULL);
     EXPECT_STREQ(alias, table_list->alias)
-      << "Wrong table alias " << table_list->alias
-      << ", expected " << alias << ".";
-    table_list= table_list->next_name_resolution_table;
+        << "Wrong table alias " << table_list->alias << ", expected " << alias
+        << ".";
+    table_list = table_list->next_name_resolution_table;
   }
 }
 
-
-TEST_F(JoinSyntaxTest, CrossJoin)
-{
-  SELECT_LEX *query_block= parse("SELECT * FROM t1 JOIN t2 JOIN t3");
+TEST_F(JoinSyntaxTest, CrossJoin) {
+  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 
-
-TEST_F(JoinSyntaxTest, CrossJoinOn)
-{
-  SELECT_LEX *query_block= parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
+TEST_F(JoinSyntaxTest, CrossJoinOn) {
+  SELECT_LEX *query_block = parse("SELECT * FROM t1 JOIN t2 JOIN t3 ON 1");
   check_name_resolution_tables({"t1", "t2", "t3"}, query_block->table_list);
 }
 
-} // namespace join_syntax_unittest
+}  // namespace join_syntax_unittest

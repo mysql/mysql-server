@@ -26,15 +26,13 @@ namespace dd {
 namespace system_views {
 
 const Collation_charset_applicability &
-  Collation_charset_applicability::instance()
-{
-  static Collation_charset_applicability *s_instance= new
-    Collation_charset_applicability();
+Collation_charset_applicability::instance() {
+  static Collation_charset_applicability *s_instance =
+      new Collation_charset_applicability();
   return *s_instance;
 }
 
-Collation_charset_applicability::Collation_charset_applicability()
-{
+Collation_charset_applicability::Collation_charset_applicability() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "col.name");
@@ -42,9 +40,10 @@ Collation_charset_applicability::Collation_charset_applicability()
                          "cs.name");
 
   m_target_def.add_from("mysql.character_sets cs");
-  m_target_def.add_from("JOIN mysql.collations col ON "
-                        "cs.id = col.character_set_id ");
+  m_target_def.add_from(
+      "JOIN mysql.collations col ON "
+      "cs.id = col.character_set_id ");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

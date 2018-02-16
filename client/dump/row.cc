@@ -26,11 +26,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-Row::~Row()
-{
+Row::~Row() {
   Mysql::Tools::Base::Mysql_query_runner::cleanup_result(m_row_data);
 }
 
-Row::Row(const Mysql::Tools::Base::Mysql_query_runner::Row& row_data)
-  : m_row_data(row_data)
-{}
+Row::Row(const Mysql::Tools::Base::Mysql_query_runner::Row &row_data)
+    : m_row_data(row_data) {}

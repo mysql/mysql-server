@@ -27,10 +27,10 @@
 #include "sql/field.h"
 #include "sql/table.h"
 
-bool
-Acl_load_user_table_schema_factory::is_old_user_table_schema(TABLE* table)
-{
-  Field *password_field=
-    table->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
+bool Acl_load_user_table_schema_factory::is_old_user_table_schema(
+    TABLE *table) {
+  Field *password_field =
+      table
+          ->field[Acl_load_user_table_old_schema::MYSQL_USER_FIELD_PASSWORD_56];
   return strncmp(password_field->field_name, "Password", 8) == 0;
 }

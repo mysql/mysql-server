@@ -33,14 +33,13 @@
 
 #include "my_inttypes.h"
 
-typedef void (*before_header_callback_fn)
-  (NET *net, void *user_data, size_t count);
+typedef void (*before_header_callback_fn)(NET *net, void *user_data,
+                                          size_t count);
 
-typedef void (*after_header_callback_fn)
-  (NET *net, void *user_data, size_t count, bool rc);
+typedef void (*after_header_callback_fn)(NET *net, void *user_data,
+                                         size_t count, bool rc);
 
-typedef struct NET_SERVER
-{
+typedef struct NET_SERVER {
   before_header_callback_fn m_before_header;
   after_header_callback_fn m_after_header;
   void *m_user_data;

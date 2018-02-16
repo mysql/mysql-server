@@ -26,27 +26,22 @@
 #include <my_sys.h>
 #include "client/pattern_matcher.cc"
 
-namespace mysql_client_test_ns
-{
+namespace mysql_client_test_ns {
 
-class PatternMatcherTest : public ::testing::Test
-{
-public:
-  CHARSET_INFO* cs_info;
+class PatternMatcherTest : public ::testing::Test {
+ public:
+  CHARSET_INFO *cs_info;
 
-protected:
-  virtual void SetUp()
-  {
+ protected:
+  virtual void SetUp() {
     MY_CHARSET_LOADER loader;
     my_charset_loader_init_mysys(&loader);
-    cs_info= my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
+    cs_info = my_collation_get_by_name(&loader, "utf8mb4_0900_ai_ci", MYF(0));
   }
 };
 
-
 /** Verifies that pattern list parsing is done correctly */
-TEST_F(PatternMatcherTest, PatternParser)
-{
+TEST_F(PatternMatcherTest, PatternParser) {
   Pattern_matcher matcher;
 
   EXPECT_EQ((size_t)0, matcher.add_patterns(":::"));
@@ -55,31 +50,32 @@ TEST_F(PatternMatcherTest, PatternParser)
   EXPECT_EQ((size_t)3, matcher.add_patterns(":1:Second::Third:"));
 }
 
-
 /** Verifies that default set of patterns is working */
-TEST_F(PatternMatcherTest, DefaultPatterns)
-{
+TEST_F(PatternMatcherTest, DefaultPatterns) {
   Pattern_matcher matcher;
   matcher.add_patterns("*IDENTIFIED*:*PASSWORD*");
 
   // positive tests - text should be matched
   EXPECT_TRUE(matcher.is_matching("set password = 'mypass';", cs_info));
   EXPECT_TRUE(matcher.is_matching("SET PASSWORD = 'mypass';", cs_info));
-  EXPECT_TRUE(matcher.is_matching("create user 'myuser'@'localhost' identified by 'mypass';", cs_info));
-  EXPECT_TRUE(matcher.is_matching("CREATE USER 'myuser'@'localhost' IDENTIFIED BY 'mypass';", cs_info));
+  EXPECT_TRUE(matcher.is_matching(
+      "create user 'myuser'@'localhost' identified by 'mypass';", cs_info));
+  EXPECT_TRUE(matcher.is_matching(
+      "CREATE USER 'myuser'@'localhost' IDENTIFIED BY 'mypass';", cs_info));
 
   // negative tests - text mustn't match
   EXPECT_FALSE(matcher.is_matching("SELECT * FROM my_table;", cs_info));
   EXPECT_FALSE(matcher.is_matching("DROP TABLE IF EXISTS my_table", cs_info));
-  EXPECT_FALSE(matcher.is_matching("UPDATE my_table SET name='Sakila' WHERE id=1", cs_info));
-  EXPECT_FALSE(matcher.is_matching("INSERT INTO my_table (my_col1,my_col2) VALUES(1,2);", cs_info));
-  EXPECT_FALSE(matcher.is_matching("GRANT ALL PRIVILEGES ON *.* TO 'myuser'@'localhost';", cs_info));
+  EXPECT_FALSE(matcher.is_matching(
+      "UPDATE my_table SET name='Sakila' WHERE id=1", cs_info));
+  EXPECT_FALSE(matcher.is_matching(
+      "INSERT INTO my_table (my_col1,my_col2) VALUES(1,2);", cs_info));
+  EXPECT_FALSE(matcher.is_matching(
+      "GRANT ALL PRIVILEGES ON *.* TO 'myuser'@'localhost';", cs_info));
 }
 
-
 /** Various wildcard pattern testing */
-TEST_F(PatternMatcherTest, WildCard)
-{
+TEST_F(PatternMatcherTest, WildCard) {
   Pattern_matcher matcher;
 
   // ========== SINGLE CHARACTER PATTERNS ========== //
@@ -99,7 +95,6 @@ TEST_F(PatternMatcherTest, WildCard)
   EXPECT_FALSE(matcher.is_matching("S123L", cs_info));
   matcher.clear();
 
-
   // ========== MULTI CHARACTER PATTERNS =========== //
 
   matcher.add_patterns("My*");
@@ -115,5 +110,4 @@ TEST_F(PatternMatcherTest, WildCard)
   matcher.clear();
 }
 
-
-} // end ns
+}  // namespace mysql_client_test_ns

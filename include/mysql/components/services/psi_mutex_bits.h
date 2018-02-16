@@ -48,7 +48,6 @@
 */
 typedef unsigned int PSI_mutex_key;
 
-
 /**
   @def PSI_MUTEX_VERSION_1
   Performance Schema Mutex Interface number for version 1.
@@ -68,8 +67,7 @@ typedef unsigned int PSI_mutex_key;
   @since PSI_MUTEX_VERSION_1
   This structure is used to register an instrumented mutex.
 */
-struct PSI_mutex_info_v1
-{
+struct PSI_mutex_info_v1 {
   /**
     Pointer to the key assigned to the registered mutex.
   */
@@ -104,8 +102,7 @@ struct PSI_mutex_locker;
 typedef struct PSI_mutex_locker PSI_mutex_locker;
 
 /** Operation performed on an instrumented mutex. */
-enum PSI_mutex_operation
-{
+enum PSI_mutex_operation {
   /** Lock. */
   PSI_MUTEX_LOCK = 0,
   /** Lock attempt. */
@@ -122,8 +119,7 @@ typedef enum PSI_mutex_operation PSI_mutex_operation;
   This memory is provided by the instrumented code for performance reasons.
   @sa start_mutex_wait_v1_t
 */
-struct PSI_mutex_locker_state_v1
-{
+struct PSI_mutex_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current operation. */
@@ -148,8 +144,7 @@ typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
   @param count the size of the info array
 */
 typedef void (*register_mutex_v1_t)(const char *category,
-                                    struct PSI_mutex_info_v1 *info,
-                                    int count);
+                                    struct PSI_mutex_info_v1 *info, int count);
 
 /**
   Mutex instrumentation initialization API.
@@ -182,11 +177,8 @@ typedef void (*unlock_mutex_v1_t)(struct PSI_mutex *mutex);
   @return a mutex locker, or NULL
 */
 typedef struct PSI_mutex_locker *(*start_mutex_wait_v1_t)(
-  struct PSI_mutex_locker_state_v1 *state,
-  struct PSI_mutex *mutex,
-  enum PSI_mutex_operation op,
-  const char *src_file,
-  unsigned int src_line);
+    struct PSI_mutex_locker_state_v1 *state, struct PSI_mutex *mutex,
+    enum PSI_mutex_operation op, const char *src_file, unsigned int src_line);
 
 /**
   Record a mutex instrumentation wait end event.
@@ -202,4 +194,3 @@ typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
 /** @} (end of group psi_abi_mutex) */
 
 #endif /* COMPONENTS_SERVICES_PSI_MUTEX_BITS_H */
-

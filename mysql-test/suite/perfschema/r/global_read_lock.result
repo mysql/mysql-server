@@ -1,15 +1,7 @@
 use performance_schema;
 update performance_schema.setup_instruments set enabled='YES';
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+create user pfsuser@localhost;
 grant SELECT, UPDATE, LOCK TABLES on performance_schema.* to pfsuser@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 flush privileges;
 connect (con1, localhost, pfsuser, , test);
 lock tables performance_schema.setup_instruments read;

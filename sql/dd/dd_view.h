@@ -23,7 +23,6 @@
 #ifndef DD_VIEW_INCLUDED
 #define DD_VIEW_INCLUDED
 
-
 struct MEM_ROOT;
 class THD;
 struct TABLE_LIST;
@@ -69,8 +68,7 @@ bool create_view(THD *thd, const dd::Schema &schema, TABLE_LIST *view);
 bool update_view(THD *thd, dd::View *new_view, TABLE_LIST *view);
 
 /** Read view metadata from dd.views into TABLE_LIST */
-bool read_view(TABLE_LIST *view, const dd::View &view_ref,
-               MEM_ROOT *mem_root);
+bool read_view(TABLE_LIST *view, const dd::View &view_ref, MEM_ROOT *mem_root);
 
 /**
   Update view status(valid/invalid) value in dd.views.options.
@@ -97,5 +95,5 @@ bool update_view_status(THD *thd, const char *schema_name,
                         const char *view_name, bool status,
                         bool commit_dd_changes);
 
-} // namespace dd
-#endif // DD_VIEW_INCLUDED
+}  // namespace dd
+#endif  // DD_VIEW_INCLUDED

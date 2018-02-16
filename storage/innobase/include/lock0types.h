@@ -24,12 +24,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/lock0types.h
-The transaction lock system global types
+/** @file include/lock0types.h
+ The transaction lock system global types
 
-Created 5/7/1996 Heikki Tuuri
-*******************************************************/
+ Created 5/7/1996 Heikki Tuuri
+ *******************************************************/
 
 #include "univ.i"
 
@@ -43,48 +42,46 @@ struct lock_sys_t;
 struct lock_table_t;
 
 enum select_mode {
-	SELECT_ORDINARY,	/* default behaviour */
-	SELECT_SKIP_LOCKED,	/* skip the row if row is locked */
-	SELECT_NOWAIT		/* return immediately if row is locked */
+  SELECT_ORDINARY,    /* default behaviour */
+  SELECT_SKIP_LOCKED, /* skip the row if row is locked */
+  SELECT_NOWAIT       /* return immediately if row is locked */
 };
 
 /* Basic lock modes */
 enum lock_mode {
-	LOCK_IS = 0,	/* intention shared */
-	LOCK_IX,	/* intention exclusive */
-	LOCK_S,		/* shared */
-	LOCK_X,		/* exclusive */
-	LOCK_AUTO_INC,	/* locks the auto-inc counter of a table
-			in an exclusive mode */
-	LOCK_NONE,	/* this is used elsewhere to note consistent read */
-	LOCK_NUM = LOCK_NONE, /* number of lock modes */
-	LOCK_NONE_UNSET = 255
+  LOCK_IS = 0,          /* intention shared */
+  LOCK_IX,              /* intention exclusive */
+  LOCK_S,               /* shared */
+  LOCK_X,               /* exclusive */
+  LOCK_AUTO_INC,        /* locks the auto-inc counter of a table
+                        in an exclusive mode */
+  LOCK_NONE,            /* this is used elsewhere to note consistent read */
+  LOCK_NUM = LOCK_NONE, /* number of lock modes */
+  LOCK_NONE_UNSET = 255
 };
 
 /** Convert the given enum value into string.
 @param[in]	mode	the lock mode
 @return human readable string of the given enum value */
-inline
-const char* lock_mode_string(enum lock_mode mode)
-{
-	switch (mode) {
-	case LOCK_IS:
-		return("LOCK_IS");
-	case LOCK_IX:
-		return("LOCK_IX");
-	case LOCK_S:
-		return("LOCK_S");
-	case LOCK_X:
-		return("LOCK_X");
-	case LOCK_AUTO_INC:
-		return("LOCK_AUTO_INC");
-	case LOCK_NONE:
-		return("LOCK_NONE");
-	case LOCK_NONE_UNSET:
-		return("LOCK_NONE_UNSET");
-	default:
-		ut_error;
-	}
+inline const char *lock_mode_string(enum lock_mode mode) {
+  switch (mode) {
+    case LOCK_IS:
+      return ("LOCK_IS");
+    case LOCK_IX:
+      return ("LOCK_IX");
+    case LOCK_S:
+      return ("LOCK_S");
+    case LOCK_X:
+      return ("LOCK_X");
+    case LOCK_AUTO_INC:
+      return ("LOCK_AUTO_INC");
+    case LOCK_NONE:
+      return ("LOCK_NONE");
+    case LOCK_NONE_UNSET:
+      return ("LOCK_NONE_UNSET");
+    default:
+      ut_error;
+  }
 }
 
 typedef UT_LIST_BASE_NODE_T(lock_t) trx_lock_list_t;

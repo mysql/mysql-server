@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,7 +34,6 @@
 #include "plugin/x/tests/driver/processor/execution_context.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
 
-
 class Sql_block_processor : public Block_processor {
  public:
   explicit Sql_block_processor(Execution_context *context)
@@ -47,10 +46,10 @@ class Sql_block_processor : public Block_processor {
   int run_sql_batch(xcl::XSession *conn, const std::string &sql_,
                     const bool be_quiet);
 
-  Execution_context  *m_context;
+  Execution_context *m_context;
   Connection_manager *m_cm;
-  std::string         m_rawbuffer;
-  bool                m_sql;
+  std::string m_rawbuffer;
+  bool m_sql;
 };
 
 #endif  // X_TESTS_DRIVER_PROCESSOR_SQL_BLOCK_PROCESSOR_H_

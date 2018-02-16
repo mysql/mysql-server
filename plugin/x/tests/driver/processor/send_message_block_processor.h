@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,6 @@
 #include "plugin/x/tests/driver/processor/execution_context.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
 
-
 class Send_message_block_processor : public Block_processor {
  public:
   explicit Send_message_block_processor(Execution_context *context)
@@ -45,9 +44,8 @@ class Send_message_block_processor : public Block_processor {
  protected:
   virtual std::string get_message_name(const char *linebuf);
 
-  virtual int process(
-      const xcl::XProtocol::Client_message_type_id msg_id,
-      const xcl::XProtocol::Message &message);
+  virtual int process(const xcl::XProtocol::Client_message_type_id msg_id,
+                      const xcl::XProtocol::Message &message);
 
   int process_client_message(
       xcl::XSession *session,
@@ -57,13 +55,12 @@ class Send_message_block_processor : public Block_processor {
   std::string message_to_bindump(const xcl::XProtocol::Message &message);
 
   xcl::XProtocol::Message *text_to_client_message(
-      const std::string &name,
-      const std::string &data,
+      const std::string &name, const std::string &data,
       xcl::XProtocol::Client_message_type_id *msg_id);
 
   Execution_context *m_context;
-  std::string        m_buffer;
-  std::string        m_full_name;
+  std::string m_buffer;
+  std::string m_full_name;
 };
 
 #endif  // X_TESTS_DRIVER_PROCESSOR_SEND_MESSAGE_BLOCK_PROCESSOR_H_

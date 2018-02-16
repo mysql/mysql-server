@@ -22,36 +22,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "components/mysql_server/my_metadata.h"
 
-my_metadata::my_metadata()
-{}
+my_metadata::my_metadata() {}
 
-my_metadata::my_metadata(my_metadata &other)
-  : data(other.data)
-{}
+my_metadata::my_metadata(my_metadata &other) : data(other.data) {}
 
 my_metadata::const_iterator::const_iterator(
-  my_unordered_string_to_string_map::const_iterator iter,
-  my_unordered_string_to_string_map *data_arg)
-  : my_unordered_string_to_string_map::const_iterator(iter), data(data_arg)
-{}
+    my_unordered_string_to_string_map::const_iterator iter,
+    my_unordered_string_to_string_map *data_arg)
+    : my_unordered_string_to_string_map::const_iterator(iter), data(data_arg) {}
 
 /**
   Gets pointer to structure the iterator is iterating over.
 */
-my_unordered_string_to_string_map*
-  my_metadata::const_iterator::get_data()
-{
+my_unordered_string_to_string_map *my_metadata::const_iterator::get_data() {
   return data;
 }
 
 /**
   Checks if iterator is pointing behind the end element.
 */
-bool my_metadata::const_iterator::is_at_end()
-{
+bool my_metadata::const_iterator::is_at_end() {
   return (*static_cast<my_unordered_string_to_string_map::const_iterator *>(
-      this)) ==
-    data->cend();
+             this)) == data->cend();
 }
 
 /**
@@ -65,26 +57,19 @@ bool my_metadata::const_iterator::is_at_end()
   @retval false success
   @retval true failure
 */
-bool my_metadata::set_value(const char* name, const char* value)
-{
-  try
-  {
-    my_string key_str= name;
-    my_string value_str= value;
+bool my_metadata::set_value(const char *name, const char *value) {
+  try {
+    my_string key_str = name;
+    my_string value_str = value;
 
-    my_unordered_string_to_string_map::iterator it= data.find(key_str);
-    if (it != data.end())
-    {
-      it->second= value_str;
-    }
-    else
-    {
+    my_unordered_string_to_string_map::iterator it = data.find(key_str);
+    if (it != data.end()) {
+      it->second = value_str;
+    } else {
       data.emplace(std::move(key_str), std::move(value_str));
     }
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -101,21 +86,16 @@ bool my_metadata::set_value(const char* name, const char* value)
   @retval false success
   @retval true failure
 */
-bool my_metadata::get_value(const char* name, const char** value)
-{
-  try
-  {
-    my_unordered_string_to_string_map::const_iterator iter= data.find(
-      my_string(name));
-    if (iter == data.end())
-    {
+bool my_metadata::get_value(const char *name, const char **value) {
+  try {
+    my_unordered_string_to_string_map::const_iterator iter =
+        data.find(my_string(name));
+    if (iter == data.end()) {
       return true;
     }
-    *value= iter->second.c_str();
+    *value = iter->second.c_str();
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }
@@ -127,8 +107,7 @@ bool my_metadata::get_value(const char* name, const char** value)
 
   @return Reference to the iterator created.
 */
-my_metadata::const_iterator my_metadata::create_iterator()
-{
+my_metadata::const_iterator my_metadata::create_iterator() {
   return my_metadata::const_iterator(data.begin(), &data);
 }
 
@@ -141,15 +120,11 @@ my_metadata::const_iterator my_metadata::create_iterator()
   @retval false success
   @retval true failure
 */
-bool my_metadata::release_iterator(const_iterator* iter)
-{
-  try
-  {
+bool my_metadata::release_iterator(const_iterator *iter) {
+  try {
     delete iter;
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
   }
   return true;
 }

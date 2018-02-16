@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,9 @@ namespace xpl {
 template <typename M>
 void View_statement_builder::build_common(const M &msg) const {
   if (!msg.has_stmt())
-    throw ngs::Error_code(ER_X_INVALID_ARGUMENT, "The field that defines the select statement is required");
+    throw ngs::Error_code(
+        ER_X_INVALID_ARGUMENT,
+        "The field that defines the select statement is required");
 
   if (msg.has_algorithm()) add_algorithm(msg.algorithm());
   if (msg.has_definer()) add_definer(msg.definer());
@@ -60,8 +62,7 @@ void View_statement_builder::build(const View_modify &msg) const {
 
 void View_statement_builder::build(const View_drop &msg) const {
   m_builder.put("DROP VIEW ");
-  if (msg.has_if_exists() && msg.if_exists())
-    m_builder.put("IF EXISTS ");
+  if (msg.has_if_exists() && msg.if_exists()) m_builder.put("IF EXISTS ");
   add_collection(msg.collection());
 }
 
@@ -99,8 +100,8 @@ void View_statement_builder::add_algorithm(const Algorithm &algorithm) const {
   }
 }
 
-void View_statement_builder::add_sql_security(const Sql_security &security)
-    const {
+void View_statement_builder::add_sql_security(
+    const Sql_security &security) const {
   m_builder.put("SQL SECURITY ");
   switch (security) {
     case Mysqlx::Crud::DEFINER:
@@ -116,8 +117,8 @@ void View_statement_builder::add_sql_security(const Sql_security &security)
   }
 }
 
-void View_statement_builder::add_check_option(const Check_option &option)
-    const {
+void View_statement_builder::add_check_option(
+    const Check_option &option) const {
   m_builder.put(" WITH ");
 
   switch (option) {

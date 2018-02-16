@@ -34,67 +34,58 @@
 #include "mysql_com.h"
 #include "mysqld_error.h"
 
-#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
-#include "sql/dd/dd.h"                        // dd::create_object
-#include "sql/dd/dictionary.h"                // dd::Dictionary::is_dd_table...
-#include "sql/dd/impl/dictionary_impl.h"      // dd::dd_tablespace_id()
-#include "sql/dd/impl/system_registry.h"      // dd::System_tablespaces
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                       // dd::create_object
+#include "sql/dd/dictionary.h"               // dd::Dictionary::is_dd_table...
+#include "sql/dd/impl/dictionary_impl.h"     // dd::dd_tablespace_id()
+#include "sql/dd/impl/system_registry.h"     // dd::System_tablespaces
 #include "sql/dd/object_id.h"
-#include "sql/dd/properties.h"                // dd::Properties
+#include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/index.h"               // dd::Index
-#include "sql/dd/types/partition.h"           // dd::Partition
-#include "sql/dd/types/partition_index.h"     // dd::Partition_index
-#include "sql/dd/types/table.h"               // dd::Table
-#include "sql/dd/types/tablespace.h"          // dd::Tablespace
-#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
+#include "sql/dd/types/index.h"            // dd::Index
+#include "sql/dd/types/partition.h"        // dd::Partition
+#include "sql/dd/types/partition_index.h"  // dd::Partition_index
+#include "sql/dd/types/table.h"            // dd::Table
+#include "sql/dd/types/tablespace.h"       // dd::Tablespace
+#include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
 #include "sql/key.h"
-#include "sql/sql_class.h"                    // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_servers.h"
-#include "sql/sql_table.h"                    // validate_comment_length
+#include "sql/sql_table.h"  // validate_comment_length
 #include "sql/table.h"
 
 namespace {
 template <typename T>
 bool get_and_store_tablespace_name(THD *thd, const T *obj,
-                                   Tablespace_hash_set *tablespace_set)
-{
-  const char *tablespace_name= nullptr;
-  if(get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root))
-  {
+                                   Tablespace_hash_set *tablespace_set) {
+  const char *tablespace_name = nullptr;
+  if (get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root)) {
     return true;
   }
 
-  if (tablespace_name)
-  {
+  if (tablespace_name) {
     tablespace_set->insert(tablespace_name);
   }
 
   return false;
 }
 
-} // anonymous namespace
-
+}  // anonymous namespace
 
 namespace dd {
 
-bool
-fill_table_and_parts_tablespace_names(THD *thd,
-                                      const char *db_name,
-                                      const char *table_name,
-                                      Tablespace_hash_set *tablespace_set)
-{
+bool fill_table_and_parts_tablespace_names(
+    THD *thd, const char *db_name, const char *table_name,
+    Tablespace_hash_set *tablespace_set) {
   // Get hold of the dd::Table object.
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Table *table_obj= NULL;
-  if (thd->dd_client()->acquire(db_name, table_name, &table_obj))
-  {
+  const dd::Table *table_obj = NULL;
+  if (thd->dd_client()->acquire(db_name, table_name, &table_obj)) {
     // Error is reported by the dictionary subsystem.
     return true;
   }
 
-  if (table_obj == NULL)
-  {
+  if (table_obj == NULL) {
     /*
       A non-existing table is a perfectly valid scenario, e.g. for
       statements using the 'IF EXISTS' clause. Thus, we cannot throw
@@ -104,8 +95,7 @@ fill_table_and_parts_tablespace_names(THD *thd,
   }
 
   // Add the tablespace name used by dd::Table.
-  if (get_and_store_tablespace_name(thd, table_obj, tablespace_set))
-  {
+  if (get_and_store_tablespace_name(thd, table_obj, tablespace_set)) {
     return true;
   }
 
@@ -114,11 +104,9 @@ fill_table_and_parts_tablespace_names(THD *thd,
     Note that dd::Table::partitions() gives use both partitions
     and sub-partitions.
    */
-  if (table_obj->partition_type() != dd::Table::PT_NONE)
-  {
+  if (table_obj->partition_type() != dd::Table::PT_NONE) {
     // Iterate through tablespace names used by partitions/indexes.
-    for (const dd::Partition *part_obj : table_obj->partitions())
-    {
+    for (const dd::Partition *part_obj : table_obj->partitions()) {
       if (get_and_store_tablespace_name(thd, part_obj, tablespace_set))
         return true;
 
@@ -127,19 +115,16 @@ fill_table_and_parts_tablespace_names(THD *thd,
           return true;
 
       // Iterate through tablespace names used by subpartition/indexes.
-      for (const dd::Partition *sub_part_obj : part_obj->sub_partitions())
-      {
+      for (const dd::Partition *sub_part_obj : part_obj->sub_partitions()) {
         if (get_and_store_tablespace_name(thd, sub_part_obj, tablespace_set))
           return true;
 
         for (const dd::Partition_index *subpart_idx_obj :
-               sub_part_obj->indexes())
-          if (get_and_store_tablespace_name(thd,
-                                            subpart_idx_obj,
+             sub_part_obj->indexes())
+          if (get_and_store_tablespace_name(thd, subpart_idx_obj,
                                             tablespace_set))
             return true;
       }
-
     }
   }
 
@@ -153,24 +138,18 @@ fill_table_and_parts_tablespace_names(THD *thd,
   return false;
 }
 
-
 template <typename T>
-bool get_tablespace_name(THD *thd, const T *obj,
-                         const char **tablespace_name,
-                         MEM_ROOT *mem_root)
-{
+bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
+                         MEM_ROOT *mem_root) {
   //
   // Read Tablespace
   //
   String_type name;
 
-  if (obj->tablespace_id() == Dictionary_impl::dd_tablespace_id())
-  {
+  if (obj->tablespace_id() == Dictionary_impl::dd_tablespace_id()) {
     // If this is the DD tablespace id, then we use its name.
-    name= MYSQL_TABLESPACE_NAME.str;
-  }
-  else if (obj->tablespace_id() != dd::INVALID_OBJECT_ID)
-  {
+    name = MYSQL_TABLESPACE_NAME.str;
+  } else if (obj->tablespace_id() != dd::INVALID_OBJECT_ID) {
     /*
       We get here, when we have a table in a tablespace
       which is 'innodb_system' or a user defined tablespace.
@@ -185,41 +164,35 @@ bool get_tablespace_name(THD *thd, const T *obj,
       lock on tablespace (similarly to how it happens for schemas).
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-    dd::Tablespace* tablespace= NULL;
-    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace))
-    {
+    dd::Tablespace *tablespace = NULL;
+    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace)) {
       // acquire() always fails with a error being reported.
       return true;
     }
 
     // Report error if tablespace not found.
-    if (!tablespace)
-    {
+    if (!tablespace) {
       my_error(ER_INVALID_DD_OBJECT_ID, MYF(0), obj->tablespace_id());
       return true;
     }
 
-    name= tablespace->name();
-  }
-  else
-  {
+    name = tablespace->name();
+  } else {
     /*
       If user has specified special tablespace name like
       'innodb_file_per_table' then we read it from tablespace options.
     */
-    const dd::Properties *table_options= &obj->options();
+    const dd::Properties *table_options = &obj->options();
     table_options->get("tablespace", name);
   }
 
-  *tablespace_name= NULL;
-  if (!name.empty() && !(*tablespace_name= strmake_root(mem_root,
-                                             name.c_str(),
-                                             name.length())))
-  {
+  *tablespace_name = NULL;
+  if (!name.empty() && !(*tablespace_name = strmake_root(mem_root, name.c_str(),
+                                                         name.length()))) {
     return true;
   }
 
   return false;
 }
 
-} // namespace dd
+}  // namespace dd

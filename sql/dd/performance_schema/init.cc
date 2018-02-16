@@ -34,16 +34,16 @@
 #include "my_dbug.h"
 #include "mysql/thread_type.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/bootstrap.h"                 // bootstrap::run_bootstrap_thread
-#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "sql/dd/dd.h"                     // enum_dd_init_type
-#include "sql/dd/dd_schema.h"              // dd::schema_exists
-#include "sql/dd/dd_table.h"               // dd::table_exists
-#include "sql/dd/impl/bootstrapper.h"      // execute_query
-#include "sql/dd/impl/dictionary_impl.h"   // dd::Dictionary_impl
-#include "sql/dd/impl/system_registry.h"   // dd::System_tables
-#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::UNKNOWN_P_S_VERSION
-#include "sql/dd/properties.h"             // dd::Properties
+#include "sql/bootstrap.h"                   // bootstrap::run_bootstrap_thread
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                       // enum_dd_init_type
+#include "sql/dd/dd_schema.h"                // dd::schema_exists
+#include "sql/dd/dd_table.h"                 // dd::table_exists
+#include "sql/dd/impl/bootstrapper.h"        // execute_query
+#include "sql/dd/impl/dictionary_impl.h"     // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"     // dd::System_tables
+#include "sql/dd/impl/tables/dd_properties.h"  // dd::tables::UNKNOWN_P_S_VERSION
+#include "sql/dd/properties.h"                 // dd::Properties
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"
 #include "sql/dd/types/object_table_definition.h"
@@ -52,7 +52,7 @@
 #include "sql/handler.h"
 #include "sql/plugin_table.h"
 #include "sql/set_var.h"
-#include "sql/sql_class.h"                 // THD
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_list.h"
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
@@ -67,8 +67,7 @@ using namespace dd;
 
 bool check_if_server_ddse_readonly(THD *thd, const char *schema_name_abbrev);
 
-namespace
-{
+namespace {
 
 /**
   Create and use the performance schema.
@@ -78,23 +77,22 @@ namespace
   @return       Upon failure, return true, otherwise false.
 */
 
-bool create_pfs_schema(THD *thd)
-{
-  bool exists= false;
+bool create_pfs_schema(THD *thd) {
+  bool exists = false;
   if (dd::schema_exists(thd, PERFORMANCE_SCHEMA_DB_NAME.str, &exists))
     return true;
 
-  bool ret= false;
+  bool ret = false;
   if (!exists)
-    ret= execute_query(thd, dd::String_type("CREATE SCHEMA ") +
-                       dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
-                       dd::String_type(" CHARACTER SET utf8"));
+    ret =
+        execute_query(thd, dd::String_type("CREATE SCHEMA ") +
+                               dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str) +
+                               dd::String_type(" CHARACTER SET utf8"));
 
-  return ret ||
-         execute_query(thd, dd::String_type("USE ") +
-                       dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
+  return ret || execute_query(
+                    thd, dd::String_type("USE ") +
+                             dd::String_type(PERFORMANCE_SCHEMA_DB_NAME.str));
 }
-
 
 /**
   Check that the actual version of performance schema supported by server
@@ -106,24 +104,22 @@ bool create_pfs_schema(THD *thd)
   @return       true in case versions are matched, else false
 */
 
-bool check_perf_schema_has_correct_version(THD *thd)
-{
-  dd::Dictionary_impl *d= dd::Dictionary_impl::instance();
+bool check_perf_schema_has_correct_version(THD *thd) {
+  dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
 
   // Stop if P_S version is same.
-  uint actual_version= d->get_actual_P_S_version(thd);
+  uint actual_version = d->get_actual_P_S_version(thd);
 
 #ifndef DBUG_OFF
   // Unknown version of the current server PS schema. It is used for tests.
-  const uint UNKNOWN_P_S_VERSION= -1;
+  const uint UNKNOWN_P_S_VERSION = -1;
 #endif
   // Testing to make sure we update plugins when version changes.
   DBUG_EXECUTE_IF("test_p_s_metadata_version",
-                  { actual_version= UNKNOWN_P_S_VERSION; });
+                  { actual_version = UNKNOWN_P_S_VERSION; });
 
   return d->get_target_P_S_version() == actual_version;
 }
-
 
 /**
   Produce a statement DROP TABLE for a table name specified by the argument.
@@ -133,14 +129,12 @@ bool check_perf_schema_has_correct_version(THD *thd)
   @return  a string representation of a statement DROP TABLE
 */
 
-String_type build_ddl_drop_ps_table(const String_type& table_name)
-{
+String_type build_ddl_drop_ps_table(const String_type &table_name) {
   dd::Stringstream_type drop_stmt;
   drop_stmt << "DROP TABLE " << table_name << ';';
 
   return drop_stmt.str();
 }
-
 
 /**
   Create performance schema tables.
@@ -150,54 +144,46 @@ String_type build_ddl_drop_ps_table(const String_type& table_name)
   @return                Upon failure, return true, otherwise false.
 */
 
-bool create_pfs_tables(THD *thd)
-{
-  sql_mode_t sql_mode_saved= thd->variables.sql_mode;
-  thd->variables.sql_mode= 0;
+bool create_pfs_tables(THD *thd) {
+  sql_mode_t sql_mode_saved = thd->variables.sql_mode;
+  thd->variables.sql_mode = 0;
 
-  bool ret= false;
-  for (System_tables::Const_iterator it=
-         System_tables::instance()->begin(System_tables::Types::PFS);
+  bool ret = false;
+  for (System_tables::Const_iterator it =
+           System_tables::instance()->begin(System_tables::Types::PFS);
        it != System_tables::instance()->end();
-       it= System_tables::instance()->next(it, System_tables::Types::PFS))
-  {
-    bool exists= false;
+       it = System_tables::instance()->next(it, System_tables::Types::PFS)) {
+    bool exists = false;
 
-    if (dd::table_exists(thd->dd_client(),
-                         PERFORMANCE_SCHEMA_DB_NAME.str,
-                         (*it)->entity()->name().c_str(),
-                         &exists))
-    {
-      ret= true;
+    if (dd::table_exists(thd->dd_client(), PERFORMANCE_SCHEMA_DB_NAME.str,
+                         (*it)->entity()->name().c_str(), &exists)) {
+      ret = true;
       break;
     }
 
     DBUG_ASSERT(!exists);
 
-    const Object_table_definition *table_def= nullptr;
+    const Object_table_definition *table_def = nullptr;
     if (exists ||
-        (table_def= (*it)->entity()->target_table_definition()) == nullptr ||
-        execute_query(thd, table_def->get_ddl()))
-    {
-      ret= true;
+        (table_def = (*it)->entity()->target_table_definition()) == nullptr ||
+        execute_query(thd, table_def->get_ddl())) {
+      ret = true;
       break;
     }
   }
 
-  if (!ret)
-  {
-    dd::Dictionary_impl *d= dd::Dictionary_impl::instance();
+  if (!ret) {
+    dd::Dictionary_impl *d = dd::Dictionary_impl::instance();
 
-    ret= d->set_P_S_version(thd, d->get_target_P_S_version());
+    ret = d->set_P_S_version(thd, d->get_target_P_S_version());
   }
 
-  ret= dd::end_transaction(thd, ret);
+  ret = dd::end_transaction(thd, ret);
 
-  thd->variables.sql_mode= sql_mode_saved;
+  thd->variables.sql_mode = sql_mode_saved;
 
   return ret;
 }
-
 
 const dd::String_type SERVER_PS_TABLE_PROPERTY_NAME("server_p_s_table");
 
@@ -209,9 +195,8 @@ const dd::String_type SERVER_PS_TABLE_PROPERTY_NAME("server_p_s_table");
   @return      Upon failure, return true, otherwise false.
 */
 
-bool drop_old_pfs_tables(THD *thd)
-{
-  const dd::Schema *sch_obj= nullptr;
+bool drop_old_pfs_tables(THD *thd) {
+  const dd::Schema *sch_obj = nullptr;
 
   dd::cache::Dictionary_client::Auto_releaser auto_releaser(thd->dd_client());
   dd::Schema_MDL_locker mdl_handler(thd);
@@ -220,32 +205,26 @@ bool drop_old_pfs_tables(THD *thd)
       thd->dd_client()->acquire(PERFORMANCE_SCHEMA_DB_NAME.str, &sch_obj))
     return true;
 
-  std::vector<const dd::Table*> pfs_tables_in_dd;
-  if (thd->dd_client()->fetch_schema_components(sch_obj,
-                                                &pfs_tables_in_dd))
+  std::vector<const dd::Table *> pfs_tables_in_dd;
+  if (thd->dd_client()->fetch_schema_components(sch_obj, &pfs_tables_in_dd))
     return true;
 
-  if (pfs_tables_in_dd.empty())
-    return false;
+  if (pfs_tables_in_dd.empty()) return false;
 
   std::list<dd::String_type> pfs_table_names_to_drop;
-  for (const dd::Table *table : pfs_tables_in_dd)
-  {
+  for (const dd::Table *table : pfs_tables_in_dd) {
     if (table->options().exists(SERVER_PS_TABLE_PROPERTY_NAME))
       pfs_table_names_to_drop.push_back(table->name());
   }
 
-  bool error= false;
-  for (const dd::String_type &pfs_table_name : pfs_table_names_to_drop)
-  {
-    error= execute_query(thd, build_ddl_drop_ps_table(pfs_table_name));
-    if (error)
-      break;
+  bool error = false;
+  for (const dd::String_type &pfs_table_name : pfs_table_names_to_drop) {
+    error = execute_query(thd, build_ddl_drop_ps_table(pfs_table_name));
+    if (error) break;
   }
 
   return dd::end_transaction(thd, error);
 }
-
 
 /**
   Produce sql statement to create a P_S table, add a pair
@@ -255,26 +234,19 @@ bool drop_old_pfs_tables(THD *thd)
   @param table                        P_S table definition
 */
 
-void add_pfs_definition(const Plugin_table *table)
-{
-  DBUG_EXECUTE_IF("test_p_s_metadata_version",
-                  {
-                    if (!my_strcasecmp(system_charset_info,
-                                       table->get_name(),
-                                       "cond_instances"))
-                      return;
-                  });
+void add_pfs_definition(const Plugin_table *table) {
+  DBUG_EXECUTE_IF("test_p_s_metadata_version", {
+    if (!my_strcasecmp(system_charset_info, table->get_name(),
+                       "cond_instances"))
+      return;
+  });
 
-  Object_table_impl *plugin_table= new (std::nothrow) Object_table_impl(
-    table->get_schema_name(),
-    table->get_name(),
-    table->get_ddl());
+  Object_table_impl *plugin_table = new (std::nothrow) Object_table_impl(
+      table->get_schema_name(), table->get_name(), table->get_ddl());
   System_tables::instance()->add(PERFORMANCE_SCHEMA_DB_NAME.str,
-                                 table->get_name(),
-                                 System_tables::Types::PFS,
+                                 table->get_name(), System_tables::Types::PFS,
                                  plugin_table);
 }
-
 
 /**
   Creates the database performance_schema and
@@ -285,14 +257,13 @@ void add_pfs_definition(const Plugin_table *table)
   @return       Upon failure, return true, otherwise false.
 */
 
-bool initialize_pfs(THD *thd)
-{
+bool initialize_pfs(THD *thd) {
   /*
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
-  thd->tx_read_only= false;
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
@@ -309,8 +280,8 @@ bool initialize_pfs(THD *thd)
   if (check_if_server_ddse_readonly(thd, PERFORMANCE_SCHEMA_DB_NAME.str))
     return true;
 
-  handlerton *pfs_se=
-    ha_resolve_by_legacy_type(thd, DB_TYPE_PERFORMANCE_SCHEMA);
+  handlerton *pfs_se =
+      ha_resolve_by_legacy_type(thd, DB_TYPE_PERFORMANCE_SCHEMA);
 
   /*
     The lists with element wrappers are mem root allocated.
@@ -319,9 +290,9 @@ bool initialize_pfs(THD *thd)
   List<const Plugin_table> pfs_server_tables;
   if (pfs_se->dict_init == nullptr ||
       pfs_se->dict_init(
-        DICT_INIT_CREATE_FILES,
-        dd::Dictionary_impl::instance()->get_target_dd_version(),
-        &pfs_server_tables, nullptr))
+          DICT_INIT_CREATE_FILES,
+          dd::Dictionary_impl::instance()->get_target_dd_version(),
+          &pfs_server_tables, nullptr))
     return true;
 
   /*
@@ -330,43 +301,37 @@ bool initialize_pfs(THD *thd)
     tables.
   */
   List_iterator<const Plugin_table> table_it(pfs_server_tables);
-  const Plugin_table *table= nullptr;
+  const Plugin_table *table = nullptr;
 
-  while ((table= table_it++))
-  {
+  while ((table = table_it++)) {
     add_pfs_definition(table);
   }
 
-  return create_pfs_schema(thd) ||
-         drop_old_pfs_tables(thd) ||
+  return create_pfs_schema(thd) || drop_old_pfs_tables(thd) ||
          create_pfs_tables(thd);
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 namespace dd {
 namespace performance_schema {
 
-bool init_pfs_tables(enum_dd_init_type init_type)
-{
+bool init_pfs_tables(enum_dd_init_type init_type) {
   if (init_type == dd::enum_dd_init_type::DD_INITIALIZE)
     return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_INITIALIZE);
   else if (init_type == dd::enum_dd_init_type::DD_RESTART_OR_UPGRADE)
     return ::bootstrap::run_bootstrap_thread(nullptr, &initialize_pfs,
                                              SYSTEM_THREAD_DD_RESTART);
-  else
-  {
+  else {
     DBUG_ASSERT(false);
     return true;
   }
 }
 
-
-void set_PS_version_for_table(dd::Properties *table_options)
-{
+void set_PS_version_for_table(dd::Properties *table_options) {
   table_options->set_bool(SERVER_PS_TABLE_PROPERTY_NAME, true);
 }
 
-}
-}
+}  // namespace performance_schema
+}  // namespace dd

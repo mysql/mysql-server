@@ -688,7 +688,7 @@ create table t1 (a enum('x','y','z') character set ucs2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET ucs2 DEFAULT NULL
+  `a` enum('x','y','z') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');
@@ -702,7 +702,7 @@ alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set uc
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('D');
 insert into t1 values ('E ');
@@ -724,7 +724,7 @@ create table t1 (a set ('x','y','z','ä','ö','ü') character set ucs2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET ucs2 DEFAULT NULL
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET ucs2 COLLATE ucs2_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');
@@ -1225,8 +1225,6 @@ drop table t1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
 INSERT INTO t1 VALUES ('a');
 SET @@sql_mode=pad_char_to_full_length;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT HEX(s1) FROM t1;
 HEX(s1)
 00610020002000200020
@@ -1850,19 +1848,6 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c1` varchar(32) CHARACTER SET ucs2 DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-drop table t1;
-select password('a'), hex(password('a'));
-password('a')	hex(password('a'))
-*9A48A662559C49521B25C43077059DD109FBD84A	002A0039004100340038004100360036003200350035003900430034003900350032003100420032003500430034003300300037003700300035003900440044003100300039004600420044003800340041
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-create table t1 as select password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(41) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 select sha('a'), hex(sha('a'));
@@ -2626,8 +2611,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 00310032
@@ -3930,12 +3913,6 @@ SET @ST_X=md5('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 ucs2	ucs2_general_ci
-SET @ST_X=password('a');
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-SELECT charset(@ST_X), collation(@ST_X);
-charset(@ST_X)	collation(@ST_X)
-ucs2	ucs2_general_ci
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
@@ -4233,8 +4210,6 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET NAMES latin1;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -4249,8 +4224,6 @@ SET NAMES latin1;
 # Bug #13832953 	MY_STRNXFRM_UNICODE: ASSERTION `SRC' FAILED
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (c1 SET('','') CHARACTER SET ucs2);
 Warnings:
 Note	1291	Column 'c1' has duplicated value '' in SET

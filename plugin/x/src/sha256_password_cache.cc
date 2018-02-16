@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,7 +28,7 @@
 namespace xpl {
 
 SHA256_password_cache::SHA256_password_cache()
-  : m_cache_lock(KEY_rwlock_x_sha256_password_cache) {}
+    : m_cache_lock(KEY_rwlock_x_sha256_password_cache) {}
 
 /**
   Start caching.
@@ -72,11 +72,9 @@ bool SHA256_password_cache::upsert(const std::string &user,
   auto optional_hash = create_hash(value);
   ngs::RWLock_writelock guard(m_cache_lock);
 
-  if (!m_accepting_input)
-    return false;
+  if (!m_accepting_input) return false;
 
-  if (!optional_hash.first)
-    return false;
+  if (!optional_hash.first) return false;
 
   m_password_cache[key] = optional_hash.second;
   return true;
@@ -112,13 +110,11 @@ std::pair<bool, std::string> SHA256_password_cache::get_entry(
     const std::string &user, const std::string &host) const {
   ngs::RWLock_readlock guard(m_cache_lock);
 
-  if (!m_accepting_input)
-    return {false, ""};
+  if (!m_accepting_input) return {false, ""};
 
   const auto it = m_password_cache.find(create_key(user, host));
 
-  if (it == m_password_cache.end())
-    return {false, ""};
+  if (it == m_password_cache.end()) return {false, ""};
 
   return {true, it->second};
 }
@@ -134,19 +130,17 @@ std::pair<bool, std::string> SHA256_password_cache::get_entry(
     @retval true Value hash is stored in the cache
     @retval false Value hash is not in the cache
 */
-bool SHA256_password_cache::contains(
-    const std::string &user,
-    const std::string &host,
-    const std::string &value) const {
+bool SHA256_password_cache::contains(const std::string &user,
+                                     const std::string &host,
+                                     const std::string &value) const {
   const auto search_result = get_entry(user, host);
 
   if (!search_result.first) return false;
 
   const auto optional_hash = create_hash(value);
 
-  return !optional_hash.first ?
-      false :
-      search_result.second == optional_hash.second;
+  return !optional_hash.first ? false
+                              : search_result.second == optional_hash.second;
 }
 
 /**
@@ -158,7 +152,6 @@ void SHA256_password_cache::clear() {
   m_password_cache.clear();
 }
 
-
 /**
   Create a key which will be used in the cache.
 
@@ -168,7 +161,7 @@ void SHA256_password_cache::clear() {
   @returns Key string.
 */
 std::string SHA256_password_cache::create_key(const std::string &user,
-    const std::string &host) const {
+                                              const std::string &host) const {
   return user + '\0' + host + '\0';
 }
 
@@ -183,15 +176,14 @@ std::string SHA256_password_cache::create_key(const std::string &user,
   the password cache
 */
 std::pair<bool, SHA256_password_cache::sha2_cache_entry_t>
-SHA256_password_cache::create_hash(
-    const std::string &value) const {
+SHA256_password_cache::create_hash(const std::string &value) const {
   // Locking not needed since SHA256_digest does not contain any shared state
   sha2_password::SHA256_digest sha256_digest;
 
   const auto length = sha2_password::CACHING_SHA2_DIGEST_LENGTH;
   unsigned char digest_buffer[length];
 
-  auto one_digest_round = [&](const std::string &value){
+  auto one_digest_round = [&](const std::string &value) {
     if (sha256_digest.update_digest(value.c_str(), value.length()) ||
         sha256_digest.retrieve_digest(digest_buffer, length)) {
       return false;
@@ -204,8 +196,8 @@ SHA256_password_cache::create_hash(
 
   sha256_digest.scrub();
 
-  std::string first_digest_round =
-      {std::begin(digest_buffer), std::end(digest_buffer)};
+  std::string first_digest_round = {std::begin(digest_buffer),
+                                    std::end(digest_buffer)};
 
   // Second digest round
   if (!one_digest_round(first_digest_round)) return {false, ""};

@@ -31,10 +31,10 @@
 */
 
 #include "my_rnd.h"
-#include <wolfssl_fix_namespace_pollution_pre.h>
-#include <openssl/rand.h>
 #include <openssl/err.h>
+#include <openssl/rand.h>
 #include <wolfssl_fix_namespace_pollution.h>
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #if !defined(HAVE_OPENSSL)
 #error not using an SSL library not supported
 #endif
@@ -51,14 +51,11 @@
   @retval                Generated pseudo random number.
 */
 
-double my_rnd(struct rand_struct *rand_st)
-{
-  rand_st->seed1= (rand_st->seed1*3+rand_st->seed2) % rand_st->max_value;
-  rand_st->seed2= (rand_st->seed1+rand_st->seed2+33) % rand_st->max_value;
-  return (((double) rand_st->seed1) / rand_st->max_value_dbl);
+double my_rnd(struct rand_struct *rand_st) {
+  rand_st->seed1 = (rand_st->seed1 * 3 + rand_st->seed2) % rand_st->max_value;
+  rand_st->seed2 = (rand_st->seed1 + rand_st->seed2 + 33) % rand_st->max_value;
+  return (((double)rand_st->seed1) / rand_st->max_value_dbl);
 }
-
-
 
 /**
 Fill a buffer with random bytes using the SSL library routines
@@ -69,20 +66,16 @@ Fill a buffer with random bytes using the SSL library routines
 @retval      1  error occurred.
 @retval      0  OK
 */
-int
-my_rand_buffer(unsigned char *buffer, size_t buffer_size)
-{
+int my_rand_buffer(unsigned char *buffer, size_t buffer_size) {
   int rc;
-  rc= RAND_bytes(buffer, (int) buffer_size);
+  rc = RAND_bytes(buffer, (int)buffer_size);
 
-  if (!rc)
-  {
+  if (!rc) {
     ERR_clear_error();
     return 1;
   }
   return 0;
 }
-
 
 /**
   Generate a random number using the OpenSSL/wolfSSL supplied
@@ -95,11 +88,10 @@ my_rand_buffer(unsigned char *buffer, size_t buffer_size)
   @retval                Generated random number.
 */
 
-double my_rnd_ssl(struct rand_struct *rand_st)
-{
+double my_rnd_ssl(struct rand_struct *rand_st) {
   unsigned int res;
 
-  if (my_rand_buffer((unsigned char *) &res, sizeof(res)))
+  if (my_rand_buffer((unsigned char *)&res, sizeof(res)))
     return my_rnd(rand_st);
 
   return (double)res / (double)UINT_MAX;

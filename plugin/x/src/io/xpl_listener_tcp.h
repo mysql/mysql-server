@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,27 +27,22 @@
 
 #include "my_inttypes.h"
 #include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
-#include "plugin/x/ngs/include/ngs/interface/listener_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/socket_events_interface.h"
 #include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/ngs/include/ngs_common/operations_factory_interface.h"
 #include "plugin/x/ngs/include/ngs_common/socket_interface.h"
 
-
 namespace xpl {
 
-class Listener_tcp: public ngs::Listener_interface {
-public:
-  typedef ngs::Socket_interface                         Socket_interface;
-  typedef ngs::Socket_interface::Shared_ptr             Socket_interface_ptr;
+class Listener_tcp : public ngs::Listener_interface {
+ public:
+  typedef ngs::Socket_interface Socket_interface;
+  typedef ngs::Socket_interface::Shared_ptr Socket_interface_ptr;
   typedef ngs::Operations_factory_interface::Shared_ptr Factory_ptr;
 
-  Listener_tcp(Factory_ptr operations_factory,
-               std::string &bind_address,
-               const uint16 port,
-               const uint32 port_open_timeout,
-               ngs::Socket_events_interface &event,
-               const uint32 backlog);
+  Listener_tcp(Factory_ptr operations_factory, std::string &bind_address,
+               const uint16 port, const uint32 port_open_timeout,
+               ngs::Socket_events_interface &event, const uint32 backlog);
   ~Listener_tcp();
 
   bool is_handled_by_socket_event();
@@ -61,7 +56,7 @@ public:
   void close_listener();
   void loop();
 
-private:
+ private:
   Socket_interface_ptr create_socket();
 
   Factory_ptr m_operations_factory;
@@ -75,6 +70,6 @@ private:
   std::string m_last_error;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // XPL_LISTENER_TCP_H_
+#endif  // XPL_LISTENER_TCP_H_

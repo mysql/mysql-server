@@ -25,13 +25,12 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_write(MYRG_INFO *info, uchar *rec)
-{
+int myrg_write(MYRG_INFO *info, uchar *rec) {
   /* [phi] MERGE_WRITE_DISABLED is handled by the else case */
   if (info->merge_insert_method == MERGE_INSERT_TO_FIRST)
-    return mi_write((info->current_table=info->open_tables)->table,rec);
+    return mi_write((info->current_table = info->open_tables)->table, rec);
   else if (info->merge_insert_method == MERGE_INSERT_TO_LAST)
-    return mi_write((info->current_table=info->end_table-1)->table,rec);
+    return mi_write((info->current_table = info->end_table - 1)->table, rec);
   else /* unsupported insertion method */
   {
     set_my_errno(HA_ERR_WRONG_COMMAND);

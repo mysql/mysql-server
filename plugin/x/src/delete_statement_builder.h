@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,12 +27,10 @@
 
 #include "plugin/x/src/statement_builder.h"
 
-namespace xpl
-{
+namespace xpl {
 
-class Delete_statement_builder: public Crud_statement_builder
-{
-public:
+class Delete_statement_builder : public Crud_statement_builder {
+ public:
   typedef ::Mysqlx::Crud::Delete Delete;
 
   explicit Delete_statement_builder(const Expression_generator &gen)
@@ -41,6 +39,6 @@ public:
   void build(const Delete &msg) const;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // DELETE_STATEMENT_BUILDER_H_
+#endif  // DELETE_STATEMENT_BUILDER_H_

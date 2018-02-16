@@ -138,7 +138,7 @@ Mysqlx.Crud.Insert {
   }
 }
 ## error
--->recv
+-->recvresult
 -->sql
 SELECT * FROM table2;
 ALTER TABLE table2 DROP COLUMN _id;
@@ -252,7 +252,7 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->recvresult
 
 -->expecterror ER_NO_SUCH_TABLE
 -->sql
@@ -281,8 +281,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
-## reuslt
--->recv
+-->expecterror ER_BAD_TABLE_ERROR
+-->recvresult
 
 #-- "Try drop table from unkown database"
 Mysqlx.Sql.StmtExecute {
@@ -307,7 +307,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->expecterror ER_BAD_TABLE_ERROR
+-->recvresult
 
 #-- "Incorrect args to drop_collection"
 Mysqlx.Sql.StmtExecute {
@@ -323,7 +324,8 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->recvresult
 
 #-- "Invalid arg type"
 Mysqlx.Sql.StmtExecute {
@@ -348,12 +350,14 @@ Mysqlx.Sql.StmtExecute {
   }
   namespace: "xplugin"
 }
--->recv
+-->expecterror ER_X_CMD_ARGUMENT_TYPE
+-->recvresult
 
 
 
 EOF
 
+--replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
 --exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
 --remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
 
@@ -715,7 +719,7 @@ END_MESSAGE
     if ($i%5 == 0) {
        print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->sql\n";
-       print OUTPUT "CREATE TABLE tab_".$i." (_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
+       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
        print OUTPUT "-->endsql\n";
     }else {
        $str = $message;
@@ -780,7 +784,7 @@ END_MESSAGE
     if ($i%5 == 0) {
        print OUTPUT "-->expecterror ER_SUCCESS,ER_TABLE_EXISTS_ERROR\n";
        print OUTPUT "-->sql\n";
-       print OUTPUT "CREATE TABLE tab_".$i." (_id VARCHAR(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
+       print OUTPUT "CREATE TABLE tab_".$i." (_id VARBINARY(32) GENERATED ALWAYS AS (JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))) STORED NOT NULL,doc JSON ); ". "\n";
        print OUTPUT "-->endsql\n";
     }else {
        $str = $message;

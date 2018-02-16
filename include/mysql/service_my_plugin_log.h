@@ -1,5 +1,5 @@
 /*  Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
-    
+
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
     as published by the Free Software Foundation.
@@ -22,7 +22,7 @@
 
 /**
   @file include/mysql/service_my_plugin_log.h
-  This service provides functions to report error conditions and log to 
+  This service provides functions to report error conditions and log to
   mysql error log.
 */
 
@@ -34,30 +34,28 @@
 #endif
 
 #if defined __SUNPRO_C || defined __SUNPRO_CC || \
-  (defined _MSC_VER && !defined __clang__)
-# define MY_ATTRIBUTE(A)
+    (defined _MSC_VER && !defined __clang__)
+#define MY_ATTRIBUTE(A)
 #endif
 
 /* keep in sync with the loglevel enum in my_sys.h */
-enum plugin_log_level
-{
+enum plugin_log_level {
   MY_ERROR_LEVEL,
   MY_WARNING_LEVEL,
   MY_INFORMATION_LEVEL
-};  
-
+};
 
 /**
    @ingroup group_ext_plugin_services
 
    Enables plugins to log messages into the server's error log.
 */
-extern "C" struct my_plugin_log_service
-{
+extern "C" struct my_plugin_log_service {
   /** Write a message to the log */
-  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level, const char *, ...)
-    MY_ATTRIBUTE((format(printf, 3, 4)));
-} *my_plugin_log_service;
+  int (*my_plugin_log_message)(MYSQL_PLUGIN *, enum plugin_log_level,
+                               const char *, ...)
+      MY_ATTRIBUTE((format(printf, 3, 4)));
+} * my_plugin_log_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -67,7 +65,7 @@ extern "C" struct my_plugin_log_service
 
 int my_plugin_log_message(MYSQL_PLUGIN *plugin, enum plugin_log_level level,
                           const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 3, 4)));
+    MY_ATTRIBUTE((format(printf, 3, 4)));
 
 #endif
 

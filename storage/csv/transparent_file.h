@@ -31,17 +31,15 @@ typedef unsigned int PSI_memory_key;
 
 extern PSI_memory_key csv_key_memory_Transparent_file;
 
-class Transparent_file
-{
+class Transparent_file {
   File filedes;
-  uchar *buff;  /* in-memory window to the file or mmaped area */
+  uchar *buff; /* in-memory window to the file or mmaped area */
   /* current window sizes */
   my_off_t lower_bound;
   my_off_t upper_bound;
   uint buff_size;
 
-public:
-
+ public:
   Transparent_file();
   ~Transparent_file();
 
@@ -49,6 +47,6 @@ public:
   uchar *ptr();
   my_off_t start();
   my_off_t end();
-  char get_value (my_off_t offset);
+  char get_value(my_off_t offset);
   my_off_t read_next();
 };

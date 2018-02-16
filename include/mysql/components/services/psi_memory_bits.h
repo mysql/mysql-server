@@ -52,8 +52,7 @@ struct PSI_thread;
   @since PSI_MEMORY_VERSION_1
   This structure is used to register instrumented memory.
 */
-struct PSI_memory_info_v1
-{
+struct PSI_memory_info_v1 {
   /** Pointer to the key assigned to the registered memory. */
   PSI_memory_key *m_key;
   /** The name of the memory instrument to register. */
@@ -87,8 +86,7 @@ typedef void (*register_memory_v1_t)(const char *category,
   @param[out] owner the memory owner
   @return the effective memory instrument key
 */
-typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key,
-                                            size_t size,
+typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
 
 /**
@@ -100,8 +98,7 @@ typedef PSI_memory_key (*memory_alloc_v1_t)(PSI_memory_key key,
   @return the effective memory instrument key
 */
 typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
-                                              size_t old_size,
-                                              size_t new_size,
+                                              size_t old_size, size_t new_size,
                                               struct PSI_thread **owner);
 
 /**
@@ -111,8 +108,7 @@ typedef PSI_memory_key (*memory_realloc_v1_t)(PSI_memory_key key,
   @param[in, out] owner the memory owner
   @return the effective memory instrument key
 */
-typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key,
-                                            size_t size,
+typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key, size_t size,
                                             struct PSI_thread **owner);
 
 /**
@@ -121,8 +117,7 @@ typedef PSI_memory_key (*memory_claim_v1_t)(PSI_memory_key key,
   @param size the size of memory allocated
   @param owner the memory owner
 */
-typedef void (*memory_free_v1_t)(PSI_memory_key key,
-                                 size_t size,
+typedef void (*memory_free_v1_t)(PSI_memory_key key, size_t size,
                                  struct PSI_thread *owner);
 
 typedef struct PSI_memory_info_v1 PSI_memory_info;

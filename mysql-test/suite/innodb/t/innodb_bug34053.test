@@ -11,7 +11,7 @@ SET default_storage_engine=InnoDB;
 -- disable_query_log
 -- disable_result_log
 
-GRANT USAGE ON *.* TO 'shane'@'localhost' IDENTIFIED BY '12345';
+CREATE USER 'shane'@'localhost' IDENTIFIED BY '12345';
 FLUSH PRIVILEGES;
 
 -- connect (con1,localhost,shane,12345,)

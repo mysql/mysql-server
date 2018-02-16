@@ -20,9 +20,9 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "polish_greeting_service_imp.h"
 #include <mysql/components/service_implementation.h>
 #include "example_services.h"
-#include "polish_greeting_service_imp.h"
 
 /**
   Retrieves a Polish greeting message.
@@ -34,9 +34,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @retval true failure
 */
 DEFINE_BOOL_METHOD(polish_greeting_service_imp::say_hello,
-  (const char** hello_string))
-{
-  *hello_string= "Witaj Świecie.";
+                   (const char **hello_string)) {
+  *hello_string = "Witaj Świecie.";
   return false;
 }
 
@@ -50,8 +49,7 @@ DEFINE_BOOL_METHOD(polish_greeting_service_imp::say_hello,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(polish_greeting_service_imp::get_language,
-  (const char** language_string))
-{
-  *language_string= "Polish";
+                   (const char **language_string)) {
+  *language_string = "Polish";
   return false;
 }

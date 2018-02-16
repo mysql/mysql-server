@@ -510,7 +510,7 @@ price2     double(11,0),
 key (period),
 key (name)
 );
-create temporary table tmp engine = myisam select * from t3;
+create temporary table tmp select * from t3;
 insert into t3 select * from tmp;
 insert into tmp select * from t3;
 insert into t3 select * from tmp;
@@ -1320,7 +1320,7 @@ companynr tinyint(2) unsigned zerofill NOT NULL default '00',
 companyname char(30) NOT NULL default '',
 PRIMARY KEY (companynr),
 UNIQUE KEY companyname(companyname)
-) ENGINE=MyISAM MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
+) MAX_ROWS=50 PACK_KEYS=1 COMMENT='companynames';
 select STRAIGHT_JOIN t2.companynr,companyname from t4,t2 where t2.companynr=t4.companynr group by t2.companynr;
 companynr	companyname
 00	Unknown
@@ -1393,12 +1393,12 @@ count(*)
 explain select t2.companynr,companyname from t2 left join t4 using (companynr) where t4.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
+1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	1	test.t2.companynr	#	100.00	Using where; Not exists
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t2` left join `test`.`t4` on((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`)) where isnull(`test`.`t4`.`companynr`)
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	100.00	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	10.00	Using where; Not exists; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where isnull(`test`.`t2`.`companynr`)
@@ -1438,55 +1438,55 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` join `test`.`t2` where ((`test`.`t4`.`companynr` = `test`.`t2`.`companynr`) and (`test`.`t2`.`companynr` > 0) and (`test`.`t2`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using where; Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 and companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) and (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or isnull(`test`.`t2`.`companynr`))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where t2.companynr > 0 or t2.companynr < 0 or t4.companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t2`.`companynr` > 0) or (`test`.`t2`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
 explain select t2.companynr,companyname from t4 left join t2 using (companynr) where ifnull(t2.companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	#	NULL
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t2`.`companynr`,1) > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	range	PRIMARY	PRIMARY	1	NULL	#	#	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (`test`.`t4`.`companynr` > 0)
 explain select companynr,companyname from t4 left join t2 using (companynr) where companynr > 0 or companynr < 0 or companynr > 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	PRIMARY	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	index	PRIMARY	companyname	120	NULL	#	#	Using where; Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where ((`test`.`t4`.`companynr` > 0) or (`test`.`t4`.`companynr` < 0) or (`test`.`t4`.`companynr` > 0))
 explain select companynr,companyname from t4 left join t2 using (companynr) where ifnull(companynr,1)>0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using where; Using index
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t4`.`companynr` AS `companynr`,`test`.`t4`.`companyname` AS `companyname` from `test`.`t4` left join `test`.`t2` on((`test`.`t2`.`companynr` = `test`.`t4`.`companynr`)) where (ifnull(`test`.`t4`.`companynr`,1) > 0)
@@ -1496,7 +1496,7 @@ companynr	companynr
 41	40
 explain select distinct t2.companynr,t4.companynr from t2,t4 where t2.companynr=t4.companynr+1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t4	NULL	index	NULL	PRIMARY	1	NULL	#	#	Using index; Using temporary
+1	SIMPLE	t4	NULL	index	NULL	companyname	120	NULL	#	#	Using index; Using temporary
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	#	#	Using where; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`companynr` AS `companynr`,`test`.`t4`.`companynr` AS `companynr` from `test`.`t2` join `test`.`t4` where (`test`.`t2`.`companynr` = (`test`.`t4`.`companynr` + 1))
@@ -1617,14 +1617,14 @@ companynr	count(price)	sum(price)	min(price)	max(price)	avg(price)
 512	4181	3288532102	786542	786542	786542.0000
 select distinct mod(companynr,10) from t4 group by companynr;
 mod(companynr,10)
-0
 9
+8
+0
 4
 6
 7
 1
 3
-8
 5
 select distinct 1 from t4 group by companynr;
 1
@@ -1746,6 +1746,8 @@ spates	4181
 select companynr|0,companyname from t4 group by 1;
 companynr|0	companyname
 29	company 1
+68	company 10
+50	company 11
 34	company 2
 36	company 3
 37	company 4
@@ -1754,8 +1756,6 @@ companynr|0	companyname
 53	company 7
 58	company 8
 65	company 9
-68	company 10
-50	company 11
 0	Unknown
 select t2.companynr,companyname,count(*) from t2,t4 where t2.companynr=t4.companynr group by t2.companynr order by companyname;
 companynr	companyname	count(*)
@@ -2170,8 +2170,6 @@ t2	0	fld1	1	fld1	A	#	NULL	NULL		BTREE			YES
 t2	1	fld3	1	fld3	A	#	NULL	NULL		BTREE			YES
 drop table t4, t3, t2, t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 cont_nr int(11) NOT NULL auto_increment,
 ver_nr int(11) NOT NULL default '0',
@@ -2220,7 +2218,7 @@ KEY prov_hdl_nr(prov_hdl_nr),
 KEY mcbs_aufnr(mcbs_aufnr),
 KEY kundentyp(kundentyp),
 KEY p_nr(p_nr,suffix)
-) ENGINE=MyISAM;
+);
 SET sql_mode = default;
 INSERT INTO t1 VALUES (3359356,405,3359356,'Mustermann Musterfrau',52500,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1485525,2122316,'+','','N',1909160,'MobilComSuper92000D2',NULL,NULL,'MS9ND2',3,24,'MobilCom Shop Koeln',52500,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');
 INSERT INTO t1 VALUES (3359357,468,3359357,'Mustermann Musterfrau',7001,'2000-05-20','workflow','Auftrag erledigt','Originalvertrag eingegangen und geprüft','','privat',1503580,2139699,'+','','P',1909171,'MobilComSuper9D1T10SFreisprech(Akquise)',NULL,NULL,'MS9NS1',327,24,'MobilCom Intern',7003,NULL,'auto',20010202105916,'Mobilfunk','PP','','','');

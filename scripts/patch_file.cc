@@ -39,64 +39,53 @@
  * When reading files native new line are accepted but LF is used on output.
  */
 
-#include<fstream>
-#include<iostream>
-#include<string>
+#include <fstream>
+#include <iostream>
+#include <string>
 
-int
-main(int argc, char *argv[])
-{
+int main(int argc, char *argv[]) {
   const std::string input_file(argv[1]);
   std::ifstream input(input_file.c_str());
   const std::string output_file(argv[2]);
   std::ofstream output(output_file.c_str(), std::ofstream::binary);
-  for (int argi = 3; argi < argc; argi ++)
-  {
+  for (int argi = 3; argi < argc; argi++) {
     const std::string patch_file(argv[argi]);
     std::ifstream patch(patch_file.c_str());
     std::string delim;
 
     // First line in patch file is delimiter line
     if (!std::getline(patch, delim))
-      return 1; // Missing initial delimiter line in patch file
+      return 1;  // Missing initial delimiter line in patch file
 
     // Copy all lines before delimiter line from input file
-    for (std::string line; std::getline(input, line) && line != delim; )
-    {
+    for (std::string line; std::getline(input, line) && line != delim;) {
       output << line << std::endl;
     }
     if (!input.good())
-      return 2; // Bad read from input file or delimiter line not found
+      return 2;  // Bad read from input file or delimiter line not found
 
     // Copy all lines from patch file
     output << delim << std::endl;
     delim.clear();
-    for (std::string line; std::getline(patch, line); )
-    {
+    for (std::string line; std::getline(patch, line);) {
       output << line << std::endl;
       // Remember last line as terminating delimiter
       delim = line;
     }
-    if (!patch.eof())
-      return 3; // Bad read from patch file
-    if (delim.empty())
-      return 4; // No or empty terminating delimiter line
+    if (!patch.eof()) return 3;   // Bad read from patch file
+    if (delim.empty()) return 4;  // No or empty terminating delimiter line
 
     // Skip all lines in input file up to the terminating delimiter line
-    for (std::string line; std::getline(input, line) && line != delim; )
-    {
+    for (std::string line; std::getline(input, line) && line != delim;) {
       ;
     }
-    if (!input.good())
-      return 5; // Terminating delimiter not found
+    if (!input.good()) return 5;  // Terminating delimiter not found
   }
   // Copy all lines from input file to the end
-  for (std::string line; std::getline(input, line); )
-  {
+  for (std::string line; std::getline(input, line);) {
     output << line << std::endl;
   }
-  if (!input.eof())
-    return 6; // Bad read from input file
+  if (!input.eof()) return 6;  // Bad read from input file
 
   input.close();
   output.close();

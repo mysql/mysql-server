@@ -36,9 +36,9 @@
 
   If an error is detected, the result will be NullS, the value put
   in val will be 0, and errno will be set to
-	EDOM	if there are no digits
-	ERANGE	if the result would overflow or otherwise fail to lie
-		within the specified bounds.
+        EDOM	if there are no digits
+        ERANGE	if the result would overflow or otherwise fail to lie
+                within the specified bounds.
   Check that the bounds are right for your machine.
   This looks amazingly complicated for what you probably thought was an
   easy task.  Coping with integer overflow and the asymmetric range of
@@ -55,22 +55,22 @@
 #include "m_ctype.h"
 #include "m_string.h"  // IWYU pragma: keep
 
-#define char_val(X) (X >= '0' && X <= '9' ? X-'0' :\
-		     X >= 'A' && X <= 'Z' ? X-'A'+10 :\
-		     X >= 'a' && X <= 'z' ? X-'a'+10 :\
-		     '\177')
+#define char_val(X)                          \
+  (X >= '0' && X <= '9'                      \
+       ? X - '0'                             \
+       : X >= 'A' && X <= 'Z' ? X - 'A' + 10 \
+                              : X >= 'a' && X <= 'z' ? X - 'a' + 10 : '\177')
 
-char *str2int(const char *src, int radix, long int lower,
-	      long int upper, long int *val)
-{
-  int sign;			/* is number negative (+1) or positive (-1) */
-  int n;			/* number of digits yet to be converted */
-  long limit;			/* "largest" possible valid input */
-  long scale;			/* the amount to multiply next digit by */
-  long sofar;			/* the running value */
-  int d;		/* (negative of) next digit */
+char *str2int(const char *src, int radix, long int lower, long int upper,
+              long int *val) {
+  int sign;   /* is number negative (+1) or positive (-1) */
+  int n;      /* number of digits yet to be converted */
+  long limit; /* "largest" possible valid input */
+  long scale; /* the amount to multiply next digit by */
+  long sofar; /* the running value */
+  int d;      /* (negative of) next digit */
   char *start;
-  int digits[32];		/* Room for numbers */
+  int digits[32]; /* Room for numbers */
 
   /*  Make sure *val is sensible in case of error  */
 
@@ -80,7 +80,7 @@ char *str2int(const char *src, int radix, long int lower,
 
 #ifndef DBUG_OFF
   if (radix < 2 || radix > 36) {
-    errno=EDOM;
+    errno = EDOM;
     return NullS;
   }
 #endif
@@ -109,29 +109,32 @@ char *str2int(const char *src, int radix, long int lower,
       converted value (and the scale!) as *negative* numbers,
       so the sign is the opposite of what you might expect.
       */
-  while (my_isspace(&my_charset_latin1,*src)) src++;
+  while (my_isspace(&my_charset_latin1, *src)) src++;
   sign = -1;
-  if (*src == '+') src++; else
-    if (*src == '-') src++, sign = 1;
+  if (*src == '+')
+    src++;
+  else if (*src == '-')
+    src++, sign = 1;
 
   /*  Skip leading zeros so that we never compute a power of radix
       in scale that we won't have a need for.  Otherwise sticking
       enough 0s in front of a number could cause the multiplication
       to overflow when it neededn't.
       */
-  start=(char*) src;
+  start = (char *)src;
   while (*src == '0') src++;
 
   /*  Move over the remaining digits.  We have to convert from left
       to left in order to avoid overflow.  Answer is after last digit.
       */
 
-  for (n = 0; (digits[n]=char_val(*src)) < radix && n < 20; n++,src++) ;
+  for (n = 0; (digits[n] = char_val(*src)) < radix && n < 20; n++, src++)
+    ;
 
   /*  Check that there is at least one digit  */
 
   if (start == src) {
-    errno=EDOM;
+    errno = EDOM;
     return NullS;
   }
 
@@ -148,22 +151,21 @@ char *str2int(const char *src, int radix, long int lower,
       IT IS VITAL that (-|N|)/(-|D|) = |N|/|D|
       */
 
-  for (sofar = 0, scale = -1; --n >= 1;)
-  {
-    if ((long) -(d=digits[n]) < limit) {
-      errno=ERANGE;
+  for (sofar = 0, scale = -1; --n >= 1;) {
+    if ((long)-(d = digits[n]) < limit) {
+      errno = ERANGE;
       return NullS;
     }
-    limit = (limit+d)/radix, sofar += d*scale; scale *= radix;
+    limit = (limit + d) / radix, sofar += d * scale;
+    scale *= radix;
   }
-  if (n == 0)
-  {
-    if ((long) -(d=digits[n]) < limit)		/* get last digit */
+  if (n == 0) {
+    if ((long)-(d = digits[n]) < limit) /* get last digit */
     {
-      errno=ERANGE;
+      errno = ERANGE;
       return NullS;
     }
-    sofar+=d*scale;
+    sofar += d * scale;
   }
 
   /*  Now it might still happen that sofar = -32768 or its equivalent,
@@ -173,20 +175,16 @@ char *str2int(const char *src, int radix, long int lower,
       says generate thus and such a signal on integer overflow...
       But not enough machines can do it *SIGH*.
       */
-  if (sign < 0)
-  {
-    if (sofar < -LONG_MAX || (sofar= -sofar) > upper)
-    {
-      errno=ERANGE;
+  if (sign < 0) {
+    if (sofar < -LONG_MAX || (sofar = -sofar) > upper) {
+      errno = ERANGE;
       return NullS;
     }
-  }
-  else if (sofar < lower)
-  {
-    errno=ERANGE;
+  } else if (sofar < lower) {
+    errno = ERANGE;
     return NullS;
   }
   *val = sofar;
-  errno=0;			/* indicate that all went well */
-  return (char*) src;
+  errno = 0; /* indicate that all went well */
+  return (char *)src;
 }

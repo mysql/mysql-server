@@ -22,9 +22,7 @@
 
 #include "unittest/mytap/tap.h"
 
-int has_feature() {
-  return 0;
-}
+int has_feature() { return 0; }
 
 /*
   In some cases, an entire test file does not make sense because there
@@ -32,8 +30,7 @@ int has_feature() {
   skipped in the following manner.
  */
 int main() {
-  if (!has_feature())
-    skip_all("Example of skipping an entire test");
+  if (!has_feature()) skip_all("Example of skipping an entire test");
   plan(4);
   ok1(1);
   ok1(1);

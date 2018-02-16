@@ -23,7 +23,6 @@
 #ifndef MYSQL_CHECKER_H
 #define MYSQL_CHECKER_H
 
-
 #include "my_inttypes.h"
 #include "my_io.h"
 #include "plugin/keyring/common/keyring_memory.h"
@@ -34,32 +33,29 @@ namespace keyring {
 
 const std::string keyring_file_version_1_0("Keyring file version:1.0");
 const std::string keyring_file_version_2_0("Keyring file version:2.0");
-const char dummy_digest[]= "01234567890123456789012345678901";
+const char dummy_digest[] = "01234567890123456789012345678901";
 
-class Checker : public keyring::Keyring_alloc
-{
-public:
-  Checker(std::string file_version) :
-    file_version(file_version)
-  {}
+class Checker : public keyring::Keyring_alloc {
+ public:
+  Checker(std::string file_version) : file_version(file_version) {}
   virtual ~Checker() {}
   virtual bool check_file_structure(File file, size_t file_size, Digest *dgst);
 
   static const my_off_t EOF_TAG_SIZE;
   static const std::string eofTAG;
 
-protected:
+ protected:
   virtual bool is_empty_file_correct(Digest *digest);
-  virtual bool is_file_size_correct(size_t file_size)= 0;
+  virtual bool is_file_size_correct(size_t file_size) = 0;
   virtual bool is_file_tag_correct(File file);
   virtual bool is_file_version_correct(File file);
-  virtual bool is_dgst_correct(File file, Digest *dgst)= 0;
+  virtual bool is_dgst_correct(File file, Digest *dgst) = 0;
 
-  virtual bool file_seek_to_tag(File file)= 0;
+  virtual bool file_seek_to_tag(File file) = 0;
 
   std::string file_version;
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_CHECKER_H
+#endif  // MYSQL_CHECKER_H

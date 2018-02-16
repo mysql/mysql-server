@@ -31,85 +31,72 @@
 #include "print_version.h"
 #include "welcome_copyright_notice.h"
 
-static void usage()
-{
+static void usage() {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2015"));
-  puts("Decompress data compressed by mysqlpump using lz4 compression "
-    "algorithm by reading from input file and writing uncompressed "
-    "data to output file");
+  puts(
+      "Decompress data compressed by mysqlpump using lz4 compression "
+      "algorithm by reading from input file and writing uncompressed "
+      "data to output file");
   printf("Usage: %s input_file output_file\n", "lz4_decompress");
 }
 
-static const int INPUT_BUFFER_SIZE= 1024 * 1024;
-static const int OUTPUT_BUFFER_SIZE= 1024 * 1024;
+static const int INPUT_BUFFER_SIZE = 1024 * 1024;
+static const int OUTPUT_BUFFER_SIZE = 1024 * 1024;
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   MY_INIT(argv[0]);
-  if (argc != 3)
-  {
+  if (argc != 3) {
     usage();
     exit(1);
   }
-  FILE* input_file= fopen(argv[1], "rb");
-  FILE* output_file= fopen(argv[2], "wb");
-  if (input_file == NULL)
-  {
+  FILE *input_file = fopen(argv[1], "rb");
+  FILE *output_file = fopen(argv[2], "wb");
+  if (input_file == NULL) {
     fprintf(stderr,
-      "lz4_decompress: [Error] Cannot open input file for reading.\n"
-      );
+            "lz4_decompress: [Error] Cannot open input file for reading.\n");
     exit(1);
   }
-  if (output_file == NULL)
-  {
-    fprintf(stderr,
-      "lz4_decompress: [Error] Cannot create output file.\n"
-      );
+  if (output_file == NULL) {
+    fprintf(stderr, "lz4_decompress: [Error] Cannot create output file.\n");
     exit(1);
   }
   LZ4F_decompressionContext_t decompression_context;
   LZ4F_createDecompressionContext(&decompression_context, LZ4F_VERSION);
-  char* input_buffer= new char[INPUT_BUFFER_SIZE];
-  char* output_buffer= new char[OUTPUT_BUFFER_SIZE];
-  bool is_eof= false;
+  char *input_buffer = new char[INPUT_BUFFER_SIZE];
+  char *output_buffer = new char[OUTPUT_BUFFER_SIZE];
+  bool is_eof = false;
 
-  while (!is_eof)
-  {
-    int bytes_read= fread(input_buffer, 1, INPUT_BUFFER_SIZE, input_file);
+  while (!is_eof) {
+    int bytes_read = fread(input_buffer, 1, INPUT_BUFFER_SIZE, input_file);
 
-    if (bytes_read < INPUT_BUFFER_SIZE)
-    {
-      is_eof= feof(input_file);
-      if (!is_eof)
-      {
+    if (bytes_read < INPUT_BUFFER_SIZE) {
+      is_eof = feof(input_file);
+      if (!is_eof) {
         fprintf(stderr,
-          "lz4_decompress: [Error] Encountered problem during reading input.\n"
-          );
+                "lz4_decompress: [Error] Encountered problem during reading "
+                "input.\n");
         exit(1);
       }
     }
 
-    size_t bytes_processed= 0;
+    size_t bytes_processed = 0;
 
-    for (;;)
-    {
-      size_t current_bytes_processed= bytes_read - bytes_processed;
-      size_t bytes_to_write= OUTPUT_BUFFER_SIZE;
-      size_t result= LZ4F_decompress(decompression_context, output_buffer,
-        &bytes_to_write, input_buffer + bytes_processed,
-        &current_bytes_processed, NULL);
-      if (LZ4F_isError(result))
-      {
+    for (;;) {
+      size_t current_bytes_processed = bytes_read - bytes_processed;
+      size_t bytes_to_write = OUTPUT_BUFFER_SIZE;
+      size_t result = LZ4F_decompress(
+          decompression_context, output_buffer, &bytes_to_write,
+          input_buffer + bytes_processed, &current_bytes_processed, NULL);
+      if (LZ4F_isError(result)) {
         fprintf(stderr,
-          "lz4_decompress: [Error] Encountered problem during decompression.\n"
-          );
+                "lz4_decompress: [Error] Encountered problem during "
+                "decompression.\n");
         exit(1);
       }
-      bytes_processed+= current_bytes_processed;
+      bytes_processed += current_bytes_processed;
 
-      if (bytes_to_write == 0)
-        break;
+      if (bytes_to_write == 0) break;
 
       fwrite(output_buffer, 1, bytes_to_write, output_file);
     }

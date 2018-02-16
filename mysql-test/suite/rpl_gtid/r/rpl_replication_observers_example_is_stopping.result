@@ -7,6 +7,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 ############################################################
 # 1. Install the plug-in and add error suppressions on slave
+[connection master]
+SET SESSION sql_log_bin= 0;
+CALL mtr.add_suppression(".*Cannot replicate.*purged required binary logs.*");
+SET SESSION sql_log_bin= 1;
 [connection slave]
 SET SESSION sql_log_bin= 0;
 CALL mtr.add_suppression("Table 't1' already exists");

@@ -39,11 +39,10 @@
 
 namespace keyring {
 
-class Buffered_file_io : public IKeyring_io
-{
-public:
+class Buffered_file_io : public IKeyring_io {
+ public:
   Buffered_file_io(ILogger *logger,
-                   std::vector<std::string> *allowedFileVersionsToInit=NULL);
+                   std::vector<std::string> *allowedFileVersionsToInit = NULL);
 
   ~Buffered_file_io();
 
@@ -52,24 +51,24 @@ public:
   bool flush_to_backup(ISerialized_object *serialized_object);
   bool flush_to_storage(ISerialized_object *serialized_object);
 
-  ISerializer* get_serializer();
+  ISerializer *get_serializer();
   bool get_serialized_object(ISerialized_object **serialized_object);
   bool has_next_serialized_object();
 
-protected:
+ protected:
   virtual bool remove_backup(myf myFlags);
   Buffer buffer;
   Digest digest;
   size_t memory_needed_for_buffer;
-private:
+
+ private:
   bool recreate_keyring_from_backup_if_backup_exists();
 
-  std::string* get_backup_filename();
+  std::string *get_backup_filename();
   bool open_backup_file(File *backup_file);
   bool load_file_into_buffer(File file, Buffer *buffer);
   bool flush_buffer_to_storage(Buffer *buffer, File file);
-  bool flush_buffer_to_file(Buffer *buffer, Digest *buffer_digest,
-                            File file);
+  bool flush_buffer_to_file(Buffer *buffer, Digest *buffer_digest, File file);
   bool check_keyring_file_structure(File keyring_file);
   bool check_file_structure(File file, size_t file_size);
   bool check_if_keyring_file_can_be_opened_or_created();
@@ -79,12 +78,12 @@ private:
   const std::string file_version;
   ILogger *logger;
   Hash_to_buffer_serializer hash_to_buffer_serializer;
-  std::vector<Checker*> checkers;
+  std::vector<Checker *> checkers;
   CheckerFactory checker_factory;
   File_io file_io;
   File keyring_file;
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //BUFFEREDFILEIO_INCLUDED
+#endif  // BUFFEREDFILEIO_INCLUDED

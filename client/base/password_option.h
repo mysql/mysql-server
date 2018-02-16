@@ -31,18 +31,17 @@
 #include "my_getopt.h"
 #include "nullable.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   String value option to handle passwords. Removes password from command line
   on UNIX systems to prevent password to be seen when listing processes.
  */
-class Password_option : public Abstract_string_option<Password_option>
-{
-public:
+class Password_option : public Abstract_string_option<Password_option> {
+ public:
   /**
     Constructs new password option.
     @param value Pointer to string object to receive option value.
@@ -50,16 +49,16 @@ public:
       --name.
     @param description Description of option to be printed in --help.
    */
-  Password_option(
-    Nullable<std::string>* value, std::string name, std::string description);
+  Password_option(Nullable<std::string> *value, std::string name,
+                  std::string description);
 
-private:
-  void password_callback(char*);
+ private:
+  void password_callback(char *);
 };
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

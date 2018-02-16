@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,54 +36,38 @@
 
 namespace my_regex_unittest {
 
-const int NSUBS= 10;
+const int NSUBS = 10;
 
-class RegexTest : public ::testing::Test
-{
-protected:
-  RegexTest()
-  {
-    memset(&re, 0, sizeof(re));
-  }
-  static void TearDownTestCase()
-  {
-    my_regex_end();
-  }
+class RegexTest : public ::testing::Test {
+ protected:
+  RegexTest() { memset(&re, 0, sizeof(re)); }
+  static void TearDownTestCase() { my_regex_end(); }
 
   my_regmatch_t subs[NSUBS];
   my_regex_t re;
 };
 
-struct Re_test_data
-{
-  const char* pattern;                          // Column 1 in regex/tests.
-  const int   cflags;                           // Column 2 in regex/tests.
-  const char* input;                            // Column 3 in regex/tests.
+struct Re_test_data {
+  const char *pattern;  // Column 1 in regex/tests.
+  const int cflags;     // Column 2 in regex/tests.
+  const char *input;    // Column 3 in regex/tests.
 };
 
-Re_test_data basic_data[]= 
-{
-  { "a",      MY_REG_BASIC,    "a"   },
-  { "abc",    MY_REG_BASIC,    "abc" },
-  { "abc|de", MY_REG_EXTENDED, "abc" },
-  { "a|b|c",  MY_REG_EXTENDED, "abc" },
-  { NULL, 0, NULL }
-};
+Re_test_data basic_data[] = {{"a", MY_REG_BASIC, "a"},
+                             {"abc", MY_REG_BASIC, "abc"},
+                             {"abc|de", MY_REG_EXTENDED, "abc"},
+                             {"a|b|c", MY_REG_EXTENDED, "abc"},
+                             {NULL, 0, NULL}};
 
-TEST_F(RegexTest, BasicTest)
-{
-  for (int ix=0; basic_data[ix].pattern; ++ix)
-  {
-    EXPECT_EQ(0, my_regcomp(&re,
-                            basic_data[ix].pattern,
-                            basic_data[ix].cflags,
+TEST_F(RegexTest, BasicTest) {
+  for (int ix = 0; basic_data[ix].pattern; ++ix) {
+    EXPECT_EQ(0, my_regcomp(&re, basic_data[ix].pattern, basic_data[ix].cflags,
                             &my_charset_latin1));
 
-    int err= my_regexec(&re, basic_data[ix].input, NSUBS, subs, 0);
-    EXPECT_EQ(0, err)
-      << "my_regexec returned " << err
-      << " for pattern '" << basic_data[ix].pattern << "'"
-      << " with input '" << basic_data[ix].input << "'";
+    int err = my_regexec(&re, basic_data[ix].input, NSUBS, subs, 0);
+    EXPECT_EQ(0, err) << "my_regexec returned " << err << " for pattern '"
+                      << basic_data[ix].pattern << "'"
+                      << " with input '" << basic_data[ix].input << "'";
     my_regfree(&re);
   }
 }
@@ -96,12 +80,11 @@ TEST_F(RegexTest, BasicTest)
   the upstream and end up with a version that isn't patched against a
   potential overflow.
 */
-TEST_F(RegexTest, Bug20642505)
-{
-  my_regex_t  re;
-  char       *pattern;
-  int         err;
-  size_t      len= 684 * 1024 * 1024;
+TEST_F(RegexTest, Bug20642505) {
+  my_regex_t re;
+  char *pattern;
+  int err;
+  size_t len = 684 * 1024 * 1024;
 
   /*
     We're testing on 32-bit/32-bit only. We could test e.g. with
@@ -112,24 +95,22 @@ TEST_F(RegexTest, Bug20642505)
     new_ssize would exceed LONG_MAX at UINT32 / 2.  (64/32 verified
     in debugger.)
   */
-  if ((sizeof(size_t) > 4) || (sizeof(long) > 4))
-    return;
+  if ((sizeof(size_t) > 4) || (sizeof(long) > 4)) return;
 
   /* set up an empty C string as pattern as regcomp() will strlen() this */
-  pattern= (char *) malloc(len);
+  pattern = (char *)malloc(len);
   EXPECT_FALSE(pattern == NULL);
-  memset(pattern, (int) ' ', len);
-  pattern[len - 1]= '\0';
+  memset(pattern, (int)' ', len);
+  pattern[len - 1] = '\0';
 
-  err= my_regcomp(&re, pattern, MY_REG_BASIC,
-                  &my_charset_latin1);
+  err = my_regcomp(&re, pattern, MY_REG_BASIC, &my_charset_latin1);
 
   my_regfree(&re);
   free(pattern);
 
   EXPECT_EQ(err, MY_REG_ESPACE)
-    << "my_regcomp returned " << err
-    << " instead of MY_REG_ESPACE (" << MY_REG_ESPACE << ")";
+      << "my_regcomp returned " << err << " instead of MY_REG_ESPACE ("
+      << MY_REG_ESPACE << ")";
 }
 
-}  // namespace
+}  // namespace my_regex_unittest

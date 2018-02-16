@@ -25,8 +25,8 @@
 #include <new>
 #include <string>
 
-#include "sql/dd/impl/raw/object_keys.h"  // dd::Parent_id_range_key
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/raw/object_keys.h"       // dd::Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/mysqld.h"
 #include "sql/stateless_allocator.h"
@@ -36,33 +36,28 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-const View_routine_usage &View_routine_usage::instance()
-{
-  static View_routine_usage *s_instance= new (std::nothrow)View_routine_usage();
+const View_routine_usage &View_routine_usage::instance() {
+  static View_routine_usage *s_instance =
+      new (std::nothrow) View_routine_usage();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-View_routine_usage::View_routine_usage()
-{
+View_routine_usage::View_routine_usage() {
   m_target_def.set_table_name("view_routine_usage");
 
-  m_target_def.add_field(FIELD_VIEW_ID,
-                         "FIELD_VIEW_ID",
+  m_target_def.add_field(FIELD_VIEW_ID, "FIELD_VIEW_ID",
                          "view_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_ROUTINE_CATALOG,
-                         "FIELD_ROUTINE_CATALOG",
-                         "routine_catalog VARCHAR(64) NOT NULL COLLATE " +
-                         String_type(Object_table_definition_impl::
-                                     fs_name_collation()->name));
-  m_target_def.add_field(FIELD_ROUTINE_SCHEMA,
-                         "FIELD_ROUTINE_SCHEMA",
-                         "routine_schema VARCHAR(64) NOT NULL COLLATE " +
-                         String_type(Object_table_definition_impl::
-                                     fs_name_collation()->name));
-  m_target_def.add_field(FIELD_ROUTINE_NAME,
-                         "FIELD_ROUTINE_NAME",
+  m_target_def.add_field(
+      FIELD_ROUTINE_CATALOG, "FIELD_ROUTINE_CATALOG",
+      "routine_catalog VARCHAR(64) NOT NULL COLLATE " +
+          String_type(Object_table_definition_impl::fs_name_collation()->name));
+  m_target_def.add_field(
+      FIELD_ROUTINE_SCHEMA, "FIELD_ROUTINE_SCHEMA",
+      "routine_schema VARCHAR(64) NOT NULL COLLATE " +
+          String_type(Object_table_definition_impl::fs_name_collation()->name));
+  m_target_def.add_field(FIELD_ROUTINE_NAME, "FIELD_ROUTINE_NAME",
                          "routine_name VARCHAR(64) NOT NULL COLLATE "
                          " utf8_general_ci");
 
@@ -75,59 +70,41 @@ View_routine_usage::View_routine_usage()
                          "KEY (routine_catalog, routine_schema, "
                          "routine_name)");
 
-  m_target_def.add_foreign_key(FK_VIEW_ID,
-                               "FK_VIEW_ID",
+  m_target_def.add_foreign_key(FK_VIEW_ID, "FK_VIEW_ID",
                                "FOREIGN KEY (view_id) REFERENCES "
                                "tables(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *View_routine_usage::create_key_by_view_id(
-  Object_id view_id)
-{
+Object_key *View_routine_usage::create_key_by_view_id(Object_id view_id) {
   return new (std::nothrow) Parent_id_range_key(
-          INDEX_PK_VIEW_ID_ROUTINE_CATALOG, FIELD_VIEW_ID, view_id);
+      INDEX_PK_VIEW_ID_ROUTINE_CATALOG, FIELD_VIEW_ID, view_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *View_routine_usage::create_primary_key(
-  Object_id view_id,
-  const String_type &routine_catalog,
-  const String_type &routine_schema,
-  const String_type &routine_name)
-{
+    Object_id view_id, const String_type &routine_catalog,
+    const String_type &routine_schema, const String_type &routine_name) {
   return new (std::nothrow) Composite_obj_id_3char_key(
-          INDEX_PK_VIEW_ID_ROUTINE_CATALOG,
-          FIELD_VIEW_ID,
-          view_id,
-          FIELD_ROUTINE_CATALOG,
-          routine_catalog,
-          FIELD_ROUTINE_SCHEMA,
-          routine_schema,
-          FIELD_ROUTINE_NAME,
-          routine_name);
+      INDEX_PK_VIEW_ID_ROUTINE_CATALOG, FIELD_VIEW_ID, view_id,
+      FIELD_ROUTINE_CATALOG, routine_catalog, FIELD_ROUTINE_SCHEMA,
+      routine_schema, FIELD_ROUTINE_NAME, routine_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *View_routine_usage::create_key_by_name(
-  const String_type &routine_catalog,
-  const String_type &routine_schema,
-  const String_type &routine_name)
-{
+    const String_type &routine_catalog, const String_type &routine_schema,
+    const String_type &routine_name) {
   return new (std::nothrow) Table_reference_range_key(
-          INDEX_K_ROUTINE_CATALOG_ROUTINE_SCHEMA_ROUTINE_NAME,
-          FIELD_ROUTINE_CATALOG,
-          routine_catalog,
-          FIELD_ROUTINE_SCHEMA,
-          routine_schema,
-          FIELD_ROUTINE_NAME,
-          routine_name);
+      INDEX_K_ROUTINE_CATALOG_ROUTINE_SCHEMA_ROUTINE_NAME,
+      FIELD_ROUTINE_CATALOG, routine_catalog, FIELD_ROUTINE_SCHEMA,
+      routine_schema, FIELD_ROUTINE_NAME, routine_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

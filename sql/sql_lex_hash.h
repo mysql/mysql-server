@@ -30,16 +30,14 @@
 #ifndef SQL_LEX_HASH_INCLUDED
 #define SQL_LEX_HASH_INCLUDED
 
-class Lex_hash
-{
-private:
+class Lex_hash {
+ private:
   const unsigned char *hash_map;
   const unsigned int entry_max_len;
 
-public:
+ public:
   Lex_hash(const unsigned char *hash_map_arg, unsigned int entry_max_len_arg)
-  : hash_map(hash_map_arg), entry_max_len(entry_max_len_arg)
-  {}
+      : hash_map(hash_map_arg), entry_max_len(entry_max_len_arg) {}
 
   const struct SYMBOL *get_hash_symbol(const char *s, unsigned int len) const;
 
@@ -48,6 +46,5 @@ public:
 
   static const Lex_hash hint_keywords;
 };
-
 
 #endif /* SQL_LEX_HASH_INCLUDED */

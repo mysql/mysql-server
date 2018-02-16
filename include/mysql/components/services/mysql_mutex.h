@@ -41,8 +41,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_mutex_v1);
 #define mysql_mutex_destroy_with_src(M, F, L) \
   mysql_service_mysql_mutex_v1->destroy(M, F, L)
 
-#define mysql_mutex_lock(M) \
-  mysql_mutex_lock_with_src(M, __FILE__, __LINE__)
+#define mysql_mutex_lock(M) mysql_mutex_lock_with_src(M, __FILE__, __LINE__)
 #define mysql_mutex_lock_with_src(M, F, L) \
   mysql_service_mysql_mutex_v1->lock(M, F, L)
 
@@ -51,8 +50,7 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_mutex_v1);
 #define mysql_mutex_trylock_with_src(M, F, L) \
   mysql_service_mysql_mutex_v1->trylock(M, F, L)
 
-#define mysql_mutex_unlock(M) \
-  mysql_mutex_unlock_with_src(M, __FILE__, __LINE__)
+#define mysql_mutex_unlock(M) mysql_mutex_unlock_with_src(M, __FILE__, __LINE__)
 #define mysql_mutex_unlock_with_src(M, F, L) \
   mysql_service_mysql_mutex_v1->unlock(M, F, L)
 

@@ -24,11 +24,11 @@
 
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysqld_error.h"                // ER_*
+#include "mysqld_error.h"  // ER_*
 #include "sql/dd/impl/raw/object_keys.h"
-#include "sql/dd/impl/raw/raw_record.h"  // Raw_record
-#include "sql/dd/impl/tables/collations.h" // Collations
-#include "sql/dd/impl/transaction_impl.h" // Open_dictionary_tables_ctx
+#include "sql/dd/impl/raw/raw_record.h"     // Raw_record
+#include "sql/dd/impl/tables/collations.h"  // Collations
+#include "sql/dd/impl/transaction_impl.h"   // Open_dictionary_tables_ctx
 
 using dd::tables::Collations;
 
@@ -38,13 +38,9 @@ namespace dd {
 // Collation_impl implementation.
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation_impl::validate() const
-{
-  if (m_charset_id == INVALID_OBJECT_ID)
-  {
-    my_error(ER_INVALID_DD_OBJECT,
-             MYF(0),
-             DD_table::instance().name().c_str(),
+bool Collation_impl::validate() const {
+  if (m_charset_id == INVALID_OBJECT_ID) {
+    my_error(ER_INVALID_DD_OBJECT, MYF(0), DD_table::instance().name().c_str(),
              "Charset ID is not set");
     return true;
   }
@@ -54,23 +50,21 @@ bool Collation_impl::validate() const
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation_impl::restore_attributes(const Raw_record &r)
-{
+bool Collation_impl::restore_attributes(const Raw_record &r) {
   restore_id(r, Collations::FIELD_ID);
   restore_name(r, Collations::FIELD_NAME);
 
-  m_is_compiled= r.read_bool(Collations::FIELD_IS_COMPILED);
-  m_sort_length= r.read_uint(Collations::FIELD_SORT_LENGTH);
-  m_charset_id= r.read_ref_id(Collations::FIELD_CHARACTER_SET_ID);
-  m_pad_attribute= r.read_str(Collations::FIELD_PAD_ATTRIBUTE);
+  m_is_compiled = r.read_bool(Collations::FIELD_IS_COMPILED);
+  m_sort_length = r.read_uint(Collations::FIELD_SORT_LENGTH);
+  m_charset_id = r.read_ref_id(Collations::FIELD_CHARACTER_SET_ID);
+  m_pad_attribute = r.read_str(Collations::FIELD_PAD_ATTRIBUTE);
 
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation_impl::store_attributes(Raw_record *r)
-{
+bool Collation_impl::store_attributes(Raw_record *r) {
   return store_id(r, Collations::FIELD_ID) ||
          store_name(r, Collations::FIELD_NAME) ||
          r->store_ref_id(Collations::FIELD_CHARACTER_SET_ID, m_charset_id) ||
@@ -81,31 +75,29 @@ bool Collation_impl::store_attributes(Raw_record *r)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation::update_id_key(Id_key *key, Object_id id)
-{
+bool Collation::update_id_key(Id_key *key, Object_id id) {
   key->update(id);
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Collation::update_name_key(Name_key *key, const String_type &name)
-{ return Collations::update_object_key(key, name); }
+bool Collation::update_name_key(Name_key *key, const String_type &name) {
+  return Collations::update_object_key(key, name);
+}
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Object_table &Collation_impl::object_table() const
-{
+const Object_table &Collation_impl::object_table() const {
   return DD_table::instance();
 }
 
-  ///////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////
 
-void Collation_impl::register_tables(Open_dictionary_tables_ctx *otx)
-{
+void Collation_impl::register_tables(Open_dictionary_tables_ctx *otx) {
   otx->add_table<Collations>();
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

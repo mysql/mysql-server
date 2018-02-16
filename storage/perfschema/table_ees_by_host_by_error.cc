@@ -45,121 +45,93 @@
 THR_LOCK table_ees_by_host_by_error::m_table_lock;
 
 Plugin_table table_ees_by_host_by_error::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "events_errors_summary_by_host_by_error",
-  /* Definition */
-  "  HOST CHAR(60) collate utf8_bin default null,\n"
-  "  ERROR_NUMBER INTEGER,\n"
-  "  ERROR_NAME VARCHAR(64),\n"
-  "  SQL_STATE VARCHAR(5),\n"
-  "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
-  "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
-  "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
-  "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
-  "  UNIQUE KEY (host, error_number) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "events_errors_summary_by_host_by_error",
+    /* Definition */
+    "  HOST CHAR(60) collate utf8_bin default null,\n"
+    "  ERROR_NUMBER INTEGER,\n"
+    "  ERROR_NAME VARCHAR(64),\n"
+    "  SQL_STATE VARCHAR(5),\n"
+    "  SUM_ERROR_RAISED  BIGINT unsigned not null,\n"
+    "  SUM_ERROR_HANDLED BIGINT unsigned not null,\n"
+    "  FIRST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  LAST_SEEN TIMESTAMP(0) null default 0,\n"
+    "  UNIQUE KEY (host, error_number) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_ees_by_host_by_error::m_share = {
-  &pfs_truncatable_acl,
-  table_ees_by_host_by_error::create,
-  NULL, /* write_row */
-  table_ees_by_host_by_error::delete_all_rows,
-  table_ees_by_host_by_error::get_row_count,
-  sizeof(pos_ees_by_host_by_error),
-  &m_table_lock,
-  &m_table_def,
-  false, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_truncatable_acl,
+    table_ees_by_host_by_error::create,
+    NULL, /* write_row */
+    table_ees_by_host_by_error::delete_all_rows,
+    table_ees_by_host_by_error::get_row_count,
+    sizeof(pos_ees_by_host_by_error),
+    &m_table_lock,
+    &m_table_def,
+    false, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_ees_by_host_by_error::match(PFS_host *pfs)
-{
-  if (m_fields >= 1)
-  {
-    if (!m_key_1.match(pfs))
-    {
+bool PFS_index_ees_by_host_by_error::match(PFS_host *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(pfs)) {
       return false;
     }
   }
   return true;
 }
 
-bool
-PFS_index_ees_by_host_by_error::match_error_index(uint error_index)
-{
-  if (m_fields >= 2)
-  {
-    if (!m_key_2.match_error_index(error_index))
-    {
+bool PFS_index_ees_by_host_by_error::match_error_index(uint error_index) {
+  if (m_fields >= 2) {
+    if (!m_key_2.match_error_index(error_index)) {
       return false;
     }
   }
   return true;
 }
 
-PFS_engine_table *
-table_ees_by_host_by_error::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_ees_by_host_by_error::create(PFS_engine_table_share *) {
   return new table_ees_by_host_by_error();
 }
 
-int
-table_ees_by_host_by_error::delete_all_rows(void)
-{
+int table_ees_by_host_by_error::delete_all_rows(void) {
   reset_events_errors_by_thread();
   reset_events_errors_by_account();
   reset_events_errors_by_host();
   return 0;
 }
 
-ha_rows
-table_ees_by_host_by_error::get_row_count(void)
-{
+ha_rows table_ees_by_host_by_error::get_row_count(void) {
   return global_host_container.get_row_count() * error_class_max *
          max_server_errors;
 }
 
 table_ees_by_host_by_error::table_ees_by_host_by_error()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
-{
-}
+    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void
-table_ees_by_host_by_error::reset_position(void)
-{
+void table_ees_by_host_by_error::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int
-table_ees_by_host_by_error::rnd_init(bool)
-{
-  return 0;
-}
+int table_ees_by_host_by_error::rnd_init(bool) { return 0; }
 
-int
-table_ees_by_host_by_error::rnd_next(void)
-{
+int table_ees_by_host_by_error::rnd_next(void) {
   PFS_host *host;
   bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL)
-    {
-      for (; m_pos.has_more_error(); m_pos.next_error())
-      {
-        if (!make_row(host, m_pos.m_index_2))
-        {
+    if (host != NULL) {
+      for (; m_pos.has_more_error(); m_pos.next_error()) {
+        if (!make_row(host, m_pos.m_index_2)) {
           m_next_pos.set_after(&m_pos);
           return 0;
         }
@@ -170,20 +142,15 @@ table_ees_by_host_by_error::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_ees_by_host_by_error::rnd_pos(const void *pos)
-{
+int table_ees_by_host_by_error::rnd_pos(const void *pos) {
   PFS_host *host;
 
   set_position(pos);
 
   host = global_host_container.get(m_pos.m_index_1);
-  if (host != NULL)
-  {
-    for (; m_pos.has_more_error(); m_pos.next_error())
-    {
-      if (!make_row(host, m_pos.m_index_2))
-      {
+  if (host != NULL) {
+    for (; m_pos.has_more_error(); m_pos.next_error()) {
+      if (!make_row(host, m_pos.m_index_2)) {
         return 0;
       }
     }
@@ -192,9 +159,8 @@ table_ees_by_host_by_error::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int
-table_ees_by_host_by_error::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
-{
+int table_ees_by_host_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
+                                           bool) {
   PFS_index_ees_by_host_by_error *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_host_by_error);
@@ -203,25 +169,17 @@ table_ees_by_host_by_error::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
   return 0;
 }
 
-int
-table_ees_by_host_by_error::index_next(void)
-{
+int table_ees_by_host_by_error::index_next(void) {
   PFS_host *host;
   bool has_more_host = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_host; m_pos.next_host()) {
     host = global_host_container.get(m_pos.m_index_1, &has_more_host);
-    if (host != NULL)
-    {
-      if (m_opened_index->match(host))
-      {
-        for (; m_pos.has_more_error(); m_pos.next_error())
-        {
-          if (m_opened_index->match_error_index(m_pos.m_index_2))
-          {
-            if (!make_row(host, m_pos.m_index_2))
-            {
+    if (host != NULL) {
+      if (m_opened_index->match(host)) {
+        for (; m_pos.has_more_error(); m_pos.next_error()) {
+          if (m_opened_index->match_error_index(m_pos.m_index_2)) {
+            if (!make_row(host, m_pos.m_index_2)) {
               m_next_pos.set_after(&m_pos);
               return 0;
             }
@@ -234,28 +192,23 @@ table_ees_by_host_by_error::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_ees_by_host_by_error::make_row(PFS_host *host, int error_index)
-{
+int table_ees_by_host_by_error::make_row(PFS_host *host, int error_index) {
   PFS_error_class *klass = &global_error_class;
   pfs_optimistic_state lock;
 
   host->m_lock.begin_optimistic_lock(&lock);
 
-  if (m_row.m_host.make_row(host))
-  {
+  if (m_row.m_host.make_row(host)) {
     return HA_ERR_RECORD_DELETED;
   }
 
   PFS_connection_error_visitor visitor(klass, error_index);
-  PFS_connection_iterator::visit_host(host,
-                                      true,  /* accounts */
-                                      true,  /* threads */
-                                      false, /* THDs */
+  PFS_connection_iterator::visit_host(host, true, /* accounts */
+                                      true,       /* threads */
+                                      false,      /* THDs */
                                       &visitor);
 
-  if (!host->m_lock.end_optimistic_lock(&lock))
-  {
+  if (!host->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
@@ -264,12 +217,9 @@ table_ees_by_host_by_error::make_row(PFS_host *host, int error_index)
   return 0;
 }
 
-int
-table_ees_by_host_by_error::read_row_values(TABLE *table,
-                                            unsigned char *buf,
-                                            Field **fields,
-                                            bool read_all)
-{
+int table_ees_by_host_by_error::read_row_values(TABLE *table,
+                                                unsigned char *buf,
+                                                Field **fields, bool read_all) {
   Field *f;
   server_error *temp_error = NULL;
 
@@ -280,31 +230,28 @@ table_ees_by_host_by_error::read_row_values(TABLE *table,
   if (m_row.m_stat.m_error_index > 0 &&
       m_row.m_stat.m_error_index < PFS_MAX_SERVER_ERRORS)
     temp_error =
-      &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
+        &error_names_array[pfs_to_server_error_map[m_row.m_stat.m_error_index]];
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /* HOST */
-        m_row.m_host.set_field(f);
-        break;
-      case 1: /* ERROR NUMBER */
-      case 2: /* ERROR NAME */
-      case 3: /* SQL_STATE */
-      case 4: /* SUM_ERROR_RAISED */
-      case 5: /* SUM_ERROR_HANDLED */
-      case 6: /* FIRST_SEEN */
-      case 7: /* LAST_SEEN */
-        /** ERROR STATS */
-        m_row.m_stat.set_field(f->field_index - 1, f, temp_error);
-        break;
-      default:
-        /** We should never reach here */
-        DBUG_ASSERT(0);
-        break;
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* HOST */
+          m_row.m_host.set_field(f);
+          break;
+        case 1: /* ERROR NUMBER */
+        case 2: /* ERROR NAME */
+        case 3: /* SQL_STATE */
+        case 4: /* SUM_ERROR_RAISED */
+        case 5: /* SUM_ERROR_HANDLED */
+        case 6: /* FIRST_SEEN */
+        case 7: /* LAST_SEEN */
+          /** ERROR STATS */
+          m_row.m_stat.set_field(f->field_index - 1, f, temp_error);
+          break;
+        default:
+          /** We should never reach here */
+          DBUG_ASSERT(0);
+          break;
       }
     }
   }

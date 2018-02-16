@@ -28,7 +28,7 @@
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/raw_record.h"
 #include "sql/dd/impl/types/entity_object_table_impl.h"
-#include "sql/dd/object_id.h"                           // dd::Object_id
+#include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 
@@ -43,13 +43,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tables : public Entity_object_table_impl
-{
-public:
+class Tables : public Entity_object_table_impl {
+ public:
   static const Tables &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_NAME,
@@ -86,34 +84,25 @@ public:
     FIELD_VIEW_COLUMN_NAMES
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_ENGINE_SE_PRIVATE_ID,
     INDEX_K_ENGINE,
     INDEX_K_COLLATION_ID,
     INDEX_K_TABLESPACE_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_SCHEMA_ID,
-    FK_COLLATION_ID,
-    FK_TABLESPACE_ID
-  };
+  enum enum_foreign_keys { FK_SCHEMA_ID, FK_COLLATION_ID, FK_TABLESPACE_ID };
 
   Tables();
 
-  virtual Abstract_table *create_entity_object(
-    const Raw_record &r) const;
+  virtual Abstract_table *create_entity_object(const Raw_record &r) const;
 
-  static bool update_object_key(Item_name_key *key,
-                                Object_id schema_id,
+  static bool update_object_key(Item_name_key *key, Object_id schema_id,
                                 const String_type &table_name);
 
-  static bool update_aux_key(Se_private_id_key *key,
-                             const String_type &engine,
+  static bool update_aux_key(Se_private_id_key *key, const String_type &engine,
                              ulonglong se_private_id);
 
   static Object_key *create_se_private_key(const String_type &engine,
@@ -128,7 +117,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TABLES_INCLUDED
+#endif  // DD_TABLES__TABLES_INCLUDED

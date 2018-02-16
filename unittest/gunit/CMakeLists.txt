@@ -222,10 +222,6 @@ SET(DISABLE_PSI_OPTIONS
   "-DDISABLE_PSI_STAGE"
   )
 
-IF(SSL_DEFINES)
-  ADD_DEFINITIONS(${SSL_DEFINES})
-ENDIF()
-
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
   SYSTEM ${ICU_INCLUDE_DIRS}
@@ -316,6 +312,7 @@ SET(TESTS
   mysys_my_rdtsc
   mysys_my_symlink
   mysys_my_write
+  mysys_pathfuncs
   nullable
   opt_recperkey
   partitioned_rwlock
@@ -531,3 +528,5 @@ ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)
 ADD_SUBDIRECTORY(xplugin)
+ADD_SUBDIRECTORY(group_replication)
+ADD_SUBDIRECTORY(libmysqlgcs)

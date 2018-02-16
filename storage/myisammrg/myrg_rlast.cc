@@ -25,35 +25,28 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-	/* Read last row with the same key as the previous read. */
+/* Read last row with the same key as the previous read. */
 
-int myrg_rlast(MYRG_INFO *info, uchar *buf, int inx)
-{
+int myrg_rlast(MYRG_INFO *info, uchar *buf, int inx) {
   MYRG_TABLE *table;
   MI_INFO *mi;
   int err;
 
-  if (_myrg_init_queue(info,inx, HA_READ_KEY_OR_PREV))
-    return my_errno();
+  if (_myrg_init_queue(info, inx, HA_READ_KEY_OR_PREV)) return my_errno();
 
-  for (table=info->open_tables ; table < info->end_table ; table++)
-  {
-    if ((err=mi_rlast(table->table,NULL,inx)))
-    {
-      if (err == HA_ERR_END_OF_FILE)
-	continue;
+  for (table = info->open_tables; table < info->end_table; table++) {
+    if ((err = mi_rlast(table->table, NULL, inx))) {
+      if (err == HA_ERR_END_OF_FILE) continue;
       return err;
     }
     /* adding to queue */
-    queue_insert(&(info->by_key),(uchar *)table);
+    queue_insert(&(info->by_key), (uchar *)table);
   }
   /* We have done a read in all tables */
-  info->last_used_table=table;
+  info->last_used_table = table;
 
-  if (!info->by_key.elements)
-    return HA_ERR_END_OF_FILE;
+  if (!info->by_key.elements) return HA_ERR_END_OF_FILE;
 
-  mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-  return _myrg_mi_read_record(mi,buf);
+  mi = (info->current_table = (MYRG_TABLE *)queue_top(&(info->by_key)))->table;
+  return _myrg_mi_read_record(mi, buf);
 }
-

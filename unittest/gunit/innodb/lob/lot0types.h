@@ -26,10 +26,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _lot0types_h_
 #define _lot0types_h_
 
+#include <stdint.h>
+#include <cassert>
 #include <iostream>
 #include <limits>
-#include <cassert>
-#include <stdint.h>
 
 using ulint = unsigned long int;
 using lobid_t = unsigned long int;
@@ -44,24 +44,24 @@ typedef ib_id_t trx_id_t;
 
 const ulint FRAG_ID_NULL = std::numeric_limits<uint16_t>::max();
 const ulint KB1 = 1024;
-const ulint KB2 = 2*1024;
-const ulint KB5 = 5*1024;
-const ulint KB16 = 16*1024;
-const ulint KB64 = 64*1024;
-const ulint KB128 = 128*1024;
-const ulint KB300 = 300*1024;
-const ulint KB500 = 500*1024;
-const ulint MB16 = 16*1024*1024;
-const ulint MB10 = 10*1024*1024;
-const ulint MB1 = 1024*1024;
-const ulint MB2 = 2*MB1;
-const ulint MB3 = 3*MB1;
-const ulint MB4 = 2*MB2;
-const ulint MB5 = 5*1024*1024;
-const ulint MB7 = 7*1024*1024;
-const ulint MB100 = 100*1024*1024;
-const ulint GB1 = 1024*1024*1024*1UL;
-const uint64_t GB4 = 1024*1024*1024*4UL;
+const ulint KB2 = 2 * 1024;
+const ulint KB5 = 5 * 1024;
+const ulint KB16 = 16 * 1024;
+const ulint KB64 = 64 * 1024;
+const ulint KB128 = 128 * 1024;
+const ulint KB300 = 300 * 1024;
+const ulint KB500 = 500 * 1024;
+const ulint MB16 = 16 * 1024 * 1024;
+const ulint MB10 = 10 * 1024 * 1024;
+const ulint MB1 = 1024 * 1024;
+const ulint MB2 = 2 * MB1;
+const ulint MB3 = 3 * MB1;
+const ulint MB4 = 2 * MB2;
+const ulint MB5 = 5 * 1024 * 1024;
+const ulint MB7 = 7 * 1024 * 1024;
+const ulint MB100 = 100 * 1024 * 1024;
+const ulint GB1 = 1024 * 1024 * 1024 * 1UL;
+const uint64_t GB4 = 1024 * 1024 * 1024 * 4UL;
 const ulint FIL_PAGE_DATA = 38U;
 const unsigned int UNIV_PAGE_SIZE = 16384; /* 16KB */
 constexpr page_no_t FIL_NULL = std::numeric_limits<page_no_t>::max();
@@ -77,14 +77,14 @@ constexpr page_no_t FIL_NULL = std::numeric_limits<page_no_t>::max();
 #define FIL_PAGE_DATA 38U
 
 /** The bitmask of 32-bit unsigned integer */
-#define ULINT32_MASK            0xFFFFFFFF
+#define ULINT32_MASK 0xFFFFFFFF
 
-#define FIL_ADDR_SIZE   6       /* address size is 6 bytes */
+#define FIL_ADDR_SIZE 6 /* address size is 6 bytes */
 
 /* The physical size of a list base node in bytes */
-#define FLST_BASE_NODE_SIZE     (4 + 2 * FIL_ADDR_SIZE)
+#define FLST_BASE_NODE_SIZE (4 + 2 * FIL_ADDR_SIZE)
 
 /* The physical size of a list node in bytes */
-#define FLST_NODE_SIZE          (2 * FIL_ADDR_SIZE)
+#define FLST_NODE_SIZE (2 * FIL_ADDR_SIZE)
 
-#endif // _lot0types_h_
+#endif  // _lot0types_h_

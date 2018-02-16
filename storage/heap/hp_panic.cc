@@ -23,40 +23,35 @@
 #include "my_dbug.h"
 #include "storage/heap/heapdef.h"
 
-	/* if flag == HA_PANIC_CLOSE then all files are removed for more
-	   memory */
+/* if flag == HA_PANIC_CLOSE then all files are removed for more
+   memory */
 
-int hp_panic(enum ha_panic_function flag)
-{
-  LIST *element,*next_open;
+int hp_panic(enum ha_panic_function flag) {
+  LIST *element, *next_open;
   DBUG_ENTER("hp_panic");
 
   mysql_mutex_lock(&THR_LOCK_heap);
-  for (element=heap_open_list ; element ; element=next_open)
-  {
-    HP_INFO *info=(HP_INFO*) element->data;
-    next_open=element->next;	/* Save if close */
+  for (element = heap_open_list; element; element = next_open) {
+    HP_INFO *info = (HP_INFO *)element->data;
+    next_open = element->next; /* Save if close */
     switch (flag) {
-    case HA_PANIC_CLOSE:
-      hp_close(info);
-      break;
-    default:
-      break;
+      case HA_PANIC_CLOSE:
+        hp_close(info);
+        break;
+      default:
+        break;
     }
   }
-  for (element=heap_share_list ; element ; element=next_open)
-  {
-    HP_SHARE *share=(HP_SHARE*) element->data;
-    next_open=element->next;	/* Save if close */
+  for (element = heap_share_list; element; element = next_open) {
+    HP_SHARE *share = (HP_SHARE *)element->data;
+    next_open = element->next; /* Save if close */
     switch (flag) {
-    case HA_PANIC_CLOSE:
-    {
-      if (!share->open_count)
-	hp_free(share);
-      break;
-    }
-    default:
-      break;
+      case HA_PANIC_CLOSE: {
+        if (!share->open_count) hp_free(share);
+        break;
+      }
+      default:
+        break;
     }
   }
   mysql_mutex_unlock(&THR_LOCK_heap);

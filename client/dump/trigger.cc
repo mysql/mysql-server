@@ -26,14 +26,11 @@
 
 using namespace Mysql::Tools::Dump;
 
-Trigger::Trigger(uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition, const Table* defined_table)
-  : Abstract_plain_sql_object_dump_task(id, name, schema,
-    sql_formatted_definition),
-    m_defined_table(defined_table)
-{}
+Trigger::Trigger(uint64 id, const std::string &name, const std::string &schema,
+                 const std::string &sql_formatted_definition,
+                 const Table *defined_table)
+    : Abstract_plain_sql_object_dump_task(id, name, schema,
+                                          sql_formatted_definition),
+      m_defined_table(defined_table) {}
 
-const Table* Trigger::get_defined_table()
-{
-  return m_defined_table;
-}
+const Table *Trigger::get_defined_table() { return m_defined_table; }

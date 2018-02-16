@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,280 +24,246 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file clone/clone0apply.cc
-Innodb apply snapshot data
+/** @file clone/clone0apply.cc
+ Innodb apply snapshot data
 
-*******************************************************/
+ *******************************************************/
 
-#include "handler.h"
 #include "clone0clone.h"
+#include "handler.h"
 #include "log0log.h"
 
 /** Add file metadata entry at destination
 @param[in,out]	file_desc	if there, set to current descriptor
 @param[in]	data_dir	destination data directory
 @return error code */
-dberr_t
-Clone_Snapshot::add_file_from_desc(
-	Clone_File_Meta*&	file_desc,
-	const char*	data_dir)
-{
-	uint		idx;
-	idx = file_desc->m_file_index;
+dberr_t Clone_Snapshot::add_file_from_desc(Clone_File_Meta *&file_desc,
+                                           const char *data_dir) {
+  uint idx;
+  idx = file_desc->m_file_index;
 
-	ut_ad(m_snapshot_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_snapshot_handle_type == CLONE_HDL_APPLY);
 
-	ut_ad(m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY
-	      || m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
+  ut_ad(m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY ||
+        m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
 
-	Clone_File_Vec&	file_vector =
-		(m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY)
-		? m_data_file_vector : m_redo_file_vector;
+  Clone_File_Vec &file_vector = (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY)
+                                    ? m_data_file_vector
+                                    : m_redo_file_vector;
 
-	/* File metadata is already there, possibly sent by another task. */
-	if (file_vector[idx] != nullptr) {
+  /* File metadata is already there, possibly sent by another task. */
+  if (file_vector[idx] != nullptr) {
+    file_desc = file_vector[idx];
+    return (DB_DUPLICATE_KEY);
+  }
 
-		file_desc = file_vector[idx];
-		return(DB_DUPLICATE_KEY);
-	}
+  /* Build complete path for the new file to be added. */
+  Clone_File_Meta *file_meta;
+  char *ptr;
 
-	/* Build complete path for the new file to be added. */
-	Clone_File_Meta*  file_meta;
-	char*		ptr;
+  ulint alloc_size;
+  size_t dir_len;
+  size_t name_len;
 
-	ulint		alloc_size;
-	size_t		dir_len;
-	size_t		name_len;
+  dir_len = strlen(data_dir);
 
-	dir_len = strlen(data_dir);
+  name_len = (file_desc->m_file_name == nullptr) ? MAX_LOG_FILE_NAME
+                                                 : file_desc->m_file_name_len;
 
-	name_len = (file_desc->m_file_name == nullptr)
-		   ? MAX_LOG_FILE_NAME
-		   : file_desc->m_file_name_len;
+  alloc_size = dir_len + 1 + name_len;
+  alloc_size += sizeof(Clone_File_Meta);
 
-	alloc_size = dir_len + 1 + name_len;
-	alloc_size += sizeof(Clone_File_Meta);
+  ptr = static_cast<char *>(mem_heap_alloc(m_snapshot_heap, alloc_size));
 
-	ptr = static_cast<char*>(mem_heap_alloc(m_snapshot_heap, alloc_size));
+  if (ptr == nullptr) {
+    my_error(ER_OUTOFMEMORY, MYF(0), alloc_size);
+    return (DB_OUT_OF_MEMORY);
+  }
 
-	if (ptr == nullptr) {
+  file_meta = reinterpret_cast<Clone_File_Meta *>(ptr);
+  *file_meta = *file_desc;
 
-		my_error(ER_OUTOFMEMORY, MYF(0), alloc_size);
-		return(DB_OUT_OF_MEMORY);
-	}
+  ptr += sizeof(Clone_File_Meta);
+  name_len = 0;
 
-	file_meta = reinterpret_cast<Clone_File_Meta*>(ptr);
-	*file_meta = *file_desc;
+  strcpy(ptr, data_dir);
 
-	ptr += sizeof(Clone_File_Meta);
-	name_len = 0;
+  file_meta->m_file_name = static_cast<const char *>(ptr);
 
-	strcpy(ptr, data_dir);
+  /* Add path separator at the end of data directory if not there. */
+  if (ptr[dir_len - 1] != OS_PATH_SEPARATOR) {
+    ptr[dir_len] = OS_PATH_SEPARATOR;
+    ptr++;
+    name_len++;
+  }
+  ptr += dir_len;
+  name_len += dir_len;
 
-	file_meta->m_file_name = static_cast<const char*>(ptr);
+  std::string name;
+  char name_buf[MAX_LOG_FILE_NAME];
 
-	/* Add path separator at the end of data directory if not there. */
-	if (ptr[dir_len - 1] != OS_PATH_SEPARATOR) {
+  if (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY) {
+    name.assign(file_desc->m_file_name);
 
-		ptr[dir_len] = OS_PATH_SEPARATOR;
-		ptr++;
-		name_len++;
-	}
-	ptr += dir_len;
-	name_len += dir_len;
+    /* For absolute path, we must ensure that the file is not
+    present. This would always fail for local clone. */
+    if (Fil_path::is_absolute_path(name)) {
+      auto type = Fil_path::get_file_type(name);
 
-	std::string	name;
-	char		name_buf[MAX_LOG_FILE_NAME];
+      if (type != OS_FILE_TYPE_MISSING) {
+        if (type == OS_FILE_TYPE_FILE) {
+          my_error(ER_FILE_EXISTS_ERROR, MYF(0), name.c_str());
 
-	if (m_snapshot_state == CLONE_SNAPSHOT_FILE_COPY) {
+          return (DB_TABLESPACE_EXISTS);
+        } else {
+          /* Either the stat() call failed or
+          the name is a directory/block device,
+          or permission error etc. */
 
-		name.assign(file_desc->m_file_name);
+          my_error(ER_INTERNAL_ERROR, MYF(0), name.c_str());
 
-		/* For absolute path, we must ensure that the file is not
-		present. This would always fail for local clone. */
-		if (Fil_path::is_absolute_path(name)) {
+          return (DB_ERROR);
+        }
+      }
 
-			auto	type = Fil_path::get_file_type(name);
+    } else if (Fil_path::has_prefix(name, Fil_path::DOT_SLASH)) {
+      name.erase(0, 2);
+    }
+  } else {
+    ut_ad(m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
 
-			if (type != OS_FILE_TYPE_MISSING) {
+    /* This is redo file. Use standard name. */
+    snprintf(name_buf, MAX_LOG_FILE_NAME, "%s%u", ib_logfile_basename, idx);
 
-				if (type == OS_FILE_TYPE_FILE) {
+    name.assign(name_buf);
+  }
 
-					my_error(ER_FILE_EXISTS_ERROR, MYF(0),
-						 name.c_str());
+  strcpy(ptr, name.c_str());
 
-					return(DB_TABLESPACE_EXISTS);
-				} else {
+  name_len += name.length();
 
-					/* Either the stat() call failed or
-					the name is a directory/block device,
-					or permission error etc. */
+  ++name_len;
 
-					my_error(ER_INTERNAL_ERROR, MYF(0),
-						 name.c_str());
+  file_meta->m_file_name_len = name_len;
 
-					return(DB_ERROR);
-				}
-			}
+  file_vector[idx] = file_meta;
 
-		} else if (Fil_path::has_prefix(name, Fil_path::DOT_SLASH)) {
+  file_desc = file_meta;
 
-			name.erase(0, 2);
-		}
-	} else {
-
-		ut_ad(m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY);
-
-		/* This is redo file. Use standard name. */
-		snprintf(name_buf, MAX_LOG_FILE_NAME, "%s%u",
-			 ib_logfile_basename, idx);
-
-		name.assign(name_buf);
-	}
-
-	strcpy(ptr, name.c_str());
-
-	name_len += name.length();
-
-	++name_len;
-
-	file_meta->m_file_name_len = name_len;
-
-	file_vector[idx] = file_meta;
-
-	file_desc = file_meta;
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 /** Create apply task based on task metadata in callback
 @param[in]	callback	callback interface
 @return error code */
-dberr_t
-Clone_Handle::apply_task_metadata(
-	Ha_clone_cbk*	callback)
-{
-	byte*			serial_desc;
-	Clone_Desc_Task_Meta	task_desc;
+dberr_t Clone_Handle::apply_task_metadata(Ha_clone_cbk *callback) {
+  byte *serial_desc;
+  Clone_Desc_Task_Meta task_desc;
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	serial_desc = callback->get_data_desc(nullptr);
+  serial_desc = callback->get_data_desc(nullptr);
 
-	task_desc.deserialize(serial_desc);
+  task_desc.deserialize(serial_desc);
 
-	m_clone_task_manager.set_task(&task_desc.m_task_meta);
+  m_clone_task_manager.set_task(&task_desc.m_task_meta);
 
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 /** Move to next state based on state metadata and set state information
 @param[in]	callback	callback interface
 @return error code */
-dberr_t
-Clone_Handle::apply_state_metadata(
-	Ha_clone_cbk*	callback)
-{
-	dberr_t		err;
-	byte*		serial_desc;
-	uint		task_idx;
-	Clone_Task*	task;
+dberr_t Clone_Handle::apply_state_metadata(Ha_clone_cbk *callback) {
+  dberr_t err;
+  byte *serial_desc;
+  uint task_idx;
+  Clone_Task *task;
 
-	Clone_Desc_State	state_desc;
-	Clone_Snapshot*		snapshot;
+  Clone_Desc_State state_desc;
+  Clone_Snapshot *snapshot;
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	serial_desc = callback->get_data_desc(nullptr);
-	state_desc.deserialize(serial_desc);
+  serial_desc = callback->get_data_desc(nullptr);
+  state_desc.deserialize(serial_desc);
 
-	snapshot = m_clone_task_manager.get_snapshot();
+  snapshot = m_clone_task_manager.get_snapshot();
 
-	/* Get task by index in descriptor. */
-	task_idx = state_desc.m_task_index;
-	task = m_clone_task_manager.get_task_by_index(task_idx);
+  /* Get task by index in descriptor. */
+  task_idx = state_desc.m_task_index;
+  task = m_clone_task_manager.get_task_by_index(task_idx);
 
-	/* Close file in current state. */
-	err = close_file(task);
+  /* Close file in current state. */
+  err = close_file(task);
 
-	if (err != DB_SUCCESS) {
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
-		return(err);
-	}
+  err = move_to_next_state(task, state_desc.m_state);
 
-	err = move_to_next_state(task, state_desc.m_state);
+  if (err != DB_SUCCESS) {
+    return (err);
+  }
 
-	if (err != DB_SUCCESS) {
+  snapshot->set_state_info(&state_desc);
 
-		return(err);
-	}
-
-	snapshot->set_state_info(&state_desc);
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }
 
 /** Create file metadata based on callback
 @param[in]	callback	callback interface
 @return error code */
-dberr_t
-Clone_Handle::apply_file_metadata(
-	Ha_clone_cbk*	callback)
-{
-	dberr_t				err = DB_SUCCESS;
-	byte*				serial_desc;
-	Clone_Desc_File_MetaData	file_desc;
-	Clone_File_Meta*		file_meta;
+dberr_t Clone_Handle::apply_file_metadata(Ha_clone_cbk *callback) {
+  dberr_t err = DB_SUCCESS;
+  byte *serial_desc;
+  Clone_Desc_File_MetaData file_desc;
+  Clone_File_Meta *file_meta;
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	serial_desc = callback->get_data_desc(nullptr);
+  serial_desc = callback->get_data_desc(nullptr);
 
-	file_desc.deserialize(serial_desc);
-	file_meta = &file_desc.m_file_meta;
+  file_desc.deserialize(serial_desc);
+  file_meta = &file_desc.m_file_meta;
 
-	Clone_Snapshot*	snapshot;
-	snapshot = m_clone_task_manager.get_snapshot();
+  Clone_Snapshot *snapshot;
+  snapshot = m_clone_task_manager.get_snapshot();
 
-	ut_ad(snapshot->get_state() == file_desc.m_state);
+  ut_ad(snapshot->get_state() == file_desc.m_state);
 
-	/* Add file metadata entry based on the descriptor. */
-	err = snapshot->add_file_from_desc(file_meta, m_clone_dir);
+  /* Add file metadata entry based on the descriptor. */
+  err = snapshot->add_file_from_desc(file_meta, m_clone_dir);
 
-	if (err != DB_SUCCESS && err != DB_DUPLICATE_KEY) {
+  if (err != DB_SUCCESS && err != DB_DUPLICATE_KEY) {
+    return (err);
+  }
 
-		return(err);
-	}
+  if (file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY) {
+    return (DB_SUCCESS);
+  }
 
-	if (file_desc.m_state == CLONE_SNAPSHOT_FILE_COPY) {
+  ut_ad(file_desc.m_state == CLONE_SNAPSHOT_REDO_COPY);
 
-		return(DB_SUCCESS);
-	}
+  /* open and reserve the redo file size */
+  err = open_file(nullptr, file_meta, OS_CLONE_LOG_FILE, true, true);
 
-	ut_ad(file_desc.m_state == CLONE_SNAPSHOT_REDO_COPY);
+  /* For redo copy, add entry for the second file. */
+  if (err == DB_SUCCESS && file_meta->m_file_index == 0) {
+    file_meta = &file_desc.m_file_meta;
+    file_meta->m_file_index++;
 
-	/* open and reserve the redo file size */
-	err = open_file(nullptr, file_meta, OS_CLONE_LOG_FILE, true, true);
+    err = snapshot->add_file_from_desc(file_meta, m_clone_dir);
 
-	/* For redo copy, add entry for the second file. */
-	if (err == DB_SUCCESS && file_meta->m_file_index == 0) {
+    if (err == DB_SUCCESS) {
+      err = open_file(nullptr, file_meta, OS_CLONE_LOG_FILE, true, true);
+    } else if (err == DB_DUPLICATE_KEY) {
+      err = DB_SUCCESS;
+    }
+  }
 
-		file_meta = &file_desc.m_file_meta;
-		file_meta->m_file_index++;
-
-		err = snapshot->add_file_from_desc(file_meta, m_clone_dir);
-
-		if (err == DB_SUCCESS) {
-			err = open_file(nullptr, file_meta, OS_CLONE_LOG_FILE,
-					true, true);
-		} else if (err == DB_DUPLICATE_KEY) {
-
-			err = DB_SUCCESS;
-		}
-	}
-
-	return(err);
+  return (err);
 }
 
 /** Receive data from callback and apply
@@ -307,229 +273,225 @@ Clone_Handle::apply_file_metadata(
 @param[in]	size		data length in bytes
 @param[in]	callback	callback interface
 @return error code */
-dberr_t
-Clone_Handle::receive_data(
-	Clone_Task*	task,
-	uint64_t	offset,
-	uint64_t	file_size,
-	uint32_t	size,
-	Ha_clone_cbk*	callback)
-{
-	dberr_t			err;
-	Clone_Snapshot*		snapshot;
-	Clone_File_Meta*	file_meta;
+dberr_t Clone_Handle::receive_data(Clone_Task *task, uint64_t offset,
+                                   uint64_t file_size, uint32_t size,
+                                   Ha_clone_cbk *callback) {
+  dberr_t err;
+  Clone_Snapshot *snapshot;
+  Clone_File_Meta *file_meta;
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	snapshot = m_clone_task_manager.get_snapshot();
+  snapshot = m_clone_task_manager.get_snapshot();
 
-	file_meta = snapshot->get_file_by_index(task->m_current_file_index);
+  file_meta = snapshot->get_file_by_index(task->m_current_file_index);
 
-	/* Check and update file size for space header page */
-	if (snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY
-	    && offset == 0
-	    && file_meta->m_file_size < file_size) {
+  /* Check and update file size for space header page */
+  if (snapshot->get_state() == CLONE_SNAPSHOT_PAGE_COPY && offset == 0 &&
+      file_meta->m_file_size < file_size) {
+    snapshot->update_file_size(task->m_current_file_index, file_size);
+  }
 
-		file_meta->m_file_size = file_size;
-	}
+  /* Open destination file for first block. */
+  if (task->m_current_file_des.m_file == OS_FILE_CLOSED) {
+    ut_ad(file_meta != nullptr);
 
-	/* Open destination file for first block. */
-	if (task->m_current_file_des.m_file == OS_FILE_CLOSED) {
+    err = open_file(task, file_meta, OS_CLONE_LOG_FILE, true, false);
 
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
+  }
 
-		ut_ad(file_meta != nullptr);
+  /* Copy data to current destination file using callback. */
+  os_file_t file_hdl;
+  bool success;
+  char errbuf[MYSYS_STRERROR_SIZE];
 
-		err = open_file(task, file_meta, OS_CLONE_LOG_FILE,
-				   true, false);
+  file_hdl = task->m_current_file_des.m_file;
+  success = os_file_seek(nullptr, file_hdl, offset);
+  if (!success) {
+    my_error(ER_ERROR_ON_READ, MYF(0), file_meta->m_file_name, errno,
+             my_strerror(errbuf, sizeof(errbuf), errno));
+    return (DB_ERROR);
+  }
 
-		if (err != DB_SUCCESS) {
+  callback->set_dest_name(file_meta->m_file_name);
 
-			return(err);
-		}
-	}
-
-	/* Copy data to current destination file using callback. */
-	os_file_t	file_hdl;
-	bool		success;
-	char		errbuf[MYSYS_STRERROR_SIZE];
-
-	file_hdl = task->m_current_file_des.m_file;
-	success = os_file_seek(nullptr, file_hdl, offset);
-	if (!success) {
-
-		my_error(ER_ERROR_ON_READ, MYF(0),file_meta->m_file_name, errno,
-			 my_strerror(errbuf, sizeof(errbuf), errno));
-		return(DB_ERROR);
-	}
-
-	callback->set_dest_name(file_meta->m_file_name);
-
-	err = file_callback(callback, task, size
+  err = file_callback(callback, task, size
 #ifdef UNIV_PFS_IO
-			    , __FILE__, __LINE__
-#endif  /* UNIV_PFS_IO */
-			    );
+                      ,
+                      __FILE__, __LINE__
+#endif /* UNIV_PFS_IO */
+  );
 
-	return(err);
+  return (err);
 }
 
 /** Apply data received via callback
 @param[in]	callback	callback interface
 @return error code */
-dberr_t
-Clone_Handle::apply_data(
-	Ha_clone_cbk*	callback)
-{
-	dberr_t		err = DB_SUCCESS;
-	byte*		serial_desc;
-	Clone_Desc_Data	data_desc;
+dberr_t Clone_Handle::apply_data(Ha_clone_cbk *callback) {
+  dberr_t err = DB_SUCCESS;
+  byte *serial_desc;
+  Clone_Desc_Data data_desc;
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	/* Extract the data descriptor. */
-	serial_desc = callback->get_data_desc(nullptr);
+  /* Extract the data descriptor. */
+  serial_desc = callback->get_data_desc(nullptr);
 
-	data_desc.deserialize(serial_desc);
+  data_desc.deserialize(serial_desc);
 
-	/* Identify the task for the current block of data. */
-	Clone_Task_Meta*	task_meta;
-	task_meta = &data_desc.m_task_meta;
+  /* Identify the task for the current block of data. */
+  Clone_Task_Meta *task_meta;
+  task_meta = &data_desc.m_task_meta;
 
-	Clone_Task*	task;
-	task = m_clone_task_manager.get_task_by_index(task_meta->m_task_index);
+  Clone_Task *task;
+  task = m_clone_task_manager.get_task_by_index(task_meta->m_task_index);
 
-	/* The data is from a different file. Close the current one. */
-	if (task->m_current_file_index != data_desc.m_file_index) {
+  /* The data is from a different file. Close the current one. */
+  if (task->m_current_file_index != data_desc.m_file_index) {
+    err = close_file(task);
+    if (err != DB_SUCCESS) {
+      return (err);
+    }
+    task->m_current_file_index = data_desc.m_file_index;
+  }
 
-		err = close_file(task);
-		if (err != DB_SUCCESS) {
+  /* Receive data from callback and apply. */
+  err = receive_data(task, data_desc.m_file_offset, data_desc.m_file_size,
+                     data_desc.m_data_len, callback);
 
-			return(err);
-		}
-		task->m_current_file_index = data_desc.m_file_index;
-	}
+  task->m_task_meta = *task_meta;
 
-	/* Receive data from callback and apply. */
-	err = receive_data(task, data_desc.m_file_offset, data_desc.m_file_size,
-			   data_desc.m_data_len, callback);
-
-	task->m_task_meta = *task_meta;
-
-	return(err);
+  return (err);
 }
 
 /** Apply snapshot data received via callback
 @param[in]	callback	user callback interface
 @return error code */
-dberr_t
-Clone_Handle::apply(
-	Ha_clone_cbk*	callback)
-{
-	dberr_t			err = DB_SUCCESS;
-	Clone_Desc_Header	header;
-	byte*			clone_desc;
+dberr_t Clone_Handle::apply(Ha_clone_cbk *callback) {
+  dberr_t err = DB_SUCCESS;
+  Clone_Desc_Header header;
+  byte *clone_desc;
 
-	clone_desc = callback->get_data_desc(nullptr);
-	ut_ad(clone_desc != nullptr);
+  clone_desc = callback->get_data_desc(nullptr);
+  ut_ad(clone_desc != nullptr);
 
-	ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
+  ut_ad(m_clone_handle_type == CLONE_HDL_APPLY);
 
-	header.deserialize(clone_desc);
+  header.deserialize(clone_desc);
 
-	/* Check the descriptor type in header and apply */
-	switch(header.m_type) {
+  /* Check the descriptor type in header and apply */
+  switch (header.m_type) {
+    case CLONE_DESC_TASK_METADATA:
+      err = apply_task_metadata(callback);
+      break;
 
-	case CLONE_DESC_TASK_METADATA:
-		err = apply_task_metadata(callback);
-		break;
+    case CLONE_DESC_STATE:
+      err = apply_state_metadata(callback);
+      break;
 
-	case CLONE_DESC_STATE:
-		err = apply_state_metadata(callback);
-		break;
+    case CLONE_DESC_FILE_METADATA:
+      err = apply_file_metadata(callback);
+      break;
 
-	case CLONE_DESC_FILE_METADATA:
-		err = apply_file_metadata(callback);
-		break;
+    case CLONE_DESC_DATA:
+      err = apply_data(callback);
+      break;
 
-	case CLONE_DESC_DATA:
-		err = apply_data(callback);
-		break;
+    default:
+      ut_ad(false);
+      break;
+  }
 
-	default:
-		ut_ad(false);
-		break;
-	}
+  return (err);
+}
 
-	return(err);
+void Clone_Snapshot::update_file_size(uint32_t file_index, uint64_t file_size) {
+  /* Update file size when file is extended during page copy */
+  ut_ad(m_snapshot_state == CLONE_SNAPSHOT_PAGE_COPY);
+
+  auto cur_file = get_file_by_index(file_index);
+
+  while (file_size > cur_file->m_file_size) {
+    ++file_index;
+
+    if (file_index >= m_num_data_files) {
+      /* Update file size for the last file. */
+      cur_file->m_file_size = file_size;
+      break;
+    }
+
+    auto next_file = get_file_by_index(file_index);
+
+    if (next_file->m_space_id != cur_file->m_space_id) {
+      /* Update file size for the last file. */
+      cur_file->m_file_size = file_size;
+      break;
+    }
+
+    /* Only system tablespace can have multiple nodes. */
+    ut_ad(cur_file->m_space_id == 0);
+
+    file_size -= cur_file->m_file_size;
+    cur_file = next_file;
+  }
 }
 
 /** Extend files after copying pages, if needed
 @return error code */
-dberr_t
-Clone_Snapshot::extend_files()
-{
-	bool	success;
-	bool	check_redo_files = false;
+dberr_t Clone_Snapshot::extend_files() {
+  bool success;
+  bool check_redo_files = false;
 
-	if (m_snapshot_state == CLONE_SNAPSHOT_DONE) {
+  if (m_snapshot_state == CLONE_SNAPSHOT_DONE) {
+    /* flush redo files after clone is over. */
+    check_redo_files = true;
 
-		/* flush redo files after clone is over. */
-		check_redo_files = true;
+  } else if (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY) {
+    /* extend and flush data files after page copy */
+    check_redo_files = false;
+  } else {
+    return (DB_SUCCESS);
+  }
 
-	} else if (m_snapshot_state == CLONE_SNAPSHOT_REDO_COPY) {
+  auto &file_vector =
+      (check_redo_files) ? m_redo_file_vector : m_data_file_vector;
 
-		/* extend and flush data files after page copy */
-		check_redo_files = false;
-	} else {
+  for (auto file_meta : file_vector) {
+    char errbuf[MYSYS_STRERROR_SIZE];
 
-		return(DB_SUCCESS);
-	}
+    auto file = os_file_create(innodb_clone_file_key, file_meta->m_file_name,
+                               OS_FILE_OPEN, OS_FILE_NORMAL, OS_CLONE_LOG_FILE,
+                               false, &success);
 
-	auto&	file_vector = (check_redo_files)
-			? m_redo_file_vector
-			: m_data_file_vector;
+    if (!success) {
+      my_error(ER_CANT_OPEN_FILE, MYF(0), file_meta->m_file_name, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
 
-	for (auto file_meta : file_vector) {
+      return (DB_CANNOT_OPEN_FILE);
+    }
 
-		char	errbuf[MYSYS_STRERROR_SIZE];
+    auto file_size = os_file_get_size(file);
 
-		auto	file = os_file_create(innodb_clone_file_key,
-				file_meta->m_file_name, OS_FILE_OPEN,
-				OS_FILE_NORMAL, OS_CLONE_LOG_FILE,
-				false, &success);
+    if (!check_redo_files && file_size < file_meta->m_file_size) {
+      success = os_file_set_size(file_meta->m_file_name, file, file_size,
+                                 file_meta->m_file_size, false, true);
+    } else {
+      success = os_file_flush(file);
+    }
 
-	        if (!success) {
+    os_file_close(file);
 
-			my_error(ER_CANT_OPEN_FILE, MYF(0),
-				file_meta->m_file_name, errno,
-				my_strerror(errbuf, sizeof(errbuf), errno));
+    if (!success) {
+      my_error(ER_ERROR_ON_WRITE, MYF(0), file_meta->m_file_name, errno,
+               my_strerror(errbuf, sizeof(errbuf), errno));
 
-			return(DB_CANNOT_OPEN_FILE);
-		}
+      return (DB_IO_ERROR);
+    }
+  }
 
-		auto	file_size = os_file_get_size(file);
-
-		if (!check_redo_files && file_size < file_meta->m_file_size) {
-
-			success = os_file_set_size(file_meta->m_file_name,
-				file, file_size,
-				file_meta->m_file_size, false, true);
-		} else {
-
-			success = os_file_flush(file);
-		}
-
-		os_file_close(file);
-
-		if (!success) {
-
-			my_error(ER_ERROR_ON_WRITE, MYF(0),
-				file_meta->m_file_name, errno,
-				my_strerror(errbuf, sizeof(errbuf), errno));
-
-			return(DB_IO_ERROR);
-		}
-        }
-
-	return(DB_SUCCESS);
+  return (DB_SUCCESS);
 }

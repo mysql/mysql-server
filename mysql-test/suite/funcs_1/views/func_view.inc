@@ -415,7 +415,7 @@ eval SET @my_select = 'SELECT sqrt($col_type), $col_type, id FROM t1_values';
 #    SET @select_id = LAST_INSERT_ID();
 #    --enable_query_log
 
-SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 eval INSERT INTO t1_values SET select_id = @select_id,
             $col_type = 4;
 eval INSERT INTO t1_values SET select_id = @select_id,

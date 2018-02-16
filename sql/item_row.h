@@ -32,7 +32,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "sql/enum_query_type.h"
-#include "sql/item.h" // Item
+#include "sql/item.h"  // Item
 #include "sql/parse_tree_node_base.h"
 
 class SELECT_LEX;
@@ -40,14 +40,14 @@ class Send_field;
 class String;
 class THD;
 class my_decimal;
-template <class T> class List;
+template <class T>
+class List;
 
 /**
    Item which stores (x,y,...) and ROW(x,y,...).
    Note that this can be recursive: ((x,y),(z,t)) is a ROW of ROWs.
 */
-class Item_row: public Item
-{
+class Item_row : public Item {
   typedef Item super;
 
   Item **items;
@@ -58,7 +58,8 @@ class Item_row: public Item
      NULL. For example, this item is (1,2,NULL), or ( (1,NULL), (2,3) ).
   */
   bool with_null;
-public:
+
+ public:
   /**
     Row items used for comparing rows and IN operations on rows:
 
@@ -78,51 +79,41 @@ public:
   */
   Item_row(const POS &pos, Item *head, List<Item> &tail);
   Item_row(Item *head, List<Item> &tail);
-  Item_row(Item_row *item):
-    Item(),
-    items(item->items),
-    used_tables_cache(item->used_tables_cache),
-    not_null_tables_cache(0),
-    arg_count(item->arg_count),
-    with_null(0)
-  {}
+  Item_row(Item_row *item)
+      : Item(),
+        items(item->items),
+        used_tables_cache(item->used_tables_cache),
+        not_null_tables_cache(0),
+        arg_count(item->arg_count),
+        with_null(0) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
 
   enum Type type() const override { return ROW_ITEM; };
   void illegal_method_call(const char *) const MY_ATTRIBUTE((cold));
   bool is_null() override { return null_value; }
-  void make_field(Send_field *) override
-  {
-    illegal_method_call("make_field");
-  };
-  double val_real() override
-  {
+  void make_field(Send_field *) override { illegal_method_call("make_field"); };
+  double val_real() override {
     illegal_method_call("val_real");
     return 0;
   };
-  longlong val_int() override
-  {
+  longlong val_int() override {
     illegal_method_call("val_int");
     return 0;
   };
-  String *val_str(String *) override
-  {
+  String *val_str(String *) override {
     illegal_method_call("val_str");
     return 0;
   };
-  my_decimal *val_decimal(my_decimal *) override
-  {
+  my_decimal *val_decimal(my_decimal *) override {
     illegal_method_call("val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *, my_time_flags_t) override
-  {
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override {
     illegal_method_call("get_date");
     return true;
   }
-  bool get_time(MYSQL_TIME *) override
-  {
+  bool get_time(MYSQL_TIME *) override {
     illegal_method_call("get_time");
     return true;
   }

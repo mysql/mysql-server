@@ -30,8 +30,6 @@ auto_increment_increment	DYNAMIC
 SET PERSIST innodb_checksum_algorithm=strict_crc32,
 PERSIST innodb_default_row_format=COMPACT,
 PERSIST sql_mode=ANSI_QUOTES,PERSIST innodb_fast_shutdown=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET PERSIST innodb_flush_log_at_trx_commit=0,join_buffer_size=262144;
 # SET PERSIST invalid case for multiple variable set.
 SET PERSIST innodb_thread_concurrency=32, PERSIST innodb_write_io_threads=32,
@@ -46,7 +44,7 @@ SELECT @@global.innodb_default_row_format;
 dynamic
 SELECT @@global.sql_mode;
 @@global.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 SELECT @@global.innodb_flush_log_at_trx_commit;
 @@global.innodb_flush_log_at_trx_commit
 1

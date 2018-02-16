@@ -25,13 +25,11 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-int myrg_delete(MYRG_INFO *info, const uchar *record)
-{
-  if (!info->current_table)
-  {
+int myrg_delete(MYRG_INFO *info, const uchar *record) {
+  if (!info->current_table) {
     set_my_errno(HA_ERR_NO_ACTIVE_RECORD);
     return HA_ERR_NO_ACTIVE_RECORD;
   }
 
-  return mi_delete(info->current_table->table,record);
+  return mi_delete(info->current_table->table, record);
 }

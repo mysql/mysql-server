@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 #include "plugin/x/tests/driver/processor/stream_processor.h"
 #include "violite.h"
 
-
 static void ignore_traces_from_libraries(enum loglevel ll, const char *format,
                                          va_list args) {}
 
@@ -43,8 +42,7 @@ bool parse_mysql_connstring(const std::string &connstring,
                             int *pwd_found = nullptr) {
   // format is [protocol://][user[:pass]]@host[:port][/db] or
   // user[:pass]@::socket[/db], like what cmdline utilities use
-  if (pwd_found)
-    *pwd_found = 0;
+  if (pwd_found) *pwd_found = 0;
   std::string remaining = connstring;
   std::string::size_type p;
   p = remaining.find("://");
@@ -80,8 +78,7 @@ bool parse_mysql_connstring(const std::string &connstring,
   if ((p = user_part.find(':')) != std::string::npos) {
     *user = user_part.substr(0, p);
     *password = user_part.substr(p + 1);
-    if (pwd_found)
-      *pwd_found = 1;
+    if (pwd_found) *pwd_found = 1;
   } else {
     *user = user_part;
   }
@@ -104,21 +101,17 @@ bool parse_mysql_connstring(const std::string &uri,
                             Connection_options *options) {
   int pwdfound;
   std::string proto;
-  return parse_mysql_connstring(
-      uri, &proto, &options->user, &options->password, &options->host,
-      &options->port, &options->socket, &options->schema, &pwdfound);
+  return parse_mysql_connstring(uri, &proto, &options->user, &options->password,
+                                &options->host, &options->port,
+                                &options->socket, &options->schema, &pwdfound);
 }
 
 int client_connect_and_process(const Driver_command_line_options &options,
-                              std::istream &input) {
+                               std::istream &input) {
   Variable_container variables(options.m_variables);
   Console console(options.m_console_options);
 
-  Connection_manager cm {
-    options.m_connection_options,
-    &variables,
-    console
-  };
+  Connection_manager cm{options.m_connection_options, &variables, console};
 
   Execution_context context(options.m_context_options, &cm, &variables,
                             console);
@@ -126,24 +119,18 @@ int client_connect_and_process(const Driver_command_line_options &options,
   try {
     context.m_script_stack.push({0, "main"});
 
-    cm.connect_default(
-        options.m_cap_expired_password,
-        options.m_client_interactive,
-        options.m_run_without_auth,
-        options.m_auth_methods);
+    cm.connect_default(options.m_cap_expired_password,
+                       options.m_client_interactive, options.m_run_without_auth,
+                       options.m_auth_methods);
 
     std::vector<Block_processor_ptr> eaters = create_block_processors(&context);
-    int result_code = process_client_input(input,
-                                           &eaters,
-                                           &context.m_script_stack,
-                                           console);
+    int result_code =
+        process_client_input(input, &eaters, &context.m_script_stack, console);
 
-    if (!options.m_run_without_auth)
-      cm.close_active(true);
+    if (!options.m_run_without_auth) cm.close_active(true);
 
     return result_code;
-  }
-  catch (const xcl::XError &e) {
+  } catch (const xcl::XError &e) {
     console.print_error_red(context.m_script_stack, e, '\n');
     return 1;
   }
@@ -236,12 +223,10 @@ int main(int argc, char **argv) {
       std::cerr << "ok\n";
     else
       std::cerr << "not ok\n";
-  }
-  catch (xcl::XError &e) {
+  } catch (xcl::XError &e) {
     std::cerr << "ERROR: " << e.what() << "\n";
     result = 1;
-  }
-  catch (std::exception &e) {
+  } catch (std::exception &e) {
     std::cerr << "ERROR: " << e.what() << "\n";
     result = 1;
   }

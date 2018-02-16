@@ -36,28 +36,21 @@ class Index;
 class Index_element_impl;
 
 namespace tables {
-  class Index_column_usage;
+class Index_column_usage;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_element : virtual public Weak_object
-{
-public:
+class Index_element : virtual public Weak_object {
+ public:
   typedef Index_element_impl Impl;
   typedef tables::Index_column_usage DD_table;
 
-public:
-  enum enum_index_element_order
-  {
-    ORDER_UNDEF= 1,
-    ORDER_ASC,
-    ORDER_DESC
-  };
+ public:
+  enum enum_index_element_order { ORDER_UNDEF = 1, ORDER_ASC, ORDER_DESC };
 
-public:
-  virtual ~Index_element()
-  { };
+ public:
+  virtual ~Index_element(){};
 
   /////////////////////////////////////////////////////////////////////////
   // index.
@@ -103,7 +96,6 @@ public:
   virtual bool is_hidden() const = 0;
   virtual void set_hidden(bool hidden) = 0;
 
-
   /**
     Converts *this into json.
 
@@ -117,7 +109,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -143,6 +134,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__INDEX_ELEMENT_INCLUDED
+#endif  // DD__INDEX_ELEMENT_INCLUDED

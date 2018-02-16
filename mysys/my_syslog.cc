@@ -54,32 +54,41 @@ extern CHARSET_INFO my_charset_utf16le_bin;
   won't have to worry about portability.
 */
 SYSLOG_FACILITY syslog_facility[] = {
-  { LOG_DAEMON, "daemon" }, /* default for mysqld */
-  { LOG_USER,   "user"   }, /* default for mysql command-line client */
+    {LOG_DAEMON, "daemon"}, /* default for mysqld */
+    {LOG_USER, "user"},     /* default for mysql command-line client */
 
-  { LOG_LOCAL0, "local0" }, { LOG_LOCAL1, "local1" }, { LOG_LOCAL2, "local2" },
-  { LOG_LOCAL3, "local3" }, { LOG_LOCAL4, "local4" }, { LOG_LOCAL5, "local5" },
-  { LOG_LOCAL6, "local6" }, { LOG_LOCAL7, "local7" },
+    {LOG_LOCAL0, "local0"},
+    {LOG_LOCAL1, "local1"},
+    {LOG_LOCAL2, "local2"},
+    {LOG_LOCAL3, "local3"},
+    {LOG_LOCAL4, "local4"},
+    {LOG_LOCAL5, "local5"},
+    {LOG_LOCAL6, "local6"},
+    {LOG_LOCAL7, "local7"},
 
-  /* "just in case" */
-  { LOG_AUTH,   "auth" },   { LOG_CRON,   "cron" },   { LOG_KERN,   "kern" },
-  { LOG_LPR,    "lpr" },    { LOG_MAIL,   "mail" },   { LOG_NEWS,   "news" },
-  { LOG_SYSLOG, "syslog" }, { LOG_UUCP,   "uucp" },
+    /* "just in case" */
+    {LOG_AUTH, "auth"},
+    {LOG_CRON, "cron"},
+    {LOG_KERN, "kern"},
+    {LOG_LPR, "lpr"},
+    {LOG_MAIL, "mail"},
+    {LOG_NEWS, "news"},
+    {LOG_SYSLOG, "syslog"},
+    {LOG_UUCP, "uucp"},
 
 #if defined(LOG_FTP)
-  { LOG_FTP,    "ftp" },
+    {LOG_FTP, "ftp"},
 #endif
 #if defined(LOG_AUTHPRIV)
-  { LOG_AUTHPRIV, "authpriv" },
+    {LOG_AUTHPRIV, "authpriv"},
 #endif
 
-  { -1, NULL }};
+    {-1, NULL}};
 #endif
-
 
 #ifdef _WIN32
-#define MSG_DEFAULT       0xC0000064L
-static  HANDLE hEventLog= NULL;                  // global
+#define MSG_DEFAULT 0xC0000064L
+static HANDLE hEventLog = NULL;  // global
 #endif
 
 /**
@@ -96,46 +105,42 @@ static  HANDLE hEventLog= NULL;                  // global
     -1 Error
 */
 int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-              enum loglevel level,
-              const char *msg)
-{
+              enum loglevel level, const char *msg) {
 #ifdef _WIN32
-  int _level= EVENTLOG_INFORMATION_TYPE;
+  int _level = EVENTLOG_INFORMATION_TYPE;
   wchar_t buff[MAX_SYSLOG_MESSAGE_SIZE];
-  wchar_t *u16buf= NULL;
+  wchar_t *u16buf = NULL;
   size_t nchars;
   uint dummy_errors;
 
   DBUG_ENTER("my_syslog");
 
-  switch (level)
-  {
-  case INFORMATION_LEVEL:
-  case SYSTEM_LEVEL:
-    _level= EVENTLOG_INFORMATION_TYPE;
-    break;
-  case WARNING_LEVEL:
-    _level= EVENTLOG_WARNING_TYPE;
-    break;
-  case ERROR_LEVEL:
-    _level= EVENTLOG_ERROR_TYPE;
-    break;
-  default:
-    DBUG_ASSERT(false);
+  switch (level) {
+    case INFORMATION_LEVEL:
+    case SYSTEM_LEVEL:
+      _level = EVENTLOG_INFORMATION_TYPE;
+      break;
+    case WARNING_LEVEL:
+      _level = EVENTLOG_WARNING_TYPE;
+      break;
+    case ERROR_LEVEL:
+      _level = EVENTLOG_ERROR_TYPE;
+      break;
+    default:
+      DBUG_ASSERT(false);
   }
 
-  if (hEventLog)
-  {
-    nchars= my_convert((char *) buff, sizeof(buff) - sizeof(buff[0]),
-                       &my_charset_utf16le_bin, msg,
-                       MAX_SYSLOG_MESSAGE_SIZE, cs, &dummy_errors);
+  if (hEventLog) {
+    nchars = my_convert((char *)buff, sizeof(buff) - sizeof(buff[0]),
+                        &my_charset_utf16le_bin, msg, MAX_SYSLOG_MESSAGE_SIZE,
+                        cs, &dummy_errors);
 
     // terminate it with NULL
-    buff[nchars / sizeof(wchar_t)]= L'\0';
-    u16buf= buff;
+    buff[nchars / sizeof(wchar_t)] = L'\0';
+    u16buf = buff;
 
     if (!ReportEventW(hEventLog, _level, 0, MSG_DEFAULT, NULL, 1, 0,
-                      (LPCWSTR*) &u16buf, NULL))
+                      (LPCWSTR *)&u16buf, NULL))
       goto err;
   }
 
@@ -148,32 +153,30 @@ err:
   DBUG_RETURN(-1);
 
 #else
-  int _level= LOG_INFO;
+  int _level = LOG_INFO;
 
   DBUG_ENTER("my_syslog");
 
-  switch (level)
-  {
-  case INFORMATION_LEVEL:
-  case SYSTEM_LEVEL:
-    _level= LOG_INFO;
-    break;
-  case WARNING_LEVEL:
-    _level= LOG_WARNING;
-    break;
-  case ERROR_LEVEL:
-    _level= LOG_ERR;
-    break;
-  default:
-    DBUG_ASSERT(false);
+  switch (level) {
+    case INFORMATION_LEVEL:
+    case SYSTEM_LEVEL:
+      _level = LOG_INFO;
+      break;
+    case WARNING_LEVEL:
+      _level = LOG_WARNING;
+      break;
+    case ERROR_LEVEL:
+      _level = LOG_ERR;
+      break;
+    default:
+      DBUG_ASSERT(false);
   }
 
   syslog(_level, "%s", msg);
   DBUG_RETURN(0);
 
-#endif                                          /* _WIN32 */
+#endif /* _WIN32 */
 }
-
 
 #ifdef _WIN32
 
@@ -196,41 +199,43 @@ err:
     -1 Error
 */
 
-const char registry_prefix[]=
-         "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
+const char registry_prefix[] =
+    "SYSTEM\\CurrentControlSet\\services\\eventlog\\Application\\";
 
-static int windows_eventlog_create_registry_entry(const char *key)
-{
-  HKEY    hRegKey= NULL;
-  DWORD   dwError= 0;
-  TCHAR   szPath[MAX_PATH];
-  DWORD   dwTypes;
+static int windows_eventlog_create_registry_entry(const char *key) {
+  HKEY hRegKey = NULL;
+  DWORD dwError = 0;
+  TCHAR szPath[MAX_PATH];
+  DWORD dwTypes;
 
-  size_t  l= sizeof(registry_prefix) + strlen(key) + 1;
-  char   *buff;
+  size_t l = sizeof(registry_prefix) + strlen(key) + 1;
+  char *buff;
 
-  int     ret= 0;
+  int ret = 0;
 
   DBUG_ENTER("my_syslog");
 
-  if ((buff= (char *) my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
+  if ((buff = (char *)my_malloc(PSI_NOT_INSTRUMENTED, l, MYF(0))) == NULL)
     DBUG_RETURN(-1);
 
   snprintf(buff, l, "%s%s", registry_prefix, key);
 
   // Opens the event source registry key; creates it first if required.
-  dwError= RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);
+  dwError = RegCreateKey(HKEY_LOCAL_MACHINE, buff, &hRegKey);
 
   my_free(buff);
 
-  if (dwError != ERROR_SUCCESS)
-  {
-    if (dwError == ERROR_ACCESS_DENIED)
-    {
-      my_message_stderr(0, "Could not create or access the registry key needed for the MySQL application\n"
-                           "to log to the Windows EventLog. Run the application with sufficient\n"
-                           "privileges once to create the key, add the key manually, or turn off\n"
-                           "logging for that application.", MYF(0));
+  if (dwError != ERROR_SUCCESS) {
+    if (dwError == ERROR_ACCESS_DENIED) {
+      my_message_stderr(0,
+                        "Could not create or access the registry key needed "
+                        "for the MySQL application\n"
+                        "to log to the Windows EventLog. Run the application "
+                        "with sufficient\n"
+                        "privileges once to create the key, add the key "
+                        "manually, or turn off\n"
+                        "logging for that application.",
+                        MYF(0));
     }
     DBUG_RETURN(-1);
   }
@@ -240,24 +245,21 @@ static int windows_eventlog_create_registry_entry(const char *key)
 
   /* Register EventMessageFile (DLL/exec containing event identifiers) */
   dwError = RegSetValueEx(hRegKey, "EventMessageFile", 0, REG_EXPAND_SZ,
-                          (PBYTE) szPath, (DWORD) (strlen(szPath) + 1));
-  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED))
-    ret = -1;
+                          (PBYTE)szPath, (DWORD)(strlen(szPath) + 1));
+  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED)) ret = -1;
 
   /* Register supported event types */
-  dwTypes= (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE |
-            EVENTLOG_INFORMATION_TYPE);
-  dwError= RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
-                         (LPBYTE) &dwTypes, sizeof dwTypes);
-  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED))
-    ret= -1;
+  dwTypes =
+      (EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE);
+  dwError = RegSetValueEx(hRegKey, "TypesSupported", 0, REG_DWORD,
+                          (LPBYTE)&dwTypes, sizeof dwTypes);
+  if ((dwError != ERROR_SUCCESS) && (dwError != ERROR_ACCESS_DENIED)) ret = -1;
 
   RegCloseKey(hRegKey);
 
   DBUG_RETURN(ret);
 }
 #endif
-
 
 /**
   Opens/Registers a new handle for system logging.
@@ -274,10 +276,9 @@ static int windows_eventlog_create_registry_entry(const char *key)
     -1 Error, log not opened
     -2 Error, not updated, using previous values
 */
-int my_openlog(const char *name, int option, int facility)
-{
+int my_openlog(const char *name, int option, int facility) {
 #ifndef _WIN32
-  int opts= (option & MY_SYSLOG_PIDS) ? LOG_PID : 0;
+  int opts = (option & MY_SYSLOG_PIDS) ? LOG_PID : 0;
 
   DBUG_ENTER("my_openlog");
   openlog(name, opts | LOG_NDELAY, facility);
@@ -289,27 +290,21 @@ int my_openlog(const char *name, int option, int facility)
   DBUG_ENTER("my_openlog");
 
   // OOM failsafe.  Not needed for syslog.
-  if (name == NULL)
-    DBUG_RETURN(-1);
+  if (name == NULL) DBUG_RETURN(-1);
 
   if ((windows_eventlog_create_registry_entry(name) != 0) ||
-      !(hEL_new= RegisterEventSource(NULL, name)))
-  {
+      !(hEL_new = RegisterEventSource(NULL, name))) {
     // map error appropriately
     my_osmaperr(GetLastError());
     DBUG_RETURN((hEventLog == NULL) ? -1 : -2);
-  }
-  else
-  {
-    if (hEventLog != NULL)
-      DeregisterEventSource(hEventLog);
-    hEventLog= hEL_new;
+  } else {
+    if (hEventLog != NULL) DeregisterEventSource(hEventLog);
+    hEventLog = hEL_new;
   }
 #endif
 
   DBUG_RETURN(0);
 }
-
 
 /**
   Closes/de-registers the system logging handle.
@@ -321,21 +316,19 @@ int my_openlog(const char *name, int option, int facility)
      0 Success
     -1 Error
 */
-int my_closelog(void)
-{
+int my_closelog(void) {
   DBUG_ENTER("my_closelog");
 #ifndef _WIN32
   closelog();
   DBUG_RETURN(0);
 #else
-  if ((hEventLog != NULL) && (! DeregisterEventSource(hEventLog)))
-    goto err;
+  if ((hEventLog != NULL) && (!DeregisterEventSource(hEventLog))) goto err;
 
-  hEventLog= NULL;
+  hEventLog = NULL;
   DBUG_RETURN(0);
 
 err:
-  hEventLog= NULL;
+  hEventLog = NULL;
   // map error appropriately
   my_osmaperr(GetLastError());
   DBUG_RETURN(-1);

@@ -1,0 +1,64 @@
+################################################################################
+# This test checks that executing a SET GLOBAL.GTID_MODE when GROUP_REPLICATION
+# is starting it don't block the server.
+#
+# Test:
+#   0. The test requires one server
+#   1. Enable debug point to block server on start
+#   2. Configure server and START Group Replication
+#   3. SET @@GLOBAL.GTID_MODE will fail due Group Replication hold lock on
+#      gtid_set_mode
+#   4. Send signal to server to unlock start
+#   5. Cleanup
+#
+################################################################################
+
+--source include/have_debug_sync.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--echo
+--echo # 1. Enable debug point to block server on start
+
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= 'd,group_replication_wait_on_start';
+
+--echo
+--echo # 2. Configure server and START Group Replication
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
+--send START GROUP_REPLICATION;
+
+--echo
+--echo # 3. SET @@GLOBAL.GTID_MODE will fail due Group Replication hold lock on
+--echo #    gtid_set_mode
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET DEBUG_SYNC= "now WAIT_FOR signal.start_waiting";
+
+--error ER_CANT_SET_GTID_MODE
+SET GLOBAL GTID_MODE=ON;
+
+--echo
+--echo # 4. Send signal to server to unlock start
+
+SET DEBUG_SYNC= 'now SIGNAL signal.start_continue';
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--reap
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--echo
+--echo # 5. Cleanup
+
+SET @@GLOBAL.DEBUG= @debug_save;
+--source include/group_replication_end.inc

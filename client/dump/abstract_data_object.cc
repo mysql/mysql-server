@@ -26,27 +26,14 @@
 
 using namespace Mysql::Tools::Dump;
 
-Abstract_data_object::Abstract_data_object(uint64 id, const std::string& name,
-  const std::string& schema)
-  : m_id(id),
-  m_schema(schema),
-  m_name(name)
-{}
+Abstract_data_object::Abstract_data_object(uint64 id, const std::string &name,
+                                           const std::string &schema)
+    : m_id(id), m_schema(schema), m_name(name) {}
 
-std::string Abstract_data_object::get_name() const
-{
-  return m_name;
-}
+std::string Abstract_data_object::get_name() const { return m_name; }
 
-std::string Abstract_data_object::get_schema() const
-{
-  return m_schema;
-}
+std::string Abstract_data_object::get_schema() const { return m_schema; }
 
-uint64 Abstract_data_object::get_id() const
-{
-  return m_id;
-}
+uint64 Abstract_data_object::get_id() const { return m_id; }
 
-Abstract_data_object::~Abstract_data_object()
-{}
+Abstract_data_object::~Abstract_data_object() {}

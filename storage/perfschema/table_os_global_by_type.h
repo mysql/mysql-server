@@ -51,8 +51,7 @@ struct THR_LOCK;
   A row of table
   PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE.
 */
-struct row_os_global_by_type
-{
+struct row_os_global_by_type {
   /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
   PFS_object_row m_object;
 
@@ -67,61 +66,44 @@ struct row_os_global_by_type
   Index 2 on object instance (0 based)
 */
 struct pos_os_global_by_type : public PFS_double_index,
-                               public PFS_object_view_constants
-{
-  pos_os_global_by_type() : PFS_double_index(FIRST_VIEW, 0)
-  {
-  }
+                               public PFS_object_view_constants {
+  pos_os_global_by_type() : PFS_double_index(FIRST_VIEW, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = FIRST_VIEW;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_view(void)
-  {
-    return (m_index_1 <= LAST_VIEW);
-  }
+  inline bool has_more_view(void) { return (m_index_1 <= LAST_VIEW); }
 
-  inline void
-  next_view(void)
-  {
+  inline void next_view(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 };
 
-class PFS_index_os_global_by_type : public PFS_engine_index
-{
-public:
+class PFS_index_os_global_by_type : public PFS_engine_index {
+ public:
   PFS_index_os_global_by_type()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OBJECT_TYPE"),
-      m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("OBJECT_TYPE"),
+        m_key_2("OBJECT_SCHEMA"),
+        m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_os_global_by_type()
-  {
-  }
+  ~PFS_index_os_global_by_type() {}
 
   virtual bool match(PFS_table_share *pfs);
   virtual bool match(PFS_program *pfs);
 
-private:
+ private:
   PFS_key_object_type m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
 };
 
 /** Table PERFORMANCE_SCHEMA.OBJECTS_SUMMARY_GLOBAL_BY_TYPE. */
-class table_os_global_by_type : public PFS_engine_table
-{
-public:
+class table_os_global_by_type : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -136,23 +118,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_os_global_by_type();
 
-public:
-  ~table_os_global_by_type()
-  {
-  }
+ public:
+  ~table_os_global_by_type() {}
 
-protected:
+ protected:
   int make_table_row(PFS_table_share *table_share);
   int make_program_row(PFS_program *pfs_program);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */
@@ -165,7 +143,7 @@ private:
   /** Next position. */
   pos_os_global_by_type m_next_pos;
 
-protected:
+ protected:
   PFS_index_os_global_by_type *m_opened_index;
 };
 

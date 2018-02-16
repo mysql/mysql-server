@@ -22,21 +22,21 @@
 
 #include "sql/dd/dd.h"
 
-#include "sql/dd/impl/cache/shared_dictionary_cache.h" // dd::cache::Shared_...
-#include "sql/dd/impl/dictionary_impl.h"            // dd::Dictionary_impl
-#include "sql/dd/impl/system_registry.h"            // dd::System_tables
-#include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"  // dd::cache::Shared_...
+#include "sql/dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
+#include "sql/dd/impl/system_registry.h"                // dd::System_tables
 #include "sql/dd/impl/types/charset_impl.h"
 #include "sql/dd/impl/types/collation_impl.h"
 #include "sql/dd/impl/types/column_impl.h"
 #include "sql/dd/impl/types/column_statistics_impl.h"
 #include "sql/dd/impl/types/column_type_element_impl.h"
+#include "sql/dd/impl/types/entity_object_impl.h"
 #include "sql/dd/impl/types/event_impl.h"
-#include "sql/dd/impl/types/foreign_key_impl.h"
 #include "sql/dd/impl/types/foreign_key_element_impl.h"
+#include "sql/dd/impl/types/foreign_key_impl.h"
 #include "sql/dd/impl/types/function_impl.h"
-#include "sql/dd/impl/types/index_impl.h"
 #include "sql/dd/impl/types/index_element_impl.h"
+#include "sql/dd/impl/types/index_impl.h"
 #include "sql/dd/impl/types/index_stat_impl.h"
 #include "sql/dd/impl/types/partition_impl.h"
 #include "sql/dd/impl/types/partition_index_impl.h"
@@ -47,17 +47,15 @@
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"
 #include "sql/dd/impl/types/table_impl.h"
 #include "sql/dd/impl/types/table_stat_impl.h"
-#include "sql/dd/impl/types/tablespace_impl.h"
 #include "sql/dd/impl/types/tablespace_file_impl.h"
+#include "sql/dd/impl/types/tablespace_impl.h"
 #include "sql/dd/impl/types/view_impl.h"
 
 namespace dd {
 
-bool init(enum_dd_init_type dd_init)
-{
+bool init(enum_dd_init_type dd_init) {
   if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
-      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE)
-  {
+      dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE) {
     cache::Shared_dictionary_cache::init();
     System_tables::instance()->add_inert_dd_tables();
     System_views::instance()->init();
@@ -68,21 +66,17 @@ bool init(enum_dd_init_type dd_init)
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool shutdown()
-{
+bool shutdown() {
   cache::Shared_dictionary_cache::shutdown();
   return Dictionary_impl::shutdown();
 }
 
-
-Dictionary *get_dictionary()
-{
-  return Dictionary_impl::instance();
-}
+Dictionary *get_dictionary() { return Dictionary_impl::instance(); }
 
 template <typename X>
-X *create_object()
-{ return dynamic_cast<X *> (new (std::nothrow) typename X::Impl()); }
+X *create_object() {
+  return dynamic_cast<X *>(new (std::nothrow) typename X::Impl());
+}
 
 template Charset_impl *create_object<Charset_impl>();
 template Collation *create_object<Collation>();
@@ -110,5 +104,4 @@ template Tablespace *create_object<Tablespace>();
 template Tablespace_file *create_object<Tablespace_file>();
 template View *create_object<View>();
 
-
-} // namespace dd
+}  // namespace dd

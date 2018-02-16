@@ -45,17 +45,17 @@
 
 #include "m_string.h"  // IWYU pragma: keep
 
-char *strxmov(char *dst,const char *src, ...)
-{
+char *strxmov(char *dst, const char *src, ...) {
   va_list pvar;
 
-  va_start(pvar,src);
+  va_start(pvar, src);
   while (src != NullS) {
-    while ((*dst++ = *src++)) ;
+    while ((*dst++ = *src++))
+      ;
     dst--;
     src = va_arg(pvar, char *);
   }
   va_end(pvar);
-  *dst = 0;			/* there might have been no sources! */
+  *dst = 0; /* there might have been no sources! */
   return dst;
 }

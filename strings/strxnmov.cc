@@ -51,25 +51,20 @@
 
 #include "m_string.h"  // IWYU pragma: keep
 
-char *strxnmov(char *dst, size_t len, const char *src, ...)
-{
+char *strxnmov(char *dst, size_t len, const char *src, ...) {
   va_list pvar;
-  char *end_of_dst=dst+len;
+  char *end_of_dst = dst + len;
 
-  va_start(pvar,src);
-  while (src != NullS)
-  {
-    do
-    {
-      if (dst == end_of_dst)
-	goto end;
-    }
-    while ((*dst++ = *src++));
+  va_start(pvar, src);
+  while (src != NullS) {
+    do {
+      if (dst == end_of_dst) goto end;
+    } while ((*dst++ = *src++));
     dst--;
     src = va_arg(pvar, char *);
   }
 end:
-  *dst=0;
+  *dst = 0;
   va_end(pvar);
   return dst;
 }

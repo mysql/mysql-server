@@ -35,23 +35,20 @@
 class THD;
 struct TABLE;
 
-Cost_model_server::~Cost_model_server()
-{
-}
+Cost_model_server::~Cost_model_server() {}
 
-const double Server_cost_constants::KEY_COMPARE_COST= 0.1;
-const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST= 2.0;
-const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST= 0.2;
-const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST= 40.0;
-const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST= 1.0;
-const double Server_cost_constants::ROW_EVALUATE_COST= 0.2;
-const double SE_cost_constants::MEMORY_BLOCK_READ_COST= 1.0;
-const double SE_cost_constants::IO_BLOCK_READ_COST= 1.0;
+const double Server_cost_constants::KEY_COMPARE_COST = 0.1;
+const double Server_cost_constants::MEMORY_TEMPTABLE_CREATE_COST = 2.0;
+const double Server_cost_constants::MEMORY_TEMPTABLE_ROW_COST = 0.2;
+const double Server_cost_constants::DISK_TEMPTABLE_CREATE_COST = 40.0;
+const double Server_cost_constants::DISK_TEMPTABLE_ROW_COST = 1.0;
+const double Server_cost_constants::ROW_EVALUATE_COST = 0.2;
+const double SE_cost_constants::MEMORY_BLOCK_READ_COST = 1.0;
+const double SE_cost_constants::IO_BLOCK_READ_COST = 1.0;
 
 /* purecov: begin inspected */
-const SE_cost_constants
-*Cost_model_constants::get_se_cost_constants(const TABLE*) const
-{
+const SE_cost_constants *Cost_model_constants::get_se_cost_constants(
+    const TABLE *) const {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
   return NULL;
@@ -59,10 +56,8 @@ const SE_cost_constants
 /* purecov: end */
 
 /* purecov: begin inspected */
-cost_constant_error SE_cost_constants::set(const LEX_CSTRING&,
-                                           const double,
-                                           bool)
-{
+cost_constant_error SE_cost_constants::set(const LEX_CSTRING &, const double,
+                                           bool) {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
   return COST_CONSTANT_OK;
@@ -70,29 +65,26 @@ cost_constant_error SE_cost_constants::set(const LEX_CSTRING&,
 /* purecov: end */
 
 /* purecov: begin inspected */
-Cost_model_se_info::~Cost_model_se_info()
-{
+Cost_model_se_info::~Cost_model_se_info() {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
 }
 /* purecov: end */
 
 /* purecov: begin inspected */
-Cost_model_constants::~Cost_model_constants()
-{
+Cost_model_constants::~Cost_model_constants() {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
 }
 /* purecov: end */
 
 /* purecov: begin inspected */
-uint Cost_model_constants::find_handler_slot_from_name(THD*,
-                                                       const LEX_CSTRING&) const
-{
+uint Cost_model_constants::find_handler_slot_from_name(
+    THD *, const LEX_CSTRING &) const {
   // This is only implemented in order to link the unit tests
   DBUG_ASSERT(false);
   return 0;
 }
-/* purecov: end */
+  /* purecov: end */
 
 #endif /* FAKE_COSTMODEL_CC_INCLUDED */

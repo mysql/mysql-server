@@ -34,15 +34,14 @@ class THD;
    This class implements the INSTALL COMPONENT statement.
 */
 
-class Sql_cmd_install_component : public Sql_cmd
-{
-public:
+class Sql_cmd_install_component : public Sql_cmd {
+ public:
   Sql_cmd_install_component(const Mem_root_array_YY<LEX_STRING> &urns)
-  : m_urns(urns)
-  { }
+      : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const
-  { return SQLCOM_INSTALL_COMPONENT; }
+  virtual enum_sql_command sql_command_code() const {
+    return SQLCOM_INSTALL_COMPONENT;
+  }
 
   /**
     Install a new component by loading it by dynamic loader service.
@@ -53,24 +52,22 @@ public:
   */
   virtual bool execute(THD *thd);
 
-private:
+ private:
   const Mem_root_array_YY<LEX_STRING> m_urns;
 };
-
 
 /**
    This class implements the UNINSTALL COMPONENT statement.
 */
 
-class Sql_cmd_uninstall_component : public Sql_cmd
-{
-public:
+class Sql_cmd_uninstall_component : public Sql_cmd {
+ public:
   Sql_cmd_uninstall_component(const Mem_root_array_YY<LEX_STRING> &urns)
-  : m_urns(urns)
-  { }
+      : m_urns(urns) {}
 
-  virtual enum_sql_command sql_command_code() const
-  { return SQLCOM_UNINSTALL_COMPONENT; }
+  virtual enum_sql_command sql_command_code() const {
+    return SQLCOM_UNINSTALL_COMPONENT;
+  }
 
   /**
     Uninstall a plugin by unloading it in the dynamic loader service.
@@ -81,7 +78,7 @@ public:
   */
   virtual bool execute(THD *thd);
 
-private:
+ private:
   const Mem_root_array_YY<LEX_STRING> m_urns;
 };
 

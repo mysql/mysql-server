@@ -31,56 +31,50 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   will allow concurrent TRUNCATE TABLE).
 */
 
-typedef enum enum_backup_lock_service_lock_kind
-{
-  BACKUP_LOCK_SERVICE_DEFAULT= 0
+typedef enum enum_backup_lock_service_lock_kind {
+  BACKUP_LOCK_SERVICE_DEFAULT = 0
 } backup_lock_service_lock_kind;
-
 
 #ifdef __cplusplus
 class THD;
-#define MYSQL_THD THD*
+#define MYSQL_THD THD *
 #else
-#define MYSQL_THD void*
+#define MYSQL_THD void *
 #endif
 
 DEFINE_SERVICE_HANDLE(Backup_lock_handle);
 
 BEGIN_SERVICE_DEFINITION(mysql_backup_lock)
 
-  /**
-    Service API to acquire shared Backup Lock.
+/**
+  Service API to acquire shared Backup Lock.
 
-    @param opaque_thd    Current thread context.
-    @param lock_kind     Kind of lock to acquire - BACKUP_LOCK_SERVICE_DEFAULT
-                         or weaker.
-    @param lock_timeout  Number of seconds to wait before giving up.
+  @param opaque_thd    Current thread context.
+  @param lock_kind     Kind of lock to acquire - BACKUP_LOCK_SERVICE_DEFAULT
+                       or weaker.
+  @param lock_timeout  Number of seconds to wait before giving up.
 
-    @return Operation status.
-      @retval false Success
-      @retval true  Failure
-  */
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
 
-  DECLARE_BOOL_METHOD(acquire,
-    (MYSQL_THD,
-     enum enum_backup_lock_service_lock_kind,
-     unsigned long /* lock_timeout*/));
+DECLARE_BOOL_METHOD(acquire,
+                    (MYSQL_THD, enum enum_backup_lock_service_lock_kind,
+                     unsigned long /* lock_timeout*/));
 
+/**
+  Service API to release Backup Lock.
 
-  /**
-    Service API to release Backup Lock.
+  @param opaque_thd    Current thread context.
 
-    @param opaque_thd    Current thread context.
+  @return Operation status.
+    @retval false Success
+    @retval true  Failure
+*/
 
-    @return Operation status.
-      @retval false Success
-      @retval true  Failure
-  */
-
-  DECLARE_BOOL_METHOD(release,
-    (MYSQL_THD));
+DECLARE_BOOL_METHOD(release, (MYSQL_THD));
 
 END_SERVICE_DEFINITION(mysql_backup_lock)
 
 #endif /* BACKUP_LOCK_SERVICE_H */
-

@@ -32,8 +32,7 @@
   @{
 */
 
-enum PSI_error_operation
-{
+enum PSI_error_operation {
   PSI_ERROR_OPERATION_RAISED = 0,
   PSI_ERROR_OPERATION_HANDLED
 };

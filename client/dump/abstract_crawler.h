@@ -35,63 +35,61 @@
 #include "client/dump/i_dump_task.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 class Abstract_crawler : public Abstract_chain_element,
-  public virtual I_crawler
-{
-public:
+                         public virtual I_crawler {
+ public:
   /**
     Adds new Chain Maker to ask for chains for found objects.
    */
-  virtual void register_chain_maker(I_chain_maker* new_chain_maker);
-
-
-  // Fix "inherits ... via dominance" warnings
-  void register_progress_watcher(I_progress_watcher* new_progress_watcher)
-  { Abstract_chain_element::register_progress_watcher(new_progress_watcher); }
+  virtual void register_chain_maker(I_chain_maker *new_chain_maker);
 
   // Fix "inherits ... via dominance" warnings
-  uint64 get_id() const
-  { return Abstract_chain_element::get_id(); }
+  void register_progress_watcher(I_progress_watcher *new_progress_watcher) {
+    Abstract_chain_element::register_progress_watcher(new_progress_watcher);
+  }
 
+  // Fix "inherits ... via dominance" warnings
+  uint64 get_id() const { return Abstract_chain_element::get_id(); }
 
   ~Abstract_crawler();
 
-protected:
-  Abstract_crawler(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-      message_handler, Simple_id_generator* object_id_generator,
-      Mysql::Tools::Base::Abstract_program* program);
+ protected:
+  Abstract_crawler(std::function<bool(const Mysql::Tools::Base::Message_data &)>
+                       *message_handler,
+                   Simple_id_generator *object_id_generator,
+                   Mysql::Tools::Base::Abstract_program *program);
   /**
     Routine for performing common work on each enumerated DB object.
    */
-  void process_dump_task(I_dump_task* new_dump_task);
+  void process_dump_task(I_dump_task *new_dump_task);
 
   void wait_for_tasks_completion();
 
   bool need_callbacks_in_child();
 
   // Fix "inherits ... via dominance" warnings
-  void item_completion_in_child_callback(Item_processing_data* item_processed)
-  { Abstract_chain_element::item_completion_in_child_callback(item_processed); }
+  void item_completion_in_child_callback(Item_processing_data *item_processed) {
+    Abstract_chain_element::item_completion_in_child_callback(item_processed);
+  }
 
-  Mysql::Tools::Base::Abstract_program* get_program();
+  Mysql::Tools::Base::Abstract_program *get_program();
 
-private:
-  std::vector<I_chain_maker*> m_chain_makers;
-  std::vector<I_dump_task*> m_dump_tasks_created;
+ private:
+  std::vector<I_chain_maker *> m_chain_makers;
+  std::vector<I_dump_task *> m_dump_tasks_created;
   /**
     Stores next chain ID to be used. Used as ID generator.
    */
   static std::atomic<uint64_t> next_chain_id;
-  Mysql::Tools::Base::Abstract_program* m_program;
+  Mysql::Tools::Base::Abstract_program *m_program;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

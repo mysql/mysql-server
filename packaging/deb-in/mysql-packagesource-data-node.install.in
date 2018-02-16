@@ -21,8 +21,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 usr/sbin/ndbd
 usr/sbin/ndbmtd
-usr/share/man/man8/ndbd.8*
-usr/share/man/man8/ndbmtd.8*
+@DEB_INSTALL_MAN_DATANODE@
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-data-node/

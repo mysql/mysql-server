@@ -27,13 +27,12 @@
 
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Chain_data
-{
-public:
+class Chain_data {
+ public:
   Chain_data(uint64 chain_id);
 
   void abort();
@@ -44,7 +43,7 @@ public:
    */
   bool is_aborted();
 
-private:
+ private:
   /**
     ID of chain.
    */
@@ -55,8 +54,8 @@ private:
   bool m_is_aborted;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

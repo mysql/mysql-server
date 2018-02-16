@@ -26,39 +26,37 @@
 #include <stddef.h>
 
 #include "my_inttypes.h"
-#include "mysql_com.h"   // HOSTNAME_LENGTH
-#include "sql/sql_const.h" // MAX_PASSWORD_LENGTH
+#include "mysql_com.h"      // HOSTNAME_LENGTH
+#include "sql/sql_const.h"  // MAX_PASSWORD_LENGTH
 
 class Gtid_set;
 class String;
 class THD;
-
 
 extern bool server_id_supplied;
 extern int max_binlog_dump_events;
 extern bool opt_sporadic_binlog_dump_fail;
 extern bool opt_show_slave_auth_info;
 
-struct SLAVE_INFO
-{
+struct SLAVE_INFO {
   uint32 server_id;
   uint32 rpl_recovery_rank, master_id;
-  char host[HOSTNAME_LENGTH+1];
-  char user[USERNAME_LENGTH+1];
-  char password[MAX_PASSWORD_LENGTH+1];
+  char host[HOSTNAME_LENGTH + 1];
+  char user[USERNAME_LENGTH + 1];
+  char password[MAX_PASSWORD_LENGTH + 1];
   uint16 port;
-  THD* thd;
+  THD *thd;
 };
 
 void init_slave_list();
 void end_slave_list();
-int register_slave(THD* thd, uchar* packet, size_t packet_length);
-void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list);
-bool show_slave_hosts(THD* thd);
+int register_slave(THD *thd, uchar *packet, size_t packet_length);
+void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list);
+bool show_slave_hosts(THD *thd);
 String *get_slave_uuid(THD *thd, String *value);
-bool show_master_status(THD* thd);
-bool show_binlogs(THD* thd);
-void kill_zombie_dump_threads(THD* thd);
+bool show_master_status(THD *thd);
+bool show_binlogs(THD *thd);
+void kill_zombie_dump_threads(THD *thd);
 
 /**
   Process a COM_BINLOG_DUMP_GTID packet.
@@ -111,9 +109,9 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
   events from that position; but if gtid_set!=NULL, it will skip all
   events in that set.
 */
-void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       Gtid_set* gtid_set, uint32 flags);
+void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
+                       Gtid_set *gtid_set, uint32 flags);
 
-bool reset_master(THD* thd);
+bool reset_master(THD *thd);
 
 #endif /* RPL_MASTER_H_INCLUDED */

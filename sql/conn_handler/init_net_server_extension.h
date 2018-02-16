@@ -30,4 +30,3 @@ class THD;
 void init_net_server_extension(THD *thd);
 
 #endif
-

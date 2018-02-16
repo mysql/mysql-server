@@ -30,7 +30,7 @@
 
 #ifdef _WIN32
 /* Include common headers.*/
-# include <io.h>       /* access(), chmod() */
+#include <io.h> /* access(), chmod() */
 #ifdef WIN32_LEAN_AND_MEAN
 #include <winsock2.h>
 #include <ws2tcpip.h> /* SOCKET */
@@ -47,7 +47,7 @@
 #include <sys/types.h>  // Needed for mode_t, so IWYU pragma: keep.
 #endif
 
-typedef int File;           /* File descriptor */
+typedef int File; /* File descriptor */
 #ifdef _WIN32
 typedef int MY_MODE;
 typedef int mode_t;
@@ -56,7 +56,7 @@ typedef SOCKET my_socket;
 #else
 typedef mode_t MY_MODE;
 typedef socklen_t socket_len_t;
-typedef int     my_socket;      /* File descriptor for sockets */
+typedef int my_socket; /* File descriptor for sockets */
 #endif /* _WIN32 */
 
 #endif /* COMPONENTS_SERVICES_MY_IO_BITS_H */

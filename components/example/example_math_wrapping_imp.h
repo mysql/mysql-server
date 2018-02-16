@@ -29,11 +29,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   An example implementation of basic math example Service that uses other
   Service Implementation to do the job.
 */
-class example_math_wrapping_imp
-{
-public:
-  static DEFINE_BOOL_METHOD(calculate_gcd,
-    (int a, int b, int* result));
+class example_math_wrapping_imp {
+ public:
+  static DEFINE_BOOL_METHOD(calculate_gcd, (int a, int b, int *result));
 };
 
 #endif /* EXAMPLE_MATH_WRAPPING_IMP_H */

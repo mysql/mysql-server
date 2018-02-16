@@ -29,24 +29,24 @@
 #include "client/dump/abstract_plain_sql_object.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Abstract task for dumping object carrying its definition in SQL formatted
   string only.
  */
-class Abstract_plain_sql_object_dump_task
-  : public Abstract_plain_sql_object, public Abstract_dump_task
-{
-public:
-  Abstract_plain_sql_object_dump_task(uint64 id, const std::string& name,
-    const std::string& schema, const std::string& sql_formatted_definition);
+class Abstract_plain_sql_object_dump_task : public Abstract_plain_sql_object,
+                                            public Abstract_dump_task {
+ public:
+  Abstract_plain_sql_object_dump_task(
+      uint64 id, const std::string &name, const std::string &schema,
+      const std::string &sql_formatted_definition);
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

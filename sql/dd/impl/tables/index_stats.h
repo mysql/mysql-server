@@ -27,7 +27,7 @@
 
 #include "sql/dd/impl/types/entity_object_table_impl.h"
 #include "sql/dd/impl/types/index_stat_impl.h"
-#include "sql/dd/string_type.h"                          // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/dd/types/index_stat.h"
 
 namespace dd {
@@ -39,15 +39,13 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_stats: virtual public Entity_object_table_impl
-{
-public:
+class Index_stats : virtual public Entity_object_table_impl {
+ public:
   Index_stats();
 
   static const Index_stats &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_SCHEMA_NAME,
     FIELD_TABLE_NAME,
     FIELD_INDEX_NAME,
@@ -56,30 +54,23 @@ public:
     FIELD_CACHED_TIME
   };
 
-  enum enum_indexes
-  {
-    INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN
-  };
+  enum enum_indexes { INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN };
 
-  enum enum_foreign_keys
-  {
-  };
+  enum enum_foreign_keys {};
 
-  virtual Index_stat *create_entity_object(const Raw_record &) const
-  { return new (std::nothrow) Index_stat_impl(); }
+  virtual Index_stat *create_entity_object(const Raw_record &) const {
+    return new (std::nothrow) Index_stat_impl();
+  }
 
   static Index_stat::Name_key *create_object_key(
-                                      const String_type &schema_name,
-                                      const String_type &table_name,
-                                      const String_type &index_name,
-                                      const String_type &column_name);
+      const String_type &schema_name, const String_type &table_name,
+      const String_type &index_name, const String_type &column_name);
 
   static Object_key *create_range_key_by_table_name(
-                                       const String_type &schema_name,
-                                       const String_type &table_name);
+      const String_type &schema_name, const String_type &table_name);
 };
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__INDEX_STATS_INCLUDED
+#endif  // DD_TABLES__INDEX_STATS_INCLUDED

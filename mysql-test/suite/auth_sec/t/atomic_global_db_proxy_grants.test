@@ -17,26 +17,8 @@ SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
 
 --echo # Case 1 : Trying to create user with empty password
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SUPER ON *.* TO userX, userY, userA;
-
---echo # Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userZ;
---echo # Check mysql.user table too
-SELECT user, Super_priv FROM mysql.user WHERE user like 'user%';
-
---let $invert= 1
---let $event= !Q(GRANT SUPER ON.*userX.*userY.*userA.*)
---source ../include/auth_sec_assert_binlog_events.inc
---let $invert= 0
-
---echo # Case 2 : Provide invalid password hash
---error ER_PASSWORD_FORMAT
-GRANT SUPER ON *.* TO userX, userY,
-                      userA IDENTIFIED WITH 'caching_sha2_password'
-					  AS 'hahaha';
 
 --echo # Grants for userX, userY, userZ should not have changed
 SHOW GRANTS FOR userX;
@@ -61,7 +43,7 @@ FLUSH PRIVILEGES;
 --source include/save_binlog_position.inc
 
 --echo # Attempt to GRANT privileges to userW
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SUPER ON *.* TO userX, userW, userY;
 
 --echo Grants for userX, userY, userZ should not have changed
@@ -91,7 +73,7 @@ GRANT SUPER ON *.* TO userSUPER WITH GRANT OPTION;
 connect(conn_userSUPER, localhost, userSUPER,,,,,);
 
 --error ER_CANT_CREATE_USER_WITH_GRANT
-GRANT SUPER ON *.* TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT SUPER ON *.* TO userX, userY, userA , userB;
 
 --connection default
 disconnect conn_userSUPER;
@@ -145,7 +127,7 @@ SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
 
 --echo # Case 1 : Trying to create user with empty password
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT ON mysql.* TO userX, userY, userA;
 
 --echo # Grants for userX, userY, userZ should not have changed
@@ -160,24 +142,6 @@ SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
 --source ../include/auth_sec_assert_binlog_events.inc
 --let $invert= 0
 
---echo # Case 2 : Provide invalid password hash
---error ER_PASSWORD_FORMAT
-GRANT SELECT ON mysql.* TO userX, userY,
-                           userA IDENTIFIED WITH 'caching_sha2_password'
-					       AS 'hahaha';
-
---echo # Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userZ;
---echo # Check mysql.db table too
-SELECT user, db, Insert_priv, Select_priv FROM mysql.db WHERE user like 'user%';
-
---let $invert= 1
---let $event= !Q(GRANT SELECT ON.*mysql.*userX.*userY.*userA.*)
---source ../include/auth_sec_assert_binlog_events.inc
---let $invert= 0
-
 --echo # Case 3 : GRANT to a user with empty plugin
 
 --echo # Create userW and get rid of the plugin value for userW
@@ -189,7 +153,7 @@ FLUSH PRIVILEGES;
 --source include/save_binlog_position.inc
 
 --echo # Attempt to GRANT privileges to userW
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT ON mysql.* TO userX, userW, userY;
 
 --echo Grants for userX, userY, userZ should show SUPER
@@ -219,7 +183,7 @@ GRANT SELECT ON mysql.* TO userSELECT WITH GRANT OPTION;
 connect(conn_userSELECT, localhost, userSELECT,,,,,);
 
 --error ER_CANT_CREATE_USER_WITH_GRANT
-GRANT SELECT ON mysql.* TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT SELECT ON mysql.* TO userX, userY, userA , userB;
 
 --connection default
 disconnect conn_userSELECT;
@@ -287,7 +251,7 @@ SHOW GRANTS FOR userY;
 SHOW GRANTS FOR userZ;
 
 --echo # Case 1 : Trying to create user with empty password
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT PROXY ON proxied TO userX, userY, userA;
 
 --echo # Grants for userX, userY, userZ should not have changed
@@ -297,22 +261,6 @@ SHOW GRANTS FOR userZ;
 
 --let $invert= 1
 --let $event= !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userZ.*)
---source ../include/auth_sec_assert_binlog_events.inc
---let $invert= 0
-
---echo # Case 2 : Provide invalid password hash
---error ER_PASSWORD_FORMAT
-GRANT PROXY ON proxied TO userX, userY,
-                          userA IDENTIFIED WITH 'caching_sha2_password'
-					      AS 'hahaha';
-
---echo # Grants for userX, userY, userZ should not have changed
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userZ;
-
---let $invert= 1
---let $event= !Q(GRANT PROXY ON.*proxied.*TO.*mysql.*userX.*userY.*userA.*)
 --source ../include/auth_sec_assert_binlog_events.inc
 --let $invert= 0
 
@@ -327,7 +275,7 @@ FLUSH PRIVILEGES;
 --source include/save_binlog_position.inc
 
 --echo # Attempt to GRANT privileges to userW
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT PROXY ON proxied TO userX, userW, userY;
 
 --echo Grants for userX, userY, userZ should show SUPER
@@ -357,7 +305,7 @@ GRANT PROXY ON proxied TO userPROXY WITH GRANT OPTION;
 
 --connection conn_userPROXY
 --error ER_CANT_CREATE_USER_WITH_GRANT
-GRANT PROXY ON proxied TO userX, userY, userA IDENTIFIED BY 'abcd', userB;
+GRANT PROXY ON proxied TO userX, userY, userA, userB;
 
 --connection default
 disconnect conn_userPROXY;

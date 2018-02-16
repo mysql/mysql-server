@@ -32,24 +32,20 @@
 /**
   A mock handler extending Base_mock_HANDLER
  */
-class Mock_HANDLER : public Base_mock_HANDLER
-{
-public:
+class Mock_HANDLER : public Base_mock_HANDLER {
+ public:
   // Declare the members we actually want to test.
   MOCK_METHOD2(print_error, void(int error, myf errflag));
 
   Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
-    : Base_mock_HANDLER(ht_arg, share_arg)
-  {}
+      : Base_mock_HANDLER(ht_arg, share_arg) {}
 };
-
 
 /**
   A mock handler for testing the sampling handler.
 */
-class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER
-{
-public:
+class Mock_SAMPLING_HANDLER : public Base_mock_HANDLER {
+ public:
   /*
     Declare the members we actually want to test. These are the members that
     should be called by the "default" sampling implementation.
@@ -59,24 +55,18 @@ public:
   MOCK_METHOD0(rnd_end, int());
 
   Mock_SAMPLING_HANDLER(handlerton *ht_arg, TABLE *table, TABLE_SHARE *share)
-    : Base_mock_HANDLER(ht_arg, share)
-  {
-    this->table= table;
+      : Base_mock_HANDLER(ht_arg, share) {
+    this->table = table;
   }
 };
-
 
 /**
   A mock for the handlerton struct
 */
-class Fake_handlerton : public handlerton
-{
-public:
+class Fake_handlerton : public handlerton {
+ public:
   /// Minimal initialization of the handlerton
-  Fake_handlerton()
-  {
-    slot= 0;
-  }
+  Fake_handlerton() { slot = 0; }
 };
 
 #endif  // HANDLER_T_INCLUDED

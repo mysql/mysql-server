@@ -951,6 +951,7 @@ ssl_cert	#
 ssl_cipher	#
 ssl_crl	#
 ssl_crlpath	#
+ssl_fips_mode	#
 ssl_key	#
 select * from performance_schema.session_variables where variable_name like 'ssl%' order by 1;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -960,6 +961,7 @@ ssl_cert	#
 ssl_cipher	#
 ssl_crl	#
 ssl_crlpath	#
+ssl_fips_mode	#
 ssl_key	#
 SET SQL_BIG_SELECTS=0;
 select @@log_queries_not_using_indexes;
@@ -1379,6 +1381,8 @@ SET @@session.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
 SET @@global.thread_stack= 7;
 ERROR HY000: Variable 'thread_stack' is a read only variable
+SELECT @@global.binlog_expire_logs_seconds INTO @old_seconds;
+SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.expire_logs_days INTO @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
@@ -1431,6 +1435,7 @@ Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future 
 SET GLOBAL expire_logs_days = @old_eld;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+SET GLOBAL binlog_expire_logs_seconds= @old_seconds;
 SET GLOBAL auto_increment_offset=-1;
 Warnings:
 Warning	1292	Truncated incorrect auto_increment_offset value: '-1'
@@ -1509,7 +1514,6 @@ throw errors in STRICT mode
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.max_binlog_cache_size=-1;
 ERROR 42000: Variable 'max_binlog_cache_size' can't be set to the value of '-1'
 SET @@global.max_join_size=0;
@@ -1797,7 +1801,7 @@ set global log_slow_slave_statements = default;
 #
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
-sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql_mode	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 ---- Init ----
 set @my_slave_net_timeout         =@@global.slave_net_timeout;
 ---- Test ----

@@ -43,22 +43,18 @@
   Failure - true
 */
 
-bool Session_sysvar_resource_manager::init(char **var)
-{
-  if (*var)
-  {
-    char *ptr= my_strdup(key_memory_THD_Session_sysvar_resource_manager, *var,
-                         MYF(MY_WME));
-    if (ptr == nullptr)
-      return true;                            /* Error */
+bool Session_sysvar_resource_manager::init(char **var) {
+  if (*var) {
+    char *ptr = my_strdup(key_memory_THD_Session_sysvar_resource_manager, *var,
+                          MYF(MY_WME));
+    if (ptr == nullptr) return true; /* Error */
     m_sysvar_string_alloc_hash.emplace(var, unique_ptr_my_free<char>(ptr));
 
     /* Update the variable to point to the newly alloced copy. */
-    *var= ptr;
+    *var = ptr;
   }
   return false;
 }
-
 
 /**
   Frees the old alloced memory, memdup()'s the given val to a new memory
@@ -74,18 +70,15 @@ bool Session_sysvar_resource_manager::init(char **var)
 */
 
 bool Session_sysvar_resource_manager::update(char **var, char *val,
-                                             size_t val_len)
-{
-  char *ptr= nullptr;
+                                             size_t val_len) {
+  char *ptr = nullptr;
 
   // Memory allocation for the new value of the variable.
-  if (val)
-  {
-    ptr= pointer_cast<char *>(my_memdup(PSI_NOT_INSTRUMENTED, val, val_len + 1,
-                                        MYF(MY_WME)));
-    if (ptr == nullptr)
-      return true;
-    ptr[val_len]= 0;
+  if (val) {
+    ptr = pointer_cast<char *>(
+        my_memdup(PSI_NOT_INSTRUMENTED, val, val_len + 1, MYF(MY_WME)));
+    if (ptr == nullptr) return true;
+    ptr[val_len] = 0;
   }
 
   if (ptr == nullptr)
@@ -99,25 +92,21 @@ bool Session_sysvar_resource_manager::update(char **var, char *val,
     If current value and the new value are both nullptr,
     this function effectively does nothing.
   */
-  *var= ptr;
+  *var = ptr;
   return false;
 }
 
-void Session_sysvar_resource_manager::claim_memory_ownership()
-{
+void Session_sysvar_resource_manager::claim_memory_ownership() {
   /* Release Sys_var_charptr resources here. */
-  for (const auto &key_and_value : m_sysvar_string_alloc_hash)
-  {
+  for (const auto &key_and_value : m_sysvar_string_alloc_hash) {
     my_claim(key_and_value.second.get());
   }
 }
-
 
 /**
   @brief Frees the memory allocated for Sys_var_charptr session variables.
 */
 
-void Session_sysvar_resource_manager::deinit()
-{
+void Session_sysvar_resource_manager::deinit() {
   m_sysvar_string_alloc_hash.clear();
 }

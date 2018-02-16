@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,17 +25,16 @@
 #ifndef MYSQLX_XPL_CONFIG_H
 #define MYSQLX_XPL_CONFIG_H
 
-
 #ifdef HAVE_WOLFSSL
 #define IS_WOLFSSL_OR_OPENSSL(Y, O) Y
-#else // HAVE_WOLFSSL
+#else  // HAVE_WOLFSSL
 #define IS_WOLFSSL_OR_OPENSSL(Y, O) O
-#endif // HAVE_WOLFSSL
+#endif  // HAVE_WOLFSSL
 
 #if defined(HAVE_SYS_UN_H)
-#define HAVE_UNIX_SOCKET(YES,NO) YES
+#define HAVE_UNIX_SOCKET(YES, NO) YES
 #else
-#define HAVE_UNIX_SOCKET(YES,NO) NO
-#endif // defined(HAVE_SYS_UN_H)
+#define HAVE_UNIX_SOCKET(YES, NO) NO
+#endif  // defined(HAVE_SYS_UN_H)
 
-#endif // MYSQLX_XPL_CONFIG_H
+#endif  // MYSQLX_XPL_CONFIG_H

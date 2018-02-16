@@ -29,8 +29,7 @@
 #include "my_dbug.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "sql/opt_costconstants.h"       // Cost_model_constants
-
+#include "sql/opt_costconstants.h"  // Cost_model_constants
 
 /**
   This class implements a cache for "cost constant sets". This cache
@@ -38,7 +37,7 @@
   sessions access to the latest versions of the cost constants, and
   for re-reading the cost constant tables in the case where these have
   been updated.
- 
+
   The cost constant cache keeps a copy of the current set of cost
   constants. Each time a new session initializes its Cost_model_server
   object (by calling Cost_model_server::init() in lex_start()), the
@@ -56,9 +55,8 @@
   constant set is deleted.
 */
 
-class Cost_constant_cache
-{
-public:
+class Cost_constant_cache {
+ public:
   /**
     Creates an empty cost constant cache. To initialize it with default
     cost constants, @c init() must be called. To use cost constants from
@@ -114,8 +112,7 @@ public:
     @return pointer to the cost constants
   */
 
-  const Cost_model_constants *get_cost_constants()
-  {
+  const Cost_model_constants *get_cost_constants() {
     mysql_mutex_lock(&LOCK_cost_const);
 
     // Increase the ref count on the cost constant object
@@ -138,29 +135,27 @@ public:
     @param cost_constants pointer to the cost constant set
   */
 
-  void release_cost_constants(const Cost_model_constants *cost_constants)
-  {
+  void release_cost_constants(const Cost_model_constants *cost_constants) {
     DBUG_ASSERT(cost_constants != NULL);
 
     /*
       The reason for using a const cast here is to be able to keep
       the cost constant object const outside of this module.
     */
-    Cost_model_constants *cost=
-      const_cast<Cost_model_constants*>(cost_constants);
+    Cost_model_constants *cost =
+        const_cast<Cost_model_constants *>(cost_constants);
 
     mysql_mutex_lock(&LOCK_cost_const);
 
-    const unsigned int ref_count= cost->dec_ref_count();
+    const unsigned int ref_count = cost->dec_ref_count();
 
     mysql_mutex_unlock(&LOCK_cost_const);
 
     // If none is using these cost constants then delete them
-    if (ref_count == 0)
-      delete cost;
+    if (ref_count == 0) delete cost;
   }
 
-private:
+ private:
   /**
     Create default cost constants.
 
@@ -192,7 +187,6 @@ private:
   bool m_inited;
 };
 
-
 /**
   Initializes the optimizer cost module. This should be done during
   startup from mysqld.cc.
@@ -216,4 +210,4 @@ void delete_optimizer_cost_module();
 */
 void reload_optimizer_cost_constants();
 
-#endif  /* OPT_COSTCONSTANTCACHE_INCLUDED */
+#endif /* OPT_COSTCONSTANTCACHE_INCLUDED */

@@ -31,179 +31,122 @@ this program; if not, write to the Free Software Foundation, Inc.,
 namespace lob {
 
 /** The LOB data page carrying the user data. */
-struct data_page_t : public basic_page_t
-{
-	static const ulint OFFSET_VERSION = FIL_PAGE_DATA;
-	static const ulint OFFSET_DATA_LEN = OFFSET_VERSION + 1;
-	static const ulint OFFSET_TRX_ID = OFFSET_DATA_LEN + 4;
-	static const ulint LOB_PAGE_DATA = OFFSET_TRX_ID + 6;
+struct data_page_t : public basic_page_t {
+  static const ulint OFFSET_VERSION = FIL_PAGE_DATA;
+  static const ulint OFFSET_DATA_LEN = OFFSET_VERSION + 1;
+  static const ulint OFFSET_TRX_ID = OFFSET_DATA_LEN + 4;
+  static const ulint LOB_PAGE_DATA = OFFSET_TRX_ID + 6;
 
-	data_page_t() {}
+  data_page_t() {}
 
-	/** Contructor. */
-	data_page_t(
-		buf_block_t*	block,
-		mtr_t*		mtr)
-	:
-	basic_page_t(block, mtr)
-	{
-		page_type_t type = get_page_type();
-		ut_a(type == FIL_PAGE_TYPE_LOB_DATA);
-	}
+  /** Contructor. */
+  data_page_t(buf_block_t *block, mtr_t *mtr) : basic_page_t(block, mtr) {
+    page_type_t type = get_page_type();
+    ut_a(type == FIL_PAGE_TYPE_LOB_DATA);
+  }
 
-	data_page_t(
-		buf_block_t*	block,
-		mtr_t*		mtr,
-		dict_index_t*	index)
-	:
-	basic_page_t(block, mtr, index)
-	{}
+  data_page_t(buf_block_t *block, mtr_t *mtr, dict_index_t *index)
+      : basic_page_t(block, mtr, index) {}
 
-	data_page_t(
-		mtr_t*		mtr,
-		dict_index_t*	index)
-	:
-	basic_page_t(nullptr, mtr, index)
-	{}
+  data_page_t(mtr_t *mtr, dict_index_t *index)
+      : basic_page_t(nullptr, mtr, index) {}
 
-	/** Constructor.
-	@param[in]	block	the buffer block.*/
-	data_page_t(
-		buf_block_t*	block)
-	:
-	basic_page_t(block, nullptr, nullptr)
-	{}
+  /** Constructor.
+  @param[in]	block	the buffer block.*/
+  data_page_t(buf_block_t *block) : basic_page_t(block, nullptr, nullptr) {}
 
-	buf_block_t* alloc(mtr_t* alloc_mtr, bool is_bulk);
+  buf_block_t *alloc(mtr_t *alloc_mtr, bool is_bulk);
 
-	buf_block_t* load_x(page_no_t page_no);
+  buf_block_t *load_x(page_no_t page_no);
 
-	void set_version_0()
-	{
-		mlog_write_ulint(frame() + OFFSET_VERSION, 0, MLOG_1BYTE,
-				 m_mtr);
-	}
+  void set_version_0() {
+    mlog_write_ulint(frame() + OFFSET_VERSION, 0, MLOG_1BYTE, m_mtr);
+  }
 
-	void dealloc()
-	{
-		btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
-		m_block = nullptr;
-	}
+  void dealloc() {
+    btr_page_free_low(m_index, m_block, ULINT_UNDEFINED, m_mtr);
+    m_block = nullptr;
+  }
 
-	void set_page_type()
-	{
-		ut_ad(m_mtr != nullptr);
+  void set_page_type() {
+    ut_ad(m_mtr != nullptr);
 
-		mlog_write_ulint(frame() + FIL_PAGE_TYPE,
-				 FIL_PAGE_TYPE_LOB_DATA, MLOG_2BYTES, m_mtr);
-	}
+    mlog_write_ulint(frame() + FIL_PAGE_TYPE, FIL_PAGE_TYPE_LOB_DATA,
+                     MLOG_2BYTES, m_mtr);
+  }
 
-	void set_trx_id(trx_id_t id)
-	{
-		byte* ptr = frame() + OFFSET_TRX_ID;
-		mach_write_to_6(ptr, id);
-		mlog_log_string(ptr, 6, m_mtr);
-	}
+  void set_trx_id(trx_id_t id) {
+    byte *ptr = frame() + OFFSET_TRX_ID;
+    mach_write_to_6(ptr, id);
+    mlog_log_string(ptr, 6, m_mtr);
+  }
 
-	/** Write the trx identifier to the header, without
-	generating redo log.
-	@param[in]	id	the transaction identifier.*/
-	void set_trx_id_no_redo(trx_id_t id)
-	{
-		byte* ptr = frame() + OFFSET_TRX_ID;
-		mach_write_to_6(ptr, id);
-	}
+  /** Write the trx identifier to the header, without
+  generating redo log.
+  @param[in]	id	the transaction identifier.*/
+  void set_trx_id_no_redo(trx_id_t id) {
+    byte *ptr = frame() + OFFSET_TRX_ID;
+    mach_write_to_6(ptr, id);
+  }
 
-	static ulint payload()
-	{
-		return(UNIV_PAGE_SIZE - LOB_PAGE_DATA - FIL_PAGE_DATA_END);
-	}
+  static ulint payload() {
+    return (UNIV_PAGE_SIZE - LOB_PAGE_DATA - FIL_PAGE_DATA_END);
+  }
 
-	byte* data_begin() const
-	{
-		return(frame() + LOB_PAGE_DATA);
-	}
+  byte *data_begin() const { return (frame() + LOB_PAGE_DATA); }
 
-	/** Create a new data page and replace some or all parts of the old data
-	with data.
-	@param[in]	trx	the current transaction.
-	@param[in]	offset	the offset where replace begins.
-	@param[in,out]	ptr	pointer to new data.
-	@param[in]	want	amount of data the caller wants to replace.
-	@param[in]	mtr	the mini transaction context.
-	@return the buffer block of the new data page. */
-	buf_block_t*
-	replace(
-		trx_t*		trx,
-		ulint		offset,
-		const byte*&	ptr,
-		ulint&		want,
-		mtr_t*		mtr);
+  /** Create a new data page and replace some or all parts of the old data
+  with data.
+  @param[in]	trx	the current transaction.
+  @param[in]	offset	the offset where replace begins.
+  @param[in,out]	ptr	pointer to new data.
+  @param[in]	want	amount of data the caller wants to replace.
+  @param[in]	mtr	the mini transaction context.
+  @return the buffer block of the new data page. */
+  buf_block_t *replace(trx_t *trx, ulint offset, const byte *&ptr, ulint &want,
+                       mtr_t *mtr);
 
-	ulint get_data_len() const
-	{
-		return(mach_read_from_4(frame() + OFFSET_DATA_LEN));
-	}
+  ulint get_data_len() const {
+    return (mach_read_from_4(frame() + OFFSET_DATA_LEN));
+  }
 
-	void set_data_len(ulint len)
-	{
-		ut_ad(m_mtr != nullptr);
+  void set_data_len(ulint len) {
+    ut_ad(m_mtr != nullptr);
 
-		mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES,
-				 m_mtr);
-	}
+    mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES, m_mtr);
+  }
 
-	/** Read data from the data page.
-	@param[in]	offset	read begins at this offset.
-	@param[out]	ptr	the output buffer.
-	@param[in]	want	bytes to read
-	@return bytes actually read. */
-	ulint
-	read(
-		ulint		offset,
-		byte*		ptr,
-		ulint		want);
+  /** Read data from the data page.
+  @param[in]	offset	read begins at this offset.
+  @param[out]	ptr	the output buffer.
+  @param[in]	want	bytes to read
+  @return bytes actually read. */
+  ulint read(ulint offset, byte *ptr, ulint want);
 
-	/** Write data into a data page.
-	@param[in]	trxid	the transaction identifier of the session
-				writing data.
-	@param[in,out]	data	the data to be written.  it will be updated
-				to point to the byte not yet written.
-	@param[in,out]	len	length of data to be written.
-	@return amount of data actually written into the page. */
-	ulint
-	write(
-		trx_id_t	trxid,
-		const byte*&	data,
-		ulint&		len);
+  /** Write data into a data page.
+  @param[in]	trxid	the transaction identifier of the session
+                          writing data.
+  @param[in,out]	data	the data to be written.  it will be updated
+                          to point to the byte not yet written.
+  @param[in,out]	len	length of data to be written.
+  @return amount of data actually written into the page. */
+  ulint write(trx_id_t trxid, const byte *&data, ulint &len);
 
-	/** Append given data in data page.
-	@param[in]	trxid	transaction doing append.
-	@param[in,out]	data	data to be appended.
-	@param[in,out]	len	length of data.
-	@return number of bytes appended. */
-	ulint append(trx_id_t trxid, byte*& data, ulint& len);
+  /** Append given data in data page.
+  @param[in]	trxid	transaction doing append.
+  @param[in,out]	data	data to be appended.
+  @param[in,out]	len	length of data.
+  @return number of bytes appended. */
+  ulint append(trx_id_t trxid, byte *&data, ulint &len);
 
-	std::pair<ulint, byte*>
-	insert_middle(
-		trx_t*		trx,
-		ulint		offset,
-		byte*&		data,
-		ulint&		len,
-		buf_block_t*&	new_block);
+  std::pair<ulint, byte *> insert_middle(trx_t *trx, ulint offset, byte *&data,
+                                         ulint &len, buf_block_t *&new_block);
 
-	buf_block_t*
-	remove_middle(
-		trx_t*	trx,
-		ulint	offset,
-		ulint&	len);
+  buf_block_t *remove_middle(trx_t *trx, ulint offset, ulint &len);
 
-	ulint max_space_available() const
-	{
-		return(payload());
-	}
+  ulint max_space_available() const { return (payload()); }
 
-	ulint space_left() const;
+  ulint space_left() const;
 };
 
 }; /* namespace lob */

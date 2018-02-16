@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-
 
 /**
   @file sql/sql_optimizer.h
@@ -49,16 +48,16 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/mem_root_array.h"
-#include "sql/opt_explain_format.h"             // Explain_sort_clause
+#include "sql/opt_explain_format.h"  // Explain_sort_clause
 #include "sql/sql_array.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
-#include "sql/sql_executor.h"                   // Next_select_func
+#include "sql/sql_executor.h"  // Next_select_func
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_select.h"                     // Key_use
-#include "sql/sql_tmp_table.h"                  // enum_tmpfile_windowing_action
+#include "sql/sql_select.h"     // Key_use
+#include "sql/sql_tmp_table.h"  // enum_tmpfile_windowing_action
 #include "sql/table.h"
 #include "sql/temp_table_param.h"
 #include "template_utils.h"
@@ -68,23 +67,20 @@ class Item_sum;
 class Window;
 struct MYSQL_LOCK;
 
-typedef Bounds_checked_array<Item_null_result*> Item_null_array;
+typedef Bounds_checked_array<Item_null_result *> Item_null_array;
 
 // Key_use has a trivial destructor, no need to run it from Mem_root_array.
 typedef Mem_root_array<Key_use> Key_use_array;
 
 class Cost_model_server;
 
-
-struct SARGABLE_PARAM
-{
-  Field *field;              /* field against which to check sargability */
-  Item **arg_value;          /* values of potential keys for lookups     */
-  uint num_values;           /* number of values in the above array      */
+struct SARGABLE_PARAM {
+  Field *field;     /* field against which to check sargability */
+  Item **arg_value; /* values of potential keys for lookups     */
+  uint num_values;  /* number of values in the above array      */
 };
 
-struct ROLLUP
-{
+struct ROLLUP {
   enum State { STATE_NONE, STATE_INITED, STATE_READY };
   State state;
   Item_null_array null_items;
@@ -94,14 +90,13 @@ struct ROLLUP
 };
 
 /**
-  Wrapper for ORDER* pointer to trace origins of ORDER list 
-  
+  Wrapper for ORDER* pointer to trace origins of ORDER list
+
   As far as ORDER is just a head object of ORDER expression
   chain, we need some wrapper object to associate flags with
   the whole ORDER list.
 */
-class ORDER_with_src
-{
+class ORDER_with_src {
   /**
     Private empty class to implement type-safe NULL assignment
 
@@ -115,33 +110,36 @@ class ORDER_with_src
   */
   struct null {};
 
-public:
+ public:
   ORDER *order;  ///< ORDER expression that we are wrapping with this class
-  Explain_sort_clause src; ///< origin of order list
+  Explain_sort_clause src;  ///< origin of order list
 
-private:
+ private:
   /**
     True means that sort direction (ASC/DESC) could be ignored. Used for
     picking index for ordering dataset for DISTINCT or GROUP BY.
   */
   bool ignore_order;
-  int flags; ///< bitmap of Explain_sort_property
+  int flags;  ///< bitmap of Explain_sort_property
 
-public:
+ public:
   ORDER_with_src() { clean(); }
 
   ORDER_with_src(ORDER *order_arg, Explain_sort_clause src_arg)
-  : order(order_arg), src(src_arg),
-    ignore_order(src_arg == ESC_ORDER_BY ? false : true),
-    flags(order_arg ? ESP_EXISTS : ESP_none)
-  { }
+      : order(order_arg),
+        src(src_arg),
+        ignore_order(src_arg == ESC_ORDER_BY ? false : true),
+        flags(order_arg ? ESP_EXISTS : ESP_none) {}
 
   /**
     Type-safe NULL assignment
 
     See a commentary for the "null" type above.
   */
-  ORDER_with_src &operator=(null *) { clean(); return *this; }
+  ORDER_with_src &operator=(null *) {
+    clean();
+    return *this;
+  }
 
   /**
     Type-safe constructor from NULL
@@ -155,139 +153,141 @@ public:
 
     These operators are safe, since we don't do any conversion of
     ORDER_with_src value, but just an access to the wrapped
-    ORDER pointer value. 
+    ORDER pointer value.
     We can use ORDER_with_src objects instead ORDER pointers in
     a transparent way without accessor functions.
 
     @note     This operator also implements safe "operator bool()"
               functionality.
   */
-  operator       ORDER *()       { return order; }
+  operator ORDER *() { return order; }
   operator const ORDER *() const { return order; }
 
-  ORDER* operator->() const { return order; }
+  ORDER *operator->() const { return order; }
 
-  void clean() { order= NULL; src= ESC_none; flags= ESP_none; }
+  void clean() {
+    order = NULL;
+    src = ESC_none;
+    flags = ESP_none;
+  }
 
-  int get_flags() const { DBUG_ASSERT(order); return flags; }
+  int get_flags() const {
+    DBUG_ASSERT(order);
+    return flags;
+  }
   /**
     Inform optimizer that ASC/DESC direction of this list should be
     honored.
   */
-  void force_order() { ignore_order= false; }
+  void force_order() { ignore_order = false; }
   bool can_ignore_order() { return ignore_order; }
 };
 
-class JOIN
-{
-  JOIN(const JOIN &rhs);                        /**< not implemented */
-  JOIN& operator=(const JOIN &rhs);             /**< not implemented */
+class JOIN {
+  JOIN(const JOIN &rhs);            /**< not implemented */
+  JOIN &operator=(const JOIN &rhs); /**< not implemented */
 
-public:
+ public:
   JOIN(THD *thd_arg, SELECT_LEX *select)
-    : select_lex(select),
-      unit(select->master_unit()),
-      thd(thd_arg),
-      join_tab(NULL),
-      qep_tab(NULL),
-      best_ref(NULL),
-      map2table(NULL),
-      sort_by_table(NULL),
-      tables(0),
-      primary_tables(0),
-      const_tables(0),
-      tmp_tables(0),
-      send_group_parts(0),
-      sort_and_group(false),
-      first_record(false),
-      // @todo Can this be substituted with select->is_explicitly_grouped()?
-      grouped(select->is_explicitly_grouped()),
-      do_send_rows(true),
-      all_table_map(0),
-      // Inner tables may always be considered to be constant:
-      const_table_map(INNER_TABLE_BIT),
-      found_const_table_map(INNER_TABLE_BIT),
-      send_records(0),
-      found_records(0),
-      examined_rows(0),
-      row_limit(0),
-      m_select_limit(0),
-      fetch_limit(HA_POS_ERROR),
-      best_positions(NULL),
-      positions(NULL),
-      first_select(sub_select),
-      best_read(0.0),
-      best_rowcount(0),
-      sort_cost(0.0),
-  // Needed in case optimizer short-cuts, set properly in make_tmp_tables_info()
-      fields(&select->item_list),
-      group_fields(),
-      group_fields_cache(),
-      sum_funcs(NULL),
-      sum_funcs_end(),
-      tmp_table_param(),
-      lock(thd->lock),
-      rollup(),
-      // @todo Can this be substituted with select->is_implicitly_grouped()?
-      implicit_grouping(select->is_implicitly_grouped()),
-      select_distinct(select->is_distinct()),
-      group_optimized_away(false),
-      simple_order(false),
-      simple_group(false),
-      m_ordered_index_usage(ORDERED_INDEX_VOID),
-      no_order(false),
-      skip_sort_order(false),
-      need_tmp_before_win(false),
-      keyuse_array(thd->mem_root),
-      all_fields(select->all_fields),
-      fields_list(select->fields_list),
-      tmp_all_fields(nullptr),
-      tmp_fields_list(nullptr),
-      error(0),
-      order(select->order_list.first, ESC_ORDER_BY),
-      group_list(select->group_list.first, ESC_GROUP_BY),
-      m_windows(select->m_windows),
-      m_windows_sort(false),
-      m_windowing_steps(false),
-      explain_flags(),
-      /*
-        Those four members are meaningless before JOIN::optimize(), so force a
-        crash if they are used before that.
-      */
-      where_cond((Item*)1),
-      having_cond((Item*)1),
-      having_for_explain((Item*)1),
-      tables_list((TABLE_LIST*)1),
-      cond_equal(NULL),
-      return_tab(0),
-      ref_items(nullptr),
-      before_ref_item_slice_tmp3(nullptr),
-      current_ref_item_slice(REF_SLICE_SAVE),
-      recursive_iteration_count(0),
-      zero_result_cause(NULL),
-      child_subquery_can_materialize(false),
-      allow_outer_refs(false),
-      sj_tmp_tables(),
-      sjm_exec_list(),
-      group_sent(false),
-      calc_found_rows(false),
-      with_json_agg(select->json_agg_func_used()),
-      optimized(false),
-      executed(false),
-      plan_state(NO_PLAN)
-  {
-    rollup.state= ROLLUP::STATE_NONE;
-    tmp_table_param.end_write_records= HA_POS_ERROR;
-    if (select->order_list.first)
-      explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
-    if (select->group_list.first)
-      explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
-    if (select->is_distinct())
-      explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
-    if (m_windows.elements > 0)
-      explain_flags.set(ESC_WINDOWING, ESP_EXISTS);
+      : select_lex(select),
+        unit(select->master_unit()),
+        thd(thd_arg),
+        join_tab(NULL),
+        qep_tab(NULL),
+        best_ref(NULL),
+        map2table(NULL),
+        sort_by_table(NULL),
+        tables(0),
+        primary_tables(0),
+        const_tables(0),
+        tmp_tables(0),
+        send_group_parts(0),
+        sort_and_group(false),
+        first_record(false),
+        // @todo Can this be substituted with select->is_explicitly_grouped()?
+        grouped(select->is_explicitly_grouped()),
+        do_send_rows(true),
+        all_table_map(0),
+        // Inner tables may always be considered to be constant:
+        const_table_map(INNER_TABLE_BIT),
+        found_const_table_map(INNER_TABLE_BIT),
+        send_records(0),
+        found_records(0),
+        examined_rows(0),
+        row_limit(0),
+        m_select_limit(0),
+        fetch_limit(HA_POS_ERROR),
+        best_positions(NULL),
+        positions(NULL),
+        first_select(sub_select),
+        best_read(0.0),
+        best_rowcount(0),
+        sort_cost(0.0),
+        // Needed in case optimizer short-cuts, set properly in
+        // make_tmp_tables_info()
+        fields(&select->item_list),
+        group_fields(),
+        group_fields_cache(),
+        sum_funcs(NULL),
+        sum_funcs_end(),
+        tmp_table_param(),
+        lock(thd->lock),
+        rollup(),
+        // @todo Can this be substituted with select->is_implicitly_grouped()?
+        implicit_grouping(select->is_implicitly_grouped()),
+        select_distinct(select->is_distinct()),
+        group_optimized_away(false),
+        simple_order(false),
+        simple_group(false),
+        m_ordered_index_usage(ORDERED_INDEX_VOID),
+        no_order(false),
+        skip_sort_order(false),
+        need_tmp_before_win(false),
+        keyuse_array(thd->mem_root),
+        all_fields(select->all_fields),
+        fields_list(select->fields_list),
+        tmp_all_fields(nullptr),
+        tmp_fields_list(nullptr),
+        error(0),
+        order(select->order_list.first, ESC_ORDER_BY),
+        group_list(select->group_list.first, ESC_GROUP_BY),
+        m_windows(select->m_windows),
+        m_windows_sort(false),
+        m_windowing_steps(false),
+        explain_flags(),
+        /*
+          Those four members are meaningless before JOIN::optimize(), so force a
+          crash if they are used before that.
+        */
+        where_cond((Item *)1),
+        having_cond((Item *)1),
+        having_for_explain((Item *)1),
+        tables_list((TABLE_LIST *)1),
+        cond_equal(NULL),
+        return_tab(0),
+        ref_items(nullptr),
+        before_ref_item_slice_tmp3(nullptr),
+        current_ref_item_slice(REF_SLICE_SAVE),
+        recursive_iteration_count(0),
+        zero_result_cause(NULL),
+        child_subquery_can_materialize(false),
+        allow_outer_refs(false),
+        sj_tmp_tables(),
+        sjm_exec_list(),
+        group_sent(false),
+        calc_found_rows(false),
+        with_json_agg(select->json_agg_func_used()),
+        optimized(false),
+        executed(false),
+        plan_state(NO_PLAN) {
+    rollup.state = ROLLUP::STATE_NONE;
+    tmp_table_param.end_write_records = HA_POS_ERROR;
+    if (select->order_list.first) explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
+    if (select->group_list.first) explain_flags.set(ESC_GROUP_BY, ESP_EXISTS);
+    if (select->is_distinct()) explain_flags.set(ESC_DISTINCT, ESP_EXISTS);
+    if (m_windows.elements > 0) explain_flags.set(ESC_WINDOWING, ESP_EXISTS);
     // Calculate the number of groups
-    for (ORDER *group= group_list; group; group= group->next)
+    for (ORDER *group = group_list; group; group = group->next)
       send_group_parts++;
   }
 
@@ -314,13 +314,13 @@ public:
     The optimizer reorders best_ref.
   */
   JOIN_TAB **best_ref;
-  JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
+  JOIN_TAB **map2table;  ///< mapping between table indexes and JOIN_TABs
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
-  TABLE    *sort_by_table;
+  TABLE *sort_by_table;
   /**
     Before plan has been created, "tables" denote number of input tables in the
     query block and "primary_tables" is equal to "tables".
@@ -331,7 +331,7 @@ public:
       materialized temporary tables from semi-join operation.
     - "const_tables" are those tables among primary_tables that are detected
       to be constant.
-    - "tmp_tables" is 0, 1 or 2 (more if windows) and counts the maximum 
+    - "tmp_tables" is 0, 1 or 2 (more if windows) and counts the maximum
       possible number of intermediate tables in post-processing (ie sorting and
       duplicate removal).
       Later, tmp_tables will be adjusted to the correct number of
@@ -345,23 +345,23 @@ public:
      4. possible holes in array
      5. semi-joined tables used with materialization strategy
   */
-  uint     tables;         ///< Total number of tables in query block
-  uint     primary_tables; ///< Number of primary input tables in query block
-  uint     const_tables;   ///< Number of primary tables deemed constant
-  uint     tmp_tables;     ///< Number of temporary tables used by query
-  uint     send_group_parts;
+  uint tables;          ///< Total number of tables in query block
+  uint primary_tables;  ///< Number of primary input tables in query block
+  uint const_tables;    ///< Number of primary tables deemed constant
+  uint tmp_tables;      ///< Number of temporary tables used by query
+  uint send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
     query execution. This field belongs to query execution.
 
     @see make_group_fields, alloc_group_fields, JOIN::exec
   */
-  bool     sort_and_group; 
-  bool     first_record;
-  bool     grouped;          ///< If query contains GROUP BY clause
-  bool     do_send_rows;     ///< If true, send produced rows using query_result
-  table_map all_table_map;   ///< Set of tables contained in query
-  table_map const_table_map; ///< Set of tables found to be const
+  bool sort_and_group;
+  bool first_record;
+  bool grouped;             ///< If query contains GROUP BY clause
+  bool do_send_rows;        ///< If true, send produced rows using query_result
+  table_map all_table_map;  ///< Set of tables contained in query
+  table_map const_table_map;  ///< Set of tables found to be const
   /**
      Const tables which are either:
      - not empty
@@ -370,7 +370,7 @@ public:
   */
   table_map found_const_table_map;
   /* Number of records produced after join + group operation */
-  ha_rows  send_records;
+  ha_rows send_records;
   ha_rows found_records;
   ha_rows examined_rows;
   ha_rows row_limit;
@@ -385,7 +385,7 @@ public:
       - when we open a cursor, we set fetch_limit to 0,
       - on each fetch iteration we add num_rows to fetch to fetch_limit
   */
-  ha_rows  fetch_limit;
+  ha_rows fetch_limit;
 
   /**
     This is the result of join optimization.
@@ -394,14 +394,14 @@ public:
   */
   POSITION *best_positions;
 
-/******* Join optimization state members start *******/
-  
+  /******* Join optimization state members start *******/
+
   /* Current join optimization state */
-  POSITION *positions;  
+  POSITION *positions;
 
-  /* We also maintain a stack of join optimization states in * join->positions[] */
-/******* Join optimization state members end *******/
-
+  /* We also maintain a stack of join optimization states in * join->positions[]
+   */
+  /******* Join optimization state members end *******/
 
   Next_select_func first_select;
   /**
@@ -409,16 +409,16 @@ public:
     after optimization phase - cost of picked join order (not taking into
     account the changes made by test_if_skip_sort_order()).
   */
-  double   best_read;
+  double best_read;
   /**
     The estimated row count of the plan with best read time (see above).
   */
-  ha_rows  best_rowcount;
+  ha_rows best_rowcount;
   /// Expected cost of filesort.
-  double   sort_cost;
+  double sort_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
-  Item_sum  **sum_funcs, ***sum_funcs_end;
+  Item_sum **sum_funcs, ***sum_funcs_end;
   /**
      Describes a temporary table.
      Each tmp table has its own tmp_table_param.
@@ -430,10 +430,10 @@ public:
   */
   Temp_table_param tmp_table_param;
   MYSQL_LOCK *lock;
-  
-  ROLLUP rollup;                  ///< Used with rollup
-  bool implicit_grouping;         ///< True if aggregated but no GROUP BY
-  bool select_distinct;           ///< Set if SELECT DISTINCT
+
+  ROLLUP rollup;           ///< Used with rollup
+  bool implicit_grouping;  ///< True if aggregated but no GROUP BY
+  bool select_distinct;    ///< Set if SELECT DISTINCT
   /**
     If we have the GROUP BY statement in the query,
     but the group_list was emptied by optimizer, this
@@ -447,21 +447,20 @@ public:
     simple_xxxxx is set if ORDER/GROUP BY doesn't include any references
     to other tables than the first non-constant table in the JOIN.
     It's also set if ORDER/GROUP BY is empty.
-    Used for deciding for or against using a temporary table to compute 
+    Used for deciding for or against using a temporary table to compute
     GROUP/ORDER BY.
   */
   bool simple_order, simple_group;
 
   /*
     m_ordered_index_usage is set if an ordered index access
-    should be used instead of a filesort when computing 
+    should be used instead of a filesort when computing
     ORDER/GROUP BY.
   */
-  enum
-  {
-    ORDERED_INDEX_VOID,       // No ordered index avail.
-    ORDERED_INDEX_GROUP_BY,   // Use index for GROUP BY
-    ORDERED_INDEX_ORDER_BY    // Use index for ORDER BY
+  enum {
+    ORDERED_INDEX_VOID,      // No ordered index avail.
+    ORDERED_INDEX_GROUP_BY,  // Use index for GROUP BY
+    ORDERED_INDEX_ORDER_BY   // Use index for ORDER BY
   } m_ordered_index_usage;
 
   /**
@@ -473,7 +472,7 @@ public:
     Is set if we have a GROUP BY and we have ORDER BY on a constant or when
     sorting isn't required.
   */
-  bool          skip_sort_order;
+  bool skip_sort_order;
 
   /**
     If true we need a temporary table on the result set before any
@@ -514,7 +513,7 @@ public:
   */
   List<Item> *tmp_fields_list;
 
-  int error; ///< set in optimize(), exec(), prepare_result()
+  int error;  ///< set in optimize(), exec(), prepare_result()
 
   /**
     ORDER BY and GROUP BY lists, to transform with prepare,optimize and exec
@@ -540,7 +539,7 @@ public:
   */
   Explain_format_flags explain_flags;
 
-  /** 
+  /**
     JOIN::having_cond is initially equal to select_lex->having_cond, but may
     later be changed by optimizations performed by JOIN.
     The relationship between the JOIN::having_cond condition and the
@@ -564,7 +563,7 @@ public:
     Printed by EXPLAIN EXTENDED.
     Initialized by SELECT_LEX::get_optimizable_conditions().
   */
-  Item       *where_cond;
+  Item *where_cond;
   /**
     Optimized HAVING clause item tree (valid for one single execution).
     Used in JOIN execution, as last "row filtering" step. With one exception:
@@ -574,8 +573,8 @@ public:
     EXTENDED can still print it.
     Initialized by SELECT_LEX::get_optimizable_conditions().
   */
-  Item       *having_cond;
-  Item       *having_for_explain;    ///< Saved optimized HAVING for EXPLAIN
+  Item *having_cond;
+  Item *having_for_explain;  ///< Saved optimized HAVING for EXPLAIN
   /**
     Pointer set to select_lex->get_table_list() at the start of
     optimization. May be changed (to NULL) only if opt_sum_query() optimizes
@@ -625,7 +624,7 @@ public:
     are associated with a single optimization. The size of slice 0 determines
     the slice size used when allocating the other slices.
    */
-  Ref_item_array *ref_items; // cardinality: REF_SLICE_SAVE + 1 + #windows*2
+  Ref_item_array *ref_items;  // cardinality: REF_SLICE_SAVE + 1 + #windows*2
 
   /**
      If slice REF_SLICE_TMP3 has been created, this is the QEP_TAB which is
@@ -705,24 +704,21 @@ public:
   bool prepare_result();
   bool destroy();
   bool alloc_func_list();
-  bool make_sum_func_list(List<Item> &all_fields,
-                          List<Item> &send_fields,
-                          bool before_group_by, bool recompute= false);
+  bool make_sum_func_list(List<Item> &all_fields, List<Item> &send_fields,
+                          bool before_group_by, bool recompute = false);
 
   /**
      Overwrites one slice of ref_items with the contents of another slice.
      In the normal case, dst and src have the same size().
      However: the rollup slices may have smaller size than slice_sz.
    */
-  void copy_ref_item_slice(uint dst_slice, uint src_slice)
-  {
+  void copy_ref_item_slice(uint dst_slice, uint src_slice) {
     copy_ref_item_slice(ref_items[dst_slice], ref_items[src_slice]);
   }
-  void copy_ref_item_slice(Ref_item_array dst_arr, Ref_item_array src_arr)
-  {
+  void copy_ref_item_slice(Ref_item_array dst_arr, Ref_item_array src_arr) {
     DBUG_ASSERT(dst_arr.size() >= src_arr.size());
-    void *dest= dst_arr.array();
-    const void *src= src_arr.array();
+    void *dest = dst_arr.array();
+    const void *src = src_arr.array();
     if (!src_arr.is_null())
       memcpy(dest, src, src_arr.size() * src_arr.element_size());
   }
@@ -735,15 +731,13 @@ public:
 
     @returns false if success, true if error
   */
-  bool alloc_ref_item_slice(THD *thd_arg, int sliceno)
-  {
-    DBUG_ASSERT(sliceno > 0 &&
-                ref_items[sliceno].is_null());
-    size_t count= ref_items[0].size();
-    Item **slice= pointer_cast<Item **>(thd_arg->alloc(sizeof(Item *) * count));
-    if (slice == NULL)
-      return true;
-    ref_items[sliceno]= Ref_item_array(slice, count);
+  bool alloc_ref_item_slice(THD *thd_arg, int sliceno) {
+    DBUG_ASSERT(sliceno > 0 && ref_items[sliceno].is_null());
+    size_t count = ref_items[0].size();
+    Item **slice =
+        pointer_cast<Item **>(thd_arg->alloc(sizeof(Item *) * count));
+    if (slice == NULL) return true;
+    ref_items[sliceno] = Ref_item_array(slice, count);
     return false;
   }
   /**
@@ -752,14 +746,13 @@ public:
     @param sliceno number to overwrite the base slice with, must be 1-4 or
            4 + windowno.
   */
-  void set_ref_item_slice(uint sliceno)
-  {
+  void set_ref_item_slice(uint sliceno) {
     DBUG_ASSERT((int)sliceno >= 1);
-    if (current_ref_item_slice != sliceno)
-    {
+    if (current_ref_item_slice != sliceno) {
       copy_ref_item_slice(REF_SLICE_BASE, sliceno);
-      DBUG_PRINT("info",("ref slice %u -> %u", current_ref_item_slice, sliceno));
-      current_ref_item_slice= sliceno;
+      DBUG_PRINT("info",
+                 ("ref slice %u -> %u", current_ref_item_slice, sliceno));
+      current_ref_item_slice = sliceno;
     }
   }
 
@@ -776,7 +769,7 @@ public:
   bool optimize_rollup();
   bool rollup_process_const_fields();
   bool rollup_make_fields(List<Item> &all_fields, List<Item> &fields,
-			  Item_sum ***func);
+                          Item_sum ***func);
   bool rollup_send_data(uint idx);
   bool rollup_write_data(uint idx, TABLE *table);
   void remove_subq_pushed_predicates();
@@ -794,7 +787,7 @@ public:
   void restore_fields(table_map save_nullinfo);
 
   /**
-    Return whether the caller should send a row even if the join 
+    Return whether the caller should send a row even if the join
     produced no rows if:
      - there is an aggregate function (sum_func_count!=0), and
      - the query is not grouped, and
@@ -803,10 +796,9 @@ public:
     @note: if there is a having clause, it must be evaluated before
     returning the row.
   */
-  bool send_row_on_empty_set() const
-  {
+  bool send_row_on_empty_set() const {
     return (do_send_rows && tmp_table_param.sum_func_count != 0 &&
-	    group_list == NULL && !group_optimized_away &&
+            group_list == NULL && !group_optimized_away &&
             select_lex->having_value != Item::COND_FALSE);
   }
 
@@ -817,13 +809,12 @@ public:
   bool attach_join_conditions(plan_idx last_tab);
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
-                            bool force_stable_sort= false);
+                            bool force_stable_sort = false);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   void mark_const_table(JOIN_TAB *table, Key_use *key);
   /// State of execution plan. Currently used only for EXPLAIN
-  enum enum_plan_state
-  {
+  enum enum_plan_state {
     NO_PLAN,      ///< No plan is ready yet
     ZERO_RESULT,  ///< Zero result cause is set
     NO_TABLES,    ///< Plan has no tables
@@ -832,9 +823,9 @@ public:
   /// See enum_plan_state
   enum_plan_state get_plan_state() const { return plan_state; }
   bool is_optimized() const { return optimized; }
-  void set_optimized() { optimized= true; }
+  void set_optimized() { optimized = true; }
   bool is_executed() const { return executed; }
-  void set_executed() { executed= true; }
+  void set_executed() { executed = true; }
 
   /**
     Retrieve the cost model object to be used for this join.
@@ -842,8 +833,7 @@ public:
     @return Cost model object for the join
   */
 
-  const Cost_model_server* cost_model() const
-  {
+  const Cost_model_server *cost_model() const {
     DBUG_ASSERT(thd != NULL);
     return thd->cost_model();
   }
@@ -861,9 +851,9 @@ public:
   */
   bool propagate_dependencies();
 
-private:
-  bool optimized; ///< flag to avoid double optimization in EXPLAIN
-  bool executed;  ///< Set by exec(), reset by reset()
+ private:
+  bool optimized;  ///< flag to avoid double optimization in EXPLAIN
+  bool executed;   ///< Set by exec(), reset by reset()
 
   /// Final execution plan state. Currently used only for EXPLAIN
   enum_plan_state plan_state;
@@ -878,20 +868,15 @@ private:
     @param tmp_table_fields List of items that will be used to define
                             column types of the table.
     @param tmp_table_group  Group key to use for temporary table, NULL if none.
-    @param save_sum_fields  If true, do not replace Item_sum items in 
-                            @c tmp_fields list with Item_field items referring 
+    @param save_sum_fields  If true, do not replace Item_sum items in
+                            @c tmp_fields list with Item_field items referring
                             to fields in temporary table.
-    @param windowing        informs on whether this call is made on behalf of
-                            a window function, and if so how to treat it.
-    @param last_window_step The tmp table represents the last windowing step
 
     @returns false on success, true on failure
   */
   bool create_intermediate_table(QEP_TAB *tab, List<Item> *tmp_table_fields,
                                  ORDER_with_src &tmp_table_group,
-                                 bool save_sum_fields,
-                                 enum_tmpfile_windowing_action windowing,
-                                 bool last_window_step);
+                                 bool save_sum_fields);
 
   /**
     Optimize distinct when used on a subset of the tables.
@@ -914,14 +899,13 @@ private:
     TODO figure out necessity of this method. Current test
          suite passed without this intialization.
   */
-  void init_key_dependencies()
-  {
-    JOIN_TAB *const tab_end= join_tab + tables;
-    for (JOIN_TAB *tab= join_tab; tab < tab_end; tab++)
-      tab->key_dependent= tab->dependent;
+  void init_key_dependencies() {
+    JOIN_TAB *const tab_end = join_tab + tables;
+    for (JOIN_TAB *tab = join_tab; tab < tab_end; tab++)
+      tab->key_dependent = tab->dependent;
   }
 
-private:
+ private:
   void set_prefix_tables();
   void cleanup_item_list(List<Item> &items) const;
   void set_semijoin_embedding();
@@ -958,7 +942,7 @@ private:
       corresponding first inner table through the field t0->on_expr_ref.
       Here ti are structures of the JOIN_TAB type.
 
-    EXAMPLE. For the query: 
+    EXAMPLE. For the query:
     @code
           SELECT * FROM t1
                         LEFT JOIN
@@ -971,7 +955,7 @@ private:
       is selected, the following references will be set;
       t4->last_inner=[t4], t4->first_inner=[t4], t4->first_upper=[t2]
       t2->last_inner=[t4], t2->first_inner=t3->first_inner=[t2],
-      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to 
+      on expression (t1.a=t2.a AND t1.b=t3.b) will be attached to
       *t2->on_expr_ref, while t3.a=t4.a will be attached to *t4->on_expr_ref.
 
     @note
@@ -1003,9 +987,9 @@ private:
   bool make_tmp_tables_info();
   void set_plan_state(enum_plan_state plan_state_arg);
   bool compare_costs_of_subquery_strategies(
-         Item_exists_subselect::enum_exec_method *method);
-  ORDER *remove_const(ORDER *first_order, Item *cond,
-                      bool change_list, bool *simple_order, bool group_by);
+      Item_exists_subselect::enum_exec_method *method);
+  ORDER *remove_const(ORDER *first_order, Item *cond, bool change_list,
+                      bool *simple_order, bool group_by);
 
   /**
     Check whether this is a subquery that can be evaluated by index look-ups.
@@ -1034,7 +1018,7 @@ private:
       used for only the first of any of these terms to be executed. This
       is reflected in the order which we check for test_if_skip_sort_order()
       below. However we do not check for DISTINCT here, as it would have
-      been transformed to a GROUP BY at this stage if it is a candidate for 
+      been transformed to a GROUP BY at this stage if it is a candidate for
       ordered index optimization.
       If a decision was made to use an ordered index, the availability
       if such an access path is stored in 'm_ordered_index_usage' for later
@@ -1045,55 +1029,44 @@ private:
   bool alloc_indirection_slices();
 };
 
-
 /**
   RAII class to ease the temporary switching to a different slice of
   the ref item array.
 */
-class Switch_ref_item_slice
-{
+class Switch_ref_item_slice {
   JOIN *join;
   uint saved;
-public:
-  Switch_ref_item_slice(JOIN *join_arg, uint new_v):
-  join(join_arg), saved(join->get_ref_item_slice())
-  {
-    if (!join->ref_items[new_v].is_null())
-      join->set_ref_item_slice(new_v);
-  }
-  ~Switch_ref_item_slice()
-  {
-    join->set_ref_item_slice(saved);
-  }
-};
 
+ public:
+  Switch_ref_item_slice(JOIN *join_arg, uint new_v)
+      : join(join_arg), saved(join->get_ref_item_slice()) {
+    if (!join->ref_items[new_v].is_null()) join->set_ref_item_slice(new_v);
+  }
+  ~Switch_ref_item_slice() { join->set_ref_item_slice(saved); }
+};
 
 /**
   RAII class to ease the call of LEX::mark_broken() if error.
   Used during preparation and optimization of DML queries.
 */
-class Prepare_error_tracker
-{
-public:
+class Prepare_error_tracker {
+ public:
   Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
-  ~Prepare_error_tracker()
-  {
-    if (unlikely(thd->is_error()))
-      thd->lex->mark_broken();
+  ~Prepare_error_tracker() {
+    if (unlikely(thd->is_error())) thd->lex->mark_broken();
   }
-private:
+
+ private:
   THD *const thd;
 };
 
-bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno, 
+bool uses_index_fields_only(Item *item, TABLE *tbl, uint keyno,
                             bool other_tbls_ok);
 bool remove_eq_conds(THD *thd, Item *cond, Item **retcond,
                      Item::cond_result *cond_value);
 bool optimize_cond(THD *thd, Item **conds, COND_EQUAL **cond_equal,
-                    List<TABLE_LIST> *join_list,
-                    Item::cond_result *cond_value);
-Item* substitute_for_best_equal_field(Item *cond,
-                                      COND_EQUAL *cond_equal,
+                   List<TABLE_LIST> *join_list, Item::cond_result *cond_value);
+Item *substitute_for_best_equal_field(Item *cond, COND_EQUAL *cond_equal,
                                       void *table_join_idx);
 bool build_equal_items(THD *thd, Item *cond, Item **retcond,
                        COND_EQUAL *inherited, bool do_inherit,
@@ -1104,10 +1077,8 @@ Key_use_array *create_keyuse_for_table(THD *thd, uint keyparts,
                                        Item_field **fields,
                                        List<Item> outer_exprs);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
-Item *
-make_cond_for_table(THD *thd, Item *cond, table_map tables,
-                    table_map used_table,
-                    bool exclude_expensive_cond);
+Item *make_cond_for_table(THD *thd, Item *cond, table_map tables,
+                          table_map used_table, bool exclude_expensive_cond);
 uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
                                    uint first_unused);
 
@@ -1117,10 +1088,9 @@ uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
    @param  f  Field
    @param  v  Expression
  */
-inline bool field_time_cmp_date(const Field *f, const Item *v)
-{
+inline bool field_time_cmp_date(const Field *f, const Item *v) {
   return f->is_temporal() && !f->is_temporal_with_date() &&
-    v->is_temporal_with_date();
+         v->is_temporal_with_date();
 }
 
 bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,

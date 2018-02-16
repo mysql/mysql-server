@@ -1800,8 +1800,6 @@ DROP TABLE t1;
 # Bug#26621664 WL9223:ASSERTION `DISTANCE <= 1.0' FAILED.
 #
 SET @@SESSION.sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk int(11) NOT NULL AUTO_INCREMENT,
 col_int int(11) NOT NULL,

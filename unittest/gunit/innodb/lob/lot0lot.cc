@@ -38,8 +38,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lot0lot.h"
 
 #if 1
-#define Fname(x) const char* fname = x;
-#define LOG(x) {std::cout << fname << ":" << x << std::endl;}
+#define Fname(x) const char *fname = x;
+#define LOG(x) \
+  { std::cout << fname << ":" << x << std::endl; }
 #else
 #define Fname(x)
 #define LOG(x)
@@ -51,7 +52,7 @@ void lob_tester_t::print_info() {
   ut_ad(get_page_size() == KB16);
 
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 888;
 
@@ -73,7 +74,7 @@ void lob_tester_t::fetch_full() {
 
   LOG("Inserting LOB of size " << SIZE << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
   LOG("Inserted lobid=" << lobid);
 
   trx_id_t trxid = 28;
@@ -84,7 +85,7 @@ void lob_tester_t::fetch_full() {
 
   ulint offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, offset, fetch_bytes, buf);
   LOG("Comparing bytes=" << fetch_bytes);
   if (memcmp(lob + offset, buf, fetch_bytes) == 0) {
@@ -100,7 +101,7 @@ void test_2() {
 
   LOG("Inserting LOB of size " << SIZE << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   lob::ref_t ref;
   ref.m_id = lobid;
@@ -108,14 +109,14 @@ void test_2() {
 
   ulint replace_offset = 5;
   ulint replace_bytes = 10;
-  byte* replace_buf = new byte[replace_bytes + 1];
+  byte *replace_buf = new byte[replace_bytes + 1];
   memset(replace_buf, '\0', replace_bytes + 1);
-  strcpy((char*)replace_buf, "1234567890");
+  strcpy((char *)replace_buf, "1234567890");
   lob::replace(12, ref, replace_offset, replace_bytes, replace_buf);
 
   ulint offset = 0;
   ulint fetch_bytes = 40;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   memset(buf, '\0', fetch_bytes);
   lob::read(11, ref, offset, fetch_bytes - 1, buf);
   LOG("buf=" << buf);
@@ -128,7 +129,7 @@ void insert_generic(ulint size) {
 
   LOG("LOB size=" << size << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, size);
+  byte *lob = lob_data::generate_lob(&lobid, size);
 
   trx_id_t trxid = 10;
 
@@ -156,7 +157,7 @@ void test_3() {
 
   LOG("Inserting LOB of size " << SIZE << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 10;
 
@@ -169,21 +170,21 @@ void test_3() {
   /* Fetch the LOB that has been inserted. */
   ulint offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, offset, fetch_bytes, buf);
   LOG("Fetched LOB: " << buf);
 
   /* Insert more data in middle of LOB. */
   ulint ins_offset = 20;
   ulint ins_bytes = 10;
-  byte* ins_data = new byte[ins_bytes + 1];
-  strcpy((char*)ins_data, "1234567890");
+  byte *ins_data = new byte[ins_bytes + 1];
+  strcpy((char *)ins_data, "1234567890");
   LOG("Inserting data: " << ins_data);
   lob::insert_middle(trxid, ref, ins_offset, ins_data, ins_bytes);
 
   /* Fetch the LOB that has been inserted. */
   fetch_bytes = SIZE + ins_bytes;
-  byte* buf2 = new byte[fetch_bytes + 1];
+  byte *buf2 = new byte[fetch_bytes + 1];
   memset(buf2, '\0', fetch_bytes + 1);
   lob::read(trxid, ref, offset, fetch_bytes, buf2);
   LOG("Fetched LOB: " << buf2);
@@ -202,7 +203,7 @@ void lob_tester_t::test_4() {
 
   LOG("Inserting LOB of size " << SIZE << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 182;
 
@@ -215,7 +216,7 @@ void lob_tester_t::test_4() {
   /* Fetch the LOB that has been inserted. */
   ulint offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, offset, fetch_bytes, buf);
   if (memcmp(buf, lob, SIZE) == 0) {
     LOG("Fetch PASS");
@@ -226,14 +227,14 @@ void lob_tester_t::test_4() {
   /* Insert more data in middle of LOB. */
   ulint ins_offset = 11000;
   ulint ins_bytes = 10;
-  byte* ins_data = new byte[ins_bytes + 1];
-  strcpy((char*)ins_data, "1234567890");
+  byte *ins_data = new byte[ins_bytes + 1];
+  strcpy((char *)ins_data, "1234567890");
   LOG("Inserting data: " << ins_data);
   lob::insert_middle(trxid, ref, ins_offset, ins_data, ins_bytes);
 
   /* Fetch the LOB that has been inserted. */
   fetch_bytes = SIZE + ins_bytes;
-  byte* buf2 = new byte[fetch_bytes + 1];
+  byte *buf2 = new byte[fetch_bytes + 1];
   memset(buf2, '\0', fetch_bytes + 1);
   lob::read(trxid, ref, offset, fetch_bytes, buf2);
 
@@ -272,7 +273,7 @@ void lob_tester_t::remove_middle_1() {
 
   LOG("Inserting LOB of size " << SIZE << " bytes");
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 200;
 
@@ -285,7 +286,7 @@ void lob_tester_t::remove_middle_1() {
   /* Fetch the LOB that has been inserted. */
   ulint offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, offset, fetch_bytes, buf);
   if (memcmp(buf, lob, SIZE) == 0) {
     LOG("Fetch PASS");
@@ -301,7 +302,7 @@ void lob_tester_t::remove_middle_1() {
 
   /* Fetch the LOB that has been modified. */
   fetch_bytes = SIZE - rm_bytes;
-  byte* buf2 = new byte[fetch_bytes + 1];
+  byte *buf2 = new byte[fetch_bytes + 1];
   memset(buf2, '\0', fetch_bytes + 1);
   lob::read(trxid, ref, offset, fetch_bytes, buf2);
 
@@ -366,7 +367,7 @@ void lob_tester_t::replace_generic(ulint lob_size, ulint offset,
   }
 
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
   trx_id_t trx1 = 100;
 
   /* Insert the LOB */
@@ -385,7 +386,7 @@ void lob_tester_t::replace_generic(ulint lob_size, ulint offset,
   lobid_t lobid2;
   trx_id_t trx2 = 300;
   ulint replace_offset = offset;
-  byte* replace_lob = lob_data::generate_lob(&lobid2, '|', replace_len);
+  byte *replace_lob = lob_data::generate_lob(&lobid2, '|', replace_len);
   lob::replace(trx2, ref, replace_offset, replace_len, replace_lob);
 
   /* Fetch the older LOB that has been originally inserted. */
@@ -438,7 +439,7 @@ void lob_tester_t::remove_middle_gen(ulint lob_size, ulint offset,
   }
 
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 200;
 
@@ -450,7 +451,7 @@ void lob_tester_t::remove_middle_gen(ulint lob_size, ulint offset,
   /* Fetch the LOB that has been inserted. */
   ulint fetch_offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, fetch_offset, fetch_bytes, buf);
   ut_ad(memcmp(buf, lob, SIZE) == 0);
 
@@ -464,7 +465,7 @@ void lob_tester_t::remove_middle_gen(ulint lob_size, ulint offset,
 
   /* Fetch the LOB that has been modified. */
   fetch_bytes = SIZE - rm_bytes;
-  byte* buf2 = new byte[SIZE];
+  byte *buf2 = new byte[SIZE];
   memset(buf2, '\0', fetch_bytes + 1);
   ulint len = lob::read(trx3, ref, fetch_offset, fetch_bytes, buf2);
 
@@ -507,7 +508,7 @@ void lob_tester_t::remove_middle_gen(ulint lob_size, ulint offset,
 void lob_tester_t::insert_rollback() {
   const ulint SIZE = MB5;
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
 
   trx_id_t trxid = 300;
 
@@ -519,7 +520,7 @@ void lob_tester_t::insert_rollback() {
   /* Fetch the LOB that has been inserted. */
   ulint fetch_offset = 0;
   ulint fetch_bytes = SIZE;
-  byte* buf = new byte[fetch_bytes];
+  byte *buf = new byte[fetch_bytes];
   lob::read(trxid, ref, fetch_offset, fetch_bytes, buf);
   ut_ad(memcmp(buf, lob, SIZE) == 0);
 
@@ -558,9 +559,9 @@ void lob_tester_t::insert_middle_generic(ulint lob_size, ulint offset,
   std::unique_ptr<byte> buf2(new byte[size2]);
 
   lobid_t lobid;
-  byte* lob = lob_data::generate_lob(&lobid, SIZE);
+  byte *lob = lob_data::generate_lob(&lobid, SIZE);
   lobid_t lobid2;
-  byte* lob2 = lob_data::generate_lob(&lobid2, '|', len);
+  byte *lob2 = lob_data::generate_lob(&lobid2, '|', len);
 
   trx_id_t trx1 = 100;
 
@@ -601,8 +602,7 @@ void lob_tester_t::insert_middle_generic(ulint lob_size, ulint offset,
 
   // Compare the trailer
   ulint trailer_len = SIZE - offset;
-  ut_ad(memcmp(buf2.get() + offset + len,
-               lob + offset, trailer_len) == 0);
+  ut_ad(memcmp(buf2.get() + offset + len, lob + offset, trailer_len) == 0);
 
   trx_rollback(trx2, ref);
 
@@ -617,22 +617,19 @@ void lob_tester_t::insert_middle_generic(ulint lob_size, ulint offset,
   buf_pool_reset();
 }
 
-TEST(insert, InsertStressMB1)
-{
-  for(ulint size = 0; size < MB1; size += KB1) {
+TEST(insert, InsertStressMB1) {
+  for (ulint size = 0; size < MB1; size += KB1) {
     insert_generic(size);
   }
 }
 
-TEST(insert, InsertStressMB5)
-{
-  for(ulint size = MB1; size < MB5; size += KB2) {
+TEST(insert, InsertStressMB5) {
+  for (ulint size = MB1; size < MB5; size += KB2) {
     insert_generic(size);
   }
 }
 
-TEST(replace, ReplaceStressMB3)
-{
+TEST(replace, ReplaceStressMB3) {
   const ulint SIZE = MB3;
   ulint len = 2000;
   lob_tester_t tester;

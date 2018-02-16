@@ -398,8 +398,6 @@ update t1 set f2=1 order by f2;
 ERROR 42S22: Unknown column 'f2' in 'field list'
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 request_id int unsigned NOT NULL auto_increment,
 user_id varchar(12) default NULL,
@@ -555,8 +553,6 @@ DROP VIEW v1;
 # Bug#54734 assert in Diagnostics_area::set_ok_status
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE IF EXISTS t1, not_exists;
 DROP FUNCTION IF EXISTS f1;
 DROP VIEW IF EXISTS v1;
@@ -904,8 +900,6 @@ Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1, "abc"), (2, "def");
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET token = X'ad';
 Warnings:
 Warning	1366	Incorrect string value: '\xAD' for column 'token' at row 1

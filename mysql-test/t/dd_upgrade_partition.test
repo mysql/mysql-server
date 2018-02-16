@@ -82,7 +82,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57_partition;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --echo # Start the server. Without fix, there is a segmentation fault in this step.
---exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=$MYSQLD_DATADIR1" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 

@@ -239,10 +239,6 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'xyz';
 --error ER_PLUGIN_IS_NOT_LOADED
 ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
 
-# GETS error as the hash_string cannot be set to specified value
---error ER_PASSWORD_FORMAT
-CREATE USER IF NOT EXISTS 'u1'@'%' IDENTIFIED BY PASSWORD 'xyz';
-
 # Check that  the above statements have not been logged in binary log
 --let $assert_text= assert that the above Event has not been added to binlog
 --let $assert_cond= [SHOW MASTER STATUS, Position,1] = $pos_before

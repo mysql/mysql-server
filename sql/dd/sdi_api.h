@@ -39,8 +39,7 @@ namespace sdi {
 /**
   State and operations for importing an sdi file into the DD.
  */
-class Import_target
-{
+class Import_target {
   /** Full path to the sdi file being imported. */
   dd::String_type m_path;
 
@@ -68,7 +67,7 @@ class Import_target
   */
   std::unique_ptr<dd::String_type> m_lc_sname;
 
-public:
+ public:
   /**
     Creates an instance to handle the import of a single sdi file.
     @param path full path to an sdi file to import
@@ -80,8 +79,8 @@ public:
   /**
     Having a unique_ptr as member makes this a move-only type.
    */
-  Import_target(Import_target &&)= default;
-  Import_target(const Import_target &)= delete;
+  Import_target(Import_target &&) = default;
+  Import_target(const Import_target &) = delete;
 
   /**
     Finish import by removing tmp sdi file when importing from sdi
@@ -184,7 +183,7 @@ bool check_privileges(THD *thd, const Import_target &t);
 */
 MDL_request *mdl_request(const Import_target &t, MEM_ROOT *mem_root);
 
-} // namespace sdi
-} // namespace dd
+}  // namespace sdi
+}  // namespace dd
 
 #endif /* DD_SDI_API_INCLUDED */

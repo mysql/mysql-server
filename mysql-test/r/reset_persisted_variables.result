@@ -11,9 +11,9 @@ Warning	3615	Variable max_connections does not exist in persisted config file
 RESET PERSIST IF EXISTS;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 1
 RESET PERSIST IF EXISTS max_connections, long_query_time;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' long_query_time' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', long_query_time' at line 1
 RESET PERSIST max_connections, long_query_time;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' long_query_time' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', long_query_time' at line 1
 # check contents of persistent config file
 SET PERSIST sort_buffer_size=256000;
 SET PERSIST long_query_time= 8.3452;

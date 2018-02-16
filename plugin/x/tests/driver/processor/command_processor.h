@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,11 +29,9 @@
 #include "plugin/x/tests/driver/processor/commands/command.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
-
 class Command_processor : public Block_processor {
  public:
-  explicit Command_processor(Execution_context *context)
-      : m_context(context) {}
+  explicit Command_processor(Execution_context *context) : m_context(context) {}
 
   Result feed(std::istream &input, const char *command_line) override;
 

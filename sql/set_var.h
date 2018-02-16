@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,17 +37,17 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-#include "my_getopt.h"        // get_opt_arg_type
+#include "my_getopt.h"  // get_opt_arg_type
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/system_variable_source_type.h"
 #include "mysql/status_var.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"        // Item_result
-#include "prealloced_array.h" // Prealloced_array
-#include "sql/sql_const.h"    // SHOW_COMP_OPTION
-#include "sql/sql_plugin_ref.h" // plugin_ref
-#include "typelib.h"          // TYPELIB
+#include "mysql_com.h"           // Item_result
+#include "prealloced_array.h"    // Prealloced_array
+#include "sql/sql_const.h"       // SHOW_COMP_OPTION
+#include "sql/sql_plugin_ref.h"  // plugin_ref
+#include "typelib.h"             // TYPELIB
 
 class Item;
 class Item_func_set_user_var;
@@ -59,12 +59,14 @@ class set_var;
 class sys_var;
 class sys_var_pluginvar;
 struct LEX_USER;
-template <class Key, class Value> class collation_unordered_map;
+template <class Key, class Value>
+class collation_unordered_map;
 
 typedef ulonglong sql_mode_t;
 typedef enum enum_mysql_show_type SHOW_TYPE;
 typedef enum enum_mysql_show_scope SHOW_SCOPE;
-template <class T> class List;
+template <class T>
+class List;
 
 extern TYPELIB bool_typelib;
 
@@ -72,8 +74,7 @@ extern TYPELIB bool_typelib;
 #define SHOW_VAR_PREALLOC 200
 typedef Prealloced_array<SHOW_VAR, SHOW_VAR_PREALLOC> Show_var_array;
 
-struct sys_var_chain
-{
+struct sys_var_chain {
   sys_var *first;
   sys_var *last;
 };
@@ -81,9 +82,12 @@ struct sys_var_chain
 int mysql_add_sys_var_chain(sys_var *chain);
 int mysql_del_sys_var_chain(sys_var *chain);
 
-enum enum_var_type
-{
-  OPT_DEFAULT= 0, OPT_SESSION, OPT_GLOBAL, OPT_PERSIST, OPT_PERSIST_ONLY
+enum enum_var_type {
+  OPT_DEFAULT = 0,
+  OPT_SESSION,
+  OPT_GLOBAL,
+  OPT_PERSIST,
+  OPT_PERSIST_ONLY
 };
 
 /**
@@ -93,57 +97,65 @@ enum enum_var_type
   optionally it can be assigned to, optionally it can have a command-line
   counterpart with the same name.
 */
-class sys_var
-{
-public:
+class sys_var {
+ public:
   sys_var *next;
   LEX_CSTRING name;
-  enum flag_enum
-  {
-    GLOBAL=       0x0001,
-    SESSION=      0x0002,
-    ONLY_SESSION= 0x0004,
-    SCOPE_MASK=   0x03FF, // 1023
-    READONLY=     0x0400, // 1024
-    ALLOCATED=    0x0800, // 2048
-    INVISIBLE=    0x1000, // 4096
-    TRI_LEVEL=    0x2000, // 8192 - default is neither GLOBAL nor SESSION
-    NOTPERSIST=   0x4000,
-    HINT_UPDATEABLE= 0x8000 // Variable is updateable using SET_VAR hint
+  enum flag_enum {
+    GLOBAL = 0x0001,
+    SESSION = 0x0002,
+    ONLY_SESSION = 0x0004,
+    SCOPE_MASK = 0x03FF,  // 1023
+    READONLY = 0x0400,    // 1024
+    ALLOCATED = 0x0800,   // 2048
+    INVISIBLE = 0x1000,   // 4096
+    TRI_LEVEL = 0x2000,   // 8192 - default is neither GLOBAL nor SESSION
+    NOTPERSIST = 0x4000,
+    HINT_UPDATEABLE = 0x8000,  // Variable is updateable using SET_VAR hint
+    /**
+     There can be some variables which needs to be set before plugin is loaded.
+     ex: binlog_checksum needs to be set before GR plugin is loaded.
+    */
+
+    PERSIST_AS_READ_ONLY = 0x10000
   };
-  static const int PARSE_EARLY= 1;
-  static const int PARSE_NORMAL= 2;
+  static const int PARSE_EARLY = 1;
+  static const int PARSE_NORMAL = 2;
   /**
     Enumeration type to indicate for a system variable whether
     it will be written to the binlog or not.
-  */    
-  enum binlog_status_enum { VARIABLE_NOT_IN_BINLOG,
-                            SESSION_VARIABLE_IN_BINLOG } binlog_status;
+  */
+  enum binlog_status_enum {
+    VARIABLE_NOT_IN_BINLOG,
+    SESSION_VARIABLE_IN_BINLOG
+  } binlog_status;
 
-protected:
+ protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
-  typedef bool (*on_update_function)(sys_var *self, THD *thd, enum_var_type type);
+  typedef bool (*on_update_function)(sys_var *self, THD *thd,
+                                     enum_var_type type);
 
-  int flags;            ///< or'ed flag_enum values
-  int m_parse_flag;     ///< either PARSE_EARLY or PARSE_NORMAL.
-  const SHOW_TYPE show_val_type; ///< what value_ptr() returns for sql_show.cc
-  my_option option;     ///< min, max, default values are stored here
-  PolyLock *guard;      ///< *second* lock that protects the variable
-  ptrdiff_t offset;     ///< offset to the value from global_system_variables
+  int flags;                      ///< or'ed flag_enum values
+  int m_parse_flag;               ///< either PARSE_EARLY or PARSE_NORMAL.
+  const SHOW_TYPE show_val_type;  ///< what value_ptr() returns for sql_show.cc
+  my_option option;               ///< min, max, default values are stored here
+  PolyLock *guard;                ///< *second* lock that protects the variable
+  ptrdiff_t offset;  ///< offset to the value from global_system_variables
   on_check_function on_check;
   on_update_function on_update;
   const char *const deprecation_substitute;
-  bool is_os_charset; ///< true if the value is in character_set_filesystem
+  bool is_os_charset;  ///< true if the value is in character_set_filesystem
   struct get_opt_arg_source source;
-  char user[USERNAME_CHAR_LENGTH];  /* which user  has set this variable */
-  char host[HOSTNAME_LENGTH];       /* host on which this variable is set */
-  ulonglong timestamp;  /* represents when this variable was set */
+  char user[USERNAME_CHAR_LENGTH]; /* which user  has set this variable */
+  char host[HOSTNAME_LENGTH];      /* host on which this variable is set */
+  ulonglong timestamp;             /* represents when this variable was set */
 
-public:
+ public:
   sys_var(sys_var_chain *chain, const char *name_arg, const char *comment,
           int flag_args, ptrdiff_t off, int getopt_id,
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
-          longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
+          longlong def_val, PolyLock *lock,
+          enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
           const char *substitute, int parse_flag);
 
@@ -160,10 +172,12 @@ public:
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
 
   bool check(THD *thd, set_var *var);
-  uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type, LEX_STRING *base);
+  uchar *value_ptr(THD *running_thd, THD *target_thd, enum_var_type type,
+                   LEX_STRING *base);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  virtual void update_default(longlong new_def_value)
-  { option.def_value= new_def_value; }
+  virtual void update_default(longlong new_def_value) {
+    option.def_value = new_def_value;
+  }
   longlong get_default() { return option.def_value; }
   virtual bool is_default(THD *thd, set_var *var);
   virtual longlong get_min_value() { return option.min_value; }
@@ -174,39 +188,31 @@ public:
     @return variable type
   */
   virtual ulong get_var_type() { return (option.var_type & GET_TYPE_MASK); }
-  virtual void set_arg_source(get_opt_arg_source*) {}
+  virtual void set_arg_source(get_opt_arg_source *) {}
   virtual void set_is_plugin(bool) {}
   enum_variable_source get_source() { return source.m_source; }
-  const char* get_source_name() { return source.m_path_name; }
-  void set_source(enum_variable_source src) { option.arg_source->m_source= src; }
-  void set_source_name(const char* path)
-  {
+  const char *get_source_name() { return source.m_path_name; }
+  void set_source(enum_variable_source src) {
+    option.arg_source->m_source = src;
+  }
+  void set_source_name(const char *path) {
     strcpy(option.arg_source->m_path_name, path);
   }
-  void set_user(const char* usr) { strcpy(user, usr); }
-  const char* get_user() { return user; }
-  const char* get_host() { return host; }
-  void set_host(const char* hst) { strcpy(host, hst); }
+  void set_user(const char *usr) { strcpy(user, usr); }
+  const char *get_user() { return user; }
+  const char *get_host() { return host; }
+  void set_host(const char *hst) { strcpy(host, hst); }
   ulonglong get_timestamp() const { return timestamp; }
-  void set_user_host(THD* thd);
-  my_option* get_option() { return &option; }
-  void set_timestamp()
-  {
-    timestamp= my_micro_time();
-  }
-  void set_timestamp(ulonglong ts) { timestamp= ts; }
-  void clear_user_host_timestamp()
-  {
+  void set_user_host(THD *thd);
+  my_option *get_option() { return &option; }
+  void set_timestamp() { timestamp = my_micro_time(); }
+  void set_timestamp(ulonglong ts) { timestamp = ts; }
+  void clear_user_host_timestamp() {
     user[0] = '\0';
     host[0] = '\0';
     timestamp = 0;
   }
-  virtual bool is_non_persistent() {return flags & NOTPERSIST; }
-  /**
-    Check if plugin variable is persisted as a read only variable. For
-    server variables always return false.
-  */
-  virtual bool is_plugin_var_read_only() { return 0; }
+  virtual bool is_non_persistent() { return flags & NOTPERSIST; }
 
   /**
      Update the system variable with the default value from either
@@ -222,6 +228,7 @@ public:
   bool is_readonly() const { return flags & READONLY; }
   bool not_visible() const { return flags & INVISIBLE; }
   bool is_trilevel() const { return flags & TRI_LEVEL; }
+  bool is_persist_readonly() const { return flags & PERSIST_AS_READ_ONLY; }
   /**
     Check if the variable can be set using SET_VAR hint.
 
@@ -234,37 +241,37 @@ public:
     that support the syntax @@keycache_name.variable_name
   */
   bool is_struct() { return option.var_type & GET_ASK_ADDR; }
-  bool is_written_to_binlog(enum_var_type type)
-  { return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG; }
+  bool is_written_to_binlog(enum_var_type type) {
+    return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG;
+  }
   virtual bool check_update_type(Item_result type) = 0;
-  
+
   /**
     Return true for success if:
       Global query and variable scope is GLOBAL or SESSION, or
       Session query and variable scope is SESSION or ONLY_SESSION.
   */
-  bool check_scope(enum_var_type query_type)
-  {
-    switch (query_type)
-    {
+  bool check_scope(enum_var_type query_type) {
+    switch (query_type) {
       case OPT_PERSIST:
       case OPT_PERSIST_ONLY:
-      case OPT_GLOBAL:  return scope() & (GLOBAL | SESSION);
-      case OPT_SESSION: return scope() & (SESSION | ONLY_SESSION);
-      case OPT_DEFAULT: return scope() & (SESSION | ONLY_SESSION);
+      case OPT_GLOBAL:
+        return scope() & (GLOBAL | SESSION);
+      case OPT_SESSION:
+        return scope() & (SESSION | ONLY_SESSION);
+      case OPT_DEFAULT:
+        return scope() & (SESSION | ONLY_SESSION);
     }
     return false;
   }
-  bool is_global_persist(enum_var_type type)
-  {
+  bool is_global_persist(enum_var_type type) {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
 
-  bool register_option(std::vector<my_option> *array, int parse_flags)
-  {
+  bool register_option(std::vector<my_option> *array, int parse_flags) {
     return (option.id != -1) && (m_parse_flag & parse_flags) &&
-      (array->push_back(option), false);
+           (array->push_back(option), false);
   }
   void do_deprecated_warning(THD *thd);
   /**
@@ -276,7 +283,8 @@ public:
             impossible to obtain the value.
   */
   Item *copy_value(THD *thd);
-private:
+
+ private:
   virtual bool do_check(THD *thd, set_var *var) = 0;
   /**
     save the session default value of the variable in var
@@ -288,13 +296,15 @@ private:
   virtual void global_save_default(THD *thd, set_var *var) = 0;
   virtual bool session_update(THD *thd, set_var *var) = 0;
   virtual bool global_update(THD *thd, set_var *var) = 0;
-protected:
+
+ protected:
   /**
     A pointer to a value of the variable for SHOW.
     It must be of show_val_type type (bool for SHOW_BOOL, int for SHOW_INT,
     longlong for SHOW_LONGLONG, etc).
   */
-  virtual uchar *session_value_ptr(THD *running_thd, THD *target_thd, LEX_STRING *base);
+  virtual uchar *session_value_ptr(THD *running_thd, THD *target_thd,
+                                   LEX_STRING *base);
   virtual uchar *global_value_ptr(THD *thd, LEX_STRING *base);
 
   /**
@@ -316,15 +326,14 @@ protected:
   It's similar to Items, an instance of this is created by the parser
   for every assigmnent in SET (or elsewhere, e.g. in SELECT).
 */
-class set_var_base
-{
-public:
+class set_var_base {
+ public:
   set_var_base() {}
   virtual ~set_var_base() {}
-  virtual int resolve(THD *thd)=0;         ///< Check privileges & fix_fields
-  virtual int check(THD *thd)=0;           ///< Evaluate the expression
-  virtual int update(THD *thd)=0;          ///< Set the value
-  virtual void print(THD *thd, String *str)=0;   ///< To self-print
+  virtual int resolve(THD *thd) = 0;  ///< Check privileges & fix_fields
+  virtual int check(THD *thd) = 0;    ///< Evaluate the expression
+  virtual int update(THD *thd) = 0;   ///< Set the value
+  virtual void print(THD *thd, String *str) = 0;  ///< To self-print
 
   /**
     @returns whether this variable is @@@@optimizer_trace.
@@ -338,26 +347,25 @@ public:
   virtual int light_check(THD *thd) { return (resolve(thd) || check(thd)); }
 };
 
-
 /**
   set_var_base descendant for assignments to the system variables.
 */
-class set_var :public set_var_base
-{
-public:
-  sys_var *var; ///< system variable to be updated
-  Item *value;  ///< the expression that provides the new value of the variable
+class set_var : public set_var_base {
+ public:
+  sys_var *var;  ///< system variable to be updated
+  Item *value;   ///< the expression that provides the new value of the variable
   enum_var_type type;
-  union ///< temp storage to hold a value between sys_var::check and ::update
+  union  ///< temp storage to hold a value between sys_var::check and ::update
   {
-    ulonglong ulonglong_value;          ///< for all integer, set, enum sysvars
-    double double_value;                ///< for Sys_var_double
-    plugin_ref plugin;                  ///< for Sys_var_plugin
-    Time_zone *time_zone;               ///< for Sys_var_tz
-    LEX_STRING string_value;            ///< for Sys_var_charptr and others
-    const void *ptr;                    ///< for Sys_var_struct
+    ulonglong ulonglong_value;  ///< for all integer, set, enum sysvars
+    double double_value;        ///< for Sys_var_double
+    plugin_ref plugin;          ///< for Sys_var_plugin
+    Time_zone *time_zone;       ///< for Sys_var_tz
+    LEX_STRING string_value;    ///< for Sys_var_charptr and others
+    const void *ptr;            ///< for Sys_var_struct
   } save_result;
-  LEX_STRING base; /**< for structured variables, like keycache_name.variable_name */
+  LEX_STRING
+  base; /**< for structured variables, like keycache_name.variable_name */
 
   set_var(enum_var_type type_arg, sys_var *var_arg,
           const LEX_STRING *base_name_arg, Item *value_arg);
@@ -373,77 +381,72 @@ public:
     @param str String buffer to append the partial assignment to.
   */
   void print_short(String *str);
-  void print(THD*, String *str);   /* To self-print */
-  bool is_global_persist()
-  {
+  void print(THD *, String *str); /* To self-print */
+  bool is_global_persist() {
     return (type == OPT_GLOBAL || type == OPT_PERSIST ||
             type == OPT_PERSIST_ONLY);
   }
-  virtual bool is_var_optimizer_trace() const
-  {
+  virtual bool is_var_optimizer_trace() const {
     extern sys_var *Sys_optimizer_trace_ptr;
     return var == Sys_optimizer_trace_ptr;
   }
 };
 
-
 /* User variables like @my_own_variable */
-class set_var_user: public set_var_base
-{
+class set_var_user : public set_var_base {
   Item_func_set_user_var *user_var_item;
-public:
-  set_var_user(Item_func_set_user_var *item)
-    :user_var_item(item)
-  {}
+
+ public:
+  set_var_user(Item_func_set_user_var *item) : user_var_item(item) {}
   int resolve(THD *thd);
   int check(THD *thd);
   int update(THD *thd);
   int light_check(THD *thd);
-  void print(THD *thd, String *str);	/* To self-print */
+  void print(THD *thd, String *str); /* To self-print */
 };
 
 /* For SET PASSWORD */
 
-class set_var_password: public set_var_base
-{
+class set_var_password : public set_var_base {
   LEX_USER *user;
   char *password;
-public:
-  set_var_password(LEX_USER *user_arg,char *password_arg)
-    :user(user_arg), password(password_arg)
-  {}
-  int resolve(THD*) { return 0; }
+
+ public:
+  set_var_password(LEX_USER *user_arg, char *password_arg)
+      : user(user_arg), password(password_arg) {}
+  int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str);	/* To self-print */
+  void print(THD *thd, String *str); /* To self-print */
 };
-
 
 /* For SET NAMES and SET CHARACTER SET */
 
-class set_var_collation_client: public set_var_base
-{
-  int   set_cs_flags;
+class set_var_collation_client : public set_var_base {
+  int set_cs_flags;
   const CHARSET_INFO *character_set_client;
   const CHARSET_INFO *character_set_results;
   const CHARSET_INFO *collation_connection;
-public:
-  enum  set_cs_flags_enum { SET_CS_NAMES=1, SET_CS_DEFAULT=2, SET_CS_COLLATE=4 };
+
+ public:
+  enum set_cs_flags_enum {
+    SET_CS_NAMES = 1,
+    SET_CS_DEFAULT = 2,
+    SET_CS_COLLATE = 4
+  };
   set_var_collation_client(int set_cs_flags_arg,
                            const CHARSET_INFO *client_coll_arg,
                            const CHARSET_INFO *connection_coll_arg,
                            const CHARSET_INFO *result_coll_arg)
-    :set_cs_flags(set_cs_flags_arg),
-     character_set_client(client_coll_arg),
-     character_set_results(result_coll_arg),
-     collation_connection(connection_coll_arg)
-  {}
-  int resolve(THD*) { return 0; }
+      : set_cs_flags(set_cs_flags_arg),
+        character_set_client(client_coll_arg),
+        character_set_results(result_coll_arg),
+        collation_connection(connection_coll_arg) {}
+  int resolve(THD *) { return 0; }
   int check(THD *thd);
   int update(THD *thd);
-  void print(THD *thd, String *str);	/* To self-print */
+  void print(THD *thd, String *str); /* To self-print */
 };
-
 
 /* optional things, have_* variables */
 extern SHOW_COMP_OPTION have_profiling;
@@ -459,25 +462,25 @@ extern SHOW_COMP_OPTION have_statement_timeout;
 */
 ulong get_system_variable_hash_records(void);
 ulonglong get_system_variable_hash_version(void);
-collation_unordered_map<std::string, sys_var *>
-  *get_system_variable_hash(void);
+collation_unordered_map<std::string, sys_var *> *get_system_variable_hash(void);
 
 extern bool get_sysvar_source(const char *name, uint length,
-                              enum enum_variable_source* source);
+                              enum enum_variable_source *source);
 
-bool enumerate_sys_vars(Show_var_array *show_var_array,
-                        bool sort, enum enum_var_type type, bool strict);
+bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
+                        enum enum_var_type type, bool strict);
 void lock_plugin_mutex();
 void unlock_plugin_mutex();
-sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
-sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
-                         bool throw_error= false, bool locked= false);
+sys_var *find_sys_var(THD *thd, const char *str, size_t length = 0);
+sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length = 0,
+                         bool throw_error = false, bool locked = false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened);
 bool keyring_access_test();
 bool fix_delay_key_write(sys_var *self, THD *thd, enum_var_type type);
 
 sql_mode_t expand_sql_mode(sql_mode_t sql_mode, THD *thd);
-bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *ls);
+bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
+                                    LEX_STRING *ls);
 void update_parser_max_mem_size();
 
 extern sys_var *Sys_autocommit_ptr;
@@ -494,4 +497,3 @@ int sys_var_add_options(std::vector<my_option> *long_options, int parse_flags);
 void sys_var_end(void);
 
 #endif
-

@@ -30,19 +30,17 @@
 
 #include "m_ctype.h"
 #include "my_inttypes.h"
-#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
-
+#include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 
 namespace ngs {
 
 class Output_buffer;
 
-class Metadata_builder: public Message_builder {
+class Metadata_builder : public Message_builder {
  public:
-  void encode_metadata(
-      Output_buffer* out_buffer,
-      const Encode_column_info *column_info);
+  void encode_metadata(Output_buffer *out_buffer,
+                       const Encode_column_info *column_info);
 };
 
 }  // namespace ngs

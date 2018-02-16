@@ -23,26 +23,25 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
-#include "binary_log_types.h" // enum_field_types
-#include "my_base.h"          // ha_rows
-#include "my_byteorder.h"     // uint2korr
+#include "binary_log_types.h"  // enum_field_types
+#include "my_base.h"           // ha_rows
+#include "my_byteorder.h"      // uint2korr
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_io.h"            // mysql_com.h needs my_socket
-#include "mysql_com.h"        // Item_result
-#include "sql_string.h"
-#include "sql/sql_array.h"    // Bounds_checked_array
+#include "my_io.h"          // mysql_com.h needs my_socket
+#include "mysql_com.h"      // Item_result
+#include "sql/sql_array.h"  // Bounds_checked_array
 #include "sql/sql_const.h"
-#include "sql/sql_sort.h"     // Filesort_info
+#include "sql/sql_sort.h"  // Filesort_info
 #include "sql/thr_malloc.h"
+#include "sql_string.h"
 
 class Field;
 class Filesort;
 class Item;
 struct TABLE;
 
-enum class Addon_fields_status
-{
+enum class Addon_fields_status {
   unknown_status,
   using_heap_table,
   fulltext_searched,
@@ -55,119 +54,110 @@ enum class Addon_fields_status
   using_priority_queue
 };
 
-
-inline const char *addon_fields_text(Addon_fields_status afs)
-{
+inline const char *addon_fields_text(Addon_fields_status afs) {
   switch (afs) {
-  default: return "unknown";
-  case Addon_fields_status::using_heap_table: return "using_heap_table";
-  case Addon_fields_status::fulltext_searched: return "fulltext_searched";
-  case Addon_fields_status::keep_rowid: return "keep_rowid";
-  case Addon_fields_status::row_not_packable: return "row_not_packable";
-  case Addon_fields_status::row_contains_blob: return "row_contains_blob";
-  case Addon_fields_status::max_length_for_sort_data:
-    return "max_length_for_sort_data";
-  case Addon_fields_status::row_too_large: return "row_too_large";
-  case Addon_fields_status::skip_heuristic: return "skip_heuristic";
-  case Addon_fields_status::using_priority_queue: return "using_priority_queue";
+    default:
+      return "unknown";
+    case Addon_fields_status::using_heap_table:
+      return "using_heap_table";
+    case Addon_fields_status::fulltext_searched:
+      return "fulltext_searched";
+    case Addon_fields_status::keep_rowid:
+      return "keep_rowid";
+    case Addon_fields_status::row_not_packable:
+      return "row_not_packable";
+    case Addon_fields_status::row_contains_blob:
+      return "row_contains_blob";
+    case Addon_fields_status::max_length_for_sort_data:
+      return "max_length_for_sort_data";
+    case Addon_fields_status::row_too_large:
+      return "row_too_large";
+    case Addon_fields_status::skip_heuristic:
+      return "skip_heuristic";
+    case Addon_fields_status::using_priority_queue:
+      return "using_priority_queue";
   }
 }
-
 
 /* Structs used when sorting */
 
 /// Struct that holds information about a sort field.
 struct st_sort_field {
-  Field *field;                  ///< Field to sort
-  Item  *item;                   ///< Item if not sorting fields
-  uint  length;                  ///< Length of sort field
-  uint  suffix_length;           ///< Length suffix (0-4)
-  Item_result result_type;       ///< Type of item (not used for fields)
-  enum_field_types field_type;   ///< Field type of the field or item
-  bool reverse;                  ///< if descending sort
-  bool is_varlen;                ///< If key part has variable length
-  bool maybe_null;               ///< If key part is nullable
+  Field *field;                 ///< Field to sort
+  Item *item;                   ///< Item if not sorting fields
+  uint length;                  ///< Length of sort field
+  uint suffix_length;           ///< Length suffix (0-4)
+  Item_result result_type;      ///< Type of item (not used for fields)
+  enum_field_types field_type;  ///< Field type of the field or item
+  bool reverse;                 ///< if descending sort
+  bool is_varlen;               ///< If key part has variable length
+  bool maybe_null;              ///< If key part is nullable
 };
-
 
 /**
   The structure Sort_addon_field describes the layout
   for field values appended to sorted values in records to be sorted
   in the sort buffer.
 
-  Null bit maps for the appended values is placed before the values 
+  Null bit maps for the appended values is placed before the values
   themselves. Offsets are from the last sorted field.
 
-  The structure is used to store values of the additional fields 
+  The structure is used to store values of the additional fields
   in the sort buffer. It is used also when these values are read
   from a temporary file/buffer in 'Filesort_info::unpack_addon_fields'.
 */
 
-struct Sort_addon_field {/* Sort addon packed field */
-  Field *field;          /* Original field */
-  uint   offset;         /* Offset from the last sorted field */
-  uint   null_offset;    /* Offset to to null bit from the last sorted field */
-  uint   max_length;     /* Maximum length in the sort buffer */
-  uint8  null_bit;       /* Null bit mask for the field */
+struct Sort_addon_field { /* Sort addon packed field */
+  Field *field;           /* Original field */
+  uint offset;            /* Offset from the last sorted field */
+  uint null_offset;       /* Offset to to null bit from the last sorted field */
+  uint max_length;        /* Maximum length in the sort buffer */
+  uint8 null_bit;         /* Null bit mask for the field */
 };
 
-
-
 typedef Bounds_checked_array<Sort_addon_field> Addon_fields_array;
-
 
 /**
   This class wraps information about usage of addon fields.
   An Addon_fields object is used both during packing of data in the filesort
   buffer, and later during unpacking in 'Filesort_info::unpack_addon_fields'.
-  
+
   @see documentation for the Sort_addon_field struct.
   @see documentation for get_addon_fields()
  */
 class Addon_fields {
-public:
+ public:
   Addon_fields(Addon_fields_array arr)
-    : m_field_descriptors(arr),
-      m_addon_buf(NULL),
-      m_addon_buf_length(0),
-      m_using_packed_addons(false)
-  {
+      : m_field_descriptors(arr),
+        m_addon_buf(NULL),
+        m_addon_buf_length(0),
+        m_using_packed_addons(false) {
     DBUG_ASSERT(!arr.is_null());
   }
 
   Sort_addon_field *begin() { return m_field_descriptors.begin(); }
-  Sort_addon_field *end()   { return m_field_descriptors.end(); }
+  Sort_addon_field *end() { return m_field_descriptors.end(); }
   size_t num_field_descriptors() const { return m_field_descriptors.size(); }
 
   /// rr_unpack_from_tempfile needs an extra buffer when unpacking.
-  uchar *allocate_addon_buf(uint sz)
-  {
-    if (m_addon_buf != NULL)
-    {
+  uchar *allocate_addon_buf(uint sz) {
+    if (m_addon_buf != NULL) {
       DBUG_ASSERT(m_addon_buf_length == sz);
       return m_addon_buf;
     }
-    m_addon_buf= static_cast<uchar*>(sql_alloc(sz));
-    if (m_addon_buf)
-      m_addon_buf_length= sz;
+    m_addon_buf = static_cast<uchar *>(sql_alloc(sz));
+    if (m_addon_buf) m_addon_buf_length = sz;
     return m_addon_buf;
   }
 
-  uchar *get_addon_buf()              { return m_addon_buf; }
-  uint   get_addon_buf_length() const { return m_addon_buf_length; }
+  uchar *get_addon_buf() { return m_addon_buf; }
+  uint get_addon_buf_length() const { return m_addon_buf_length; }
 
-  void set_using_packed_addons(bool val)
-  {
-    m_using_packed_addons= val;
-  }
+  void set_using_packed_addons(bool val) { m_using_packed_addons = val; }
 
-  bool using_packed_addons() const
-  {
-    return m_using_packed_addons;
-  }
+  bool using_packed_addons() const { return m_using_packed_addons; }
 
-  static bool can_pack_addon_fields(uint record_length)
-  {
+  static bool can_pack_addon_fields(uint record_length) {
     return (record_length <= (0xFFFF));
   }
 
@@ -175,28 +165,26 @@ public:
     @returns Total number of bytes used for packed addon fields.
     the size of the length field + size of null bits + sum of field sizes.
    */
-  static uint read_addon_length(uchar *p)
-  {
+  static uint read_addon_length(uchar *p) {
     return size_of_length_field + uint2korr(p);
   }
 
   /**
     Stores the number of bytes used for packed addon fields.
    */
-  static void store_addon_length(uchar *p, uint sz)
-  {
+  static void store_addon_length(uchar *p, uint sz) {
     // We actually store the length of everything *after* the length field.
     int2store(p, sz - size_of_length_field);
   }
 
-  static const uint size_of_length_field= 2;
+  static const uint size_of_length_field = 2;
 
-private:
+ private:
   Addon_fields_array m_field_descriptors;
 
-  uchar    *m_addon_buf;            ///< Buffer for unpacking addon fields.
-  uint      m_addon_buf_length;     ///< Length of the buffer.
-  bool      m_using_packed_addons;  ///< Are we packing the addon fields?
+  uchar *m_addon_buf;          ///< Buffer for unpacking addon fields.
+  uint m_addon_buf_length;     ///< Length of the buffer.
+  bool m_using_packed_addons;  ///< Are we packing the addon fields?
 };
 
 /**
@@ -278,9 +266,9 @@ private:
 </dl>
  */
 class Sort_param {
-  uint m_fixed_rec_length;    ///< Maximum length of a record, see above.
-  uint m_fixed_sort_length;   ///< Maximum number of bytes used for sorting.
-public:
+  uint m_fixed_rec_length;   ///< Maximum length of a record, see above.
+  uint m_fixed_sort_length;  ///< Maximum number of bytes used for sorting.
+ public:
   uint ref_length;            // Length of record ref.
   uint m_addon_length;        // Length of added packed fields.
   uint fixed_res_length;      // Length of records in final sorted file/buffer.
@@ -297,15 +285,12 @@ public:
    */
   Bounds_checked_array<st_sort_field> local_sortorder;
 
-  Addon_fields *addon_fields; ///< Descriptors for addon fields.
+  Addon_fields *addon_fields;  ///< Descriptors for addon fields.
   bool not_killable;
   bool using_pq;
   StringBuffer<STRING_BUFFER_USUAL_SIZE> tmp_buffer;
 
-  Sort_param()
-  {
-    memset(this, 0, sizeof(*this));
-  }
+  Sort_param() { memset(this, 0, sizeof(*this)); }
   /**
     Initialize this struct for filesort() usage.
     @see description of record layout above
@@ -321,37 +306,27 @@ public:
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
                          uint sortlen, TABLE *table,
-                         ulong max_length_for_sort_data,
-                         ha_rows maxrows, bool sort_positions);
+                         ulong max_length_for_sort_data, ha_rows maxrows,
+                         bool sort_positions);
 
   /// Enables the packing of addons if possible.
   void try_to_pack_addons(ulong max_length_for_sort_data);
 
   /// Are we packing the "addon fields"?
-  bool using_packed_addons() const
-  {
+  bool using_packed_addons() const {
     DBUG_ASSERT(m_using_packed_addons ==
                 (addon_fields != NULL && addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 
   /// Are we using varlen key fields?
-  bool using_varlen_keys() const
-  {
-    return m_num_varlen_keys > 0;
-  }
+  bool using_varlen_keys() const { return m_num_varlen_keys > 0; }
 
   /// Are we using any JSON key fields?
-  bool using_json_keys() const
-  {
-    return m_num_json_keys > 0;
-  }
+  bool using_json_keys() const { return m_num_json_keys > 0; }
 
   /// Are we using "addon fields"?
-  bool using_addon_fields() const
-  {
-    return addon_fields != NULL;
-  }
+  bool using_addon_fields() const { return addon_fields != NULL; }
 
   /**
     Stores key fields in *to.
@@ -363,17 +338,13 @@ public:
   uint make_sortkey(uchar *to, const uchar *ref_pos);
 
   /// Stores the length of a variable-sized key.
-  static void store_varlen_key_length(uchar *p, uint sz)
-  {
-    int4store(p, sz);
-  }
+  static void store_varlen_key_length(uchar *p, uint sz) { int4store(p, sz); }
 
   /// Skips the key part, and returns address of payload.
-  uchar *get_start_of_payload(uchar *p) const
-  {
-    size_t offset= using_varlen_keys() ? uint4korr(p) : max_compare_length();
+  uchar *get_start_of_payload(uchar *p) const {
+    size_t offset = using_varlen_keys() ? uint4korr(p) : max_compare_length();
     if (!using_addon_fields() && !using_varlen_keys())
-      offset-= ref_length; // The reference is also part of the sort key.
+      offset -= ref_length;  // The reference is also part of the sort key.
     return p + offset;
   }
 
@@ -381,36 +352,24 @@ public:
     Skips the key part, and returns address of payload.
     For rr_unpack_from_buffer, which does not have access to Sort_param.
    */
-  static uchar *get_start_of_payload(uint default_val, bool is_varlen, uchar *p)
-  {
-    size_t offset= is_varlen ? uint4korr(p) : default_val;
+  static uchar *get_start_of_payload(uint default_val, bool is_varlen,
+                                     uchar *p) {
+    size_t offset = is_varlen ? uint4korr(p) : default_val;
     return p + offset;
   }
 
   /// @returns The number of bytes used for sorting of fixed-size keys.
-  uint max_compare_length() const
-  {
-    return m_fixed_sort_length;
-  }
+  uint max_compare_length() const { return m_fixed_sort_length; }
 
-  void set_max_compare_length(uint len)
-  {
-    m_fixed_sort_length= len;
-  }
+  void set_max_compare_length(uint len) { m_fixed_sort_length = len; }
 
   /// @returns The actual size of a record (key + addons)
   size_t get_record_length(uchar *p) const;
 
   /// @returns The maximum size of a record (key + addons)
-  uint max_record_length() const
-  {
-    return m_fixed_rec_length;
-  }
+  uint max_record_length() const { return m_fixed_rec_length; }
 
-  void set_max_record_length(uint len)
-  {
-    m_fixed_rec_length= len;
-  }
+  void set_max_record_length(uint len) { m_fixed_rec_length = len; }
 
   /**
     Getter for record length and result length.
@@ -429,39 +388,35 @@ public:
 
   Addon_fields_status m_addon_fields_status;
 
-  static const uint size_of_varlength_field= 4;
+  static const uint size_of_varlength_field = 4;
 
-private:
+ private:
   /// Counts number of varlen keys
   int count_varlen_keys() const;
   /// Counts number of JSON keys
   int count_json_keys() const;
 
-  uint m_packable_length; ///< total length of fields which have a packable type
-  bool m_using_packed_addons; ///< caches the value of using_packed_addons()
-  int  m_num_varlen_keys;     ///< number of varlen keys
-  int  m_num_json_keys;       ///< number of JSON keys
+  uint
+      m_packable_length;  ///< total length of fields which have a packable type
+  bool m_using_packed_addons;  ///< caches the value of using_packed_addons()
+  int m_num_varlen_keys;       ///< number of varlen keys
+  int m_num_json_keys;         ///< number of JSON keys
 
-public:
+ public:
   // Not copyable.
-  Sort_param(const Sort_param&)= delete;
-  Sort_param &operator=(const Sort_param&)= delete;
+  Sort_param(const Sort_param &) = delete;
+  Sort_param &operator=(const Sort_param &) = delete;
 };
 
-inline
-uchar *get_start_of_payload(const Filesort_info *fsi, uchar *p)
-{
+inline uchar *get_start_of_payload(const Filesort_info *fsi, uchar *p) {
   return Sort_param::get_start_of_payload(fsi->sort_length(),
                                           fsi->using_varlen_keys(), p);
 }
 
-
 /// Are we using "packed addon fields"?
-inline
-bool using_packed_addons(const Filesort_info *fsi)
-{
-  return
-    fsi->addon_fields != nullptr && fsi->addon_fields->using_packed_addons();
+inline bool using_packed_addons(const Filesort_info *fsi) {
+  return fsi->addon_fields != nullptr &&
+         fsi->addon_fields->using_packed_addons();
 }
 
 #endif  // SORT_PARAM_INCLUDED

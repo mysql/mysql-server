@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,10 @@ ELSE()
   SET (DEB_BASE_VERSION ${VERSION})
   SET (DEB_CONTROL_SERVER_CONFLICT_NDB "mysql-cluster-community-server, mysql-cluster-commercial-server")
   SET (DEB_CONTROL_CLIENT_CONFLICT_NDB "mysql-cluster-community-client, mysql-cluster-commercial-client")
+ENDIF()
+# Manpages
+IF (NOT DEFINED DEB_NOMANPAGES)
+  INCLUDE(deb_manpages.cmake)
 ENDIF()
 # Timestamp for use in debian/changelog
 IF (NOT DEFINED DEB_CHANGELOG_TIMESTAMP)
@@ -125,7 +129,6 @@ usr/lib/mysql/plugin/debug/keyring_aws.so
     SET (DEB_CMAKE_EXTRAS "${DEB_CMAKE_EXTRAS} -DWITH_CURL=${WITH_CURL}")
   ENDIF()
   SET (DEB_REMOVEPATTERN "gpl.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA ",libldap2-dev, libsasl2-dev")
 ELSE()
   SET (DEB_PRODUCT "${DEB_BASE_PRODUCT}community")
   SET (DEB_COPYRIGHT_UPSTREAMNAME "MySQL Server ${MYSQL_BASE_VERSION}")
@@ -135,7 +138,6 @@ ELSE()
   SET (DEB_LICENSENAME "GPL")
   SET (DEB_SERVERVERSION "${DEB_BASE_VERSION}-1")
   SET (DEB_REMOVEPATTERN "com.in")
-  SET (DEB_CONTROL_BDEPS_EXTRA "")
 ENDIF()
 
 # Generate debug symbol packages (this is done automatically in Debian9+)

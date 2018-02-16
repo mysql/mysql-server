@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,13 +24,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/fut0fut.h
-File-based utilities
+/** @file include/fut0fut.h
+ File-based utilities
 
-Created 12/13/1995 Heikki Tuuri
-***********************************************************************/
-
+ Created 12/13/1995 Heikki Tuuri
+ ***********************************************************************/
 
 #ifndef fut0fut_h
 #define fut0fut_h
@@ -50,18 +48,13 @@ Created 12/13/1995 Heikki Tuuri
 @return pointer to a byte in (*ptr_block)->frame; the *ptr_block is
 bufferfixed and latched */
 UNIV_INLINE
-byte*
-fut_get_ptr(
-	space_id_t		space,
-	const page_size_t&	page_size,
-	fil_addr_t		addr,
-	rw_lock_type_t		rw_latch,
-	mtr_t*			mtr,
-	buf_block_t**		ptr_block = NULL)
-	MY_ATTRIBUTE((warn_unused_result));
+byte *fut_get_ptr(space_id_t space, const page_size_t &page_size,
+                  fil_addr_t addr, rw_lock_type_t rw_latch, mtr_t *mtr,
+                  buf_block_t **ptr_block = NULL)
+    MY_ATTRIBUTE((warn_unused_result));
 
 #ifndef UNIV_HOTBACKUP
-# include "fut0fut.ic"
+#include "fut0fut.ic"
 #endif /* !UNIV_HOTBACKUP */
 
 #endif /* fut0fut_h */

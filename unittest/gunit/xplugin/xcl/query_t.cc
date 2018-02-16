@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#include <stdexcept>
 #include <memory>
+#include <stdexcept>
 
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
 #include "plugin/x/client/xcontext.h"
@@ -32,44 +32,39 @@
 #include "unittest/gunit/xplugin/xcl/mock/protocol.h"
 #include "unittest/gunit/xplugin/xcl/mock/query_instance.h"
 
-
 namespace xcl {
 namespace test {
 
-using ::testing::_;
-using ::testing::Mock;
 using ::testing::InSequence;
 using ::testing::Invoke;
+using ::testing::Mock;
 using ::testing::Return;
 using ::testing::StrictMock;
 using ::testing::Throw;
+using ::testing::_;
 
 const Query_instances::Instance_id TEST_INSTANCE_ID = 1001;
-const xcl::XProtocol::Handler_id   TEST_NOTICE_HANDLER_ID = 1002;
+const xcl::XProtocol::Handler_id TEST_NOTICE_HANDLER_ID = 1002;
 
 class Query_test_suite : public ::testing::Test {
  public:
   using Mock_query_instances_ptr = std::shared_ptr<Mock_query_instances>;
-  using Mock_protocol_ptr        = std::shared_ptr<Mock_protocol>;
-  using Context_ptr              = std::shared_ptr<Context>;
+  using Mock_protocol_ptr = std::shared_ptr<Mock_protocol>;
+  using Context_ptr = std::shared_ptr<Context>;
 
  public:
   void SetUp() override {
     ON_CALL(*m_mock_protocol, recv_single_message_raw(_, _))
-      .WillByDefault(Throw(std::logic_error("Unexpected mock calls")));
+        .WillByDefault(Throw(std::logic_error("Unexpected mock calls")));
 
-    EXPECT_CALL(*m_mock_protocol, add_notice_handler(
-        _,
-        Handler_position::Begin,
-        Handler_priority_medium))
-            .WillOnce(Return(TEST_NOTICE_HANDLER_ID));
+    EXPECT_CALL(*m_mock_protocol, add_notice_handler(_, Handler_position::Begin,
+                                                     Handler_priority_medium))
+        .WillOnce(Return(TEST_NOTICE_HANDLER_ID));
     EXPECT_CALL(*m_mock_query_instances, instances_fetch_begin())
         .WillOnce(Return(TEST_INSTANCE_ID));
 
-    m_sut.reset(new Query_result(
-        m_mock_protocol,
-        m_mock_query_instances.get(),
-        m_context));
+    m_sut.reset(new Query_result(m_mock_protocol, m_mock_query_instances.get(),
+                                 m_context));
   }
 
   void verifyMocks() {
@@ -77,8 +72,7 @@ class Query_test_suite : public ::testing::Test {
     Mock::VerifyAndClearExpectations(m_mock_protocol.get());
   }
 
-  Context_ptr m_context =
-      std::make_shared<Context>();
+  Context_ptr m_context = std::make_shared<Context>();
 
   Mock_query_instances_ptr m_mock_query_instances =
       std::make_shared<StrictMock<Mock_query_instances>>();
@@ -89,14 +83,13 @@ class Query_test_suite : public ::testing::Test {
   std::unique_ptr<XQuery_result> m_sut;
 };
 
-
 class Query_non_active_test_suite : public Query_test_suite {
  public:
   void SetUp() override {
     Query_test_suite::SetUp();
 
-    EXPECT_CALL(*m_mock_query_instances, is_instance_active(TEST_INSTANCE_ID)).
-        WillRepeatedly(Return(false));
+    EXPECT_CALL(*m_mock_query_instances, is_instance_active(TEST_INSTANCE_ID))
+        .WillRepeatedly(Return(false));
   }
 };
 
@@ -134,7 +127,7 @@ TEST_F(Query_non_active_test_suite, get_metadata_previous_not_finished) {
 }
 
 TEST_F(Query_non_active_test_suite, get_next_row2_previous_not_finished) {
-  const XRow  *out_xrow;
+  const XRow *out_xrow;
   XError out_error;
 
   ASSERT_FALSE(m_sut->get_next_row(&out_xrow, &out_error));
@@ -183,20 +176,17 @@ class Query_active_test_suite : public Query_test_suite {
   void SetUp() override {
     Query_test_suite::SetUp();
 
-    EXPECT_CALL(*m_mock_query_instances,
-                is_instance_active(TEST_INSTANCE_ID)).
-                    WillRepeatedly(Return(true));
+    EXPECT_CALL(*m_mock_query_instances, is_instance_active(TEST_INSTANCE_ID))
+        .WillRepeatedly(Return(true));
   }
 
   void expect_query_finish() {
-    EXPECT_CALL(*m_mock_query_instances,
-                instances_fetch_end());
+    EXPECT_CALL(*m_mock_query_instances, instances_fetch_end());
     EXPECT_CALL(*m_mock_protocol,
                 remove_notice_handler(TEST_NOTICE_HANDLER_ID));
 
-    EXPECT_CALL(*m_mock_query_instances,
-                is_instance_active(TEST_INSTANCE_ID)).
-                    WillRepeatedly(Return(true));
+    EXPECT_CALL(*m_mock_query_instances, is_instance_active(TEST_INSTANCE_ID))
+        .WillRepeatedly(Return(true));
   }
 
   template <typename Message_type>
@@ -207,62 +197,56 @@ class Query_active_test_suite : public Query_test_suite {
     const auto server_id = static_cast<int>(
         message_options.GetExtension(Mysqlx::server_message_id));
 
-    EXPECT_CALL(*m_mock_protocol, recv_single_message_raw(_, _)).
-        WillOnce(Invoke(
-            [message, server_id](
-                xcl::XProtocol::Server_message_type_id *out_mid,
-                XError *out_error) -> xcl::XProtocol::Message* {
-      if (out_mid)
-        *out_mid = static_cast<Message_id>(server_id);
+    EXPECT_CALL(*m_mock_protocol, recv_single_message_raw(_, _))
+        .WillOnce(Invoke([message, server_id](
+                             xcl::XProtocol::Server_message_type_id *out_mid,
+                             XError *out_error) -> xcl::XProtocol::Message * {
+          if (out_mid) *out_mid = static_cast<Message_id>(server_id);
 
-      if (out_error)
-        *out_error = XError();
+          if (out_error) *out_error = XError();
 
-      return message;
-    }));
+          return message;
+        }));
   }
 
   template <typename Message_type>
   void expect_recv_message() {
-    auto *message = new Message_type(Server_message<Message_type>::make_required());
+    auto *message =
+        new Message_type(Server_message<Message_type>::make_required());
 
     const auto &message_options = message->descriptor()->options();
     const auto server_id = static_cast<int>(
         message_options.GetExtension(Mysqlx::server_message_id));
 
-    EXPECT_CALL(*m_mock_protocol, recv_single_message_raw(_, _)).
-        WillOnce(Invoke(
-            [message, server_id](
-                xcl::XProtocol::Server_message_type_id *out_mid,
-                XError *out_error) -> xcl::XProtocol::Message* {
-      if (out_mid)
-        *out_mid = static_cast<Message_id>(server_id);
+    EXPECT_CALL(*m_mock_protocol, recv_single_message_raw(_, _))
+        .WillOnce(Invoke([message, server_id](
+                             xcl::XProtocol::Server_message_type_id *out_mid,
+                             XError *out_error) -> xcl::XProtocol::Message * {
+          if (out_mid) *out_mid = static_cast<Message_id>(server_id);
 
-      if (out_error)
-        *out_error = XError();
+          if (out_error) *out_error = XError();
 
-      return message;
-    }));
+          return message;
+        }));
   }
 
-  void verifyQuery_state_is_done(
-      const int warnings_count = 0,
-      const bool is_last_insert = false,
-      const bool is_affected_rows = false,
-      const bool is_info_message = false) {
+  void verifyQuery_state_is_done(const int warnings_count = 0,
+                                 const bool is_last_insert = false,
+                                 const bool is_affected_rows = false,
+                                 const bool is_info_message = false) {
     ASSERT_FALSE(m_sut->has_resultset(nullptr));
     ASSERT_FALSE(m_sut->next_resultset(nullptr));
     ASSERT_EQ(nullptr, m_sut->get_next_row(nullptr));
     ASSERT_EQ(warnings_count, m_sut->get_warnings().size());
 
-    ASSERT_EQ(is_last_insert,   m_sut->try_get_last_insert_id(nullptr));
+    ASSERT_EQ(is_last_insert, m_sut->try_get_last_insert_id(nullptr));
     ASSERT_EQ(is_affected_rows, m_sut->try_get_affected_rows(nullptr));
-    ASSERT_EQ(is_info_message,  m_sut->try_get_info_message(nullptr));
+    ASSERT_EQ(is_info_message, m_sut->try_get_info_message(nullptr));
   }
 };
 
-class Query_active_destructor_cleanup_test_suite :
-    public Query_active_test_suite {};
+class Query_active_destructor_cleanup_test_suite
+    : public Query_active_test_suite {};
 
 TEST_F(Query_active_destructor_cleanup_test_suite, consumes_stmt_execute_ok) {
   InSequence s;
@@ -303,8 +287,7 @@ TEST_F(Query_active_destructor_cleanup_test_suite,
   expect_query_finish();
 }
 
-TEST_F(Query_active_destructor_cleanup_test_suite,
-       consumes_two_resultsets) {
+TEST_F(Query_active_destructor_cleanup_test_suite, consumes_two_resultsets) {
   InSequence s;
 
   expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>("type:SINT");
@@ -334,7 +317,6 @@ TEST_F(Query_active_destructor_cleanup_test_suite,
   expect_recv_message<::Mysqlx::Sql::StmtExecuteOk>("");
   expect_query_finish();
 }
-
 
 TEST_F(Query_active_destructor_cleanup_test_suite,
        consumes_multiple_resultset_outparams) {
@@ -384,14 +366,13 @@ TEST_F(Query_active_destructor_cleanup_test_suite, consumes_error_after_meta) {
   expect_query_finish();
 }
 
-using Unexpected_messages = ::testing::Types<
-    ::Mysqlx::Ok,
-    ::Mysqlx::Connection::Capabilities,
-    ::Mysqlx::Session::AuthenticateOk,
-    ::Mysqlx::Session::AuthenticateContinue>;
+using Unexpected_messages =
+    ::testing::Types<::Mysqlx::Ok, ::Mysqlx::Connection::Capabilities,
+                     ::Mysqlx::Session::AuthenticateOk,
+                     ::Mysqlx::Session::AuthenticateContinue>;
 
 template <typename T>
-class Typed_query_active_test_suite: public Query_active_test_suite {
+class Typed_query_active_test_suite : public Query_active_test_suite {
  public:
   using Unexpected_message = T;
 };
@@ -402,7 +383,7 @@ TYPED_TEST(Typed_query_active_test_suite,
            destructor_consumes_until_unexpected_message1) {
   InSequence s;
 
-  //unexpected message breaks flow
+  // unexpected message breaks flow
   this->template expect_recv_message<TypeParam>();
   this->expect_query_finish();
 }
@@ -416,7 +397,7 @@ TYPED_TEST(Typed_query_active_test_suite,
   this->template expect_recv_message<::Mysqlx::Resultset::ColumnMetaData>(
       "type:SINT name:'second'");
 
-  //unexpected message breaks flow
+  // unexpected message breaks flow
   this->template expect_recv_message<TypeParam>();
   this->expect_query_finish();
 }
@@ -479,7 +460,6 @@ TEST_F(Query_active_test_suite, no_resultset_at_call_get_next_row) {
 
   verifyQuery_state_is_done();
 }
-
 
 TEST_F(Query_active_test_suite, fetch_one_resultset) {
   InSequence s;

@@ -26,17 +26,15 @@
 
 #include "mysql.h"
 
-static char* opt_server_public_key= 0;
-static bool opt_get_server_public_key= false;
+static char *opt_server_public_key = 0;
+static bool opt_get_server_public_key = false;
 
-static void set_server_public_key(MYSQL *mysql)
-{
-   if (opt_server_public_key && *opt_server_public_key)
-     mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+static void set_server_public_key(MYSQL *mysql) {
+  if (opt_server_public_key && *opt_server_public_key)
+    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
 }
 
-static void set_get_server_public_key_option(MYSQL *mysql)
-{
+static void set_get_server_public_key_option(MYSQL *mysql) {
   mysql_options(mysql, MYSQL_OPT_GET_SERVER_PUBLIC_KEY,
                 &opt_get_server_public_key);
 }

@@ -26,57 +26,48 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-static int queue_key_cmp(void *keyseg, uchar *a, uchar *b)
-{
-  MYRG_TABLE *ma= (MYRG_TABLE *)a;
-  MYRG_TABLE *mb= (MYRG_TABLE *)b;
-  MI_INFO *aa= ma->table;
-  MI_INFO *bb= mb->table;
+static int queue_key_cmp(void *keyseg, uchar *a, uchar *b) {
+  MYRG_TABLE *ma = (MYRG_TABLE *)a;
+  MYRG_TABLE *mb = (MYRG_TABLE *)b;
+  MI_INFO *aa = ma->table;
+  MI_INFO *bb = mb->table;
   uint not_used[2];
-  int ret= ha_key_cmp((HA_KEYSEG *)keyseg, aa->lastkey, bb->lastkey,
-		       USE_WHOLE_KEY, SEARCH_FIND, not_used);
-  if (ret < 0)
-    return -1;
-  if (ret > 0)
-    return 1;
- 
+  int ret = ha_key_cmp((HA_KEYSEG *)keyseg, aa->lastkey, bb->lastkey,
+                       USE_WHOLE_KEY, SEARCH_FIND, not_used);
+  if (ret < 0) return -1;
+  if (ret > 0) return 1;
+
   /*
     If index tuples have the same values, let the record with least rowid
     value be "smaller", so index scans return records ordered by (keytuple,
     rowid). This is used by index_merge access method, grep for ROR in
     sql/opt_range.cc for details.
   */
-  return (ma->file_offset < mb->file_offset)? -1 : (ma->file_offset > 
-                                                    mb->file_offset) ? 1 : 0;
+  return (ma->file_offset < mb->file_offset)
+             ? -1
+             : (ma->file_offset > mb->file_offset) ? 1 : 0;
 } /* queue_key_cmp */
 
+int _myrg_init_queue(MYRG_INFO *info, int inx,
+                     enum ha_rkey_function search_flag) {
+  int error = 0;
+  QUEUE *q = &(info->by_key);
 
-int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
-{
-  int error=0;
-  QUEUE *q= &(info->by_key);
-
-  if (inx < (int) info->keys)
-  {
-    if (!is_queue_inited(q))
-    {
-      if (init_queue(q,key_memory_QUEUE,info->tables, 0,
-		     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
-		     queue_key_cmp,
-		     info->open_tables->table->s->keyinfo[inx].seg))
-	error=my_errno();
+  if (inx < (int)info->keys) {
+    if (!is_queue_inited(q)) {
+      if (init_queue(q, key_memory_QUEUE, info->tables, 0,
+                     (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
+                     queue_key_cmp,
+                     info->open_tables->table->s->keyinfo[inx].seg))
+        error = my_errno();
+    } else {
+      if (reinit_queue(q, key_memory_QUEUE, info->tables, 0,
+                       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
+                       queue_key_cmp,
+                       info->open_tables->table->s->keyinfo[inx].seg))
+        error = my_errno();
     }
-    else
-    {
-      if (reinit_queue(q,key_memory_QUEUE,info->tables, 0,
-		       (myisam_readnext_vec[search_flag] == SEARCH_SMALLER),
-		       queue_key_cmp,
-		       info->open_tables->table->s->keyinfo[inx].seg))
-	error=my_errno();
-    }
-  }
-  else
-  {
+  } else {
     /*
       inx may be bigger than info->keys if there are no underlying tables
       defined. In this case we should return empty result. As we check for
@@ -85,17 +76,15 @@ int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag)
       have.
     */
     DBUG_ASSERT(!info->tables);
-    error= HA_ERR_END_OF_FILE;
+    error = HA_ERR_END_OF_FILE;
     set_my_errno(error);
   }
   return error;
 }
 
-int _myrg_mi_read_record(MI_INFO *info, uchar *buf)
-{
-  if (!(*info->read_record)(info,info->lastpos,buf))
-  {
-    info->update|= HA_STATE_AKTIV;		/* Record is read */
+int _myrg_mi_read_record(MI_INFO *info, uchar *buf) {
+  if (!(*info->read_record)(info, info->lastpos, buf)) {
+    info->update |= HA_STATE_AKTIV; /* Record is read */
     return 0;
   }
   return my_errno();

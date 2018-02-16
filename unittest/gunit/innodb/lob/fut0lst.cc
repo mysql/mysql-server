@@ -43,7 +43,7 @@ void flst_init(flst_base_node_t *base) {
 }
 
 void flst_insert_after(flst_base_node_t *base, flst_node_t *node1,
-                              flst_node_t *node2) {
+                       flst_node_t *node2) {
   space_id_t space;
   fil_addr_t node1_addr;
   fil_addr_t node2_addr;
@@ -124,7 +124,6 @@ void flst_add_last(flst_base_node_t *base, flst_node_t *node) {
     if (last_addr.page == node_addr.page) {
       last_node = page_align(node) + last_addr.boffset;
     } else {
-
       last_node = fut_get_ptr(last_addr);
     }
 
@@ -151,7 +150,6 @@ bool flst_validate(const flst_base_node_t *base) {
   node_addr = flst_get_first(base);
 
   for (i = 0; i < len; i++) {
-
     node = fut_get_ptr(node_addr);
     node_addr = flst_get_next_addr(node);
   }
@@ -185,11 +183,9 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2) {
   node3_addr = flst_get_next_addr(node2);
 
   if (!fil_addr_is_null(node1_addr)) {
-
     /* Update next field of node1 */
 
     if (node1_addr.page == node2_addr.page) {
-
       node1 = page_align(node2) + node1_addr.boffset;
     } else {
       node1 = fut_get_ptr(node1_addr);
@@ -207,7 +203,6 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2) {
     /* Update prev field of node3 */
 
     if (node3_addr.page == node2_addr.page) {
-
       node3 = page_align(node2) + node3_addr.boffset;
     } else {
       node3 = fut_get_ptr(node3_addr);
@@ -228,82 +223,72 @@ void flst_remove(flst_base_node_t *base, flst_node_t *node2) {
   mlog_write_ulint(base + FLST_LEN, len - 1, MLOG_4BYTES);
 }
 
-void
-flst_insert_before(
-	flst_base_node_t*	base,
-	flst_node_t*		node2,
-	flst_node_t*		node3)
-{
-	space_id_t	space;
-	flst_node_t*	node1;
-	fil_addr_t	node1_addr;
-	fil_addr_t	node2_addr;
-	fil_addr_t	node3_addr;
-	ulint		len;
+void flst_insert_before(flst_base_node_t *base, flst_node_t *node2,
+                        flst_node_t *node3) {
+  space_id_t space;
+  flst_node_t *node1;
+  fil_addr_t node1_addr;
+  fil_addr_t node2_addr;
+  fil_addr_t node3_addr;
+  ulint len;
 
-	ut_ad(base != node2);
-	ut_ad(base != node3);
-	ut_ad(node2 != node3);
+  ut_ad(base != node2);
+  ut_ad(base != node3);
+  ut_ad(node2 != node3);
 
-	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
-	buf_ptr_get_fsp_addr(node3, &space, &node3_addr);
+  buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
+  buf_ptr_get_fsp_addr(node3, &space, &node3_addr);
 
-	node1_addr = flst_get_prev_addr(node3);
+  node1_addr = flst_get_prev_addr(node3);
 
-	/* Set prev and next fields of node2 */
-	flst_write_addr(node2 + FLST_PREV, node1_addr);
-	flst_write_addr(node2 + FLST_NEXT, node3_addr);
+  /* Set prev and next fields of node2 */
+  flst_write_addr(node2 + FLST_PREV, node1_addr);
+  flst_write_addr(node2 + FLST_NEXT, node3_addr);
 
-	if (!fil_addr_is_null(node1_addr)) {
-		/* Update next field of node1 */
-		node1 = fut_get_ptr(node1_addr);
-		flst_write_addr(node1 + FLST_NEXT, node2_addr);
-	} else {
-		/* node3 was first in list: update first field in base */
-		flst_write_addr(base + FLST_FIRST, node2_addr);
-	}
+  if (!fil_addr_is_null(node1_addr)) {
+    /* Update next field of node1 */
+    node1 = fut_get_ptr(node1_addr);
+    flst_write_addr(node1 + FLST_NEXT, node2_addr);
+  } else {
+    /* node3 was first in list: update first field in base */
+    flst_write_addr(base + FLST_FIRST, node2_addr);
+  }
 
-	/* Set prev field of node3 */
-	flst_write_addr(node3 + FLST_PREV, node2_addr);
+  /* Set prev field of node3 */
+  flst_write_addr(node3 + FLST_PREV, node2_addr);
 
-	/* Update len of base node */
-	len = flst_get_len(base);
-	mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES);
+  /* Update len of base node */
+  len = flst_get_len(base);
+  mlog_write_ulint(base + FLST_LEN, len + 1, MLOG_4BYTES);
 }
-
 
 /** Adds a node as the first node in a list.
 @param[in]	base	pointer to base node of list.
 @param[in]	node	pointer to node being added. */
-void
-flst_add_first(
-	flst_base_node_t*	base,
-	flst_node_t*		node)
-{
-	space_id_t	space;
-	fil_addr_t	node_addr;
-	ulint		len;
-	fil_addr_t	first_addr;
-	flst_node_t*	first_node;
+void flst_add_first(flst_base_node_t *base, flst_node_t *node) {
+  space_id_t space;
+  fil_addr_t node_addr;
+  ulint len;
+  fil_addr_t first_addr;
+  flst_node_t *first_node;
 
-	ut_ad(base != node);
-	len = flst_get_len(base);
-	first_addr = flst_get_first(base);
+  ut_ad(base != node);
+  len = flst_get_len(base);
+  first_addr = flst_get_first(base);
 
-	buf_ptr_get_fsp_addr(node, &space, &node_addr);
+  buf_ptr_get_fsp_addr(node, &space, &node_addr);
 
-	/* If the list is not empty, call flst_insert_before */
-	if (len != 0) {
-		if (first_addr.page == node_addr.page) {
-			first_node = page_align(node) + first_addr.boffset;
-		} else {
-			first_node = fut_get_ptr(first_addr);
-		}
+  /* If the list is not empty, call flst_insert_before */
+  if (len != 0) {
+    if (first_addr.page == node_addr.page) {
+      first_node = page_align(node) + first_addr.boffset;
+    } else {
+      first_node = fut_get_ptr(first_addr);
+    }
 
-		flst_insert_before(base, node, first_node);
-	} else {
-		/* else call flst_add_to_empty */
-		flst_add_to_empty(base, node);
-	}
+    flst_insert_before(base, node, first_node);
+  } else {
+    /* else call flst_add_to_empty */
+    flst_add_to_empty(base, node);
+  }
 }
-

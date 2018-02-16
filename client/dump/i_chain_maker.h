@@ -30,30 +30,28 @@
 #include "client/dump/i_dump_task.h"
 #include "client/dump/i_object_reader.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_chain_maker : public virtual I_chain_element
-{
-public:
+class I_chain_maker : public virtual I_chain_element {
+ public:
   /**
     Creates new chain for specified dump task. May return null if do not want
     to process specified object.
    */
-  virtual I_object_reader* create_chain(
-    Chain_data* chain_data, I_dump_task* dump_task)= 0;
+  virtual I_object_reader *create_chain(Chain_data *chain_data,
+                                        I_dump_task *dump_task) = 0;
   /**
     Frees resources used by specified chain.
    */
-  virtual void delete_chain(
-    uint64 chain_id, I_object_reader* chain)= 0;
+  virtual void delete_chain(uint64 chain_id, I_object_reader *chain) = 0;
 
-  virtual void stop_queues()= 0;
+  virtual void stop_queues() = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

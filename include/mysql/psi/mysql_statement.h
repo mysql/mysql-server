@@ -30,8 +30,8 @@
 
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "mysql/psi/psi_statement.h"
 #include "mysql/psi/psi_stage.h"
+#include "mysql/psi/psi_statement.h"
 #include "pfs_stage_provider.h"      // IWYU pragma: keep
 #include "pfs_statement_provider.h"  // IWYU pragma: keep
 
@@ -73,15 +73,14 @@ struct CHARSET_INFO;
 #define MYSQL_DIGEST_END(LOCKER, DIGEST) inline_mysql_digest_end(LOCKER, DIGEST)
 #else
 #define MYSQL_DIGEST_END(LOCKER, DIGEST) \
-  do                                     \
-  {                                      \
+  do {                                   \
   } while (0)
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-#define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) \
-  inline_mysql_start_statement(                              \
-    STATE, K, DB, DB_LEN, CS, SPS, __FILE__, __LINE__)
+#define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS)            \
+  inline_mysql_start_statement(STATE, K, DB, DB_LEN, CS, SPS, __FILE__, \
+                               __LINE__)
 #else
 #define MYSQL_START_STATEMENT(STATE, K, DB, DB_LEN, CS, SPS) NULL
 #endif
@@ -98,8 +97,7 @@ struct CHARSET_INFO;
   inline_mysql_set_statement_text(LOCKER, P1, P2)
 #else
 #define MYSQL_SET_STATEMENT_TEXT(LOCKER, P1, P2) \
-  do                                             \
-  {                                              \
+  do {                                           \
   } while (0)
 #endif
 
@@ -108,8 +106,7 @@ struct CHARSET_INFO;
   inline_mysql_set_statement_lock_time(LOCKER, P1)
 #else
 #define MYSQL_SET_STATEMENT_LOCK_TIME(LOCKER, P1) \
-  do                                              \
-  {                                               \
+  do {                                            \
   } while (0)
 #endif
 
@@ -118,8 +115,7 @@ struct CHARSET_INFO;
   inline_mysql_set_statement_rows_sent(LOCKER, P1)
 #else
 #define MYSQL_SET_STATEMENT_ROWS_SENT(LOCKER, P1) \
-  do                                              \
-  {                                               \
+  do {                                            \
   } while (0)
 #endif
 
@@ -128,8 +124,7 @@ struct CHARSET_INFO;
   inline_mysql_set_statement_rows_examined(LOCKER, P1)
 #else
 #define MYSQL_SET_STATEMENT_ROWS_EXAMINED(LOCKER, P1) \
-  do                                                  \
-  {                                                   \
+  do {                                                \
   } while (0)
 #endif
 
@@ -137,35 +132,29 @@ struct CHARSET_INFO;
 #define MYSQL_END_STATEMENT(LOCKER, DA) inline_mysql_end_statement(LOCKER, DA)
 #else
 #define MYSQL_END_STATEMENT(LOCKER, DA) \
-  do                                    \
-  {                                     \
+  do {                                  \
   } while (0)
 #endif
 
-static inline void
-inline_mysql_statement_register(
+static inline void inline_mysql_statement_register(
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-  const char *category, PSI_statement_info *info, int count
+    const char *category, PSI_statement_info *info, int count
 #else
-  const char *category MY_ATTRIBUTE((unused)),
-  void *info MY_ATTRIBUTE((unused)),
-  int count MY_ATTRIBUTE((unused))
+    const char *category MY_ATTRIBUTE((unused)),
+    void *info MY_ATTRIBUTE((unused)), int count MY_ATTRIBUTE((unused))
 #endif
-  )
-{
+) {
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(register_statement)(category, info, count);
 #endif
 }
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-static inline struct PSI_digest_locker *
-inline_mysql_digest_start(PSI_statement_locker *locker)
-{
+static inline struct PSI_digest_locker *inline_mysql_digest_start(
+    PSI_statement_locker *locker) {
   PSI_digest_locker *digest_locker = NULL;
 
-  if (likely(locker != NULL))
-  {
+  if (likely(locker != NULL)) {
     digest_locker = PSI_DIGEST_CALL(digest_start)(locker);
   }
   return digest_locker;
@@ -173,104 +162,76 @@ inline_mysql_digest_start(PSI_statement_locker *locker)
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
-static inline void
-inline_mysql_digest_end(PSI_digest_locker *locker,
-                        const sql_digest_storage *digest)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_digest_end(PSI_digest_locker *locker,
+                                           const sql_digest_storage *digest) {
+  if (likely(locker != NULL)) {
     PSI_DIGEST_CALL(digest_end)(locker, digest);
   }
 }
 #endif
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-static inline struct PSI_statement_locker *
-inline_mysql_start_statement(PSI_statement_locker_state *state,
-                             PSI_statement_key key,
-                             const char *db,
-                             uint db_len,
-                             const CHARSET_INFO *charset,
-                             PSI_sp_share *sp_share,
-                             const char *src_file,
-                             int src_line)
-{
+static inline struct PSI_statement_locker *inline_mysql_start_statement(
+    PSI_statement_locker_state *state, PSI_statement_key key, const char *db,
+    uint db_len, const CHARSET_INFO *charset, PSI_sp_share *sp_share,
+    const char *src_file, int src_line) {
   PSI_statement_locker *locker;
-  locker = PSI_STATEMENT_CALL(get_thread_statement_locker)(
-    state, key, charset, sp_share);
-  if (likely(locker != NULL))
-  {
+  locker = PSI_STATEMENT_CALL(get_thread_statement_locker)(state, key, charset,
+                                                           sp_share);
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(start_statement)(locker, db, db_len, src_file, src_line);
   }
   return locker;
 }
 
-static inline struct PSI_statement_locker *
-inline_mysql_refine_statement(PSI_statement_locker *locker,
-                              PSI_statement_key key)
-{
-  if (likely(locker != NULL))
-  {
+static inline struct PSI_statement_locker *inline_mysql_refine_statement(
+    PSI_statement_locker *locker, PSI_statement_key key) {
+  if (likely(locker != NULL)) {
     locker = PSI_STATEMENT_CALL(refine_statement)(locker, key);
   }
   return locker;
 }
 
-static inline void
-inline_mysql_set_statement_text(PSI_statement_locker *locker,
-                                const char *text,
-                                uint text_len)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_set_statement_text(PSI_statement_locker *locker,
+                                                   const char *text,
+                                                   uint text_len) {
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(set_statement_text)(locker, text, text_len);
   }
 }
 
-static inline void
-inline_mysql_set_statement_lock_time(PSI_statement_locker *locker,
-                                     ulonglong count)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_set_statement_lock_time(
+    PSI_statement_locker *locker, ulonglong count) {
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(set_statement_lock_time)(locker, count);
   }
 }
 
-static inline void
-inline_mysql_set_statement_rows_sent(PSI_statement_locker *locker,
-                                     ulonglong count)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_set_statement_rows_sent(
+    PSI_statement_locker *locker, ulonglong count) {
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(set_statement_rows_sent)(locker, count);
   }
 }
 
-static inline void
-inline_mysql_set_statement_rows_examined(PSI_statement_locker *locker,
-                                         ulonglong count)
-{
-  if (likely(locker != NULL))
-  {
+static inline void inline_mysql_set_statement_rows_examined(
+    PSI_statement_locker *locker, ulonglong count) {
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(set_statement_rows_examined)(locker, count);
   }
 }
 
-static inline void
-inline_mysql_end_statement(struct PSI_statement_locker *locker,
-                           Diagnostics_area *stmt_da)
-{
+static inline void inline_mysql_end_statement(
+    struct PSI_statement_locker *locker, Diagnostics_area *stmt_da) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   PSI_STAGE_CALL(end_stage)();
 #endif /* HAVE_PSI_STAGE_INTERFACE */
-  if (likely(locker != NULL))
-  {
+  if (likely(locker != NULL)) {
     PSI_STATEMENT_CALL(end_statement)(locker, stmt_da);
   }
 }
 #endif
 
-/** @} (end of group psi_api_statement) */
+  /** @} (end of group psi_api_statement) */
 
 #endif

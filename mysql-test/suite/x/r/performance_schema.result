@@ -1,6 +1,6 @@
 
-13 rows affected
-Rows matched: 13  Changed: 0  Warnings: 0
+14 rows affected
+Rows matched: 14  Changed: 0  Warnings: 0
 
 1 rows affected
 Rows matched: 1  Changed: 1  Warnings: 0
@@ -22,6 +22,7 @@ thread/mysqlx/acceptor_network
 thread/mysqlx/worker
 0 rows affected
 name
+wait/synch/mutex/mysqlx/document_id_generate
 wait/synch/mutex/mysqlx/lock_list_access
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending
@@ -38,6 +39,7 @@ NAME	ENABLED	TIMED	PROPERTIES	VOLATILITY	DOCUMENTATION
 wait/synch/mutex/mysqlx/lock_list_access	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit	YES	NO		0	null
+wait/synch/mutex/mysqlx/document_id_generate	YES	NO		0	null
 wait/synch/rwlock/mysqlx/client_list_clients	YES	NO		0	null
 wait/synch/rwlock/mysqlx/sha256_password_cache	YES	NO		0	null
 wait/synch/cond/mysqlx/scheduler_dynamic_worker_pending	NO	NO		0	null
@@ -258,6 +260,7 @@ thread/mysqlx/acceptor_network
 thread/mysqlx/worker
 command ok
 name
+wait/synch/mutex/mysqlx/document_id_generate
 wait/synch/mutex/mysqlx/lock_list_access
 wait/synch/mutex/mysqlx/scheduler_dynamic_thread_exit
 wait/synch/mutex/mysqlx/scheduler_dynamic_worker_pending

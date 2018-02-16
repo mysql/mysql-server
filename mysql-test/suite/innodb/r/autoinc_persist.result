@@ -980,8 +980,6 @@ DROP TABLE t_copy;
 # Scenario 9: Test the sql_mode = NO_AUTO_VALUE_ON_ZERO
 CREATE TABLE t30 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b INT, key(b)) ENGINE = InnoDB;
 set SQL_MODE = NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t30 VALUES(NULL, 1), (200, 2), (0, 3);
 INSERT INTO t30(b) VALUES(4), (5), (6), (7);
 SELECT * FROM t30 ORDER BY b;
@@ -1031,8 +1029,6 @@ a	b
 0	6
 DROP TABLE t31;
 set SQL_MODE = NO_AUTO_VALUE_ON_ZERO;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DELETE FROM t30 WHERE a = 0;
 UPDATE t30 set a = 0 where b = 5;
 SELECT * FROM t30 ORDER BY b;

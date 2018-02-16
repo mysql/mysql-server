@@ -16,7 +16,7 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 e_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_DB2` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT db1.e_MAXDB;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_MAXDB` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
+e_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_MAXDB` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT db1.e_MSSQL;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_MSSQL` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
@@ -37,20 +37,20 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 e_NO_TABLE_OPTIONS		SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_NO_TABLE_OPTIONS` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT db1.e_ORACLE;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_ORACLE` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
+e_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_ORACLE` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT db1.e_POSTGRESQL;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
 e_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e_POSTGRESQL` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE EVENT db1.e1;
 Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
-e1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
+e1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	SYSTEM	CREATE DEFINER=`root`@`localhost` EVENT `e1` ON SCHEDULE EVERY 100 WEEK STARTS '2018-01-23 12:11:33' ON COMPLETION NOT PRESERVE DISABLE ON SLAVE DO SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_DB2;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_DB2"() RETURNS int(11)
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MAXDB;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER="root"@"localhost" FUNCTION "f_MAXDB"() RETURNS int(11)
+f_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_MAXDB"() RETURNS int(11)
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_MSSQL;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -78,7 +78,7 @@ f_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` FUNCTION `f_NO_TABLE_OPTIO
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_ORACLE;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER="root"@"localhost" FUNCTION "f_ORACLE"() RETURNS int(11)
+f_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" FUNCTION "f_ORACLE"() RETURNS int(11)
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f_POSTGRESQL;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
@@ -86,7 +86,7 @@ f_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"loc
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE FUNCTION db1.f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-f1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" FUNCTION "f1"() RETURNS int(11)
+f1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" FUNCTION "f1"() RETURNS int(11)
 RETURN 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_DB2;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -94,7 +94,7 @@ p_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost"
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_MAXDB;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER="root"@"localhost" PROCEDURE "p_MAXDB"()
+p_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" PROCEDURE "p_MAXDB"()
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_MSSQL;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -122,7 +122,7 @@ p_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` PROCEDURE `p_NO_TABLE_OPTI
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_ORACLE;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER="root"@"localhost" PROCEDURE "p_ORACLE"()
+p_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"localhost" PROCEDURE "p_ORACLE"()
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p_POSTGRESQL;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
@@ -130,14 +130,14 @@ p_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER="root"@"loc
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE PROCEDURE db1.p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-p1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" PROCEDURE "p1"()
+p1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER="root"@"localhost" PROCEDURE "p1"()
 SELECT 1	utf8	utf8_general_ci	latin1_swedish_ci
 SHOW CREATE TRIGGER db1.t_DB2;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t_DB2	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_DB2` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
 SHOW CREATE TRIGGER db1.t_MAXDB;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MAXDB` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
+t_MAXDB	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MAXDB` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.63
 SHOW CREATE TRIGGER db1.t_MSSQL;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t_MSSQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_MSSQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.64
@@ -158,13 +158,13 @@ Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connectio
 t_NO_TABLE_OPTIONS		CREATE DEFINER=`root`@`localhost` TRIGGER `t_NO_TABLE_OPTIONS` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.66
 SHOW CREATE TRIGGER db1.t_ORACLE;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER	CREATE DEFINER=`root`@`localhost` TRIGGER `t_ORACLE` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
+t_ORACLE	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_ORACLE` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
 SHOW CREATE TRIGGER db1.t_POSTGRESQL;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
 t_POSTGRESQL	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE	CREATE DEFINER=`root`@`localhost` TRIGGER `t_POSTGRESQL` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.67
 SHOW CREATE TRIGGER db1.t1;
 Trigger	sql_mode	SQL Original Statement	character_set_client	collation_connection	Database Collation	Created
-t1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,NO_AUTO_CREATE_USER,HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t1` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.68
+t1	PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,HIGH_NOT_PRECEDENCE	CREATE DEFINER=`root`@`localhost` TRIGGER `t1` BEFORE INSERT ON `t1` FOR EACH ROW SET @foo = 1	utf8	utf8_general_ci	latin1_swedish_ci	2018-01-23 12:11:33.68
 ==== Clean up ====
 DROP SCHEMA db1;
 include/stop_slave_sql.inc
@@ -182,7 +182,7 @@ SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1436549152/*!*/;
+SET @@session.sql_mode=1436549152/*!80005 &~0x1003ff00*//*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -203,7 +203,7 @@ CREATE TABLE t1 (i INT)
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=59406/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=59406/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p_DB2"()
 SELECT 1
 /*!*/;
@@ -235,7 +235,7 @@ CREATE DEFINER="root"@"localhost" EVENT e_DB2 ON SCHEDULE EVERY 100 WEEK DO SELE
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=268496910/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=268496910/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p_MAXDB"()
 SELECT 1
 /*!*/;
@@ -266,7 +266,7 @@ CREATE DEFINER="root"@"localhost" EVENT e_MAXDB ON SCHEDULE EVERY 100 WEEK DO SE
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=58382/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=58382/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p_MSSQL"()
 SELECT 1
 /*!*/;
@@ -297,7 +297,7 @@ CREATE DEFINER="root"@"localhost" EVENT e_MSSQL ON SCHEDULE EVERY 100 WEEK DO SE
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=536936448/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=536936448/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p_MYSQL323`()
 SELECT 1
 /*!*/;
@@ -328,7 +328,7 @@ CREATE DEFINER=`root`@`localhost` EVENT e_MYSQL323 ON SCHEDULE EVERY 100 WEEK DO
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=537001984/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=537001984/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p_MYSQL40`()
 SELECT 1
 /*!*/;
@@ -359,7 +359,7 @@ CREATE DEFINER=`root`@`localhost` EVENT e_MYSQL40 ON SCHEDULE EVERY 100 WEEK DO 
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=32768/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=32768/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p_NO_FIELD_OPTIONS`()
 SELECT 1
 /*!*/;
@@ -390,7 +390,7 @@ CREATE DEFINER=`root`@`localhost` EVENT e_NO_FIELD_OPTIONS ON SCHEDULE EVERY 100
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=8192/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=8192/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p_NO_KEY_OPTIONS`()
 SELECT 1
 /*!*/;
@@ -421,7 +421,7 @@ CREATE DEFINER=`root`@`localhost` EVENT e_NO_KEY_OPTIONS ON SCHEDULE EVERY 100 W
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=16384/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=16384/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `p_NO_TABLE_OPTIONS`()
 SELECT 1
 /*!*/;
@@ -452,7 +452,7 @@ CREATE DEFINER=`root`@`localhost` EVENT e_NO_TABLE_OPTIONS ON SCHEDULE EVERY 100
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=268493326/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=268493326/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p_ORACLE"()
 SELECT 1
 /*!*/;
@@ -483,7 +483,7 @@ CREATE DEFINER="root"@"localhost" EVENT e_ORACLE ON SCHEDULE EVERY 100 WEEK DO S
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=57614/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=57614/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p_POSTGRESQL"()
 SELECT 1
 /*!*/;
@@ -514,7 +514,7 @@ CREATE DEFINER="root"@"localhost" EVENT e_POSTGRESQL ON SCHEDULE EVERY 100 WEEK 
 /*!80001 SET @@session.original_commit_timestamp= MICROSECONDS-FROM-EPOCH*//*!*/;
 SET @@SESSION.GTID_NEXT= '#'/*!*/;
 SET TIMESTAMP=#/*!*/;
-SET @@session.sql_mode=805568270/*!80005 &~0x3ff00*//*!*/;
+SET @@session.sql_mode=805568270/*!80005 &~0x1003ff00*//*!*/;
 CREATE DEFINER="root"@"localhost" PROCEDURE "p1"()
 SELECT 1
 /*!*/;

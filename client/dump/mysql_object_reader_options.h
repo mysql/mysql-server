@@ -29,27 +29,25 @@
 #include "client/dump/mysql_chain_element_options.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 #define MAX_EXTENDED_INSERT 0x100000
 
 class Mysql_object_reader_options
-  : public Mysql::Tools::Base::Options::Abstract_options_provider
-{
-public:
+    : public Mysql::Tools::Base::Options::Abstract_options_provider {
+ public:
   Mysql_object_reader_options(
-    const Mysql_chain_element_options* mysql_chain_element_options);
+      const Mysql_chain_element_options *mysql_chain_element_options);
 
   void create_options();
 
   uint64 m_row_group_size;
-  const Mysql_chain_element_options* m_mysql_chain_element_options;
+  const Mysql_chain_element_options *m_mysql_chain_element_options;
 };
-
 }
-}
-}
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

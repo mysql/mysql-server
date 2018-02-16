@@ -7,8 +7,6 @@ SELECT 0 + (0<<1);
 0 + (0<<1)
 0
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 BIT(1));
 CREATE TABLE t2(c1 BIT(1), c2 BIT(1), c3 BIT(1));
 set @v1=1;
@@ -550,10 +548,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -1405,7 +1402,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -1413,10 +1409,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -2354,7 +2349,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -2365,10 +2359,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -3573,7 +3566,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -3639,10 +3631,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -5039,7 +5030,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -5105,10 +5095,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -7126,7 +7115,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -7192,10 +7180,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -10320,7 +10307,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -10386,10 +10372,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -11063,7 +11048,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -11071,10 +11055,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -11926,7 +11909,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -11934,10 +11916,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -12875,7 +12856,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -12886,10 +12866,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -14094,7 +14073,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -14160,10 +14138,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -15560,7 +15537,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -15626,10 +15602,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -17647,7 +17622,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -17713,10 +17687,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -20841,7 +20814,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -20907,10 +20879,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -21590,7 +21561,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -21598,10 +21568,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -22453,7 +22422,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -22461,10 +22429,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -23402,7 +23369,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -23413,10 +23379,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -24621,7 +24586,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -24687,10 +24651,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -26087,7 +26050,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -26153,10 +26115,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -28174,7 +28135,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -28240,10 +28200,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -31368,7 +31327,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -31434,10 +31392,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -32117,7 +32074,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -32125,10 +32081,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -32986,7 +32941,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -32994,10 +32948,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -33935,7 +33888,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -33946,10 +33898,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -35154,7 +35105,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -35220,10 +35170,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -36620,7 +36569,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -36686,10 +36634,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -38707,7 +38654,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -38773,10 +38719,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -41901,7 +41846,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -41967,10 +41911,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -42650,7 +42593,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -42658,10 +42600,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -43519,7 +43460,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -43527,10 +43467,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -44474,7 +44413,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -44485,10 +44423,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -45699,7 +45636,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -45765,10 +45701,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -47165,7 +47100,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -47231,10 +47165,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -49252,7 +49185,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -49318,10 +49250,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -52446,7 +52377,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -52512,10 +52442,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -53197,7 +53126,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -53205,10 +53133,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -54068,7 +53995,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -54076,10 +54002,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -55025,7 +54950,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -55036,10 +54960,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -56252,7 +56175,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -56318,10 +56240,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -57726,7 +57647,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -57792,10 +57712,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -59815,7 +59734,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -59881,10 +59799,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -63011,7 +62928,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -63077,10 +62993,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -63759,7 +63674,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -63767,10 +63681,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -64627,7 +64540,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -64635,10 +64547,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -65581,7 +65492,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -65592,10 +65502,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -66805,7 +66714,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -66871,10 +66779,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -68276,7 +68183,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -68342,10 +68248,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -70368,7 +70273,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -70434,10 +70338,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -73561,7 +73464,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -73627,10 +73529,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -74309,7 +74210,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -74317,10 +74217,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	1
 1	1
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -75177,7 +75076,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -75185,10 +75083,9 @@ SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
 0	3
 3	3
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -76131,7 +76028,6 @@ F
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -76142,10 +76038,9 @@ hex(c1)	hex(c2)
 5	F
 9	F
 F	F
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -77355,7 +77250,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -77421,10 +77315,9 @@ hex(c1)	hex(c2)
 7B	FF
 7F	FF
 9	FF
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -78826,7 +78719,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -78892,10 +78784,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -80918,7 +80809,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -80984,10 +80874,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)
@@ -84117,7 +84006,6 @@ hex(c1)
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5 SET c1=NULL WHERE c1<>0;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t5 SET c1=NULL WHERE c1>100;
@@ -84183,10 +84071,9 @@ hex(c1)	hex(c2)
 7B	19B
 7F	193
 9	16B
-SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SQL_MODE='ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t5,t6 SET t5.c2=t6.c1+t5.c1, t6.c2=t5.c1+t6.c1 WHERE t5.c1 > 100 OR t6.c2 > 100;
 SELECT hex(c1),hex(c2) FROM t5;
 hex(c1)	hex(c2)

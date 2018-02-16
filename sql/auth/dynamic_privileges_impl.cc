@@ -39,54 +39,47 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/auth/sql_auth_cache.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
-#include "sql/sql_thd_internal_api.h" // create_thd
+#include "sql/sql_thd_internal_api.h"  // create_thd
 
 class THD;
 
 /**
   This helper class is used for either selecting a previous THD or
-  if it's missing, create a new THD. 
+  if it's missing, create a new THD.
 */
-class Thd_creator
-{
-public:
-  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(0)
-  {}
+class Thd_creator {
+ public:
+  Thd_creator(THD *thd) : m_thd(thd), m_tmp_thd(0) {}
 
   /**
     Returns a THD handle either by creating a new one or by returning a
     previously created THD.
   */
-  THD *operator()()
-  {
-    if (m_thd == 0 && m_tmp_thd == 0)
-    {
+  THD *operator()() {
+    if (m_thd == 0 && m_tmp_thd == 0) {
       /*
         Initiate a THD without plugins,
         without attaching to the Global_THD_manager, and without setting
         an OS thread ID.
       */
-      m_tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
+      m_tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
       return m_tmp_thd;
-    }
-    else if (m_thd == 0)
-    {
+    } else if (m_thd == 0) {
       return m_tmp_thd;
     }
     return m_thd;
   }
 
   /**
-    Automatically frees any THD handle created by this class. 
+    Automatically frees any THD handle created by this class.
   */
-  ~Thd_creator()
-  {
-    if (m_thd == 0 && m_tmp_thd != 0)
-    {
+  ~Thd_creator() {
+    if (m_thd == 0 && m_tmp_thd != 0) {
       destroy_thd(m_tmp_thd);
     }
   }
-private:
+
+ private:
   THD *m_thd;
   THD *m_tmp_thd;
 };
@@ -96,34 +89,31 @@ private:
   enable the SQL syntax to recognize the identifier as a valid token.
   @param privilege_str The privilege identifier string
   @param privilege_str_len The length of the identifier string
- 
+
   @note This function acquires the THD from the current_thd
- 
+
   @returns Error flag
     @return true The privilege ID couldn't be inserted.
     @return false The privilege ID was successfully registered.
 */
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
-{
+                   (const char *privilege_str, size_t privilege_str_len)) {
   Thd_creator get_thd(current_thd);
-  try{
-  Acl_cache_lock_guard acl_cache_lock(get_thd(),
-                                      Acl_cache_lock_mode::WRITE_MODE);
-  Dynamic_privilege_register *reg= get_dynamic_privilege_register();
-  std::string priv;
-  const char *c= &privilege_str[0];
-  for(size_t i= 0; i< privilege_str_len; ++i, ++c)
-    priv.append(1, static_cast<char>(toupper(*c)));
-  if (reg->find(priv) != reg->end())
-  {
-    /* If the privilege ID already is registered; report success */
-    return false;
-  }
-  return !get_dynamic_privilege_register()->insert(priv).second;    
-  } catch(...)
-  {
+  try {
+    Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                        Acl_cache_lock_mode::WRITE_MODE);
+    Dynamic_privilege_register *reg = get_dynamic_privilege_register();
+    std::string priv;
+    const char *c = &privilege_str[0];
+    for (size_t i = 0; i < privilege_str_len; ++i, ++c)
+      priv.append(1, static_cast<char>(toupper(*c)));
+    if (reg->find(priv) != reg->end()) {
+      /* If the privilege ID already is registered; report success */
+      return false;
+    }
+    return !get_dynamic_privilege_register()->insert(priv).second;
+  } catch (...) {
     return true;
   }
 }
@@ -133,35 +123,33 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::register_privilege,
   disables the SQL syntax from recognizing the identifier as a valid token.
   @param privilege_str The privilege identifier string
   @param privilege_str_len The length of the identifier string
- 
+
   @note This function acquires the THD from the current_thd
- 
+
   @returns Error flag
     @return true The privilege ID wasn't in the list or remove failed.
     @return false The privilege ID was successfully unregistered.
 */
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
-  (const char *privilege_str, size_t privilege_str_len))
-{
+                   (const char *privilege_str, size_t privilege_str_len)) {
   Thd_creator get_thd(current_thd);
   try {
-  Acl_cache_lock_guard acl_cache_lock(get_thd(),
-                                      Acl_cache_lock_mode::WRITE_MODE);
-  std::string priv;
-  const char *c= &privilege_str[0];
-  for(size_t i= 0; i< privilege_str_len; ++i, ++c)
-    priv.append(1, static_cast<char>(toupper(*c)));
-  return (get_dynamic_privilege_register()->erase(priv) == 0);
-  } catch(...)
-  {
+    Acl_cache_lock_guard acl_cache_lock(get_thd(),
+                                        Acl_cache_lock_mode::WRITE_MODE);
+    std::string priv;
+    const char *c = &privilege_str[0];
+    for (size_t i = 0; i < privilege_str_len; ++i, ++c)
+      priv.append(1, static_cast<char>(toupper(*c)));
+    return (get_dynamic_privilege_register()->erase(priv) == 0);
+  } catch (...) {
     return true;
   }
 }
 
 /**
   Checks if a user has a specified privilege ID granted to it.
- 
+
   @param handle The active security context of the user to be checked.
   @param privilege_str The privilege identifier string
   @param privilege_str_len The length of the identifier string
@@ -172,57 +160,47 @@ DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::unregister_privilege,
 */
 
 DEFINE_BOOL_METHOD(dynamic_privilege_services_impl::has_global_grant,
-  (Security_context_handle handle, const char *privilege_str,
-   size_t privilege_str_len))
-{
-  Security_context *sctx= reinterpret_cast<Security_context *>(handle);
+                   (Security_context_handle handle, const char *privilege_str,
+                    size_t privilege_str_len)) {
+  Security_context *sctx = reinterpret_cast<Security_context *>(handle);
   return sctx->has_global_grant(privilege_str, privilege_str_len).first;
 }
 
-
 /**
   Boostrap the dynamic privilege service by seeding it with server
-  implementation specific data. 
+  implementation specific data.
 */
 
-bool dynamic_privilege_init(void)
-{
+bool dynamic_privilege_init(void) {
   // Set up default dynamic privileges
-  SERVICE_TYPE(registry) *r= mysql_plugin_registry_acquire();
-  bool ret= false;
+  SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
+  bool ret = false;
   {
-    my_service<SERVICE_TYPE(dynamic_privilege_register)>
-      service("dynamic_privilege_register.mysql_server", r);
-    if (service.is_valid())
-    {
+    my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
+        "dynamic_privilege_register.mysql_server", r);
+    if (service.is_valid()) {
+      ret |= service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
+      ret |= service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
       ret |=
-        service->register_privilege(STRING_WITH_LEN("ROLE_ADMIN"));
+          service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
+      ret |= service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
+      ret |= service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
+      ret |= service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
+      ret |= service->register_privilege(
+          STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
+      ret |= service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
       ret |=
-        service->register_privilege(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"));
+          service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
       ret |=
-        service->register_privilege(STRING_WITH_LEN("BINLOG_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("REPLICATION_SLAVE_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("GROUP_REPLICATION_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("CONNECTION_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("SET_USER_ID"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("XA_RECOVER_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("PERSIST_RO_VARIABLES_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("BACKUP_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_ADMIN"));
-      ret |=
-        service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
+          service->register_privilege(STRING_WITH_LEN("RESOURCE_GROUP_USER"));
     }
-  } // exist scope
+  }  // exist scope
   mysql_plugin_registry_release(r);
   return ret;
 }

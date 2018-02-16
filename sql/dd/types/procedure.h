@@ -23,8 +23,7 @@
 #ifndef DD__PROCEDURE_INCLUDED
 #define DD__PROCEDURE_INCLUDED
 
-
-#include "sql/dd/types/routine.h" // Routine
+#include "sql/dd/types/routine.h"  // Routine
 
 namespace dd {
 
@@ -32,24 +31,21 @@ class Procedure_impl;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Procedure : virtual public Routine
-{
-public:
+class Procedure : virtual public Routine {
+ public:
   typedef Procedure_impl Impl;
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_routine_name_key(key, schema_id(), name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_routine_name_key(key, schema_id(), name());
+  }
 
-  static bool update_name_key(Name_key *key,
-                              Object_id schema_id,
+  static bool update_name_key(Name_key *key, Object_id schema_id,
                               const String_type &name);
 
-public:
-  virtual ~Procedure()
-  { };
+ public:
+  virtual ~Procedure(){};
 
-public:
-
+ public:
   /**
     Allocate a new object graph and invoke the copy contructor for
     each object. Only used in unit testing.
@@ -61,6 +57,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PROCEDURE_INCLUDED
+#endif  // DD__PROCEDURE_INCLUDED

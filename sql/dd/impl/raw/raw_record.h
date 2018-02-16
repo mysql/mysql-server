@@ -33,8 +33,8 @@
 #endif
 #include <sys/types.h>
 
-#include "sql/dd/object_id.h"  // dd::Object_id
-#include "sql/dd/string_type.h" // dd::String_type
+#include "sql/dd/object_id.h"    // dd::Object_id
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class Json_wrapper;
 class Field;
@@ -50,34 +50,36 @@ class Properties;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_record
-{
-public:
+class Raw_record {
+ public:
   Raw_record(TABLE *table);
 
-public:
+ public:
   bool update();
   bool drop();
 
-public:
+ public:
   bool store_pk_id(int field_no, Object_id id);
   bool store_ref_id(int field_no, Object_id id);
-  bool store(int field_no, const String_type &s, bool is_null= false);
-  bool store(int field_no, ulonglong ull, bool is_null= false);
-  bool store(int field_no, longlong ll, bool is_null= false);
+  bool store(int field_no, const String_type &s, bool is_null = false);
+  bool store(int field_no, ulonglong ull, bool is_null = false);
+  bool store(int field_no, longlong ll, bool is_null = false);
 
-  bool store(int field_no, bool b, bool is_null= false)
-  { return store(field_no, b ? 1ll : 0ll, is_null); }
+  bool store(int field_no, bool b, bool is_null = false) {
+    return store(field_no, b ? 1ll : 0ll, is_null);
+  }
 
-  bool store(int field_no, uint v, bool is_null= false)
-  { return store(field_no, (ulonglong) v, is_null); }
+  bool store(int field_no, uint v, bool is_null = false) {
+    return store(field_no, (ulonglong)v, is_null);
+  }
 
-  bool store(int field_no, int v, bool is_null= false)
-  { return store(field_no, (longlong) v, is_null); }
+  bool store(int field_no, int v, bool is_null = false) {
+    return store(field_no, (longlong)v, is_null);
+  }
 
   bool store(int field_no, const Properties &p);
 
-  bool store_time(int field_no, my_time_t val, bool is_null= false);
+  bool store_time(int field_no, my_time_t val, bool is_null = false);
 
   /**
     Store timeval at field specified by field_no into the record.
@@ -94,25 +96,27 @@ public:
 
   bool store_json(int field_no, const Json_wrapper &json);
 
-public:
+ public:
   bool is_null(int field_no) const;
 
   longlong read_int(int field_no) const;
-  longlong read_int(int field_no, longlong null_value) const
-  { return is_null(field_no) ? null_value : read_int(field_no); }
+  longlong read_int(int field_no, longlong null_value) const {
+    return is_null(field_no) ? null_value : read_int(field_no);
+  }
 
   ulonglong read_uint(int field_no) const;
-  ulonglong read_uint(int field_no, ulonglong null_value) const
-  { return is_null(field_no) ? null_value : read_uint(field_no); }
+  ulonglong read_uint(int field_no, ulonglong null_value) const {
+    return is_null(field_no) ? null_value : read_uint(field_no);
+  }
 
   String_type read_str(int field_no) const;
-  String_type read_str(int field_no, const String_type &null_value) const
-  { return is_null(field_no) ? null_value : read_str(field_no); }
+  String_type read_str(int field_no, const String_type &null_value) const {
+    return is_null(field_no) ? null_value : read_str(field_no);
+  }
 
   Object_id read_ref_id(int field_no) const;
 
-  bool read_bool(int field_no) const
-  { return read_int(field_no) != 0; }
+  bool read_bool(int field_no) const { return read_int(field_no) != 0; }
 
   my_time_t read_time(int field_no) const;
 
@@ -128,35 +132,35 @@ public:
   timeval read_timestamp(int field_no) const;
 
   bool read_json(int field_no, Json_wrapper *json_wrapper) const;
-protected:
+
+ protected:
   void set_null(int field_no, bool is_null);
 
-  Field *field(int field_no) const; // XXX: return non-const from const-operation
+  Field *field(
+      int field_no) const;  // XXX: return non-const from const-operation
 
-protected:
+ protected:
   TABLE *m_table;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_new_record : public Raw_record
-{
-public:
+class Raw_new_record : public Raw_record {
+ public:
   Raw_new_record(TABLE *table);
 
-  ~Raw_new_record()
-  { finalize(); }
+  ~Raw_new_record() { finalize(); }
 
-public:
-   bool insert();
+ public:
+  bool insert();
 
-   Object_id get_insert_id() const;
+  Object_id get_insert_id() const;
 
-   void finalize();
+  void finalize();
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__RAW_RECORD_INCLUDED
+#endif  // DD__RAW_RECORD_INCLUDED

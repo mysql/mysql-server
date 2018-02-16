@@ -56,52 +56,42 @@
     than once.
 */
 template <typename TVertex, typename TVisit_start, typename TVisit_end,
-    typename TGet_neighbors, typename TVertex_less= std::less<TVertex>>
-  void depth_first_search(
-  TVertex start_vertex, TVisit_start visitor_start, TVisit_end visitor_end,
-    TGet_neighbors get_neighbors,
-    std::set<TVertex>& visited_set= std::set<TVertex>{})
-{
+          typename TGet_neighbors, typename TVertex_less = std::less<TVertex>>
+void depth_first_search(TVertex start_vertex, TVisit_start visitor_start,
+                        TVisit_end visitor_end, TGet_neighbors get_neighbors,
+                        std::set<TVertex> &visited_set = std::set<TVertex>{}) {
   /* A constant for a index denoting if the search from specified vertex has
     just been started of just ends. */
-  constexpr int START_VISITING= 0;
+  constexpr int START_VISITING = 0;
   /* A constant for a index denoting the vertex. */
-  constexpr int CURRENT_VERTEX= 1;
+  constexpr int CURRENT_VERTEX = 1;
 
   /* An actual stack for search. */
   std::stack<std::tuple<bool, TVertex>> stack;
   /* Check if this vertex was not already visited - this may happen if
     the visited_set was returned by another DFS run. */
-  if (!visited_set.insert(start_vertex).second)
-  {
+  if (!visited_set.insert(start_vertex).second) {
     return;
   }
   stack.emplace(true, start_vertex);
 
-  while (!stack.empty())
-  {
-    std::tuple<bool, TVertex>& elem= stack.top();
-    if (std::get<START_VISITING>(elem))
-    {
+  while (!stack.empty()) {
+    std::tuple<bool, TVertex> &elem = stack.top();
+    if (std::get<START_VISITING>(elem)) {
       visitor_start(std::get<CURRENT_VERTEX>(elem));
 
-      std::get<START_VISITING>(elem)= false;
-      for (TVertex neighbor : get_neighbors(std::get<CURRENT_VERTEX>(elem)))
-      {
+      std::get<START_VISITING>(elem) = false;
+      for (TVertex neighbor : get_neighbors(std::get<CURRENT_VERTEX>(elem))) {
         /* Check if this vertex was not visited yet in this or previous runs. */
-        if (visited_set.insert(neighbor).second)
-        {
+        if (visited_set.insert(neighbor).second) {
           stack.emplace(true, neighbor);
         }
       }
-    }
-    else
-    {
+    } else {
       visitor_end(std::get<CURRENT_VERTEX>(elem));
       stack.pop();
     }
   }
 }
-
 
 #endif

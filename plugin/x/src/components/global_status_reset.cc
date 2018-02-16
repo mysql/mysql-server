@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/components/services/udf_registration.h>
 #include <mysql/components/component_implementation.h>
+#include <mysql/components/services/udf_registration.h>
 #include "plugin/x/src/services/mysqlx_maintenance.h"
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
@@ -31,9 +31,8 @@ namespace {
 
 long long reset_global_status_variables(UDF_INIT *, UDF_ARGS *, char *,
                                         char *) {
-  return mysql_service_mysqlx_maintenance->reset_global_status_variables()
-             ? 1
-             : 0;
+  return mysql_service_mysqlx_maintenance->reset_global_status_variables() ? 1
+                                                                           : 0;
 }
 
 const char *const udf_name = "mysqlx_reset_global_status_variables";
@@ -53,25 +52,20 @@ mysql_service_status_t udf_unregister() {
 }
 
 BEGIN_COMPONENT_PROVIDES(mysqlx_global_status_reset)
-END_COMPONENT_PROVIDES()
+END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(mysqlx_global_status_reset)
-  REQUIRES_SERVICE(udf_registration)
-  REQUIRES_SERVICE(mysqlx_maintenance)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(udf_registration), REQUIRES_SERVICE(mysqlx_maintenance),
+    END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(mysqlx_global_status_reset)
-  METADATA("mysql.author", "Oracle Corporation")
-  METADATA("mysql.license", "GPL")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(mysqlx_global_status_reset, udf_name)
-  udf_register,
-  udf_unregister
-END_DECLARE_COMPONENT()
+udf_register, udf_unregister END_DECLARE_COMPONENT();
 
-DECLARE_LIBRARY_COMPONENTS
-  &COMPONENT_REF(mysqlx_global_status_reset)
-END_DECLARE_LIBRARY_COMPONENTS
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(mysqlx_global_status_reset)
+    END_DECLARE_LIBRARY_COMPONENTS
 
 }  // namespace

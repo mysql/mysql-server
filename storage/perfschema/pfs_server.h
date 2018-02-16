@@ -88,8 +88,7 @@
 #endif
 
 /** Sizing hints, from the server configuration. */
-struct PFS_sizing_hints
-{
+struct PFS_sizing_hints {
   /** Value of @c Sys_table_def_size */
   ulong m_table_definition_cache;
   /** Value of @c Sys_table_cache_size */
@@ -103,8 +102,7 @@ struct PFS_sizing_hints
 };
 
 /** Performance schema global sizing parameters. */
-struct PFS_global_param
-{
+struct PFS_global_param {
   /** True if the performance schema is enabled. */
   bool m_enabled;
   /** Default values for SETUP_CONSUMERS. */
@@ -321,22 +319,18 @@ void pre_initialize_performance_schema();
     @retval 0 success
 */
 int initialize_performance_schema(
-  PFS_global_param *param,
-  PSI_thread_bootstrap **thread_bootstrap,
-  PSI_mutex_bootstrap **mutex_bootstrap,
-  PSI_rwlock_bootstrap **rwlock_bootstrap,
-  PSI_cond_bootstrap **cond_bootstrap,
-  PSI_file_bootstrap **file_bootstrap,
-  PSI_socket_bootstrap **socket_bootstrap,
-  PSI_table_bootstrap **table_bootstrap,
-  PSI_mdl_bootstrap **mdl_bootstrap,
-  PSI_idle_bootstrap **idle_bootstrap,
-  PSI_stage_bootstrap **stage_bootstrap,
-  PSI_statement_bootstrap **statement_bootstrap,
-  PSI_transaction_bootstrap **transaction_bootstrap,
-  PSI_memory_bootstrap **memory_bootstrap,
-  PSI_error_bootstrap **error_bootstrap,
-  PSI_data_lock_bootstrap **data_lock_bootstrap);
+    PFS_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
+    PSI_mutex_bootstrap **mutex_bootstrap,
+    PSI_rwlock_bootstrap **rwlock_bootstrap,
+    PSI_cond_bootstrap **cond_bootstrap, PSI_file_bootstrap **file_bootstrap,
+    PSI_socket_bootstrap **socket_bootstrap,
+    PSI_table_bootstrap **table_bootstrap, PSI_mdl_bootstrap **mdl_bootstrap,
+    PSI_idle_bootstrap **idle_bootstrap, PSI_stage_bootstrap **stage_bootstrap,
+    PSI_statement_bootstrap **statement_bootstrap,
+    PSI_transaction_bootstrap **transaction_bootstrap,
+    PSI_memory_bootstrap **memory_bootstrap,
+    PSI_error_bootstrap **error_bootstrap,
+    PSI_data_lock_bootstrap **data_lock_bootstrap);
 
 void pfs_automated_sizing(PFS_global_param *param);
 

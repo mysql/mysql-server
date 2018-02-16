@@ -27,11 +27,11 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/dd/impl/types/index_impl.h"   // dd::Index_impl
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/index_impl.h"        // dd::Index_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/index_element.h"     // dd::Index_element
+#include "sql/dd/types/index_element.h"  // dd::Index_element
 
 namespace dd {
 
@@ -49,35 +49,30 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_element_impl : public Weak_object_impl,
-                           public Index_element
-{
-public:
+class Index_element_impl : public Weak_object_impl, public Index_element {
+ public:
   Index_element_impl()
-   :m_ordinal_position(0),
-    m_length(-1),
-    m_order(Index_element::ORDER_ASC),
-    m_hidden(false),
-    m_index(NULL),
-    m_column(NULL)
-  { }
+      : m_ordinal_position(0),
+        m_length(-1),
+        m_order(Index_element::ORDER_ASC),
+        m_hidden(false),
+        m_index(NULL),
+        m_column(NULL) {}
 
   Index_element_impl(Index_impl *index, Column *column)
-   :m_ordinal_position(0),
-    m_length(-1),
-    m_order(Index_element::ORDER_ASC),
-    m_hidden(false),
-    m_index(index),
-    m_column(column)
-  { }
+      : m_ordinal_position(0),
+        m_length(-1),
+        m_order(Index_element::ORDER_ASC),
+        m_hidden(false),
+        m_index(index),
+        m_column(column) {}
 
   Index_element_impl(const Index_element_impl &src, Index_impl *parent,
                      Column *column);
 
-  virtual ~Index_element_impl()
-  { }
+  virtual ~Index_element_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
@@ -90,94 +85,81 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void set_ordinal_position(uint ordinal_position)
-  { m_ordinal_position= ordinal_position; }
+  void set_ordinal_position(uint ordinal_position) {
+    m_ordinal_position = ordinal_position;
+  }
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // index.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Index &index() const
-  { return *m_index; }
+  virtual const Index &index() const { return *m_index; }
 
-  virtual Index &index()
-  { return *m_index; }
+  virtual Index &index() { return *m_index; }
 
   /////////////////////////////////////////////////////////////////////////
   // column.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const Column &column() const
-  { return *m_column; }
+  virtual const Column &column() const { return *m_column; }
 
-  virtual Column &column()
-  { return *m_column; }
+  virtual Column &column() { return *m_column; }
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint ordinal_position() const
-  { return m_ordinal_position; }
+  virtual uint ordinal_position() const { return m_ordinal_position; }
 
   /////////////////////////////////////////////////////////////////////////
   // length.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint length() const
-  { return m_length; }
+  virtual uint length() const { return m_length; }
 
-  virtual void set_length(uint length)
-  { m_length= length; }
+  virtual void set_length(uint length) { m_length = length; }
 
-  virtual void set_length_null(bool)
-  { m_length= (uint) -1; }
+  virtual void set_length_null(bool) { m_length = (uint)-1; }
 
-  virtual bool is_length_null() const
-  { return m_length == (uint) -1; }
+  virtual bool is_length_null() const { return m_length == (uint)-1; }
 
   /////////////////////////////////////////////////////////////////////////
   // is_hidden.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_hidden() const
-  { return m_hidden; }
+  virtual bool is_hidden() const { return m_hidden; }
 
-  virtual void set_hidden(bool hidden)
-  { m_hidden= hidden; }
+  virtual void set_hidden(bool hidden) { m_hidden = hidden; }
 
   /////////////////////////////////////////////////////////////////////////
   // order.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_index_element_order order() const
-  { return m_order; }
+  virtual enum_index_element_order order() const { return m_order; }
 
-  virtual void set_order(enum_index_element_order order)
-  { m_order= order; }
+  virtual void set_order(enum_index_element_order order) { m_order = order; }
 
   virtual bool is_prefix() const;
 
-public:
-  static Index_element_impl *restore_item(Index_impl *index)
-  {
+ public:
+  static Index_element_impl *restore_item(Index_impl *index) {
     return new (std::nothrow) Index_element_impl(index, NULL);
   }
 
   static Index_element_impl *clone(const Index_element_impl &other,
                                    Index_impl *index);
 
-public:
+ public:
   virtual void debug_print(String_type &outb) const;
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-private:
+ private:
   // Fields
   uint m_ordinal_position;
   uint m_length;
@@ -193,6 +175,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__INDEX_ELEMENT_IMPL_INCLUDED
+#endif  // DD__INDEX_ELEMENT_IMPL_INCLUDED

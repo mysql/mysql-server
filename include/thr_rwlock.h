@@ -51,12 +51,11 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_thread.h"
+#include "mysql/components/services/thr_rwlock_bits.h"
 #include "thr_cond.h"
 #include "thr_mutex.h"
-#include "mysql/components/services/thr_rwlock_bits.h"
 
-static inline int native_rw_init(native_rw_lock_t *rwp)
-{
+static inline int native_rw_init(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   InitializeSRWLock(&rwp->srwlock);
   rwp->have_exclusive_srwlock = false;
@@ -67,9 +66,8 @@ static inline int native_rw_init(native_rw_lock_t *rwp)
 #endif
 }
 
-static inline int native_rw_destroy
-  (native_rw_lock_t *rwp MY_ATTRIBUTE((unused)))
-{
+static inline int native_rw_destroy(
+    native_rw_lock_t *rwp MY_ATTRIBUTE((unused))) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else
@@ -77,8 +75,7 @@ static inline int native_rw_destroy
 #endif
 }
 
-static inline int native_rw_rdlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_rdlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   AcquireSRWLockShared(&rwp->srwlock);
   return 0;
@@ -87,49 +84,41 @@ static inline int native_rw_rdlock(native_rw_lock_t *rwp)
 #endif
 }
 
-static inline int native_rw_tryrdlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_tryrdlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (!TryAcquireSRWLockShared(&rwp->srwlock))
-    return EBUSY;
+  if (!TryAcquireSRWLockShared(&rwp->srwlock)) return EBUSY;
   return 0;
 #else
   return pthread_rwlock_tryrdlock(rwp);
 #endif
 }
 
-static inline int native_rw_wrlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_wrlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
   AcquireSRWLockExclusive(&rwp->srwlock);
-  rwp->have_exclusive_srwlock= true;
+  rwp->have_exclusive_srwlock = true;
   return 0;
 #else
   return pthread_rwlock_wrlock(rwp);
 #endif
 }
 
-static inline int native_rw_trywrlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_trywrlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (!TryAcquireSRWLockExclusive(&rwp->srwlock))
-    return EBUSY;
-  rwp->have_exclusive_srwlock= true;
+  if (!TryAcquireSRWLockExclusive(&rwp->srwlock)) return EBUSY;
+  rwp->have_exclusive_srwlock = true;
   return 0;
 #else
   return pthread_rwlock_trywrlock(rwp);
 #endif
 }
 
-static inline int native_rw_unlock(native_rw_lock_t *rwp)
-{
+static inline int native_rw_unlock(native_rw_lock_t *rwp) {
 #ifdef _WIN32
-  if (rwp->have_exclusive_srwlock)
-  {
-    rwp->have_exclusive_srwlock= false;
+  if (rwp->have_exclusive_srwlock) {
+    rwp->have_exclusive_srwlock = false;
     ReleaseSRWLockExclusive(&rwp->srwlock);
-  }
-  else
+  } else
     ReleaseSRWLockShared(&rwp->srwlock);
   return 0;
 #else
@@ -144,16 +133,13 @@ extern int rw_pr_unlock(rw_pr_lock_t *);
 extern int rw_pr_destroy(rw_pr_lock_t *);
 
 #ifdef SAFE_MUTEX
-static inline void
-rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock)
-{
+static inline void rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock) {
   DBUG_ASSERT(rwlock->active_writer &&
               my_thread_equal(my_thread_self(), rwlock->writer_thread));
 }
 
-static inline void
-rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock)
-{
+static inline void rw_pr_lock_assert_not_write_owner(
+    const rw_pr_lock_t *rwlock) {
   DBUG_ASSERT(!rwlock->active_writer ||
               !my_thread_equal(my_thread_self(), rwlock->writer_thread));
 }

@@ -41,13 +41,11 @@ typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 
 #ifdef __cplusplus
 
-static inline std::string to_string(const LEX_STRING &str)
-{
+static inline std::string to_string(const LEX_STRING &str) {
   return std::string(str.str, str.length);
 }
 
-static inline std::string to_string(const LEX_CSTRING &str)
-{
+static inline std::string to_string(const LEX_CSTRING &str) {
   return std::string(str.str, str.length);
 }
 

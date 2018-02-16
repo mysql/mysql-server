@@ -1332,14 +1332,10 @@ create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 delete from t1 order by (inet_ntoa(a)) desc limit 10;
 Warnings:
 Warning	1411	Incorrect integer value: '`test`.`t1`.`a`' for function inet_ntoa
 SET SQL_MODE=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table t1;
 create table t1 (a char(36) not null)engine=myisam;
 insert ignore into t1 set a = ' ';
@@ -4968,8 +4964,6 @@ NULL	NULL
 #
 SET @orig_sql_mode = @@SQL_MODE;
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT REPEAT(0x1111, 40000000) >> 1;
 REPEAT(0x1111, 40000000) >> 1
 NULL
@@ -4981,8 +4975,6 @@ NULL
 Warnings:
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
 SET SQL_MODE=@orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug#25688192 ASSERTION FAILED: MAYBE_NULL IN ITEM_FUNC_CONCAT::VAL_STR
 #
@@ -4992,8 +4984,6 @@ Warnings:
 Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
 connect  con1,localhost,root,,;
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 do concat(export_set(1,1,repeat('a',31),' $',213));
 Warnings:
 Warning	1301	Result of export_set() was larger than max_allowed_packet (2048) - truncated

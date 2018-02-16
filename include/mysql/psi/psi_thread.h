@@ -53,8 +53,7 @@
 #define PSI_CURRENT_THREAD_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_thread_bootstrap
-{
+struct PSI_thread_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -72,8 +71,7 @@ typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
   Performance Schema Thread Interface, version 1.
   @since PSI_IDLE_VERSION_1
 */
-struct PSI_thread_service_v1
-{
+struct PSI_thread_service_v1 {
   /** @sa register_thread_v1_t. */
   register_thread_v1_t register_thread;
   /** @sa spawn_thread_v1_t. */

@@ -40,12 +40,12 @@ TEST(temptable_storage, iterate) {
     storage.element_size(sizeof(uint64_t));
 
     for (uint64_t i = 0; i < 10000; ++i) {
-      *static_cast<uint64_t*>(storage.allocate_back()) = i;
+      *static_cast<uint64_t *>(storage.allocate_back()) = i;
     }
 
     uint64_t i = 0;
     for (auto it = storage.begin(); it != storage.end(); ++it, ++i) {
-      EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
+      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
     }
 
     i = storage.size();
@@ -53,7 +53,7 @@ TEST(temptable_storage, iterate) {
     for (; it != storage.begin();) {
       --it;
       --i;
-      EXPECT_EQ(i, *static_cast<uint64_t*>(*it));
+      EXPECT_EQ(i, *static_cast<uint64_t *>(*it));
     }
     EXPECT_EQ(0u, i);
   }

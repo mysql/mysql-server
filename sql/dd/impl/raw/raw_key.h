@@ -23,15 +23,14 @@
 #ifndef DD__RAW_KEY_INCLUDED
 #define DD__RAW_KEY_INCLUDED
 
-#include "my_base.h"    // key_part_map
-#include "sql/sql_const.h" // MAX_KEY_LENGTH
+#include "my_base.h"        // key_part_map
+#include "sql/sql_const.h"  // MAX_KEY_LENGTH
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-struct Raw_key
-{
+struct Raw_key {
   uchar key[MAX_KEY_LENGTH];
   int index_no;
   int key_len;
@@ -39,14 +38,11 @@ struct Raw_key
   key_part_map keypart_map;
 
   Raw_key(int p_index_no, int p_key_len, key_part_map p_keypart_map)
-   :index_no(p_index_no),
-    key_len(p_key_len),
-    keypart_map(p_keypart_map)
-  { }
+      : index_no(p_index_no), key_len(p_key_len), keypart_map(p_keypart_map) {}
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__RAW_KEY_INCLUDED
+#endif  // DD__RAW_KEY_INCLUDED

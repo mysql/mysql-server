@@ -25,7 +25,6 @@
 #ifndef _QUERY_FORMATTER_H_
 #define _QUERY_FORMATTER_H_
 
-
 #include <stdint.h>
 #include <string.h>
 #include <sstream>
@@ -35,86 +34,73 @@
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 
-
 struct CHARSET_INFO;
 
-namespace xpl
-{
+namespace xpl {
 
-  class Query_formatter
-  {
-  public:
-    Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charser);
+class Query_formatter {
+ public:
+  Query_formatter(ngs::PFS_string &query, CHARSET_INFO &charser);
 
-    template <typename Value_type>
-    class No_escape
-    {
-    public:
-      No_escape(const Value_type &value)
-        : m_value(value)
-      {
-      }
+  template <typename Value_type>
+  class No_escape {
+   public:
+    No_escape(const Value_type &value) : m_value(value) {}
 
-      const Value_type &m_value;
-    };
-
-    Query_formatter &operator % (const char *value);
-    Query_formatter &operator % (const No_escape<const char *> &value);
-    Query_formatter &operator % (const std::string &value);
-    Query_formatter &operator % (const No_escape<std::string> &value);
-
-
-    template<typename Value_type>
-    Query_formatter &operator % (const Value_type &value)
-    {
-      return put(value);
-    }
-
-  private:
-    template<typename Value_type>
-    Query_formatter & put(const Value_type &value)
-    {
-      validate_next_tag();
-      std::string string_value = ngs::to_string(value);
-      put_value(string_value.c_str(), string_value.length());
-
-      return *this;
-    }
-
-    template<typename Value_type>
-    Query_formatter & put_fp(const Value_type &value)
-    {
-      std::stringstream stream;
-      validate_next_tag();
-      stream << value;
-      std::string string_value = stream.str();
-      put_value(string_value.c_str(), string_value.length());
-
-      return *this;
-    }
-
-    void put_value(const char *value, const std::size_t length);
-    void put_value_and_escape(const char *value, const std::size_t length);
-    void validate_next_tag();
-
-    ngs::PFS_string      &m_query;
-    CHARSET_INFO &m_charset;
-    std::size_t      m_last_tag_position;
+    const Value_type &m_value;
   };
 
-  template<>
-  inline  Query_formatter& Query_formatter::operator%<double>(const double &value)
-  {
-    return put_fp(value);
+  Query_formatter &operator%(const char *value);
+  Query_formatter &operator%(const No_escape<const char *> &value);
+  Query_formatter &operator%(const std::string &value);
+  Query_formatter &operator%(const No_escape<std::string> &value);
+
+  template <typename Value_type>
+  Query_formatter &operator%(const Value_type &value) {
+    return put(value);
   }
 
-  template<>
-  inline  Query_formatter& Query_formatter::operator%<float>(const float &value)
-  {
-    return put_fp(value);
+ private:
+  template <typename Value_type>
+  Query_formatter &put(const Value_type &value) {
+    validate_next_tag();
+    std::string string_value = ngs::to_string(value);
+    put_value(string_value.c_str(), string_value.length());
+
+    return *this;
   }
 
-} // namespace xpl
+  template <typename Value_type>
+  Query_formatter &put_fp(const Value_type &value) {
+    std::stringstream stream;
+    validate_next_tag();
+    stream << value;
+    std::string string_value = stream.str();
+    put_value(string_value.c_str(), string_value.length());
 
+    return *this;
+  }
 
-#endif // _QUERY_FORMATTER_H_
+  void put_value(const char *value, const std::size_t length);
+  void put_value_and_escape(const char *value, const std::size_t length);
+  void validate_next_tag();
+
+  ngs::PFS_string &m_query;
+  CHARSET_INFO &m_charset;
+  std::size_t m_last_tag_position;
+};
+
+template <>
+inline Query_formatter &Query_formatter::operator%
+    <double>(const double &value) {
+  return put_fp(value);
+}
+
+template <>
+inline Query_formatter &Query_formatter::operator%<float>(const float &value) {
+  return put_fp(value);
+}
+
+}  // namespace xpl
+
+#endif  // _QUERY_FORMATTER_H_

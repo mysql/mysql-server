@@ -67,8 +67,7 @@
   This enum is found in the following tables:
   - performance_schema.performance_timer (TIMER_NAME)
 */
-enum enum_timer_name
-{
+enum enum_timer_name {
   TIMER_NAME_CYCLE = 1,
   TIMER_NAME_NANOSEC = 2,
   TIMER_NAME_MICROSEC = 3,
@@ -89,11 +88,7 @@ enum enum_timer_name
   - performance_schema.setup_instruments (TIMED)
   - performance_schema.setup_consumers (ENABLED)
 */
-enum enum_yes_no
-{
-  ENUM_YES = 1,
-  ENUM_NO = 2
-};
+enum enum_yes_no { ENUM_YES = 1, ENUM_NO = 2 };
 
 /**
   Enum values for the various OPERATION columns.
@@ -102,8 +97,7 @@ enum enum_yes_no
   - performance_schema.events_waits_history (OPERATION)
   - performance_schema.events_waits_history_long (OPERATION)
 */
-enum enum_operation_type
-{
+enum enum_operation_type {
   /* Mutex operations */
   OPERATION_TYPE_LOCK = 1,
   OPERATION_TYPE_TRYLOCK = 2,
@@ -196,8 +190,7 @@ enum enum_operation_type
 /**
   Enum values for the various OBJECT_TYPE columns.
 */
-enum enum_object_type
-{
+enum enum_object_type {
   NO_OBJECT_TYPE = 0,
 
   /* Advertised in SQL ENUM */
@@ -221,21 +214,20 @@ enum enum_object_type
   OBJECT_TYPE_ACL_CACHE = 14,
   OBJECT_TYPE_COLUMN_STATISTICS = 15,
   OBJECT_TYPE_BACKUP_LOCK = 16,
-  OBJECT_TYPE_RESOURCE_GROUPS = 17
+  OBJECT_TYPE_RESOURCE_GROUPS = 17,
+  OBJECT_TYPE_FOREIGN_KEY = 18
 };
 /** Integer, first value of @sa enum_object_type. */
 #define FIRST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_EVENT))
 /** Integer, last value of @sa enum_object_type. */
-#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_RESOURCE_GROUPS))
+#define LAST_OBJECT_TYPE (static_cast<int>(OBJECT_TYPE_FOREIGN_KEY))
 /** Integer, number of values of @sa enum_object_type. */
 #define COUNT_OBJECT_TYPE (LAST_OBJECT_TYPE - FIRST_OBJECT_TYPE + 1)
 
-void object_type_to_string(enum_object_type object_type,
-                           const char **string,
+void object_type_to_string(enum_object_type object_type, const char **string,
                            size_t *length);
 
-void string_to_object_type(const char *string,
-                           size_t length,
+void string_to_object_type(const char *string, size_t length,
                            enum_object_type *object_type);
 
 /**
@@ -245,8 +237,7 @@ void string_to_object_type(const char *string,
   - performance_schema.events_stages_current (NESTING_EVENT_TYPE)
   - performance_schema.events_statements_current (NESTING_EVENT_TYPE)
 */
-enum enum_event_type
-{
+enum enum_event_type {
   EVENT_TYPE_TRANSACTION = 1,
   EVENT_TYPE_STATEMENT = 2,
   EVENT_TYPE_STAGE = 3,
@@ -263,8 +254,7 @@ enum enum_event_type
 /**
   Enum values for transaction state columns.
 */
-enum enum_transaction_state
-{
+enum enum_transaction_state {
   TRANS_STATE_ACTIVE = 1,
   TRANS_STATE_COMMITTED = 2,
   TRANS_STATE_ROLLED_BACK = 3
@@ -281,8 +271,7 @@ enum enum_transaction_state
   Enum values for XA transaction state columns. Enums 1-5 match those used by
   the server. See XID_STATE::enum xa_states in xa.h.
 */
-enum enum_xa_transaction_state
-{
+enum enum_xa_transaction_state {
   TRANS_STATE_XA_NOTR,
   TRANS_STATE_XA_ACTIVE,
   TRANS_STATE_XA_IDLE,
@@ -302,8 +291,7 @@ enum enum_xa_transaction_state
   Enum values for transaction isolation level columns.
   See enum_tx_isolation in handler.h.
 */
-enum enum_isolation_level
-{
+enum enum_isolation_level {
   TRANS_LEVEL_READ_UNCOMMITTED,
   TRANS_LEVEL_READ_COMMITTED,
   TRANS_LEVEL_REPEATABLE_READ,
@@ -320,8 +308,7 @@ enum enum_isolation_level
 /**
   Enum values for transaction acces mode columns.
 */
-enum enum_transaction_mode
-{
+enum enum_transaction_mode {
   TRANS_MODE_READ_ONLY = 1,
   TRANS_MODE_READ_WRITE = 2
 };

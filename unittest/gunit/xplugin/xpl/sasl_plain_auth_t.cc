@@ -62,8 +62,7 @@ class Sasl_plain_auth_test : public Test {
       ngs::allocate_object<StrictMock<Mock_account_verification_handler>>(
           nullptr)};
   Sasl_plain_auth auth{mock_handler};
-  StrictMock<ngs::test::Mock_account_verification>
-      mock_account_verification;
+  StrictMock<ngs::test::Mock_account_verification> mock_account_verification;
 
   typedef ngs::Authentication_interface::Response Response;
 };

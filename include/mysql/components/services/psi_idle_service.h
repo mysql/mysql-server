@@ -23,17 +23,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_PSI_IDLE_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_IDLE_SERVICE_H
 
-#include <mysql/components/services/psi_idle_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/psi_idle_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_idle_v1)
-  /** @sa start_idle_wait_v1_t. */
-  start_idle_wait_v1_t start_idle_wait;
-  /** @sa end_idle_wait_v1_t. */
-  end_idle_wait_v1_t end_idle_wait;
+/** @sa start_idle_wait_v1_t. */
+start_idle_wait_v1_t start_idle_wait;
+/** @sa end_idle_wait_v1_t. */
+end_idle_wait_v1_t end_idle_wait;
 END_SERVICE_DEFINITION(psi_idle_v1)
 
 #define REQUIRES_PSI_IDLE_SERVICE REQUIRES_SERVICE(psi_idle_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_IDLE_SERVICE_H */
-

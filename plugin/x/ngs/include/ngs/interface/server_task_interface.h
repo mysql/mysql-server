@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,12 +28,10 @@
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "violite.h"
 
-namespace ngs
-{
+namespace ngs {
 
-class Server_task_interface
-{
-public:
+class Server_task_interface {
+ public:
   virtual ~Server_task_interface() {}
 
   virtual void pre_loop() = 0;
@@ -41,6 +39,6 @@ public:
   virtual void loop() = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_HANDLER_INTERFACE_H_
+#endif  // _NGS_HANDLER_INTERFACE_H_

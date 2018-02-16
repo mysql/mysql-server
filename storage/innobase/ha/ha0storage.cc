@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,163 +24,144 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file ha/ha0storage.cc
-Hash storage.
-Provides a data structure that stores chunks of data in
-its own storage, avoiding duplicates.
+/** @file ha/ha0storage.cc
+ Hash storage.
+ Provides a data structure that stores chunks of data in
+ its own storage, avoiding duplicates.
 
-Created September 22, 2007 Vasil Dimov
-*******************************************************/
+ Created September 22, 2007 Vasil Dimov
+ *******************************************************/
 
-#include "ha_prototypes.h"
 #include "ha0storage.h"
+#include "ha_prototypes.h"
 #include "hash0hash.h"
 #include "mem0mem.h"
 #include "ut0rnd.h"
 
-/*******************************************************************//**
-Retrieves a data from a storage. If it is present, a pointer to the
-stored copy of data is returned, otherwise NULL is returned. */
-static
-const void*
-ha_storage_get(
-/*===========*/
-	ha_storage_t*	storage,	/*!< in: hash storage */
-	const void*	data,		/*!< in: data to check for */
-	ulint		data_len)	/*!< in: data length */
+/** Retrieves a data from a storage. If it is present, a pointer to the
+ stored copy of data is returned, otherwise NULL is returned. */
+static const void *ha_storage_get(
+    ha_storage_t *storage, /*!< in: hash storage */
+    const void *data,      /*!< in: data to check for */
+    ulint data_len)        /*!< in: data length */
 {
-	ha_storage_node_t*	node;
-	ulint			fold;
+  ha_storage_node_t *node;
+  ulint fold;
 
-	/* avoid repetitive calls to ut_fold_binary() in the HASH_SEARCH
-	macro */
-	fold = ut_fold_binary(static_cast<const byte*>(data), data_len);
+  /* avoid repetitive calls to ut_fold_binary() in the HASH_SEARCH
+  macro */
+  fold = ut_fold_binary(static_cast<const byte *>(data), data_len);
 
-#define IS_FOUND	\
-	node->data_len == data_len && memcmp(node->data, data, data_len) == 0
+#define IS_FOUND \
+  node->data_len == data_len &&memcmp(node->data, data, data_len) == 0
 
-	HASH_SEARCH(
-		next,			/* node->"next" */
-		storage->hash,		/* the hash table */
-		fold,			/* key */
-		ha_storage_node_t*,	/* type of node->next */
-		node,			/* auxiliary variable */
-		,			/* assertion */
-		IS_FOUND);		/* search criteria */
+  HASH_SEARCH(next,                /* node->"next" */
+              storage->hash,       /* the hash table */
+              fold,                /* key */
+              ha_storage_node_t *, /* type of node->next */
+              node,                /* auxiliary variable */
+              ,                    /* assertion */
+              IS_FOUND);           /* search criteria */
 
-	if (node == NULL) {
+  if (node == NULL) {
+    return (NULL);
+  }
+  /* else */
 
-		return(NULL);
-	}
-	/* else */
-
-	return(node->data);
+  return (node->data);
 }
 
-/*******************************************************************//**
-Copies data into the storage and returns a pointer to the copy. If the
-same data chunk is already present, then pointer to it is returned.
-Data chunks are considered to be equal if len1 == len2 and
-memcmp(data1, data2, len1) == 0. If "data" is not present (and thus
-data_len bytes need to be allocated) and the size of storage is going to
-become more than "memlim" then "data" is not added and NULL is returned.
-To disable this behavior "memlim" can be set to 0, which stands for
-"no limit". */
-const void*
-ha_storage_put_memlim(
-/*==================*/
-	ha_storage_t*	storage,	/*!< in/out: hash storage */
-	const void*	data,		/*!< in: data to store */
-	ulint		data_len,	/*!< in: data length */
-	ulint		memlim)		/*!< in: memory limit to obey */
+/** Copies data into the storage and returns a pointer to the copy. If the
+ same data chunk is already present, then pointer to it is returned.
+ Data chunks are considered to be equal if len1 == len2 and
+ memcmp(data1, data2, len1) == 0. If "data" is not present (and thus
+ data_len bytes need to be allocated) and the size of storage is going to
+ become more than "memlim" then "data" is not added and NULL is returned.
+ To disable this behavior "memlim" can be set to 0, which stands for
+ "no limit". */
+const void *ha_storage_put_memlim(
+    ha_storage_t *storage, /*!< in/out: hash storage */
+    const void *data,      /*!< in: data to store */
+    ulint data_len,        /*!< in: data length */
+    ulint memlim)          /*!< in: memory limit to obey */
 {
-	void*			raw;
-	ha_storage_node_t*	node;
-	const void*		data_copy;
-	ulint			fold;
+  void *raw;
+  ha_storage_node_t *node;
+  const void *data_copy;
+  ulint fold;
 
-	/* check if data chunk is already present */
-	data_copy = ha_storage_get(storage, data, data_len);
-	if (data_copy != NULL) {
+  /* check if data chunk is already present */
+  data_copy = ha_storage_get(storage, data, data_len);
+  if (data_copy != NULL) {
+    return (data_copy);
+  }
 
-		return(data_copy);
-	}
+  /* not present */
 
-	/* not present */
+  /* check if we are allowed to allocate data_len bytes */
+  if (memlim > 0 && ha_storage_get_size(storage) + data_len > memlim) {
+    return (NULL);
+  }
 
-	/* check if we are allowed to allocate data_len bytes */
-	if (memlim > 0
-	    && ha_storage_get_size(storage) + data_len > memlim) {
+  /* we put the auxiliary node struct and the data itself in one
+  continuous block */
+  raw = mem_heap_alloc(storage->heap, sizeof(ha_storage_node_t) + data_len);
 
-		return(NULL);
-	}
+  node = (ha_storage_node_t *)raw;
+  data_copy = (byte *)raw + sizeof(*node);
 
-	/* we put the auxiliary node struct and the data itself in one
-	continuous block */
-	raw = mem_heap_alloc(storage->heap,
-			     sizeof(ha_storage_node_t) + data_len);
+  memcpy((byte *)raw + sizeof(*node), data, data_len);
 
-	node = (ha_storage_node_t*) raw;
-	data_copy = (byte*) raw + sizeof(*node);
+  node->data_len = data_len;
+  node->data = data_copy;
 
-	memcpy((byte*) raw + sizeof(*node), data, data_len);
+  /* avoid repetitive calls to ut_fold_binary() in the HASH_INSERT
+  macro */
+  fold = ut_fold_binary(static_cast<const byte *>(data), data_len);
 
-	node->data_len = data_len;
-	node->data = data_copy;
+  HASH_INSERT(ha_storage_node_t, /* type used in the hash chain */
+              next,              /* node->"next" */
+              storage->hash,     /* the hash table */
+              fold,              /* key */
+              node);             /* add this data to the hash */
 
-	/* avoid repetitive calls to ut_fold_binary() in the HASH_INSERT
-	macro */
-	fold = ut_fold_binary(static_cast<const byte*>(data), data_len);
-
-	HASH_INSERT(
-		ha_storage_node_t,	/* type used in the hash chain */
-		next,			/* node->"next" */
-		storage->hash,		/* the hash table */
-		fold,			/* key */
-		node);			/* add this data to the hash */
-
-	/* the output should not be changed because it will spoil the
-	hash table */
-	return(data_copy);
+  /* the output should not be changed because it will spoil the
+  hash table */
+  return (data_copy);
 }
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-void
-test_ha_storage()
-{
-	ha_storage_t*	storage;
-	char		buf[1024];
-	int		i;
-	const void*	stored[256];
-	const void*	p;
+void test_ha_storage() {
+  ha_storage_t *storage;
+  char buf[1024];
+  int i;
+  const void *stored[256];
+  const void *p;
 
-	storage = ha_storage_create(0, 0);
+  storage = ha_storage_create(0, 0);
 
-	for (i = 0; i < 256; i++) {
+  for (i = 0; i < 256; i++) {
+    memset(buf, i, sizeof(buf));
+    stored[i] = ha_storage_put(storage, buf, sizeof(buf));
+  }
 
-		memset(buf, i, sizeof(buf));
-		stored[i] = ha_storage_put(storage, buf, sizeof(buf));
-	}
+  // ha_storage_empty(&storage);
 
-	//ha_storage_empty(&storage);
+  for (i = 255; i >= 0; i--) {
+    memset(buf, i, sizeof(buf));
+    p = ha_storage_put(storage, buf, sizeof(buf));
 
-	for (i = 255; i >= 0; i--) {
+    if (p != stored[i]) {
+      ib::warn() << "ha_storage_put() returned " << p << " instead of "
+                 << stored[i] << ", i=" << i;
+      return;
+    }
+  }
 
-		memset(buf, i, sizeof(buf));
-		p = ha_storage_put(storage, buf, sizeof(buf));
+  ib::info() << "all ok";
 
-		if (p != stored[i]) {
-			ib::warn() << "ha_storage_put() returned " << p
-				<< " instead of " << stored[i] << ", i=" << i;
-			return;
-		}
-	}
-
-	ib::info() << "all ok";
-
-	ha_storage_free(storage);
+  ha_storage_free(storage);
 }
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */

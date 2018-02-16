@@ -26,29 +26,25 @@
 #include "my_inttypes.h"
 #include "storage/heap/heapdef.h"
 
-void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos)
-{
-  pos->ptr= ((info->update & HA_STATE_AKTIV) ? info->current_ptr :
-               (HEAP_PTR) 0);
-  pos->record_no= info->current_record;
+void heap_position(HP_INFO *info, HP_HEAP_POSITION *pos) {
+  pos->ptr =
+      ((info->update & HA_STATE_AKTIV) ? info->current_ptr : (HEAP_PTR)0);
+  pos->record_no = info->current_record;
 }
-
 
 /* Note that heap_info does NOT return information about the
    current position anymore;  Use heap_position instead */
 
-int heap_info(HP_INFO *info,HEAPINFO *x, int flag )
-{
+int heap_info(HP_INFO *info, HEAPINFO *x, int flag) {
   DBUG_ENTER("heap_info");
-  x->records         = info->s->records;
-  x->deleted         = info->s->deleted;
-  x->reclength       = info->s->reclength;
-  x->data_length     = info->s->data_length;
-  x->index_length    = info->s->index_length;
-  x->max_records     = info->s->max_records;
-  x->errkey          = info->errkey;
-  x->create_time     = info->s->create_time;
-  if (flag & HA_STATUS_AUTO)
-    x->auto_increment= info->s->auto_increment + 1;
+  x->records = info->s->records;
+  x->deleted = info->s->deleted;
+  x->reclength = info->s->reclength;
+  x->data_length = info->s->data_length;
+  x->index_length = info->s->index_length;
+  x->max_records = info->s->max_records;
+  x->errkey = info->errkey;
+  x->create_time = info->s->create_time;
+  if (flag & HA_STATUS_AUTO) x->auto_increment = info->s->auto_increment + 1;
   DBUG_RETURN(0);
 } /* heap_info */

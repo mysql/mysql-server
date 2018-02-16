@@ -196,8 +196,6 @@ F0CEC4	Пнд
 drop table t1;
 set LC_TIME_NAMES='en_US';
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set names koi8r;
 create table t1 (s1 char(1) character set utf8);
 Warnings:
@@ -413,7 +411,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('aaaa','проба') CHARACTER SET utf8 DEFAULT NULL
+  `a` enum('aaaa','проба') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 insert into t1 values ('проба');
 select * from t1;
@@ -559,7 +557,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING HASH
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -597,7 +595,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c` char(10) CHARACTER SET utf8 DEFAULT NULL,
+  `c` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   UNIQUE KEY `a` (`c`(1)) USING BTREE
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4
 insert into t1 values ('a'),('b'),('c'),('d'),('e'),('f');
@@ -1304,8 +1302,6 @@ ERROR 42000: Invalid default value for 'x'
 create table t1 (x enum('A', 'B') default 0) character set utf8;
 ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET NAMES UTF8;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1348,8 +1344,6 @@ ERR Имри.Афимим.Аеимимримдмримрмрирор имрим�
 DROP TABLE t1,t2;
 SET sql_mode = default;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a char(20) character set utf8);
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -1917,8 +1911,6 @@ xxx
 yyy
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (
 a varchar(26) not null
 ) default character set utf8;
@@ -3114,19 +3106,6 @@ t1	CREATE TABLE `t1` (
   `c1` varchar(32) CHARACTER SET utf8 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
-select password('a'), hex(password('a'));
-password('a')	hex(password('a'))
-*667F407DE7C6AD07358FA38DAED7828A72014B4E	2A36363746343037444537433641443037333538464133384441454437383238413732303134423445
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-create table t1 as select password('a') as c1;
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `c1` varchar(41) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
-drop table t1;
 select sha('a'), hex(sha('a'));
 sha('a')	hex(sha('a'))
 86f7e437faa5a7fce15d1ddcb9eaeaea377667b8	38366637653433376661613561376663653135643164646362396561656165613337373636376238
@@ -3888,8 +3867,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 3132
@@ -5192,12 +5169,6 @@ SET @ST_X=md5('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
 utf8	utf8_general_ci
-SET @ST_X=password('a');
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-SELECT charset(@ST_X), collation(@ST_X);
-charset(@ST_X)	collation(@ST_X)
-utf8	utf8_general_ci
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);
 charset(@ST_X)	collation(@ST_X)
@@ -5495,8 +5466,6 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 SET NAMES latin1;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.

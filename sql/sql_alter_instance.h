@@ -27,28 +27,23 @@ class THD;
 /*
   Base class for execution control for ALTER INSTANCE ... statement
 */
-class Alter_instance
-{
-protected:
+class Alter_instance {
+ protected:
   THD *m_thd;
-public:
-  explicit Alter_instance(THD *thd)
-    : m_thd(thd)
-  {}
-  virtual bool execute()= 0;
+
+ public:
+  explicit Alter_instance(THD *thd) : m_thd(thd) {}
+  virtual bool execute() = 0;
   bool log_to_binlog();
-  virtual ~Alter_instance() {};
+  virtual ~Alter_instance(){};
 };
 
-class Rotate_innodb_master_key : public Alter_instance
-{
-public:
-  explicit Rotate_innodb_master_key(THD *thd)
-    : Alter_instance(thd)
-  {}
+class Rotate_innodb_master_key : public Alter_instance {
+ public:
+  explicit Rotate_innodb_master_key(THD *thd) : Alter_instance(thd) {}
 
   bool execute();
-  ~Rotate_innodb_master_key() {};
+  ~Rotate_innodb_master_key(){};
 };
 
 #endif /* SQL_ALTER_INSTANCE_INCLUDED */

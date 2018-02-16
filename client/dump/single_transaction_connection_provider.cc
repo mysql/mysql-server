@@ -29,35 +29,30 @@
 
 using namespace Mysql::Tools::Dump;
 
-Mysql::Tools::Base::Mysql_query_runner*
-  Single_transaction_connection_provider::create_new_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*)
-{
-  Mysql::Tools::Base::Mysql_query_runner* runner= NULL;
+Mysql::Tools::Base::Mysql_query_runner *
+Single_transaction_connection_provider::create_new_runner(
+    std::function<bool(const Mysql::Tools::Base::Message_data &)> *) {
+  Mysql::Tools::Base::Mysql_query_runner *runner = NULL;
   my_boost::mutex::scoped_lock lock(m_pool_mutex);
-  if (m_runner_pool.size() > 0)
-  {
-    runner=m_runner_pool.back();
+  if (m_runner_pool.size() > 0) {
+    runner = m_runner_pool.back();
     m_runner_pool.pop_back();
   }
   return runner;
 }
 
 Single_transaction_connection_provider::Single_transaction_connection_provider(
-  Mysql::Tools::Base::I_connection_factory* connection_factory,
-  unsigned int connections,
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-  message_handler)
-  : Thread_specific_connection_provider(connection_factory),
-    m_connections(connections)
-{
+    Mysql::Tools::Base::I_connection_factory *connection_factory,
+    unsigned int connections,
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler)
+    : Thread_specific_connection_provider(connection_factory),
+      m_connections(connections) {
   /* create a pool of connections */
-  for (unsigned int conn_count= 1; conn_count <= m_connections; conn_count++)
-  {
-    Mysql::Tools::Base::Mysql_query_runner* runner=
-      Abstract_connection_provider::create_new_runner(message_handler);
-    if (runner)
-    {
+  for (unsigned int conn_count = 1; conn_count <= m_connections; conn_count++) {
+    Mysql::Tools::Base::Mysql_query_runner *runner =
+        Abstract_connection_provider::create_new_runner(message_handler);
+    if (runner) {
       /*
        To get a consistent backup we lock the server and flush all the tables.
        This is done with FLUSH TABLES WITH READ LOCK (FTWRL).
@@ -71,12 +66,10 @@ Single_transaction_connection_provider::Single_transaction_connection_provider(
        However flush tables is needed only if the database we backup has non
        innodb tables.
       */
-      if (conn_count == 1)
-        runner->run_query("FLUSH TABLES WITH READ LOCK");
+      if (conn_count == 1) runner->run_query("FLUSH TABLES WITH READ LOCK");
       runner->run_query(
-        "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
-      runner->run_query(
-        "START TRANSACTION WITH CONSISTENT SNAPSHOT");
+          "SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+      runner->run_query("START TRANSACTION WITH CONSISTENT SNAPSHOT");
       if (conn_count == m_connections)
         m_runner_pool[0]->run_query("UNLOCK TABLES");
       m_runner_pool.push_back(runner);

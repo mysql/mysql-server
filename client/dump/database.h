@@ -28,19 +28,18 @@
 #include "client/dump/abstract_plain_sql_object.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Database : public Abstract_plain_sql_object
-{
-public:
-  Database(uint64 id, const std::string& name,
-    const std::string& sql_formatted_definition);
+class Database : public Abstract_plain_sql_object {
+ public:
+  Database(uint64 id, const std::string &name,
+           const std::string &sql_formatted_definition);
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

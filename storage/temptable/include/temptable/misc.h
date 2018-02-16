@@ -34,15 +34,15 @@ namespace temptable {
 @return true if inside */
 inline bool buf_is_inside_another(
     /** [in] First buffer, that should be inside the other. */
-    const unsigned char* small,
+    const unsigned char *small,
     /** [in] First buffer length in bytes. */
     size_t small_length,
     /** [in] Second buffer, that should contain the other. */
-    const unsigned char* big,
+    const unsigned char *big,
     /** [in] Second buffer length in bytes. */
     size_t big_length) {
-  const unsigned char* small_after_last = small + small_length;
-  const unsigned char* big_after_last = big + big_length;
+  const unsigned char *small_after_last = small + small_length;
+  const unsigned char *big_after_last = big + big_length;
 
   return small >= big && small_after_last <= big_after_last;
 }

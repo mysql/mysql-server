@@ -29,11 +29,10 @@
 
 class String;
 
-class Server_ids
-{
-public:
+class Server_ids {
+ public:
   Server_ids();
-  ~Server_ids() { };
+  ~Server_ids(){};
 
   Prealloced_array<ulong, 16> dynamic_ids;
 

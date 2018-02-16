@@ -4,16 +4,17 @@
 #
 # List of removed modes:
 #
-# - POSTGRESQL          (0x00100)
-# - ORACLE              (0x00200)
-# - MSSQL               (0x00400)
-# - DB2                 (0x00800)
-# - MAXDB               (0x01000)
-# - NO_KEY_OPTIONS      (0x02000)
-# - NO_TABLE_OPTIONS    (0x04000)
-# - NO_FIELD_OPTIONS    (0x08000)
-# - MYSQL323            (0x10000)
-# - MYSQL40             (0x20000)
+# - POSTGRESQL                  (0x00100)
+# - ORACLE                      (0x00200)
+# - MSSQL                       (0x00400)
+# - DB2                         (0x00800)
+# - MAXDB                       (0x01000)
+# - NO_KEY_OPTIONS              (0x02000)
+# - NO_TABLE_OPTIONS            (0x04000)
+# - NO_FIELD_OPTIONS            (0x08000)
+# - MYSQL323                    (0x10000)
+# - MYSQL40                     (0x20000)
+# - NO_AUTO_CREAETE_USER        (0x10000000)
 #
 # ==== Implementation ====
 #
@@ -111,7 +112,7 @@ DROP SCHEMA db1;
 #
 # Dump the relay binlog file using mysqlbinlog to show sql_mode filtering:
 #
-#   SET @@session.sql_mode = ... & /*!80005 &~0x3ff00*/
+#   SET @@session.sql_mode = ... & /*!80005 &~0x1003ff00*/
 #
 # We should use --short-form everywhere because in other case output will
 # be time dependend. Better than nothing.

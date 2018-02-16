@@ -39,15 +39,14 @@
 
 class PFS_plugin_table_index;
 
-class table_plugin_table : public PFS_engine_table
-{
-public:
+class table_plugin_table : public PFS_engine_table {
+ public:
   /** Table share */
-  PFS_engine_table_share* m_share;
-  PFS_engine_table_proxy* m_st_table;
-  PSI_table_handle* plugin_table_handle;
+  PFS_engine_table_share *m_share;
+  PFS_engine_table_proxy *m_st_table;
+  PSI_table_handle *plugin_table_handle;
 
-  static PFS_engine_table* create(PFS_engine_table_share* share);
+  static PFS_engine_table *create(PFS_engine_table_share *share);
   int delete_all_rows();
   /*
   PFS_engine_table* open(void);
@@ -58,78 +57,66 @@ public:
 
   virtual int rnd_init(bool scan);
   virtual int rnd_next();
-  virtual int rnd_pos(const void* pos);
+  virtual int rnd_pos(const void *pos);
 
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-  int write_row(PSI_field* field, uint index, bool finished);
+  int write_row(PSI_field *field, uint index, bool finished);
 
-  table_plugin_table(PFS_engine_table_share* share);
+  table_plugin_table(PFS_engine_table_share *share);
 
   void deinitialize_table_share();
 
-protected:
-  virtual int read_row_values(TABLE* table,
-                              unsigned char* buf,
-                              Field** fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE* table,
-                                const unsigned char*,
-                                unsigned char*,
-                                Field** fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *,
+                                unsigned char *, Field **fields);
 
-  virtual int delete_row_values(TABLE* table,
-                                const unsigned char* buf,
-                                Field** fields);
+  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
+                                Field **fields);
 
-public:
-  ~table_plugin_table()
-  {
+ public:
+  ~table_plugin_table() {
     delete m_index;
     m_st_table->close_table(this->plugin_table_handle);
   }
 
-private:
+ private:
   /** Table share lock. */
-  THR_LOCK* m_table_lock;
+  THR_LOCK *m_table_lock;
 
   /** True is the current row exists. */
   bool m_row_exists;
 
   /** Current position. */
-  PSI_pos* m_pos;
+  PSI_pos *m_pos;
   /** Next position. */
-  PSI_pos* m_next_pos;
+  PSI_pos *m_next_pos;
 
-  PFS_plugin_table_index* m_opened_index;
+  PFS_plugin_table_index *m_opened_index;
 };
 
-class PFS_plugin_table_index : public PFS_engine_index_abstract
-{
-public:
-  PFS_plugin_table_index(PFS_engine_table_proxy* st_table)
-    : m_st_table(st_table), m_idx(0), m_plugin_index(NULL)
-  {
-  }
+class PFS_plugin_table_index : public PFS_engine_index_abstract {
+ public:
+  PFS_plugin_table_index(PFS_engine_table_proxy *st_table)
+      : m_st_table(st_table), m_idx(0), m_plugin_index(NULL) {}
 
-  ~PFS_plugin_table_index()
-  {
-  }
+  ~PFS_plugin_table_index() {}
 
-  int init(PSI_table_handle* table, uint idx, bool sorted);
+  int init(PSI_table_handle *table, uint idx, bool sorted);
 
-  int index_next(PSI_table_handle* table);
+  int index_next(PSI_table_handle *table);
 
-  virtual void read_key(const uchar* key,
-                        uint key_len,
+  virtual void read_key(const uchar *key, uint key_len,
                         enum ha_rkey_function find_flag);
 
-private:
-  PFS_engine_table_proxy* m_st_table;
+ private:
+  PFS_engine_table_proxy *m_st_table;
   uint m_idx;
-  PSI_index_handle* m_plugin_index;
+  PSI_index_handle *m_plugin_index;
 };
 
 /** @} */

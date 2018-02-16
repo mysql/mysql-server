@@ -53,8 +53,7 @@
 #define PSI_CURRENT_TRANSACTION_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_transaction_bootstrap
-{
+struct PSI_transaction_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -73,8 +72,7 @@ typedef struct PSI_transaction_bootstrap PSI_transaction_bootstrap;
   Performance Schema Transaction Interface, version 1.
   @since PSI_TRANSACTION_VERSION_1
 */
-struct PSI_transaction_service_v1
-{
+struct PSI_transaction_service_v1 {
   /** @sa get_thread_transaction_locker_v1_t. */
   get_thread_transaction_locker_v1_t get_thread_transaction_locker;
   /** @sa start_transaction_v1_t. */
@@ -91,7 +89,7 @@ struct PSI_transaction_service_v1
   inc_transaction_savepoints_v1_t inc_transaction_savepoints;
   /** @sa inc_transaction_rollback_to_savepoint_v1_t. */
   inc_transaction_rollback_to_savepoint_v1_t
-    inc_transaction_rollback_to_savepoint;
+      inc_transaction_rollback_to_savepoint;
   /** @sa inc_transaction_release_savepoint_v1_t. */
   inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
   /** @sa end_transaction_v1_t. */

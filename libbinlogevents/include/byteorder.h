@@ -30,9 +30,9 @@
 #ifndef BYTEORDER_INCLUDED
 #define BYTEORDER_INCLUDED
 
-#include "my_compiler.h"
-#include "binlog_config.h"
 #include <stdint.h>
+#include "binlog_config.h"
+#include "my_compiler.h"
 #ifndef STANDALONE_BINLOG
 #define HAVE_MYSYS 1
 #endif
@@ -47,7 +47,7 @@
   but the functions might not be defined if the version of glibc < 2.9
 */
 #ifdef HAVE_ENDIAN_CONVERSION_MACROS
-  #include <endian.h>
+#include <endian.h>
 #endif
 
 #if !defined(le16toh)
@@ -57,13 +57,12 @@
   @param x  16-bit integer in little endian byte order
   @return  16-bit integer in host byte order
 */
-uint16_t inline le16toh(uint16_t x)
-{
-  #ifndef IS_BIG_ENDIAN
-    return x;
-  #else
-    return ((x >> 8) | (x << 8));
-  #endif
+uint16_t inline le16toh(uint16_t x) {
+#ifndef IS_BIG_ENDIAN
+  return x;
+#else
+  return ((x >> 8) | (x << 8));
+#endif
 }
 #endif
 
@@ -74,16 +73,13 @@ uint16_t inline le16toh(uint16_t x)
   @param x  32-bit integer in little endian byte order
   @return  32-bit integer in host byte order
 */
-uint32_t inline le32toh(uint32_t x)
-{
-  #ifndef IS_BIG_ENDIAN
-    return x;
-  #else
-    return (((x >> 24) & 0xff) |
-            ((x <<  8) & 0xff0000) |
-            ((x >>  8) & 0xff00) |
-            ((x << 24) & 0xff000000));
-  #endif
+uint32_t inline le32toh(uint32_t x) {
+#ifndef IS_BIG_ENDIAN
+  return x;
+#else
+  return (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) |
+          ((x << 24) & 0xff000000));
+#endif
 }
 #endif
 
@@ -94,16 +90,13 @@ uint32_t inline le32toh(uint32_t x)
   @param x  32-bit integer in big endian byte order
   @return  32-bit integer in host byte order
 */
-uint32_t inline be32toh(uint32_t x)
-{
-  #ifndef IS_BIG_ENDIAN
-     return (((x >> 24) & 0xff) |
-             ((x <<  8) & 0xff0000) |
-             ((x >>  8) & 0xff00) |
-             ((x << 24) & 0xff000000));
-  #else
-     return x;
-  #endif
+uint32_t inline be32toh(uint32_t x) {
+#ifndef IS_BIG_ENDIAN
+  return (((x >> 24) & 0xff) | ((x << 8) & 0xff0000) | ((x >> 8) & 0xff00) |
+          ((x << 24) & 0xff000000));
+#else
+  return x;
+#endif
 }
 #endif
 
@@ -114,18 +107,15 @@ uint32_t inline be32toh(uint32_t x)
   @param x  64-bit integer in little endian byte order
   @return  64-bit integer in host byte order
 */
-uint64_t inline le64toh(uint64_t x)
-{
-  #ifndef IS_BIG_ENDIAN
-    return x;
-  #else
-    x = ((x << 8) & 0xff00ff00ff00ff00ULL) |
-        ((x >> 8) & 0x00ff00ff00ff00ffULL);
-    x = ((x << 16) & 0xffff0000ffff0000ULL) |
-        ((x >> 16) & 0x0000ffff0000ffffULL);
-    return (x << 32) | (x >> 32);
-  #endif
+uint64_t inline le64toh(uint64_t x) {
+#ifndef IS_BIG_ENDIAN
+  return x;
+#else
+  x = ((x << 8) & 0xff00ff00ff00ff00ULL) | ((x >> 8) & 0x00ff00ff00ff00ffULL);
+  x = ((x << 16) & 0xffff0000ffff0000ULL) | ((x >> 16) & 0x0000ffff0000ffffULL);
+  return (x << 32) | (x >> 32);
+#endif
 }
 #endif
 
-#endif // BYTEORDER_INCLUDED
+#endif  // BYTEORDER_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -26,14 +26,13 @@
 
 #include "plugin/x/client/xconnection_impl.h"
 
-
 namespace xcl {
 namespace test {
 
 TEST(Xcl_connection_impl_tests,
      get_socket_fd_return_invalid_socket_id_when_not_connected) {
-  std::shared_ptr<Context> context { new Context() };
-  Connection_impl          sut { context };
+  std::shared_ptr<Context> context{new Context()};
+  Connection_impl sut{context};
 
   ASSERT_EQ(INVALID_SOCKET, sut.get_socket_fd());
 }

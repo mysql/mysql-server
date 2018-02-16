@@ -44,11 +44,9 @@
  */
 #define YIELD_LOOPS 200
 
-static inline int my_yield_processor()
-{
+static inline int my_yield_processor() {
   int i;
-  for (i=0; i<YIELD_LOOPS; i++)
-  {
+  for (i = 0; i < YIELD_LOOPS; i++) {
     YieldProcessor();
   }
   return 1;

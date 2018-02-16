@@ -28,7 +28,6 @@ struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
 struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
 struct GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
 
-
 /*
   Group Replication plugin handler function accessors.
 */
@@ -37,17 +36,17 @@ bool is_group_replication_plugin_loaded();
 int group_replication_start(char **error_message);
 int group_replication_stop(char **error_message);
 bool is_group_replication_running();
-int set_group_replication_retrieved_certification_info(View_change_log_event *view_change_event);
+int set_group_replication_retrieved_certification_info(
+    View_change_log_event *view_change_event);
 
 bool get_group_replication_connection_status_info(
-    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
+    const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);
 bool get_group_replication_group_members_info(
     unsigned int index,
-    const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
+    const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks);
 bool get_group_replication_group_member_stats_info(
     unsigned int index,
-    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+    const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 unsigned int get_group_replication_members_number_info();
-
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

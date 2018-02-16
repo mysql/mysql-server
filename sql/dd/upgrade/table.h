@@ -56,7 +56,7 @@ bool migrate_plugin_table_to_dd(THD *thd);
 bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
                            bool is_fix_view_cols_and_deps);
 
-} // namespace upgrade
-} // namespace dd
+}  // namespace upgrade_57
+}  // namespace dd
 
-#endif // DD_UPGRADE__TABLE_H_INCLUDED
+#endif  // DD_UPGRADE__TABLE_H_INCLUDED

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 #include "mysqlxclient/xargument.h"
 #include "mysqlxclient/xerror.h"
 #include "mysqlxclient/xprotocol.h"
-
 
 namespace xcl {
 
@@ -171,6 +170,19 @@ class XSession {
       Option type: STRING.
     */
     Ssl_mode,
+    /**
+      Configure the requirements regarding SSL FIPS mode connection.
+
+      It can take as arguments following string values:
+
+      * "OFF": Set the openssl FIPS mode 0 (OFF)
+      * "ON": Set the openssl FIPS mode 1 (ON)
+      * "STRICT": Set the openssl FIPS mode 2 (STRICT)
+
+      Default: "OFF".
+      Option type: STRING.
+    */
+    Ssl_fips_mode,
     /** Path to the SSL key file in PEM format. Option type: STRING. */
     Ssl_key,
     /** Path to a file in PEM format that contains a list of trusted
@@ -232,7 +244,6 @@ class XSession {
 
  public:
   virtual ~XSession() = default;
-
 
   /**
     Get client identifier.
@@ -299,7 +310,8 @@ class XSession {
       @retval != true     OK
       @retval == true     error occurred
   */
-  virtual XError set_mysql_option(const Mysqlx_option option,
+  virtual XError set_mysql_option(
+      const Mysqlx_option option,
       const std::vector<std::string> &values_list) = 0;
 
   /**
@@ -464,9 +476,8 @@ class XSession {
       @retval != nullptr  OK
       @retval == nullptr  error occurred
   */
-  virtual std::unique_ptr<XQuery_result> execute_sql(
-      const std::string &sql,
-      XError *out_error) = 0;
+  virtual std::unique_ptr<XQuery_result> execute_sql(const std::string &sql,
+                                                     XError *out_error) = 0;
 
   /**
     Execute statement on the server.
@@ -475,20 +486,21 @@ class XSession {
 
     @param ns              namespace in which the statement should be executed:
                            * "sql" - interpret "stmt" string as SQL
-                           * "mysqlx" - interpret "stmt" string as an admin command
+                           * "mysqlx" - interpret "stmt" string as an admin
+    command
     @param stmt            statement to be executed
-    @param args            container with multiple values used at statement execution
+    @param args            container with multiple values used at statement
+    execution
     @param[out] out_error  in case of error, the method is going to return error
                            code and description
     @return Object responsible for fetching "resultset/s" from the server
       @retval != nullptr  OK
       @retval == nullptr  error occurred
   */
-  virtual std::unique_ptr<XQuery_result> execute_stmt(
-      const std::string &ns,
-      const std::string &stmt,
-      const Arguments &args,
-      XError *out_error) = 0;
+  virtual std::unique_ptr<XQuery_result> execute_stmt(const std::string &ns,
+                                                      const std::string &stmt,
+                                                      const Arguments &args,
+                                                      XError *out_error) = 0;
 
   /**
     Graceful shutdown maintaing the close connection message flow.
@@ -498,7 +510,6 @@ class XSession {
   */
   virtual void close() = 0;
 };
-
 
 /**
   Create, connect and authenticate the session using UNIX socket.

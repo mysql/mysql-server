@@ -26,8 +26,7 @@
 
 using namespace Mysql::Tools::Dump;
 
-Privilege::Privilege(uint64 id, const std::string& name,
-  const std::string& sql_formatted_definition)
-  : Abstract_plain_sql_object_dump_task(id, name, "",
-    sql_formatted_definition)
-{}
+Privilege::Privilege(uint64 id, const std::string &name,
+                     const std::string &sql_formatted_definition)
+    : Abstract_plain_sql_object_dump_task(id, name, "",
+                                          sql_formatted_definition) {}

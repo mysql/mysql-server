@@ -264,8 +264,6 @@ NULL
 Warnings:
 Warning	3020	Invalid argument for logarithm
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select round(111,-10);
 round(111,-10)
 0
@@ -782,7 +780,7 @@ select 5.9 div 2, 1.23456789e3 DIV 2, 1.23456789e9 DIV 2, 1.23456789e19 DIV 2;
 # Bug#50507 Behavior of logarithmic functions depends on
 #              ERROR_FOR_DIVISION_BY_ZERO
 CREATE TABLE t1(a DOUBLE);
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 INSERT INTO t1 VALUES (ln(1));
 INSERT INTO t1 VALUES (ln(0));
 Warnings:
@@ -847,7 +845,7 @@ NULL
 NULL
 0
 0
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 UPDATE t1 SET a = ln(0);
 Warnings:
 Warning	3020	Invalid argument for logarithm
@@ -881,7 +879,7 @@ NULL
 NULL
 NULL
 NULL
-SET sql_mode='NO_AUTO_CREATE_USER';
+SET sql_mode='';
 DELETE FROM t1 WHERE a <=> ln(0);
 Warnings:
 Warning	3020	Invalid argument for logarithm

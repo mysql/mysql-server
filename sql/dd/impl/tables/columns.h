@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,25 +23,23 @@
 #ifndef DD_TABLES__COLUMNS_INCLUDED
 #define DD_TABLES__COLUMNS_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Columns : public Object_table_impl
-{
-public:
+class Columns : public Object_table_impl {
+ public:
   static const Columns &instance();
 
-  enum enum_fields
-  {
-    FIELD_ID= static_cast<uint>(Common_field::ID),
+  enum enum_fields {
+    FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_TABLE_ID,
     FIELD_NAME,
     FIELD_ORDINAL_POSITION,
@@ -69,24 +67,19 @@ public:
     FIELD_SE_PRIVATE_DATA,
     FIELD_COLUMN_KEY,
     FIELD_COLUMN_TYPE_UTF8,
-    FIELD_SRS_ID
+    FIELD_SRS_ID,
+    FIELD_IS_EXPLICIT_COLLATION
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_TABLE_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_TABLE_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_TABLE_ID_ORDINAL_POSITION,
     INDEX_K_COLLATION_ID,
     INDEX_K_SRS_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_TABLE_ID,
-    FK_COLLATION_ID,
-    FK_SRS_ID
-  };
+  enum enum_foreign_keys { FK_TABLE_ID, FK_COLLATION_ID, FK_SRS_ID };
 
   Columns();
 
@@ -95,7 +88,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__COLUMNS_INCLUDED
+#endif  // DD_TABLES__COLUMNS_INCLUDED

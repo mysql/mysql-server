@@ -23,18 +23,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_PSI_MDL_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_MDL_SERVICE_H
 
-#include <mysql/components/services/psi_mdl_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/psi_mdl_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_mdl_v1)
-  create_metadata_lock_v1_t create_metadata_lock;
-  set_metadata_lock_status_v1_t set_metadata_lock_status;
-  destroy_metadata_lock_v1_t destroy_metadata_lock;
-  start_metadata_wait_v1_t start_metadata_wait;
-  end_metadata_wait_v1_t end_metadata_wait;
+create_metadata_lock_v1_t create_metadata_lock;
+set_metadata_lock_status_v1_t set_metadata_lock_status;
+destroy_metadata_lock_v1_t destroy_metadata_lock;
+start_metadata_wait_v1_t start_metadata_wait;
+end_metadata_wait_v1_t end_metadata_wait;
 END_SERVICE_DEFINITION(psi_mdl_v1)
 
 #define REQUIRES_PSI_MDL_SERVICE REQUIRES_SERVICE(psi_mdl_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_SERVICE_H */
-

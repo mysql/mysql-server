@@ -632,8 +632,6 @@ Bug#25835149
 
 SET @savmode=@@SESSION.SQL_MODE;
 SET SESSION SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE `test`(
 `pk` INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 `dt` DATETIME DEFAULT NULL,
@@ -706,8 +704,6 @@ NULL	21:41:15
 2006-10-06 00:00:00	21:41:15
 2008-07-07 00:00:00	21:41:15
 SET SESSION SQL_MODE=@savmode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE `test`;
 
 Bug with missing update of cached example after split_sum_func

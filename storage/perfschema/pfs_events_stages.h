@@ -41,8 +41,7 @@ struct PFS_user;
 struct PFS_host;
 
 /** A stage record. */
-struct PFS_events_stages : public PFS_events
-{
+struct PFS_events_stages : public PFS_events {
   PSI_stage_progress m_progress;
 };
 

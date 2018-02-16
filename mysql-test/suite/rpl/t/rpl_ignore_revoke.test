@@ -10,13 +10,15 @@ source include/master-slave.inc;
 ###  CLEAN-UP: create an account and manually duplicate it on the slave
 
 connection master;
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+create user 'user_foo'@'%' identified by 'user_foopass';
+grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* master:must be N */;
 
 --source include/sync_slave_sql_with_master.inc
 #connection slave;
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+create user 'user_foo'@'%' identified by 'user_foopass';
+grant select on *.* to 'user_foo'@'%';
 revoke select on *.* from 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* slave:must be N */;
 
@@ -24,7 +26,7 @@ select select_priv from mysql.user where user='user_foo' /* slave:must be N */;
 ### TEST
 
 #connection slave;
-grant select on *.* to 'user_foo'@'%' identified by 'user_foopass';
+grant select on *.* to 'user_foo'@'%';
 select select_priv from mysql.user where user='user_foo' /* slave:must be Y */;
 
 connection master;

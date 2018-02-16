@@ -27,7 +27,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <string>
 
 #include "server_component.h"
-#include "sql/sql_plugin.h" // opt_plugin_dir
+#include "sql/sql_plugin.h"  // opt_plugin_dir
 
 /**
   Checks if path specified to load is contained in plug-in directory and
@@ -35,9 +35,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   service implementation on calculated absolute URN. Effectively it act as a
   filtering and mapping service.
 */
-class mysql_dynamic_loader_scheme_file_path_filter_imp
-{
-public:
+class mysql_dynamic_loader_scheme_file_path_filter_imp {
+ public:
   /**
     Checks if path specified to load is contained in plug-in directory and
     change it to absolute one using plug-in directory. Calls wrapped file scheme
@@ -51,7 +50,7 @@ public:
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(load,
-    (const char *urn, mysql_component_t** out_data));
+                            (const char *urn, mysql_component_t **out_data));
 
   /**
     Checks if path specified to load is contained in plug-in directory and
@@ -63,10 +62,9 @@ public:
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(unload,
-    (const char *urn));
+  static DEFINE_BOOL_METHOD(unload, (const char *urn));
 
-private:
+ private:
   /**
     Ensure that the dynamic library doesn't have a path.
     This is done to ensure that only approved libraries from the
@@ -76,8 +74,8 @@ private:
     @param input_urn URN with path to validate and make absolute.
     @param [out] out_path String to put result URN to.
   */
-  static bool check_and_make_absolute_urn(
-    const char* input_urn, std::string& out_path);
+  static bool check_and_make_absolute_urn(const char *input_urn,
+                                          std::string &out_path);
 };
 
 #endif /* MYSQL_SERVER_DYNAMIC_LOADER_PATH_FILTER_H */

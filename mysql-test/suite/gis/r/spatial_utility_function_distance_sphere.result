@@ -463,11 +463,11 @@ ERROR 22023: Invalid GIS data provided to function st_geomfromtext.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('MULTIPOINT(1 1,2 2,'!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),ST_GEOMFROMTEXT('POINT(0 0)'))' at line 1
 SELECT ST_DISTANCE_SPHERE(,);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',)' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT(@star_of_elems),);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_DISTANCE_SPHERE(,ST_GEOMFROMTEXT(@star_top));
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ST_GEOMFROMTEXT(@star_top))' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',ST_GEOMFROMTEXT(@star_top))' at line 1
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('LINESTRING(0 0,10 10)'));
 ERROR 22S00: st_distance_sphere(POINT, LINESTRING) has not been implemented for Cartesian spatial reference systems.
 SELECT ST_DISTANCE_SPHERE(ST_GEOMFROMTEXT('POINT(0 1)'), ST_GEOMFROMTEXT('POLYGON((0 0,0 5,5 5,5 0,0 0))'));

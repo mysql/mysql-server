@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,18 +25,18 @@
 #ifndef NGS_SHA256_PASSWORD_CACHE_INTERFACE_H_
 #define NGS_SHA256_PASSWORD_CACHE_INTERFACE_H_
 
-#include <utility>
 #include <string>
+#include <utility>
 
 namespace ngs {
 
 class SHA256_password_cache_interface {
-public:
+ public:
   virtual bool upsert(const std::string &user, const std::string &host,
                       const std::string &value) = 0;
   virtual bool remove(const std::string &user, const std::string &host) = 0;
-  virtual std::pair<bool, std::string> get_entry(const std::string &user,
-      const std::string &host) const = 0;
+  virtual std::pair<bool, std::string> get_entry(
+      const std::string &user, const std::string &host) const = 0;
   virtual bool contains(const std::string &user, const std::string &host,
                         const std::string &value) const = 0;
   virtual std::size_t size() const = 0;
@@ -49,4 +49,3 @@ public:
 }  // namespace ngs
 
 #endif  // NGS_SHA256_PASSWORD_CACHE_INTERFACE_H_
-

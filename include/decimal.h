@@ -30,9 +30,13 @@
 #include "my_inttypes.h"
 #include "my_macros.h"
 
-typedef enum
-{TRUNCATE=0, HALF_EVEN, HALF_UP, CEILING, FLOOR}
-  decimal_round_mode;
+typedef enum {
+  TRUNCATE = 0,
+  HALF_EVEN,
+  HALF_UP,
+  CEILING,
+  FLOOR
+} decimal_round_mode;
 typedef int32 decimal_digit_t;
 
 /**
@@ -45,7 +49,7 @@ typedef int32 decimal_digit_t;
     buf  is an array of decimal_digit_t's
  */
 struct decimal_t {
-  int    intg, frac, len;
+  int intg, frac, len;
   bool sign;
   decimal_digit_t *buf;
 };
@@ -53,8 +57,7 @@ struct decimal_t {
 #ifndef MYSQL_ABI_CHECK
 int string2decimal(const char *from, decimal_t *to, char **end);
 int decimal2string(const decimal_t *from, char *to, int *to_len,
-                   int fixed_precision, int fixed_decimals,
-                   char filler);
+                   int fixed_precision, int fixed_decimals, char filler);
 int decimal2ulonglong(decimal_t *from, ulonglong *to);
 int ulonglong2decimal(ulonglong from, decimal_t *to);
 int decimal2longlong(decimal_t *from, longlong *to);
@@ -89,8 +92,7 @@ int decimal2lldiv_t(const decimal_t *from, lldiv_t *to);
 int double2lldiv_t(double nr, lldiv_t *lld);
 int decimal_size(int precision, int scale);
 int decimal_bin_size(int precision, int scale);
-int decimal_result_size(decimal_t *from1, decimal_t *from2, char op,
-                        int param);
+int decimal_result_size(decimal_t *from1, decimal_t *from2, char op, int param);
 
 int decimal_intg(const decimal_t *from);
 int decimal_add(const decimal_t *from1, const decimal_t *from2, decimal_t *to);
@@ -107,47 +109,40 @@ void max_decimal(int precision, int frac, decimal_t *to);
 int decimal_shift(decimal_t *dec, int shift);
 
 /* set a decimal_t to zero */
-static inline void decimal_make_zero(decimal_t *dec)
-{
-  dec->buf[0]= 0;
-  dec->intg= 1;
-  dec->frac= 0;
-  dec->sign= 0;
+static inline void decimal_make_zero(decimal_t *dec) {
+  dec->buf[0] = 0;
+  dec->intg = 1;
+  dec->frac = 0;
+  dec->sign = 0;
 }
 
 /**
   Returns the length of the buffer to hold string representation
   of the decimal (including decimal dot, possible sign and \0)
 */
-static inline int decimal_string_size(const decimal_t *dec)
-{
-  return
-    (dec->intg ? dec->intg : 1) +
-    dec->frac +
-    (dec->frac > 0) +
-    2;
+static inline int decimal_string_size(const decimal_t *dec) {
+  return (dec->intg ? dec->intg : 1) + dec->frac + (dec->frac > 0) + 2;
 }
 
-/*
-  conventions:
+  /*
+    conventions:
 
-    decimal_smth() == 0     -- everything's ok
-    decimal_smth() <= 1     -- result is usable, but precision loss is possible
-    decimal_smth() <= 2     -- result can be unusable, most significant digits
-                               could've been lost
-    decimal_smth() >  2     -- no result was generated
-*/
+      decimal_smth() == 0     -- everything's ok
+      decimal_smth() <= 1     -- result is usable, but precision loss is
+    possible decimal_smth() <= 2     -- result can be unusable, most significant
+    digits could've been lost decimal_smth() >  2     -- no result was generated
+  */
 
-#define E_DEC_OK                0
-#define E_DEC_TRUNCATED         1
-#define E_DEC_OVERFLOW          2
-#define E_DEC_DIV_ZERO          4
-#define E_DEC_BAD_NUM           8
-#define E_DEC_OOM              16
+#define E_DEC_OK 0
+#define E_DEC_TRUNCATED 1
+#define E_DEC_OVERFLOW 2
+#define E_DEC_DIV_ZERO 4
+#define E_DEC_BAD_NUM 8
+#define E_DEC_OOM 16
 
-#define E_DEC_ERROR            31
-#define E_DEC_FATAL_ERROR      30
+#define E_DEC_ERROR 31
+#define E_DEC_FATAL_ERROR 30
 
-#endif // MYSQL_ABI_CHECK
+#endif  // MYSQL_ABI_CHECK
 
 #endif  // DECIMAL_INCLUDED

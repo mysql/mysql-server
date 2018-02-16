@@ -30,37 +30,35 @@
 
 #include "client/base/message_data.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Composite_message_handler
-{
-public:
-  static std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    create_composite_handler
-    (const std::vector<std::function<
-        bool(const Mysql::Tools::Base::Message_data&)>*>&
-      message_handlers);
+class Composite_message_handler {
+ public:
+  static std::function<bool(const Mysql::Tools::Base::Message_data &)>
+      *create_composite_handler(
+          const std::vector<
+              std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
+              &message_handlers);
 
-private:
+ private:
   Composite_message_handler(
-    const std::vector<std::function<
-      bool(const Mysql::Tools::Base::Message_data&)>*>&
-    message_handlers);
+      const std::vector<
+          std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
+          &message_handlers);
   /**
     Passes message to message callbacks in reverse order, stopping on first
     handler to declare message consumed.
    */
-  bool pass_message(const Mysql::Tools::Base::Message_data& message_data);
+  bool pass_message(const Mysql::Tools::Base::Message_data &message_data);
 
-  std::vector<std::function<
-      bool(const Mysql::Tools::Base::Message_data&)>*>
-    m_message_handlers;
+  std::vector<std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
+      m_message_handlers;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

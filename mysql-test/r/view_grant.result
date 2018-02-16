@@ -1,16 +1,9 @@
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop database if exists mysqltest;
 drop view if exists v1,v2,v3;
+create user test@localhost;
 grant create view on test.* to test@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 show grants for test@localhost;
 Grants for test@localhost
 GRANT USAGE ON *.* TO `test`@`localhost`
@@ -23,9 +16,8 @@ drop user test@localhost;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
+create user mysqltest_1@localhost;
 grant select on mysqltest.t1 to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant create view,select on test.* to mysqltest_1@localhost;
 create definer=root@localhost view v1 as select * from mysqltest.t1;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SET_USER_ID privilege(s) for this operation
@@ -64,8 +56,6 @@ create database mysqltest;
 create table mysqltest.t1 (a int, b int);
 create algorithm=temptable view mysqltest.v1 (c,d) as select a+1,b+1 from mysqltest.t1;
 grant select (c) on mysqltest.v1 to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 select c from mysqltest.v1;
 c
 select d from mysqltest.v1;
@@ -73,6 +63,8 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for column 
 revoke all privileges on mysqltest.v1 from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int);
 create table mysqltest.t2 (a int, b int);
@@ -82,8 +74,6 @@ create view mysqltest.v3 (c,d) as select a+1,b+1 from mysqltest.t2;
 create algorithm=temptable view mysqltest.v4 (c,d) as select a+1,b+1 from mysqltest.t2;
 create view mysqltest.v5 (c,d) as select a+1,b+1 from mysqltest.t1;
 grant select on mysqltest.v1 to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on mysqltest.v2 to mysqltest_1@localhost;
 grant select on mysqltest.v3 to mysqltest_1@localhost;
 grant select on mysqltest.v4 to mysqltest_1@localhost;
@@ -187,9 +177,11 @@ ERROR HY000: EXPLAIN/SHOW can not be issued; lacking privileges for underlying t
 show create view mysqltest.v4;
 View	Create View	character_set_client	collation_connection
 v4	CREATE ALGORITHM=TEMPTABLE DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `mysqltest`.`v4` (`c`,`d`) AS select (`mysqltest`.`t2`.`a` + 1) AS `a+1`,(`mysqltest`.`t2`.`b` + 1) AS `b+1` from `mysqltest`.`t2`	utf8mb4	utf8mb4_0900_ai_ci
-revoke all privileges on mysqltest.* from mysqltest_1@localhost;
+revoke all privileges, grant option from mysqltest_1@localhost;
 delete from mysql.user where user='mysqltest_1';
 drop database mysqltest;
+flush privileges;
+create user mysqltest_1@localhost;
 create database mysqltest;
 create table mysqltest.t1 (a int, b int, primary key(a));
 insert into mysqltest.t1 values (10,2), (20,3), (30,4), (40,5), (50,10);
@@ -199,8 +191,6 @@ create view mysqltest.v1 (a,c) as select a, b+1 from mysqltest.t1;
 create view mysqltest.v2 (a,c) as select a, b from mysqltest.t1;
 create view mysqltest.v3 (a,c) as select a, b+1 from mysqltest.t1;
 grant update (a) on mysqltest.v2 to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant update on mysqltest.v1 to mysqltest_1@localhost;
 grant select on mysqltest.* to mysqltest_1@localhost;
 use mysqltest;
@@ -505,9 +495,8 @@ drop table if exists t1;
 create table t1 as select * from mysql.user where user='';
 delete from mysql.user where user='';
 flush privileges;
+create user 'test14256'@'%';
 grant all on test.* to 'test14256'@'%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 use test;
 create view v1 as select 42;
 show create view v1;
@@ -882,9 +871,8 @@ INSERT INTO mysqltest1.t1 VALUES (11), (12), (13), (14);
 INSERT INTO mysqltest1.t2 VALUES (21), (22), (23), (24);
 INSERT INTO mysqltest1.t3 VALUES (31), (32), (33), (34);
 INSERT INTO mysqltest1.t4 VALUES (41), (42), (43), (44);
+CREATE USER mysqltest_u1@localhost;
 GRANT SELECT ON mysqltest1.t1 TO mysqltest_u1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT INSERT ON mysqltest1.t2 TO mysqltest_u1@localhost;
 GRANT SELECT, UPDATE ON mysqltest1.t3 TO mysqltest_u1@localhost;
 GRANT SELECT, DELETE ON mysqltest1.t4 TO mysqltest_u1@localhost;
@@ -964,9 +952,8 @@ CREATE DATABASE db1;
 USE db1;
 CREATE TABLE t1(f1 INT, f2 INT);
 CREATE VIEW v1 AS SELECT f1, f2 FROM t1;
+CREATE USER foo;
 GRANT SELECT (f1) ON t1 TO foo;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 GRANT SELECT (f1) ON v1 TO foo;
 USE db1;
 SELECT f1 FROM t1;
@@ -2647,11 +2634,7 @@ disconnect con1;
 DROP USER 'user1'@'localhost';
 DROP DATABASE test1;
 set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # WL#2284: Increase the length of a user name
 #

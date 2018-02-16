@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,22 +28,14 @@
 
 #include "sql/mysqld.h"
 
-namespace mysqld
-{
+namespace mysqld {
 
-bool is_terminating()
-{
-  return connection_events_loop_aborted();
-}
+bool is_terminating() { return connection_events_loop_aborted(); }
 
-const char *get_my_localhost()
-{
-  return my_localhost;
-}
+const char *get_my_localhost() { return my_localhost; }
 
-const CHARSET_INFO *get_charset_utf8mb4_general_ci()
-{
+const CHARSET_INFO *get_charset_utf8mb4_general_ci() {
   return &my_charset_utf8mb4_general_ci;
 }
 
-} // namespace mysqld
+}  // namespace mysqld

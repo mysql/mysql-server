@@ -34,8 +34,8 @@
 
 namespace item_func_regexp_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_pt_item_list;
+using my_testing::Server_initializer;
 
 class ItemFuncRegexpTest : public ::testing::Test {
  protected:

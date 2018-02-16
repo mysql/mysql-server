@@ -1,0 +1,131 @@
+################################################################################
+# Verify server behaviour when a transaction is negatively certified.
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+# 1. With both members ONLINE. Execute some transactions on M1.
+# 2. Force negative certification outcome of the next transaction using DEBUG
+#    sync point.
+# 3. First insert must be aborted. Validate the data on table and information
+#    in P_S tables on both M1 and M2.
+# 4. Clean debug flag on MTR side.
+# 5. Clean up. Validate gtid_executed on M1 and M2.
+################################################################################
+--source include/have_debug.inc
+--let $group_replication_group_name= 8a94f357-aab4-11df-86ab-c80aa9429123
+--source include/have_group_replication_plugin.inc
+
+--source include/group_replication.inc
+
+--echo ############################################################
+--echo # 1. Execute some transactions on server1.
+--connection server1
+
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Force negative certification outcome of the next
+--echo #    transaction.
+--connection server1
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+--connection server2
+SET @debug_save= @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG= '+d,certifier_force_1_negative_certification';
+
+--echo
+--echo ############################################################
+--echo # 3. First insert must be aborted.
+--connection server1
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--connection server1
+--let $assert_text= 'There is no value 2 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is a value 3 in table t1 on server 1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_in_queue, 1)
+--let $assert_text= 'The value of Count_Transactions_in_queue should be 0 on server 1'
+--let $assert_cond= $transaction_in_queue = 0
+--source include/assert.inc
+--let $certified_transactions= query_get_value(SELECT Count_transactions_checked FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_checked, 1)
+--let $assert_text= 'The value of Count_transactions_checked should be 4 on server 1'
+--let $assert_cond= $certified_transactions = 4
+--source include/assert.inc
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
+--let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 1'
+--let $assert_cond= $negatively_certified = 1
+--source include/assert.inc
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_conflict_free_transaction, 1)
+--let $assert_text= 'The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:5 on server 1'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--source include/assert.inc
+
+--connection server2
+--let $assert_text= 'There is no value 2 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
+--let $assert_text= 'There is a value 3 in table t1 on server 2'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3, count, 1] = 1
+--source include/assert.inc
+
+--let $transaction_in_queue= query_get_value(SELECT Count_Transactions_in_queue FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_Transactions_in_queue, 1)
+--let $assert_text= 'The value of Count_Transactions_in_queue should be 0 on server 2'
+--let $assert_cond= $transaction_in_queue = 0
+--source include/assert.inc
+--let $certified_transactions= query_get_value(SELECT Count_transactions_checked FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_transactions_checked, 1)
+--let $assert_text= 'The value of Count_transactions_checked should be 4 on server 2'
+--let $assert_cond= $certified_transactions = 4
+--source include/assert.inc
+--let $negatively_certified= query_get_value(SELECT Count_conflicts_detected FROM performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Count_conflicts_detected, 1)
+--let $assert_text= 'The value of Count_conflicts_detected should be 1 on server 2'
+--let $assert_cond= $negatively_certified = 1
+--source include/assert.inc
+--let $last_certified_transaction= query_get_value(SELECT Last_conflict_free_transaction from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid), Last_conflict_free_transaction, 1)
+--let $assert_text= 'The value of Last_conflict_free_transaction should be 8a94f357-aab4-11df-86ab-c80aa9429123:5 on server 2'
+--let $assert_cond= "$last_certified_transaction" = "$group_replication_group_name:5"
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Clean debug flag on MTR side.
+--connection server1
+SET @@GLOBAL.DEBUG= @debug_saved;
+--connection server2
+SET @@GLOBAL.DEBUG= @debug_saved;
+
+--echo
+--echo ############################################################
+--echo # 5. Shutdown.
+--connection server1
+DROP TABLE t1;
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+--connection server1
+--let $assert_text= 'Aborted transaction should not have increased GNO to 7 on server 1'
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-6"
+--source include/assert.inc
+
+--connection server2
+--let $assert_text= 'Aborted transaction should not have increased GNO to 7 on server 2'
+--let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$group_replication_group_name:1-6"
+--source include/assert.inc
+
+--source include/group_replication_end.inc

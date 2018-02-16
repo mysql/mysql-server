@@ -33,31 +33,31 @@
 #include "client/dump/i_connection_provider.h"
 #include "client/dump/thread_specific_connection_provider.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 class Single_transaction_connection_provider
-  : public Thread_specific_connection_provider
-{
-public:
+    : public Thread_specific_connection_provider {
+ public:
   Single_transaction_connection_provider(
-    Mysql::Tools::Base::I_connection_factory* connection_factory,
-    unsigned int connections,
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler);
+      Mysql::Tools::Base::I_connection_factory *connection_factory,
+      unsigned int connections,
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler);
 
-  virtual Mysql::Tools::Base::Mysql_query_runner* create_new_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler);
-private:
-  std::vector<Mysql::Tools::Base::Mysql_query_runner*> m_runner_pool;
+  virtual Mysql::Tools::Base::Mysql_query_runner *create_new_runner(
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler);
+
+ private:
+  std::vector<Mysql::Tools::Base::Mysql_query_runner *> m_runner_pool;
   my_boost::mutex m_pool_mutex;
   unsigned int m_connections;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

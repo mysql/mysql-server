@@ -29,56 +29,54 @@
 
 namespace mysys_my_load_path {
 
-TEST(Mysys, MyLoadPath)
-{
+TEST(Mysys, MyLoadPath) {
   char dest[FN_REFLEN];
 
-  static const std::string filename= "filename";
+  static const std::string filename = "filename";
 
   // Path with absolute path component.
-  std::string absolute_path_name= FN_LIBCHAR + filename;
+  std::string absolute_path_name = FN_LIBCHAR + filename;
   my_load_path(dest, absolute_path_name.c_str(), NULL);
   EXPECT_STREQ(dest, absolute_path_name.c_str());
 
   // Path with home directory component.
-  dest[0]= '\0';
-  std::string home_dir_path_name= FN_HOMELIB + (FN_LIBCHAR + filename);
+  dest[0] = '\0';
+  std::string home_dir_path_name = FN_HOMELIB + (FN_LIBCHAR + filename);
   my_load_path(dest, home_dir_path_name.c_str(), NULL);
   EXPECT_STREQ(dest, home_dir_path_name.c_str());
 
   // Path with current directory component.
-  dest[0]= '\0';
-  std::string parent_dir_path_name= FN_CURLIB + (FN_LIBCHAR + filename);
+  dest[0] = '\0';
+  std::string parent_dir_path_name = FN_CURLIB + (FN_LIBCHAR + filename);
   my_load_path(dest, parent_dir_path_name.c_str(), NULL);
   char temp_buf[256];
   my_getwd(temp_buf, sizeof(temp_buf), MYF(0));
-  EXPECT_STREQ(dest, (temp_buf+filename).c_str());
+  EXPECT_STREQ(dest, (temp_buf + filename).c_str());
 
   // Path with prefix component appended.
-  dest[0]= '\0';
-  std::string prefix_path_name= "/basedir/";
+  dest[0] = '\0';
+  std::string prefix_path_name = "/basedir/";
   my_load_path(dest, filename.c_str(), prefix_path_name.c_str());
-  EXPECT_STREQ(dest, (prefix_path_name+filename).c_str());
+  EXPECT_STREQ(dest, (prefix_path_name + filename).c_str());
 
   // Path that has length FN_REFLEN-1
-  dest[0]= '\0';
+  dest[0] = '\0';
   std::string cur_dir_path_name;
-  for (int i= 0; i < (FN_REFLEN-3); i++)
-    cur_dir_path_name.append("y");
-  cur_dir_path_name= FN_CURLIB + (FN_LIBCHAR + cur_dir_path_name);
+  for (int i = 0; i < (FN_REFLEN - 3); i++) cur_dir_path_name.append("y");
+  cur_dir_path_name = FN_CURLIB + (FN_LIBCHAR + cur_dir_path_name);
   my_load_path(dest, cur_dir_path_name.c_str(), NULL);
   EXPECT_STREQ(dest, cur_dir_path_name.c_str());
 
   // Path that has length FN_REFLEN.
-  dest[0]= '\0';
+  dest[0] = '\0';
   cur_dir_path_name.append("y");
   my_load_path(dest, cur_dir_path_name.c_str(), NULL);
-  EXPECT_STREQ(dest, cur_dir_path_name.substr(0,FN_REFLEN-1).c_str());
+  EXPECT_STREQ(dest, cur_dir_path_name.substr(0, FN_REFLEN - 1).c_str());
 
   // Path that has length exceeding FN_REFLEN
-  dest[0]= '\0';
+  dest[0] = '\0';
   cur_dir_path_name.append("y");
   my_load_path(dest, cur_dir_path_name.c_str(), NULL);
-  EXPECT_STREQ(dest, cur_dir_path_name.substr(0,FN_REFLEN-1).c_str());
+  EXPECT_STREQ(dest, cur_dir_path_name.substr(0, FN_REFLEN - 1).c_str());
 }
-}
+}  // namespace mysys_my_load_path

@@ -33,7 +33,7 @@
 */
 
 #ifndef LOAD_DATA_EVENTS_INCLUDED
-#define	LOAD_DATA_EVENTS_INCLUDED
+#define LOAD_DATA_EVENTS_INCLUDED
 
 #include <sys/types.h>
 
@@ -47,25 +47,23 @@
   DUMPFILE_FLAG is probably not used (DUMPFILE is a clause of SELECT,
   not of LOAD DATA).
 */
-#define DUMPFILE_FLAG           0x1
-#define OPT_ENCLOSED_FLAG       0x2
-#define REPLACE_FLAG            0x4
-#define IGNORE_FLAG             0x8
+#define DUMPFILE_FLAG 0x1
+#define OPT_ENCLOSED_FLAG 0x2
+#define REPLACE_FLAG 0x4
+#define IGNORE_FLAG 0x8
 
-#define FIELD_TERM_EMPTY        0x1
-#define ENCLOSED_EMPTY          0x2
-#define LINE_TERM_EMPTY         0x4
-#define LINE_START_EMPTY        0x8
-#define ESCAPED_EMPTY           0x10
+#define FIELD_TERM_EMPTY 0x1
+#define ENCLOSED_EMPTY 0x2
+#define LINE_TERM_EMPTY 0x4
+#define LINE_START_EMPTY 0x8
+#define ESCAPED_EMPTY 0x10
 
-namespace binary_log
-{
+namespace binary_log {
 /**
   Elements of this enum describe how LOAD DATA handles duplicates.
 */
-enum enum_load_dup_handling
-{
-  LOAD_DUP_ERROR= 0,
+enum enum_load_dup_handling {
+  LOAD_DUP_ERROR = 0,
   LOAD_DUP_IGNORE,
   LOAD_DUP_REPLACE
 };
@@ -119,21 +117,20 @@ enum enum_load_dup_handling
    </tr>
    </table>
 */
-class Execute_load_query_event : public virtual Query_event
-{
-public:
-  enum Execute_load_query_event_offset{
-   /** ELQ = "Execute Load Query" */
-   ELQ_FILE_ID_OFFSET= QUERY_HEADER_LEN,
-   ELQ_FN_POS_START_OFFSET= ELQ_FILE_ID_OFFSET + 4,
-   ELQ_FN_POS_END_OFFSET= ELQ_FILE_ID_OFFSET + 8,
-   ELQ_DUP_HANDLING_OFFSET= ELQ_FILE_ID_OFFSET + 12
+class Execute_load_query_event : public virtual Query_event {
+ public:
+  enum Execute_load_query_event_offset {
+    /** ELQ = "Execute Load Query" */
+    ELQ_FILE_ID_OFFSET = QUERY_HEADER_LEN,
+    ELQ_FN_POS_START_OFFSET = ELQ_FILE_ID_OFFSET + 4,
+    ELQ_FN_POS_END_OFFSET = ELQ_FILE_ID_OFFSET + 8,
+    ELQ_DUP_HANDLING_OFFSET = ELQ_FILE_ID_OFFSET + 12
   };
 
-  int32_t file_id;        /** file_id of temporary file */
-  uint32_t fn_pos_start;  /** pointer to the part of the query that should
-                             be substituted */
-  uint32_t fn_pos_end;    /** pointer to the end of this part of query */
+  int32_t file_id;       /** file_id of temporary file */
+  uint32_t fn_pos_start; /** pointer to the part of the query that should
+                            be substituted */
+  uint32_t fn_pos_end;   /** pointer to the end of this part of query */
 
   /**
     We have to store type of duplicate handling explicitly, because
@@ -178,11 +175,10 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Execute_load_query_event(const char* buf, unsigned int event_len,
+  Execute_load_query_event(const char *buf, unsigned int event_len,
                            const Format_description_event *description_event);
 
   ~Execute_load_query_event() {}
-
 };
 
 /**
@@ -212,53 +208,51 @@ public:
   </tr>
   </table>
 */
-class Delete_file_event: public Binary_log_event
-{
-protected:
+class Delete_file_event : public Binary_log_event {
+ protected:
   // Required by Delete_file_log_event(THD* ..)
-  Delete_file_event(uint32_t file_id_arg, const char* db_arg)
-    : Binary_log_event(DELETE_FILE_EVENT),
-      file_id(file_id_arg),
-      db(db_arg)
-  {}
-public:
+  Delete_file_event(uint32_t file_id_arg, const char *db_arg)
+      : Binary_log_event(DELETE_FILE_EVENT), file_id(file_id_arg), db(db_arg) {}
+
+ public:
   enum Delete_file_offset {
     /** DF = "Delete File" */
-    DF_FILE_ID_OFFSET= 0
+    DF_FILE_ID_OFFSET = 0
   };
 
   uint32_t file_id;
-  const char* db; /** see comment in Append_block_event */
+  const char *db; /** see comment in Append_block_event */
 
-   /**
-    The buffer layout for fixed data part is as follows:
-    <pre>
-    +---------+
-    | file_id |
-    +---------+
-    </pre>
+  /**
+   The buffer layout for fixed data part is as follows:
+   <pre>
+   +---------+
+   | file_id |
+   +---------+
+   </pre>
 
-    @param buf                Contains the serialized event.
-    @param event_len          Length of the serialized event.
-    @param description_event  An FDE event, used to get the
-                              following information
-                              -binlog_version
-                              -server_version
-                              -post_header_len
-                              -common_header_len
-                              The content of this object
-                              depends on the binlog-version currently in use.
-  */
-  Delete_file_event(const char* buf, unsigned int event_len,
-                    const Format_description_event* description_event);
+   @param buf                Contains the serialized event.
+   @param event_len          Length of the serialized event.
+   @param description_event  An FDE event, used to get the
+                             following information
+                             -binlog_version
+                             -server_version
+                             -post_header_len
+                             -common_header_len
+                             The content of this object
+                             depends on the binlog-version currently in use.
+ */
+  Delete_file_event(const char *buf, unsigned int event_len,
+                    const Format_description_event *description_event);
 
   ~Delete_file_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  // TODO(WL#7684): Implement the method print_event_info and print_long_info
+  // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) {};
-  void print_long_info(std::ostream&) {};
+  void print_event_info(std::ostream &){};
+  void print_long_info(std::ostream &){};
 #endif
 };
 
@@ -295,34 +289,30 @@ public:
   The body of the event contains the raw data to load. The raw data
   size is the event size minus the size of all the fixed event parts.
 */
-class Append_block_event: public Binary_log_event
-{
-protected:
+class Append_block_event : public Binary_log_event {
+ protected:
   /**
     This constructor is used by the MySQL server.
   */
-  Append_block_event(const char* db_arg,
-                     unsigned char* block_arg,
-                     unsigned int block_len_arg,
-                     uint32_t file_id_arg)
-  : Binary_log_event(APPEND_BLOCK_EVENT),
-    block(block_arg), block_len(block_len_arg),
-    file_id(file_id_arg), db(db_arg)
-  {}
+  Append_block_event(const char *db_arg, unsigned char *block_arg,
+                     unsigned int block_len_arg, uint32_t file_id_arg)
+      : Binary_log_event(APPEND_BLOCK_EVENT),
+        block(block_arg),
+        block_len(block_len_arg),
+        file_id(file_id_arg),
+        db(db_arg) {}
 
-  Append_block_event(Log_event_type type_arg= APPEND_BLOCK_EVENT)
-    : Binary_log_event(type_arg)
-  {}
+  Append_block_event(Log_event_type type_arg = APPEND_BLOCK_EVENT)
+      : Binary_log_event(type_arg) {}
 
-public:
-  enum Append_block_offset
-  {
+ public:
+  enum Append_block_offset {
     /** AB = "Append Block" */
-    AB_FILE_ID_OFFSET= 0,
-    AB_DATA_OFFSET=  APPEND_BLOCK_HEADER_LEN
+    AB_FILE_ID_OFFSET = 0,
+    AB_DATA_OFFSET = APPEND_BLOCK_HEADER_LEN
   };
 
-  unsigned char* block;
+  unsigned char *block;
   unsigned int block_len;
   uint32_t file_id;
   /**
@@ -336,8 +326,7 @@ public:
     (which is inherited from Load_event) is written to the binlog
     and can be re-read.
   */
-  const char* db;
-
+  const char *db;
 
   /**
     The buffer layout for fixed data part is as follows:
@@ -365,15 +354,16 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Append_block_event(const char* buf, unsigned int event_len,
+  Append_block_event(const char *buf, unsigned int event_len,
                      const Format_description_event *description_event);
   ~Append_block_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  // TODO(WL#7684): Implement the method print_event_info and print_long_info
+  // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) {};
-  void print_long_info(std::ostream&) {};
+  void print_event_info(std::ostream &){};
+  void print_long_info(std::ostream &){};
 #endif
 };
 
@@ -389,15 +379,11 @@ public:
   The Post-Header and Body for this event type are empty; it only has
   the Common-Header.
 */
-class Begin_load_query_event: public virtual Append_block_event
-{
-protected:
-  Begin_load_query_event()
-    : Append_block_event(BEGIN_LOAD_QUERY_EVENT)
-  {}
+class Begin_load_query_event : public virtual Append_block_event {
+ protected:
+  Begin_load_query_event() : Append_block_event(BEGIN_LOAD_QUERY_EVENT) {}
 
-public:
-
+ public:
   /**
     The buffer layout for fixed data part is as follows:
     <pre>
@@ -424,20 +410,21 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Begin_load_query_event(const char* buf, unsigned int event_len,
+  Begin_load_query_event(const char *buf, unsigned int event_len,
                          const Format_description_event *description_event);
 
   ~Begin_load_query_event() {}
 
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info for
+  // TODO(WL#7684): Implement the method print_event_info and print_long_info
+  // for
   //            all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) {};
-  void print_long_info(std::ostream&) {};
+  void print_event_info(std::ostream &){};
+  void print_long_info(std::ostream &){};
 #endif
 };
-} // end namespace binary_log
+}  // end namespace binary_log
 /**
   @} (end of group Replication)
 */
-#endif	/* LOAD_DATA_EVENTS_INCLUDED */
+#endif /* LOAD_DATA_EVENTS_INCLUDED */

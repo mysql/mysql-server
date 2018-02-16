@@ -43,19 +43,19 @@
 #include "mysqld_error.h"
 #include "prealloced_array.h"
 #include "sql/current_thd.h"
-#include "sql/debug_sync.h"    // DEBUG_SYNC
+#include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
-#include "sql/item_func.h"     // user_var_entry
+#include "sql/item_func.h"  // user_var_entry
 #include "sql/key.h"
 #include "sql/log.h"
-#include "sql/mysqld.h"        // server_uuid
+#include "sql/mysqld.h"  // server_uuid
 #include "sql/psi_memory_key.h"
-#include "sql/replication.h"   // Trans_param
+#include "sql/replication.h"  // Trans_param
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mi.h"        // Master_info
-#include "sql/sql_class.h"     // THD
+#include "sql/rpl_mi.h"     // Master_info
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_plugin.h"    // plugin_int_to_ref
+#include "sql/sql_plugin.h"  // plugin_int_to_ref
 #include "sql/system_variables.h"
 #include "sql/table.h"
 #include "sql/thr_malloc.h"
@@ -70,30 +70,24 @@ Binlog_transmit_delegate *binlog_transmit_delegate;
 Binlog_relay_IO_delegate *binlog_relay_io_delegate;
 
 Observer_info::Observer_info(void *ob, st_plugin_int *p)
-  : observer(ob), plugin_int(p)
-{
-  plugin= plugin_int_to_ref(plugin_int);
+    : observer(ob), plugin_int(p) {
+  plugin = plugin_int_to_ref(plugin_int);
 }
-
 
 Delegate::Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-         PSI_rwlock_key key
+    PSI_rwlock_key key
 #endif
-         )
-{
-  inited= false;
+) {
+  inited = false;
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-  if (mysql_rwlock_init(key, &lock))
-    return;
+  if (mysql_rwlock_init(key, &lock)) return;
 #else
-  if (mysql_rwlock_init(0, &lock))
-    return;
+  if (mysql_rwlock_init(0, &lock)) return;
 #endif
   init_sql_alloc(key_memory_delegate, &memroot, 1024, 0);
-  inited= true;
+  inited = true;
 }
-
 
 /*
   structure to save transaction log filename and position
@@ -103,124 +97,111 @@ typedef struct Trans_binlog_info {
   char log_file[FN_REFLEN];
 } Trans_binlog_info;
 
-int get_user_var_int(const char *name,
-                     long long int *value, int *null_value)
-{
+int get_user_var_int(const char *name, long long int *value, int *null_value) {
   bool null_val;
-  THD *thd= current_thd;
+  THD *thd = current_thd;
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  const auto it= thd->user_vars.find(name);
-  if (it == thd->user_vars.end())
-  {
+  const auto it = thd->user_vars.find(name);
+  if (it == thd->user_vars.end()) {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= it->second->val_int(&null_val);
-  if (null_value)
-    *null_value= null_val;
+  *value = it->second->val_int(&null_val);
+  if (null_value) *null_value = null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
-int get_user_var_real(const char *name,
-                      double *value, int *null_value)
-{
+int get_user_var_real(const char *name, double *value, int *null_value) {
   bool null_val;
-  THD *thd= current_thd;
+  THD *thd = current_thd;
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  const auto it= thd->user_vars.find(name);
-  if (it == thd->user_vars.end())
-  {
+  const auto it = thd->user_vars.find(name);
+  if (it == thd->user_vars.end()) {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
-  *value= it->second->val_real(&null_val);
-  if (null_value)
-    *null_value= null_val;
+  *value = it->second->val_real(&null_val);
+  if (null_value) *null_value = null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
-int get_user_var_str(const char *name, char *value,
-                     size_t len, unsigned int precision, int *null_value)
-{
+int get_user_var_str(const char *name, char *value, size_t len,
+                     unsigned int precision, int *null_value) {
   String str;
   bool null_val;
-  THD *thd= current_thd;
+  THD *thd = current_thd;
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&thd->LOCK_thd_data);
 
-  const auto it= thd->user_vars.find(name);
-  if (it == thd->user_vars.end())
-  {
+  const auto it = thd->user_vars.find(name);
+  if (it == thd->user_vars.end()) {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
     return 1;
   }
   it->second->val_str(&null_val, &str, precision);
   strncpy(value, str.c_ptr(), len);
-  if (null_value)
-    *null_value= null_val;
+  if (null_value) *null_value = null_val;
   mysql_mutex_unlock(&thd->LOCK_thd_data);
   return 0;
 }
 
-int delegates_init()
-{
-  static my_aligned_storage<sizeof(Trans_delegate),
-                            MY_ALIGNOF(longlong)> trans_mem;
+int delegates_init() {
+  static my_aligned_storage<sizeof(Trans_delegate), MY_ALIGNOF(longlong)>
+      trans_mem;
   static my_aligned_storage<sizeof(Binlog_storage_delegate),
-                            MY_ALIGNOF(longlong)> storage_mem;
-  static my_aligned_storage<sizeof(Server_state_delegate),
-                            MY_ALIGNOF(longlong)> server_state_mem;
+                            MY_ALIGNOF(longlong)>
+      storage_mem;
+  static my_aligned_storage<sizeof(Server_state_delegate), MY_ALIGNOF(longlong)>
+      server_state_mem;
   static my_aligned_storage<sizeof(Binlog_transmit_delegate),
-                            MY_ALIGNOF(longlong)> transmit_mem;
+                            MY_ALIGNOF(longlong)>
+      transmit_mem;
   static my_aligned_storage<sizeof(Binlog_relay_IO_delegate),
-                            MY_ALIGNOF(longlong)> relay_io_mem;
+                            MY_ALIGNOF(longlong)>
+      relay_io_mem;
 
-  void *place_trans_mem= trans_mem.data;
-  void *place_storage_mem= storage_mem.data;
-  void *place_state_mem= server_state_mem.data;
+  void *place_trans_mem = trans_mem.data;
+  void *place_storage_mem = storage_mem.data;
+  void *place_state_mem = server_state_mem.data;
 
-  transaction_delegate= new (place_trans_mem) Trans_delegate;
+  transaction_delegate = new (place_trans_mem) Trans_delegate;
 
-  if (!transaction_delegate->is_inited())
-  {
+  if (!transaction_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_TRX_DELEGATES_INIT_FAILED);
     return 1;
   }
 
-  binlog_storage_delegate= new (place_storage_mem) Binlog_storage_delegate;
+  binlog_storage_delegate = new (place_storage_mem) Binlog_storage_delegate;
 
-  if (!binlog_storage_delegate->is_inited())
-  {
+  if (!binlog_storage_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_STORAGE_DELEGATES_INIT_FAILED);
     return 1;
   }
 
-  server_state_delegate= new (place_state_mem) Server_state_delegate;
+  server_state_delegate = new (place_state_mem) Server_state_delegate;
 
-  void *place_transmit_mem= transmit_mem.data;
-  void *place_relay_io_mem= relay_io_mem.data;
+  void *place_transmit_mem = transmit_mem.data;
+  void *place_relay_io_mem = relay_io_mem.data;
 
-  binlog_transmit_delegate= new (place_transmit_mem) Binlog_transmit_delegate;
+  binlog_transmit_delegate = new (place_transmit_mem) Binlog_transmit_delegate;
 
-  if (!binlog_transmit_delegate->is_inited())
-  {
+  if (!binlog_transmit_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_TRANSMIT_DELEGATES_INIT_FAILED);
     return 1;
   }
 
-  binlog_relay_io_delegate= new (place_relay_io_mem) Binlog_relay_IO_delegate;
+  binlog_relay_io_delegate = new (place_relay_io_mem) Binlog_relay_IO_delegate;
 
-  if (!binlog_relay_io_delegate->is_inited())
-  {
+  if (!binlog_relay_io_delegate->is_inited()) {
     LogErr(ERROR_LEVEL, ER_RPL_BINLOG_RELAY_DELEGATES_INIT_FAILED);
     return 1;
   }
@@ -228,14 +209,11 @@ int delegates_init()
   return 0;
 }
 
-void delegates_destroy()
-{
-  if (transaction_delegate)
-    transaction_delegate->~Trans_delegate();
+void delegates_destroy() {
+  if (transaction_delegate) transaction_delegate->~Trans_delegate();
   if (binlog_storage_delegate)
     binlog_storage_delegate->~Binlog_storage_delegate();
-  if (server_state_delegate)
-    server_state_delegate->~Server_state_delegate();
+  if (server_state_delegate) server_state_delegate->~Server_state_delegate();
   if (binlog_transmit_delegate)
     binlog_transmit_delegate->~Binlog_transmit_delegate();
   if (binlog_relay_io_delegate)
@@ -250,119 +228,108 @@ void delegates_destroy()
   Add observer plugins to the thd->lex list, after each statement, all
   plugins add to thd->lex will be automatically unlocked.
  */
-#define FOREACH_OBSERVER(r, f, args)                                    \
-  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
-  read_lock();                                                          \
-  Observer_info_iterator iter= observer_info_iter();                    \
-  Observer_info *info= iter++;                                          \
-  for (; info; info= iter++)                                            \
-  {                                                                     \
-    plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
-    if (!plugin)                                                        \
-    {                                                                   \
-      /* plugin is not intialized or deleted, this is not an error */   \
-      r= 0;                                                             \
-      break;                                                            \
-    }                                                                   \
-    plugins.push_back(plugin);                                          \
-    if (((Observer *)info->observer)->f                                 \
-        && ((Observer *)info->observer)->f args)                        \
-    {                                                                   \
-      r= 1;                                                             \
-      LogEvent().prio(ERROR_LEVEL)                                      \
-                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
-                .subsys(LOG_SUBSYSTEM_TAG)                              \
-                .function(#f)                                           \
-                .message("Run function '" #f "' in plugin '%s' failed", \
-                         info->plugin_int->name.str);                   \
-      break;                                                            \
-    }                                                                   \
-  }                                                                     \
-  unlock();                                                             \
-  /*
-     Unlock plugins should be done after we released the Delegate lock
-     to avoid possible deadlock when this is the last user of the
-     plugin, and when we unlock the plugin, it will try to
-     deinitialize the plugin, which will try to lock the Delegate in
-     order to remove the observers.
-  */                                                                    \
-  if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+#define FOREACH_OBSERVER(r, f, args)                                   \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
+  read_lock();                                                         \
+  Observer_info_iterator iter = observer_info_iter();                  \
+  Observer_info *info = iter++;                                        \
+  for (; info; info = iter++) {                                        \
+    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    if (!plugin) {                                                     \
+      /* plugin is not intialized or deleted, this is not an error */  \
+      r = 0;                                                           \
+      break;                                                           \
+    }                                                                  \
+    plugins.push_back(plugin);                                         \
+    if (((Observer *)info->observer)->f &&                             \
+        ((Observer *)info->observer)->f args) {                        \
+      r = 1;                                                           \
+      LogEvent()                                                       \
+          .prio(ERROR_LEVEL)                                           \
+          .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                      \
+          .subsys(LOG_SUBSYSTEM_TAG)                                   \
+          .function(#f)                                                \
+          .message("Run function '" #f "' in plugin '%s' failed",      \
+                   info->plugin_int->name.str);                        \
+      break;                                                           \
+    }                                                                  \
+  }                                                                    \
+  unlock();                                                            \
+  /*                                                                   \
+     Unlock plugins should be done after we released the Delegate lock \
+     to avoid possible deadlock when this is the last user of the      \
+     plugin, and when we unlock the plugin, it will try to             \
+     deinitialize the plugin, which will try to lock the Delegate in   \
+     order to remove the observers.                                    \
+  */                                                                   \
+  if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
-#define FOREACH_OBSERVER_ERROR_OUT(r, f, args, out)                     \
-  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);        \
-  read_lock();                                                          \
-  Observer_info_iterator iter= observer_info_iter();                    \
-  Observer_info *info= iter++;                                          \
-                                                                        \
-  int error_out= 0;                                                     \
-  for (; info; info= iter++)                                            \
-  {                                                                     \
-    plugin_ref plugin=                                                  \
-      my_plugin_lock(0, &info->plugin);                                 \
-    if (!plugin)                                                        \
-    {                                                                   \
-      /* plugin is not intialized or deleted, this is not an error */   \
-      r= 0;                                                             \
-      break;                                                            \
-    }                                                                   \
-    plugins.push_back(plugin);                                          \
-                                                                        \
-    bool hook_error= false;                                             \
-    hook_error= ((Observer *)info->observer)->f (args, error_out);      \
-                                                                        \
-    out += error_out;                                                   \
-    if (hook_error)                                                     \
-    {                                                                   \
-      r= 1;                                                             \
-      LogEvent().prio(ERROR_LEVEL)                                      \
-                .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                 \
-                .subsys(LOG_SUBSYSTEM_TAG)                              \
-                .function(#f)                                           \
-                .message("Run function '" #f "' in plugin '%s' failed", \
-                         info->plugin_int->name.str);                   \
-      break;                                                            \
-    }                                                                   \
-  }                                                                     \
-  unlock();                                                             \
-  /*
-     Unlock plugins should be done after we released the Delegate lock
-     to avoid possible deadlock when this is the last user of the
-     plugin, and when we unlock the plugin, it will try to
-     deinitialize the plugin, which will try to lock the Delegate in
-     order to remove the observers.
-  */                                                                    \
-  if (!plugins.empty())                                                 \
-    plugin_unlock_list(0, &plugins[0], plugins.size());
+#define FOREACH_OBSERVER_ERROR_OUT(r, f, args, out)                    \
+  Prealloced_array<plugin_ref, 8> plugins(PSI_NOT_INSTRUMENTED);       \
+  read_lock();                                                         \
+  Observer_info_iterator iter = observer_info_iter();                  \
+  Observer_info *info = iter++;                                        \
+                                                                       \
+  int error_out = 0;                                                   \
+  for (; info; info = iter++) {                                        \
+    plugin_ref plugin = my_plugin_lock(0, &info->plugin);              \
+    if (!plugin) {                                                     \
+      /* plugin is not intialized or deleted, this is not an error */  \
+      r = 0;                                                           \
+      break;                                                           \
+    }                                                                  \
+    plugins.push_back(plugin);                                         \
+                                                                       \
+    bool hook_error = false;                                           \
+    hook_error = ((Observer *)info->observer)->f(args, error_out);     \
+                                                                       \
+    out += error_out;                                                  \
+    if (hook_error) {                                                  \
+      r = 1;                                                           \
+      LogEvent()                                                       \
+          .prio(ERROR_LEVEL)                                           \
+          .errcode(ER_RPL_PLUGIN_FUNCTION_FAILED)                      \
+          .subsys(LOG_SUBSYSTEM_TAG)                                   \
+          .function(#f)                                                \
+          .message("Run function '" #f "' in plugin '%s' failed",      \
+                   info->plugin_int->name.str);                        \
+      break;                                                           \
+    }                                                                  \
+  }                                                                    \
+  unlock();                                                            \
+  /*                                                                   \
+     Unlock plugins should be done after we released the Delegate lock \
+     to avoid possible deadlock when this is the last user of the      \
+     plugin, and when we unlock the plugin, it will try to             \
+     deinitialize the plugin, which will try to lock the Delegate in   \
+     order to remove the observers.                                    \
+  */                                                                   \
+  if (!plugins.empty()) plugin_unlock_list(0, &plugins[0], plugins.size());
 
-int Trans_delegate::before_commit(THD *thd, bool all,
-                                  IO_CACHE *trx_cache_log,
+int Trans_delegate::before_commit(THD *thd, bool all, IO_CACHE *trx_cache_log,
                                   IO_CACHE *stmt_cache_log,
                                   ulonglong cache_log_max_size,
-                                  bool is_atomic_ddl_arg)
-{
+                                  bool is_atomic_ddl_arg) {
   DBUG_ENTER("Trans_delegate::before_commit");
   Trans_param param;
   TRANS_PARAM_ZERO(param);
-  param.server_id= thd->server_id;
-  param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id();
-  param.gtid_info.type= thd->variables.gtid_next.type;
-  param.gtid_info.sidno= thd->variables.gtid_next.gtid.sidno;
-  param.gtid_info.gno= thd->variables.gtid_next.gtid.gno;
-  param.trx_cache_log= trx_cache_log;
-  param.stmt_cache_log= stmt_cache_log;
-  param.cache_log_max_size= cache_log_max_size;
-  param.original_commit_timestamp= &thd->variables.original_commit_timestamp;
-  param.is_atomic_ddl= is_atomic_ddl_arg;
+  param.server_id = thd->server_id;
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
+  param.gtid_info.type = thd->variables.gtid_next.type;
+  param.gtid_info.sidno = thd->variables.gtid_next.gtid.sidno;
+  param.gtid_info.gno = thd->variables.gtid_next.gtid.gno;
+  param.trx_cache_log = trx_cache_log;
+  param.stmt_cache_log = stmt_cache_log;
+  param.cache_log_max_size = cache_log_max_size;
+  param.original_commit_timestamp = &thd->variables.original_commit_timestamp;
+  param.is_atomic_ddl = is_atomic_ddl_arg;
 
-  bool is_real_trans=
-    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-  if (is_real_trans)
-    param.flags|= TRANS_IS_REAL_TRANS;
+  bool is_real_trans =
+      (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+  if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_commit, (&param));
   DBUG_RETURN(ret);
 }
@@ -375,14 +342,12 @@ int Trans_delegate::before_commit(THD *thd, bool all,
  @return bool true      If the table has 'CASCADE' foreign key.
               false     If the table does not have 'CASCADE' foreign key.
 */
-bool has_cascade_foreign_key(TABLE *table)
-{
+bool has_cascade_foreign_key(TABLE *table) {
   DBUG_ENTER("has_cascade_foreign_key");
 
-  TABLE_SHARE_FOREIGN_KEY_INFO *fk= table->s->foreign_key;
+  TABLE_SHARE_FOREIGN_KEY_INFO *fk = table->s->foreign_key;
 
-  for (uint i= 0; i < table->s->foreign_keys; i++)
-  {
+  for (uint i = 0; i < table->s->foreign_keys; i++) {
     /*
       The supported values of update/delete_rule are: CASCADE, SET NULL,
       NO ACTION, RESTRICT and SET DEFAULT.
@@ -392,8 +357,7 @@ bool has_cascade_foreign_key(TABLE *table)
         dd::Foreign_key::RULE_SET_NULL == fk[i].update_rule ||
         dd::Foreign_key::RULE_SET_NULL == fk[i].delete_rule ||
         dd::Foreign_key::RULE_SET_DEFAULT == fk[i].update_rule ||
-        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule)
-    {
+        dd::Foreign_key::RULE_SET_DEFAULT == fk[i].delete_rule) {
       DBUG_RETURN(true);
     }
   }
@@ -403,84 +367,71 @@ bool has_cascade_foreign_key(TABLE *table)
 /**
  Helper method to create table information for the hook call
  */
-void
-prepare_table_info(THD* thd,
-                   Trans_table_info*& table_info_list,
-                   uint& number_of_tables)
-{
+void prepare_table_info(THD *thd, Trans_table_info *&table_info_list,
+                        uint &number_of_tables) {
   DBUG_ENTER("prepare_table_info");
 
-  TABLE* open_tables= thd->open_tables;
+  TABLE *open_tables = thd->open_tables;
 
   // Fail if tables are not open
-  if(open_tables == NULL)
-  {
+  if (open_tables == NULL) {
     DBUG_VOID_RETURN;
   }
 
-  //Gather table information
+  // Gather table information
   std::vector<Trans_table_info> table_info_holder;
-  for(; open_tables != NULL; open_tables= open_tables->next)
-  {
-    Trans_table_info table_info = {0,0,0,0};
+  for (; open_tables != NULL; open_tables = open_tables->next) {
+    Trans_table_info table_info = {0, 0, 0, 0};
 
-    if (open_tables->no_replicate)
-    {
+    if (open_tables->no_replicate) {
       continue;
     }
 
-    table_info.table_name= open_tables->s->table_name.str;
+    table_info.table_name = open_tables->s->table_name.str;
 
-    uint primary_keys= 0;
-    if(open_tables->key_info != NULL && (open_tables->s->primary_key < MAX_KEY))
-    {
-      primary_keys= open_tables->s->primary_key;
+    uint primary_keys = 0;
+    if (open_tables->key_info != NULL &&
+        (open_tables->s->primary_key < MAX_KEY)) {
+      primary_keys = open_tables->s->primary_key;
 
-      //if primary keys is still 0, lets double check on another var
-      if(primary_keys == 0)
-      {
-        primary_keys= open_tables->key_info->user_defined_key_parts;
+      // if primary keys is still 0, lets double check on another var
+      if (primary_keys == 0) {
+        primary_keys = open_tables->key_info->user_defined_key_parts;
       }
     }
 
-    table_info.number_of_primary_keys= primary_keys;
+    table_info.number_of_primary_keys = primary_keys;
 
-    table_info.db_type= open_tables->s->db_type()->db_type;
+    table_info.db_type = open_tables->s->db_type()->db_type;
 
     /*
       Find out if the table has foreign key with ON UPDATE/DELETE CASCADE
       clause.
     */
-    table_info.has_cascade_foreign_key= has_cascade_foreign_key(open_tables);
+    table_info.has_cascade_foreign_key = has_cascade_foreign_key(open_tables);
 
     table_info_holder.push_back(table_info);
   }
 
-  //Now that one has all the information, one should build the
+  // Now that one has all the information, one should build the
   // data that will be delivered to the plugin
-  if(table_info_holder.size() > 0)
-  {
-    number_of_tables= table_info_holder.size();
+  if (table_info_holder.size() > 0) {
+    number_of_tables = table_info_holder.size();
 
-    table_info_list= (Trans_table_info*)my_malloc(
-                               PSI_NOT_INSTRUMENTED,
-                               number_of_tables * sizeof(Trans_table_info),
-                               MYF(0));
+    table_info_list = (Trans_table_info *)my_malloc(
+        PSI_NOT_INSTRUMENTED, number_of_tables * sizeof(Trans_table_info),
+        MYF(0));
 
-    std::vector<Trans_table_info>::iterator table_info_holder_it
-                                                  = table_info_holder.begin();
-    for(int table= 0;
-        table_info_holder_it != table_info_holder.end();
-        table_info_holder_it++, table++)
-    {
-      table_info_list[table].number_of_primary_keys
-                                = (*table_info_holder_it).number_of_primary_keys;
-      table_info_list[table].table_name
-                                = (*table_info_holder_it).table_name;
-      table_info_list[table].db_type
-                                = (*table_info_holder_it).db_type;
-      table_info_list[table].has_cascade_foreign_key
-                                = (*table_info_holder_it).has_cascade_foreign_key;
+    std::vector<Trans_table_info>::iterator table_info_holder_it =
+        table_info_holder.begin();
+    for (int table = 0; table_info_holder_it != table_info_holder.end();
+         table_info_holder_it++, table++) {
+      table_info_list[table].number_of_primary_keys =
+          (*table_info_holder_it).number_of_primary_keys;
+      table_info_list[table].table_name = (*table_info_holder_it).table_name;
+      table_info_list[table].db_type = (*table_info_holder_it).db_type;
+      table_info_list[table].has_cascade_foreign_key =
+          (*table_info_holder_it).has_cascade_foreign_key;
     }
   }
 
@@ -493,39 +444,38 @@ prepare_table_info(THD* thd,
   @param[in]   thd       the current execution thread
   @param[out]  ctx_info  Trans_context_info in which the result is stored.
  */
-static void prepare_transaction_context(THD* thd, Trans_context_info& ctx_info)
-{
-  //Extracting the session value of SQL binlogging
-  ctx_info.binlog_enabled= thd->variables.sql_log_bin;
+static void prepare_transaction_context(THD *thd,
+                                        Trans_context_info &ctx_info) {
+  // Extracting the session value of SQL binlogging
+  ctx_info.binlog_enabled = thd->variables.sql_log_bin;
 
-  //Extracting the session value of binlog format
-  ctx_info.binlog_format= thd->variables.binlog_format;
+  // Extracting the session value of binlog format
+  ctx_info.binlog_format = thd->variables.binlog_format;
 
-  //Extracting the global mutable value of binlog checksum
-  ctx_info.binlog_checksum_options= binlog_checksum_options;
+  // Extracting the global mutable value of binlog checksum
+  ctx_info.binlog_checksum_options = binlog_checksum_options;
 
-  //Extracting the session value of transaction_write_set_extraction
-  ctx_info.transaction_write_set_extraction=
-    thd->variables.transaction_write_set_extraction;
+  // Extracting the session value of transaction_write_set_extraction
+  ctx_info.transaction_write_set_extraction =
+      thd->variables.transaction_write_set_extraction;
 
-  //Extracting transaction isolation level
-  ctx_info.tx_isolation= thd->tx_isolation;
+  // Extracting transaction isolation level
+  ctx_info.tx_isolation = thd->tx_isolation;
 }
 
-int Trans_delegate::before_dml(THD* thd, int& result)
-{
+int Trans_delegate::before_dml(THD *thd, int &result) {
   DBUG_ENTER("Trans_delegate::before_dml");
   Trans_param param;
   TRANS_PARAM_ZERO(param);
 
-  param.server_id= thd->server_id;
-  param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
 
   prepare_table_info(thd, param.tables_info, param.number_of_tables);
   prepare_transaction_context(thd, param.trans_ctx_info);
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER_ERROR_OUT(ret, before_dml, &param, result);
 
   my_free(param.tables_info);
@@ -533,194 +483,177 @@ int Trans_delegate::before_dml(THD* thd, int& result)
   DBUG_RETURN(ret);
 }
 
-int Trans_delegate::before_rollback(THD *thd, bool all)
-{
+int Trans_delegate::before_rollback(THD *thd, bool all) {
   DBUG_ENTER("Trans_delegate::before_rollback");
   Trans_param param;
   TRANS_PARAM_ZERO(param);
-  param.server_id= thd->server_id;
-  param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
 
-  bool is_real_trans=
-    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-  if (is_real_trans)
-    param.flags|= TRANS_IS_REAL_TRANS;
+  bool is_real_trans =
+      (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+  if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_rollback, (&param));
   DBUG_RETURN(ret);
 }
 
-int Trans_delegate::after_commit(THD *thd, bool all)
-{
+int Trans_delegate::after_commit(THD *thd, bool all) {
   DBUG_ENTER("Trans_delegate::after_commit");
   Trans_param param;
   TRANS_PARAM_ZERO(param);
-  param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id();
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
 
-  bool is_real_trans=
-    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-  if (is_real_trans)
-    param.flags|= TRANS_IS_REAL_TRANS;
+  bool is_real_trans =
+      (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+  if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
 
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
-  param.server_id= thd->server_id;
+  param.server_id = thd->server_id;
 
-  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
+  DBUG_PRINT("enter",
+             ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
   DEBUG_SYNC(thd, "before_call_after_commit_observer");
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_commit, (&param));
   DBUG_RETURN(ret);
 }
 
-int Trans_delegate::after_rollback(THD *thd, bool all)
-{
+int Trans_delegate::after_rollback(THD *thd, bool all) {
   DBUG_ENTER("Trans_delegate::after_rollback");
   Trans_param param;
   TRANS_PARAM_ZERO(param);
-  param.server_uuid= server_uuid;
-  param.thread_id= thd->thread_id();
+  param.server_uuid = server_uuid;
+  param.thread_id = thd->thread_id();
 
-  bool is_real_trans=
-    (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
-  if (is_real_trans)
-    param.flags|= TRANS_IS_REAL_TRANS;
+  bool is_real_trans =
+      (all || !thd->get_transaction()->is_active(Transaction_ctx::SESSION));
+  if (is_real_trans) param.flags |= TRANS_IS_REAL_TRANS;
   thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
-  param.server_id= thd->server_id;
+  param.server_id = thd->server_id;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_rollback, (&param));
   DBUG_RETURN(ret);
 }
 
-int Binlog_storage_delegate::after_flush(THD *thd,
-                                         const char *log_file,
-                                         my_off_t log_pos)
-{
+int Binlog_storage_delegate::after_flush(THD *thd, const char *log_file,
+                                         my_off_t log_pos) {
   DBUG_ENTER("Binlog_storage_delegate::after_flush");
-  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu",
-                       log_file, (ulonglong) log_pos));
+  DBUG_PRINT("enter",
+             ("log_file: %s, log_pos: %llu", log_file, (ulonglong)log_pos));
   Binlog_storage_param param;
-  param.server_id= thd->server_id;
+  param.server_id = thd->server_id;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_flush, (&param, log_file, log_pos));
   DBUG_RETURN(ret);
 }
 
 /**
-  * This hook MUST be invoked after ALL recovery operations are performed
-  * and the server is ready to serve clients.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::before_handle_connection(THD*)
-{
+ * This hook MUST be invoked after ALL recovery operations are performed
+ * and the server is ready to serve clients.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::before_handle_connection(THD *) {
   DBUG_ENTER("Server_state_delegate::before_client_connection");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_handle_connection, (&param));
   DBUG_RETURN(ret);
-
 }
 
 /**
-  * This hook MUST be invoked before ANY recovery action is started.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::before_recovery(THD*)
-{
+ * This hook MUST be invoked before ANY recovery action is started.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::before_recovery(THD *) {
   DBUG_ENTER("Server_state_delegate::before_recovery");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_recovery, (&param));
   DBUG_RETURN(ret);
 }
 
 /**
-  * This hook MUST be invoked after the recovery from the engine
-  * is complete.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::after_engine_recovery(THD*)
-{
+ * This hook MUST be invoked after the recovery from the engine
+ * is complete.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::after_engine_recovery(THD *) {
   DBUG_ENTER("Server_state_delegate::after_engine_recovery");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_engine_recovery, (&param));
   DBUG_RETURN(ret);
-
 }
 
 /**
-  * This hook MUST be invoked after the server has completed the
-  * local recovery. The server can proceed with the further operations
-  * like engaging in distributed recovery etc.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::after_recovery(THD*)
-{
+ * This hook MUST be invoked after the server has completed the
+ * local recovery. The server can proceed with the further operations
+ * like engaging in distributed recovery etc.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::after_recovery(THD *) {
   DBUG_ENTER("Server_state_delegate::after_recovery");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_recovery, (&param));
   DBUG_RETURN(ret);
 }
 
 /**
-  * This hook MUST be invoked before server shutdown action is
-  * initiated.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::before_server_shutdown(THD*)
-{
+ * This hook MUST be invoked before server shutdown action is
+ * initiated.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::before_server_shutdown(THD *) {
   DBUG_ENTER("Server_state_delegate::before_server_shutdown");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_server_shutdown, (&param));
   DBUG_RETURN(ret);
 }
 
 /**
-  * This hook MUST be invoked after server shutdown operation is
-  * complete.
-  *
-  * @return 0 on success, >0 otherwise.
-*/
-int Server_state_delegate::after_server_shutdown(THD*)
-{
+ * This hook MUST be invoked after server shutdown operation is
+ * complete.
+ *
+ * @return 0 on success, >0 otherwise.
+ */
+int Server_state_delegate::after_server_shutdown(THD *) {
   DBUG_ENTER("Server_state_delegate::after_server_shutdown");
   Server_state_param param;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_server_shutdown, (&param));
   DBUG_RETURN(ret);
 }
 
-int Binlog_storage_delegate::after_sync(THD *thd,
-                                        const char *log_file,
-                                        my_off_t log_pos)
-{
+int Binlog_storage_delegate::after_sync(THD *thd, const char *log_file,
+                                        my_off_t log_pos) {
   DBUG_ENTER("Binlog_storage_delegate::after_sync");
-  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu",
-                       log_file, (ulonglong) log_pos));
+  DBUG_PRINT("enter",
+             ("log_file: %s, log_pos: %llu", log_file, (ulonglong)log_pos));
   Binlog_storage_param param;
-  param.server_id= thd->server_id;
+  param.server_id = thd->server_id;
 
   DBUG_ASSERT(log_pos != 0);
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_sync, (&param, log_file, log_pos));
 
   DEBUG_SYNC(thd, "after_call_after_sync_observer");
@@ -730,78 +663,67 @@ int Binlog_storage_delegate::after_sync(THD *thd,
 int Binlog_transmit_delegate::transmit_start(THD *thd, ushort flags,
                                              const char *log_file,
                                              my_off_t log_pos,
-                                             bool *observe_transmission)
-{
+                                             bool *observe_transmission) {
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, transmit_start, (&param, log_file, log_pos));
-  *observe_transmission= param.should_observe();
+  *observe_transmission = param.should_observe();
   return ret;
 }
 
-int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags)
-{
+int Binlog_transmit_delegate::transmit_stop(THD *thd, ushort flags) {
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, transmit_stop, (&param));
   return ret;
 }
 
 int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
-                                             String *packet)
-{
-  /* NOTE2ME: Maximum extra header size for each observer, I hope 32
-     bytes should be enough for each Observer to reserve their extra
-     header. If later found this is not enough, we can increase this
-     /HEZX
-  */
+                                             String *packet) {
+/* NOTE2ME: Maximum extra header size for each observer, I hope 32
+   bytes should be enough for each Observer to reserve their extra
+   header. If later found this is not enough, we can increase this
+   /HEZX
+*/
 #define RESERVE_HEADER_SIZE 32
   unsigned char header[RESERVE_HEADER_SIZE];
   ulong hlen;
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
-  int ret= 0;
+  int ret = 0;
   read_lock();
-  Observer_info_iterator iter= observer_info_iter();
-  Observer_info *info= iter++;
-  for (; info; info= iter++)
-  {
-    plugin_ref plugin=
-      my_plugin_lock(thd, &info->plugin);
-    if (!plugin)
-    {
-      ret= 1;
+  Observer_info_iterator iter = observer_info_iter();
+  Observer_info *info = iter++;
+  for (; info; info = iter++) {
+    plugin_ref plugin = my_plugin_lock(thd, &info->plugin);
+    if (!plugin) {
+      ret = 1;
       break;
     }
-    hlen= 0;
-    if (((Observer *)info->observer)->reserve_header
-        && ((Observer *)info->observer)->reserve_header(&param,
-                                                        header,
-                                                        RESERVE_HEADER_SIZE,
-                                                        &hlen))
-    {
-      ret= 1;
+    hlen = 0;
+    if (((Observer *)info->observer)->reserve_header &&
+        ((Observer *)info->observer)
+            ->reserve_header(&param, header, RESERVE_HEADER_SIZE, &hlen)) {
+      ret = 1;
       plugin_unlock(thd, plugin);
       break;
     }
     plugin_unlock(thd, plugin);
-    if (hlen == 0)
-      continue;
-    if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen))
-    {
-      ret= 1;
+    if (hlen == 0) continue;
+    if (hlen > RESERVE_HEADER_SIZE || packet->append((char *)header, hlen)) {
+      ret = 1;
       break;
     }
   }
@@ -812,38 +734,35 @@ int Binlog_transmit_delegate::reserve_header(THD *thd, ushort flags,
 int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
                                                 String *packet,
                                                 const char *log_file,
-                                                my_off_t log_pos)
-{
+                                                my_off_t log_pos) {
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_send_event,
-                   (&param, (uchar *)packet->ptr(),
-                    packet->length(),
-                    log_file+dirname_length(log_file), log_pos));
+                   (&param, (uchar *)packet->ptr(), packet->length(),
+                    log_file + dirname_length(log_file), log_pos));
   return ret;
 }
 
 int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
                                                String *packet,
                                                const char *skipped_log_file,
-                                               my_off_t skipped_log_pos)
-{
+                                               my_off_t skipped_log_pos) {
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
   DBUG_EXECUTE_IF("crash_binlog_transmit_hook", DBUG_SUICIDE(););
 
-  int ret= 0;
-  FOREACH_OBSERVER(ret, after_send_event,
-                   (&param, packet->ptr(), packet->length(),
-                   skipped_log_file+dirname_length(skipped_log_file),
-                    skipped_log_pos));
+  int ret = 0;
+  FOREACH_OBSERVER(
+      ret, after_send_event,
+      (&param, packet->ptr(), packet->length(),
+       skipped_log_file + dirname_length(skipped_log_file), skipped_log_pos));
   return ret;
 }
 
@@ -851,88 +770,78 @@ int Binlog_transmit_delegate::after_reset_master(THD *thd, ushort flags)
 
 {
   Binlog_transmit_param param;
-  param.flags= flags;
-  param.server_id= thd->server_id;
+  param.flags = flags;
+  param.server_id = thd->server_id;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_reset_master, (&param));
   return ret;
 }
 
 void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
-                                          Master_info *mi)
-{
-  param->mysql= mi->mysql;
-  param->channel_name= mi->get_channel();
-  param->user= const_cast<char *>(mi->get_user());
-  param->host= mi->host;
-  param->port= mi->port;
-  param->master_log_name= const_cast<char *>(mi->get_master_log_name());
-  param->master_log_pos= mi->get_master_log_pos();
+                                          Master_info *mi) {
+  param->mysql = mi->mysql;
+  param->channel_name = mi->get_channel();
+  param->user = const_cast<char *>(mi->get_user());
+  param->host = mi->host;
+  param->port = mi->port;
+  param->master_log_name = const_cast<char *>(mi->get_master_log_name());
+  param->master_log_pos = mi->get_master_log_pos();
 }
 
-int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi)
-{
+int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, thread_start, (&param));
   return ret;
 }
 
-
-int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi)
-{
-
+int Binlog_relay_IO_delegate::thread_stop(THD *thd, Master_info *mi) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, thread_stop, (&param));
   return ret;
 }
 
-int Binlog_relay_IO_delegate::applier_start(THD *thd, Master_info *mi)
-{
+int Binlog_relay_IO_delegate::applier_start(THD *thd, Master_info *mi) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, applier_start, (&param));
   return ret;
 }
 
-int Binlog_relay_IO_delegate::applier_stop(THD *thd,
-                                           Master_info *mi,
-                                           bool aborted)
-{
+int Binlog_relay_IO_delegate::applier_stop(THD *thd, Master_info *mi,
+                                           bool aborted) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, applier_stop, (&param, aborted));
   return ret;
 }
 
-int Binlog_relay_IO_delegate::before_request_transmit(THD *thd,
-                                                      Master_info *mi,
-                                                      ushort flags)
-{
+int Binlog_relay_IO_delegate::before_request_transmit(THD *thd, Master_info *mi,
+                                                      ushort flags) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, before_request_transmit, (&param, (uint32)flags));
   return ret;
 }
@@ -940,14 +849,13 @@ int Binlog_relay_IO_delegate::before_request_transmit(THD *thd,
 int Binlog_relay_IO_delegate::after_read_event(THD *thd, Master_info *mi,
                                                const char *packet, ulong len,
                                                const char **event_buf,
-                                               ulong *event_len)
-{
+                                               ulong *event_len) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_read_event,
                    (&param, packet, len, event_buf, event_len));
   return ret;
@@ -955,19 +863,16 @@ int Binlog_relay_IO_delegate::after_read_event(THD *thd, Master_info *mi,
 
 int Binlog_relay_IO_delegate::after_queue_event(THD *thd, Master_info *mi,
                                                 const char *event_buf,
-                                                ulong event_len,
-                                                bool synced)
-{
+                                                ulong event_len, bool synced) {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  uint32 flags=0;
-  if (synced)
-    flags |= BINLOG_STORAGE_IS_SYNCED;
+  uint32 flags = 0;
+  if (synced) flags |= BINLOG_STORAGE_IS_SYNCED;
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_queue_event,
                    (&param, event_buf, event_len, flags));
   return ret;
@@ -978,28 +883,27 @@ int Binlog_relay_IO_delegate::after_reset_slave(THD *thd, Master_info *mi)
 {
   Binlog_relay_IO_param param;
   init_param(&param, mi);
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, after_reset_slave, (&param));
   return ret;
 }
 
-int
-Binlog_relay_IO_delegate::applier_log_event(THD *thd, int& out)
-{
+int Binlog_relay_IO_delegate::applier_log_event(THD *thd, int &out) {
   DBUG_ENTER("Binlog_relay_IO_delegate::applier_skip_event");
   Trans_param trans_param;
   TRANS_PARAM_ZERO(trans_param);
   Binlog_relay_IO_param param;
 
-  param.server_id= thd->server_id;
-  param.thread_id= thd->thread_id();
+  param.server_id = thd->server_id;
+  param.thread_id = thd->thread_id();
 
-  prepare_table_info(thd, trans_param.tables_info, trans_param.number_of_tables);
+  prepare_table_info(thd, trans_param.tables_info,
+                     trans_param.number_of_tables);
 
-  int ret= 0;
+  int ret = 0;
   FOREACH_OBSERVER(ret, applier_log_event, (&param, &trans_param, out));
 
   my_free(trans_param.tables_info);
@@ -1007,58 +911,57 @@ Binlog_relay_IO_delegate::applier_log_event(THD *thd, int& out)
   DBUG_RETURN(ret);
 }
 
-int register_trans_observer(Trans_observer *observer, void *p)
-{
+int register_trans_observer(Trans_observer *observer, void *p) {
   return transaction_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_trans_observer(Trans_observer *observer, void*)
-{
+int unregister_trans_observer(Trans_observer *observer, void *) {
   return transaction_delegate->remove_observer(observer);
 }
 
-int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
-{
+int register_binlog_storage_observer(Binlog_storage_observer *observer,
+                                     void *p) {
   DBUG_ENTER("register_binlog_storage_observer");
-  int result= binlog_storage_delegate->add_observer(observer, (st_plugin_int *)p);
+  int result =
+      binlog_storage_delegate->add_observer(observer, (st_plugin_int *)p);
   DBUG_RETURN(result);
 }
 
-int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void*)
-{
+int unregister_binlog_storage_observer(Binlog_storage_observer *observer,
+                                       void *) {
   return binlog_storage_delegate->remove_observer(observer);
 }
 
-int register_server_state_observer(Server_state_observer *observer, void *plugin_var)
-{
+int register_server_state_observer(Server_state_observer *observer,
+                                   void *plugin_var) {
   DBUG_ENTER("register_server_state_observer");
-  int result= server_state_delegate->add_observer(observer, (st_plugin_int *)plugin_var);
+  int result = server_state_delegate->add_observer(observer,
+                                                   (st_plugin_int *)plugin_var);
   DBUG_RETURN(result);
 }
 
-int unregister_server_state_observer(Server_state_observer *observer, void*)
-{
+int unregister_server_state_observer(Server_state_observer *observer, void *) {
   DBUG_ENTER("unregister_server_state_observer");
-  int result= server_state_delegate->remove_observer(observer);
+  int result = server_state_delegate->remove_observer(observer);
   DBUG_RETURN(result);
 }
 
-int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p)
-{
+int register_binlog_transmit_observer(Binlog_transmit_observer *observer,
+                                      void *p) {
   return binlog_transmit_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void*)
-{
+int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer,
+                                        void *) {
   return binlog_transmit_delegate->remove_observer(observer);
 }
 
-int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p)
-{
+int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
+                                      void *p) {
   return binlog_relay_io_delegate->add_observer(observer, (st_plugin_int *)p);
 }
 
-int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void*)
-{
+int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
+                                        void *) {
   return binlog_relay_io_delegate->remove_observer(observer);
 }

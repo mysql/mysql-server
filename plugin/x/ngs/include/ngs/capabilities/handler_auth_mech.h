@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,44 +22,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_CAPABILITIE_AUTH_MECH_H_
 #define _NGS_CAPABILITIE_AUTH_MECH_H_
-
 
 #include <string>
 
 #include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 
+namespace ngs {
 
-namespace ngs
-{
+class Client_interface;
 
-  class Client_interface;
+class Capability_auth_mech : public Capability_handler {
+ public:
+  Capability_auth_mech(Client_interface &client) : m_client(client) {}
 
+  virtual const std::string name() const { return "authentication.mechanisms"; }
+  virtual bool is_supported() const;
 
-  class Capability_auth_mech : public Capability_handler
-  {
-  public:
-    Capability_auth_mech(Client_interface& client) : m_client(client)
-    {
-    }
+  virtual void get(::Mysqlx::Datatypes::Any &any);
+  virtual bool set(const ::Mysqlx::Datatypes::Any &any);
 
-    virtual const std::string name() const { return "authentication.mechanisms"; }
-    virtual bool is_supported() const;
+  virtual void commit();
 
-    virtual void get(::Mysqlx::Datatypes::Any &any);
-    virtual bool set(const ::Mysqlx::Datatypes::Any &any);
+ private:
+  Client_interface &m_client;
+};
 
-    virtual void commit();
+}  // namespace ngs
 
-  private:
-
-    Client_interface& m_client;
-  };
-
-
-} // namespace ngs
-
-
-#endif // _NGS_CAPABILITIE_AUTH_MECH_H_
+#endif  // _NGS_CAPABILITIE_AUTH_MECH_H_

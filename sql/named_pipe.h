@@ -29,9 +29,7 @@
 
 HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
                                 SECURITY_DESCRIPTOR *sec_descr,
-                                DWORD buffer_size,
-                                const char *name,
-                                char *name_buf,
-                                size_t buflen);
+                                DWORD buffer_size, const char *name,
+                                char *name_buf, size_t buflen);
 
 #endif /* NAMED_PIPE_INCLUDED */

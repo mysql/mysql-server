@@ -1,0 +1,69 @@
+###############################################################################
+# Check mysqladmin output to test group_replication variable's values.
+# Test :
+# 0. This test requires 2 servers which should be in group replication
+# 1. Bring up the group replication with 2 servers
+# 2. Use myqladmin executable and dump all the variables to a file
+# 3. Using perl script go through the dumped file and print all the
+#    group replication variable with values
+# 4. Cleanup
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+#=============== Checking the group replication variable values ================
+--echo =====mysqladmin -u root -P MASTER_MYPORT --protocol=TCP check all the GR variable outputs=====
+--exec $MYSQLADMIN -u root -P $MASTER_MYPORT --protocol=TCP variables >$MYSQLTEST_VARDIR/tmp/group_replication_variables_mysqladmin.tmp
+
+# This subroutine checks for group replication variables in the dump file and
+# adds it to @varlist and then prints the item from the list
+# Currently it takes one search pattern string and seraches for that
+# particular gr variable and prints it.
+
+perl;
+sub mySubroutine () {
+my $search_file="$ENV{'MYSQLTEST_VARDIR'}/tmp/group_replication_variables_mysqladmin.tmp" or die "SEARCH_FILE not set";
+my $search_pattern="$_[0]";
+my $found=0;
+my $line;
+my @varlist;
+
+open(FILE, "$search_file") or die("Unable to open '$search_file': $!\n");
+my @file_content=<FILE>;
+foreach $line ( @file_content ) {
+    if ( $line =~ /($search_pattern)/ ) {
+        $found= 1;
+	# Split based on | and spaces and add it to @varlist
+	push @varlist,split (/[\|\s]+/,$line)
+    }
+}
+close(FILE);
+print join("\n",@varlist);
+
+if ( ($found == 0) && (not $line =~ m{$search_pattern}) ) {
+    die("# ERROR: The file '$search_file' does not contain the expected pattern  $search_pattern\n->$line<-\n");
+    }
+}
+
+# Calling the subroutine for the variables which needs to be searched and printed
+# Many other variables are not considered due to their dynamic values and
+# values with different runs across different machines
+
+&mySubroutine('group_replication_allow_local_lower_version_join');
+&mySubroutine('group_replication_auto_increment_increment');
+&mySubroutine('group_replication_bootstrap_group');
+&mySubroutine('group_replication_components_stop_timeout');
+&mySubroutine('group_replication_compression_threshold');
+&mySubroutine('group_replication_force_members');
+&mySubroutine('group_replication_ip_whitelist');
+&mySubroutine('group_replication_poll_spin_loops');
+&mySubroutine('group_replication_recovery_complete_at');
+&mySubroutine('group_replication_recovery_reconnect_interval');
+&mySubroutine('group_replication_recovery_retry_count');
+&mySubroutine('group_replication_start_on_boot');
+EOF
+
+--remove_file "$MYSQLTEST_VARDIR/tmp/group_replication_variables_mysqladmin.tmp";
+--echo
+--source include/group_replication_end.inc
+

@@ -148,7 +148,7 @@ drop table t1;
 #
 # Bug#30942: select str_to_date from derived table returns varying results
 #
-SET sql_mode='NO_AUTO_CREATE_USER,STRICT_TRANS_TABLES';
+SET sql_mode='STRICT_TRANS_TABLES';
 CREATE TABLE t1 (
   a INT
 );

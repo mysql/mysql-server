@@ -36,20 +36,16 @@
   @{
 */
 
-class PFS_index_esmh_global : public PFS_engine_index
-{
-public:
-  PFS_index_esmh_global() : PFS_engine_index(&m_key_1), m_key_1("BUCKET_NUMBER")
-  {
-  }
+class PFS_index_esmh_global : public PFS_engine_index {
+ public:
+  PFS_index_esmh_global()
+      : PFS_engine_index(&m_key_1), m_key_1("BUCKET_NUMBER") {}
 
-  ~PFS_index_esmh_global()
-  {
-  }
+  ~PFS_index_esmh_global() {}
 
   bool match_bucket(ulong bucket_index);
 
-private:
+ private:
   PFS_key_bucket_number m_key_1;
 };
 
@@ -58,22 +54,19 @@ private:
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTOGRAM_GLOBAL.
 */
 
-struct PFS_esmh_global_bucket
-{
+struct PFS_esmh_global_bucket {
   /** Column BUCKET_NUMBER. */
   ulonglong m_count_bucket;
   /** Column COUNT_BUCKET_AND_LOWER. */
   ulonglong m_count_bucket_and_lower;
 };
 
-struct PFS_esmh_global_histogram
-{
+struct PFS_esmh_global_histogram {
   /** Statistics for all buckets. */
   PFS_esmh_global_bucket m_buckets[NUMBER_OF_BUCKETS];
 };
 
-struct row_esmh_global
-{
+struct row_esmh_global {
   /** Column BUCKET_NUMBER. */
   ulong m_bucket_number;
   /** Column BUCKET_TIMER_LOW. */
@@ -89,11 +82,10 @@ struct row_esmh_global
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_HISTOGRAM_GLOBAL. */
-class table_esmh_global : public PFS_engine_table
-{
+class table_esmh_global : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -108,24 +100,20 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esmh_global();
 
-public:
-  ~table_esmh_global()
-  {
-  }
+ public:
+  ~table_esmh_global() {}
 
-protected:
+ protected:
   void materialize();
   int make_row(ulong bucket_index);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

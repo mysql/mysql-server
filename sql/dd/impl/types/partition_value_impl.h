@@ -27,10 +27,10 @@
 #include <sys/types.h>
 #include <new>
 
-#include "sql/dd/impl/types/weak_object_impl.h" // dd::Weak_object_impl
+#include "sql/dd/impl/types/weak_object_impl.h"  // dd::Weak_object_impl
 #include "sql/dd/sdi_fwd.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/partition_value.h"    // dd::Partition_value
+#include "sql/dd/types/partition_value.h"  // dd::Partition_value
 
 namespace dd {
 
@@ -48,33 +48,27 @@ class Weak_object;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_value_impl : public Weak_object_impl,
-                             public Partition_value
-{
-public:
+class Partition_value_impl : public Weak_object_impl, public Partition_value {
+ public:
   Partition_value_impl()
-   :m_max_value(false),
-    m_null_value(false),
-    m_list_num(0),
-    m_column_num(0),
-    m_partition(NULL)
-  { }
+      : m_max_value(false),
+        m_null_value(false),
+        m_list_num(0),
+        m_column_num(0),
+        m_partition(NULL) {}
 
   Partition_value_impl(Partition_impl *partition)
-   :m_max_value(false),
-    m_null_value(false),
-    m_list_num(0),
-    m_column_num(0),
-    m_partition(partition)
-  { }
+      : m_max_value(false),
+        m_null_value(false),
+        m_list_num(0),
+        m_column_num(0),
+        m_partition(partition) {}
 
-  Partition_value_impl(const Partition_value_impl &src,
-                       Partition_impl *parent);
+  Partition_value_impl(const Partition_value_impl &src, Partition_impl *parent);
 
-  virtual ~Partition_value_impl()
-  { }
+  virtual ~Partition_value_impl() {}
 
-public:
+ public:
   virtual const Object_table &object_table() const;
 
   virtual bool validate() const;
@@ -87,13 +81,11 @@ public:
 
   bool deserialize(Sdi_rcontext *rctx, const RJ_Value &val);
 
-  void set_ordinal_position(uint)
-  { }
+  void set_ordinal_position(uint) {}
 
-  virtual uint ordinal_position() const
-  { return -1; }
+  virtual uint ordinal_position() const { return -1; }
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
@@ -108,74 +100,64 @@ public:
   // list_num.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint list_num() const
-  { return m_list_num; }
+  virtual uint list_num() const { return m_list_num; }
 
-  virtual void set_list_num(uint list_num)
-  { m_list_num= list_num; }
+  virtual void set_list_num(uint list_num) { m_list_num = list_num; }
 
   /////////////////////////////////////////////////////////////////////////
   // column_num.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual uint column_num() const
-  { return m_column_num; }
+  virtual uint column_num() const { return m_column_num; }
 
-  virtual void set_column_num(uint column_num)
-  { m_column_num= column_num; }
+  virtual void set_column_num(uint column_num) { m_column_num = column_num; }
 
   /////////////////////////////////////////////////////////////////////////
   // value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &value_utf8() const
-  { return m_value_utf8; }
+  virtual const String_type &value_utf8() const { return m_value_utf8; }
 
-  virtual void set_value_utf8(const String_type &value)
-  { m_value_utf8= value; }
+  virtual void set_value_utf8(const String_type &value) {
+    m_value_utf8 = value;
+  }
 
-////////////////////////////////////////////////////////////////
+  ////////////////////////////////////////////////////////////////
   // max_value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool max_value() const
-  { return m_max_value; }
+  virtual bool max_value() const { return m_max_value; }
 
-  virtual void set_max_value(bool max_value)
-  { m_max_value= max_value; }
+  virtual void set_max_value(bool max_value) { m_max_value = max_value; }
 
   ////////////////////////////////////////////////////////////////
   // null_value.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual bool is_value_null() const
-  { return m_null_value; }
+  virtual bool is_value_null() const { return m_null_value; }
 
-  virtual void set_value_null(bool is_null)
-  { m_null_value= is_null; }
+  virtual void set_value_null(bool is_null) { m_null_value = is_null; }
 
   /////////////////////////////////////////////////////////////////////////
 
-public:
-  static Partition_value_impl *restore_item(Partition_impl *partition)
-  {
+ public:
+  static Partition_value_impl *restore_item(Partition_impl *partition) {
     return new (std::nothrow) Partition_value_impl(partition);
   }
 
   static Partition_value_impl *clone(const Partition_value_impl &other,
-                                     Partition_impl *partition)
-  {
+                                     Partition_impl *partition) {
     return new (std::nothrow) Partition_value_impl(other, partition);
   }
 
-public:
+ public:
   virtual void debug_print(String_type &outb) const;
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
-private:
+ private:
   // Fields
   bool m_max_value;
   bool m_null_value;
@@ -196,11 +178,9 @@ private:
   according to list number and then according to the column number.
 */
 
-struct Partition_value_order_comparator
-{
-  bool operator() (const dd::Partition_value* pv1,
-                   const dd::Partition_value* pv2) const
-  {
+struct Partition_value_order_comparator {
+  bool operator()(const dd::Partition_value *pv1,
+                  const dd::Partition_value *pv2) const {
     return ((pv1->list_num() < pv2->list_num()) ||
             (pv1->list_num() == pv2->list_num() &&
              pv1->column_num() < pv2->column_num()));
@@ -209,6 +189,6 @@ struct Partition_value_order_comparator
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_VALUE_IMPL_INCLUDED
+#endif  // DD__PARTITION_VALUE_IMPL_INCLUDED

@@ -95,7 +95,7 @@ include/assert.inc [Did not commit gtid MASTER_UUID:7 into @@GLOBAL.GTID_EXECUTE
 include/assert.inc [Did not save gtid MASTER_UUID:7 into mysql.gtid_executed table]
 SET SESSION GTID_NEXT='MASTER_UUID:7';
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 #
 # The SELECT privilege on column a is not granted to u1@h,
 # which means that GRANT can not fail partially when

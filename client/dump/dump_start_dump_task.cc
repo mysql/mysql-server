@@ -29,8 +29,7 @@
 using namespace Mysql::Tools::Dump;
 
 Dump_start_dump_task::Dump_start_dump_task(std::string gtid_mode,
-  std::string gtid_executed)
-  : Abstract_dump_task(NULL),
-    m_gtid_mode(gtid_mode),
-    m_gtid_executed(gtid_executed)
-{}
+                                           std::string gtid_executed)
+    : Abstract_dump_task(NULL),
+      m_gtid_mode(gtid_mode),
+      m_gtid_executed(gtid_executed) {}

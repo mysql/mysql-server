@@ -75,109 +75,96 @@
 
 */
 
-int my_copy(const char *from, const char *to, myf MyFlags)
-{
+int my_copy(const char *from, const char *to, myf MyFlags) {
   size_t Count;
-  bool new_file_stat= 0; /* 1 if we could stat "to" */
+  bool new_file_stat = 0; /* 1 if we could stat "to" */
   int create_flag;
-  File from_file,to_file;
+  File from_file, to_file;
   uchar buff[IO_SIZE];
-  MY_STAT stat_buff,new_stat_buff;
+  MY_STAT stat_buff, new_stat_buff;
   DBUG_ENTER("my_copy");
-  DBUG_PRINT("my",("from %s to %s MyFlags %d", from, to, MyFlags));
+  DBUG_PRINT("my", ("from %s to %s MyFlags %d", from, to, MyFlags));
 
-  from_file=to_file= -1;
+  from_file = to_file = -1;
   memset(&new_stat_buff, 0, sizeof(MY_STAT));
   DBUG_ASSERT(!(MyFlags & (MY_FNABP | MY_NABP))); /* for my_read/my_write */
-  if (MyFlags & MY_HOLD_ORIGINAL_MODES)		/* Copy stat if possible */
-    new_file_stat= my_stat((char*) to, &new_stat_buff, MYF(0)) != nullptr;
+  if (MyFlags & MY_HOLD_ORIGINAL_MODES)           /* Copy stat if possible */
+    new_file_stat = my_stat((char *)to, &new_stat_buff, MYF(0)) != nullptr;
 
-  if ((from_file= my_open(from, O_RDONLY, MyFlags)) >= 0)
-  {
-    if (!my_stat(from, &stat_buff, MyFlags))
-    {
+  if ((from_file = my_open(from, O_RDONLY, MyFlags)) >= 0) {
+    if (!my_stat(from, &stat_buff, MyFlags)) {
       set_my_errno(errno);
       goto err;
     }
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && new_file_stat)
-      stat_buff=new_stat_buff;
-    create_flag= (MyFlags & MY_DONT_OVERWRITE_FILE) ? O_EXCL : O_TRUNC;
+      stat_buff = new_stat_buff;
+    create_flag = (MyFlags & MY_DONT_OVERWRITE_FILE) ? O_EXCL : O_TRUNC;
 
-    if ((to_file=  my_create(to,(int) stat_buff.st_mode,
-			     O_WRONLY | create_flag,
-			     MyFlags)) < 0)
+    if ((to_file = my_create(to, (int)stat_buff.st_mode, O_WRONLY | create_flag,
+                             MyFlags)) < 0)
       goto err;
 
-    while ((Count=my_read(from_file, buff, sizeof(buff), MyFlags)) != 0)
-    {
-	if (Count == (uint) -1 ||
-	    my_write(to_file,buff,Count,MYF(MyFlags | MY_NABP)))
-	goto err;
-    }
-
-    /* sync the destination file */
-    if (MyFlags & MY_SYNC)
-    {
-      if (my_sync(to_file, MyFlags))
+    while ((Count = my_read(from_file, buff, sizeof(buff), MyFlags)) != 0) {
+      if (Count == (uint)-1 ||
+          my_write(to_file, buff, Count, MYF(MyFlags | MY_NABP)))
         goto err;
     }
 
-    if (my_close(from_file,MyFlags) | my_close(to_file,MyFlags))
-      DBUG_RETURN(-1);				/* Error on close */
+    /* sync the destination file */
+    if (MyFlags & MY_SYNC) {
+      if (my_sync(to_file, MyFlags)) goto err;
+    }
+
+    if (my_close(from_file, MyFlags) | my_close(to_file, MyFlags))
+      DBUG_RETURN(-1); /* Error on close */
 
     /* Reinitialize closed fd, so they won't be closed again. */
-    from_file= -1;
-    to_file= -1;
+    from_file = -1;
+    to_file = -1;
 
     /* Copy modes if possible */
 
     if (MyFlags & MY_HOLD_ORIGINAL_MODES && !new_file_stat)
-	DBUG_RETURN(0);			/* File copyed but not stat */
+      DBUG_RETURN(0); /* File copyed but not stat */
     /* Copy modes */
-    if (chmod(to, stat_buff.st_mode & 07777))
-    {
+    if (chmod(to, stat_buff.st_mode & 07777)) {
       set_my_errno(errno);
-      if (MyFlags & (MY_FAE+MY_WME))
-      {
-        char  errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_CHANGE_PERMISSIONS, MYF(0), from,
-                 errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      if (MyFlags & (MY_FAE + MY_WME)) {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_CHANGE_PERMISSIONS, MYF(0), from, errno,
+                 my_strerror(errbuf, sizeof(errbuf), errno));
       }
       goto err;
     }
 #if !defined(_WIN32)
     /* Copy ownership */
-    if (chown(to, stat_buff.st_uid, stat_buff.st_gid))
-    {
+    if (chown(to, stat_buff.st_uid, stat_buff.st_gid)) {
       set_my_errno(errno);
-      if (MyFlags & (MY_FAE+MY_WME))
-      {
-        char  errbuf[MYSYS_STRERROR_SIZE];
-        my_error(EE_CHANGE_OWNERSHIP, MYF(0), from,
-                 errno, my_strerror(errbuf, sizeof(errbuf), errno));
+      if (MyFlags & (MY_FAE + MY_WME)) {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        my_error(EE_CHANGE_OWNERSHIP, MYF(0), from, errno,
+                 my_strerror(errbuf, sizeof(errbuf), errno));
       }
       goto err;
     }
 #endif
 
-    if (MyFlags & MY_COPYTIME)
-    {
+    if (MyFlags & MY_COPYTIME) {
       struct utimbuf timep;
-      timep.actime  = stat_buff.st_atime;
+      timep.actime = stat_buff.st_atime;
       timep.modtime = stat_buff.st_mtime;
-      (void) utime((char*) to, &timep); /* last accessed and modified times */
+      (void)utime((char *)to, &timep); /* last accessed and modified times */
     }
 
     DBUG_RETURN(0);
   }
 
 err:
-  if (from_file >= 0) (void) my_close(from_file,MyFlags);
-  if (to_file >= 0)
-  {
-    (void) my_close(to_file, MyFlags);
+  if (from_file >= 0) (void)my_close(from_file, MyFlags);
+  if (to_file >= 0) {
+    (void)my_close(to_file, MyFlags);
     /* attempt to delete the to-file we've partially written */
-    (void) my_delete(to, MyFlags);
+    (void)my_delete(to, MyFlags);
   }
   DBUG_RETURN(-1);
 } /* my_copy */

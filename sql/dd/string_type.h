@@ -23,21 +23,19 @@
 #ifndef DD__STRING_TYPE
 #define DD__STRING_TYPE
 
-
 #include <stddef.h>
 #include <sstream>
 #include <string>
 #include <system_error>
 
-#include "sql/stateless_allocator.h"    // Stateless_allocator
+#include "sql/stateless_allocator.h"  // Stateless_allocator
 
 namespace dd {
 /**
   Functor class which allocates memory for String_type. Implementation
   uses my_malloc with key_memory_DD_String_type.
 */
-struct String_type_alloc
-{
+struct String_type_alloc {
   void *operator()(size_t s) const;
 };
 
@@ -47,17 +45,16 @@ typedef Stateless_allocator<char, String_type_alloc> String_type_allocator;
   Template alias for char-based std::basic_string.
 */
 template <class A>
-using Char_string_template= std::basic_string<char, std::char_traits<char>, A>;
+using Char_string_template = std::basic_string<char, std::char_traits<char>, A>;
 
 typedef Char_string_template<String_type_allocator> String_type;
-
 
 /**
   Template alias for char-based std::basic_stringstream.
  */
 template <class A>
-using Char_stringstream_template=
-  std::basic_stringstream<char, std::char_traits<char>, A>;
+using Char_stringstream_template =
+    std::basic_stringstream<char, std::char_traits<char>, A>;
 
 /**
   Instantiation of std::basic_stringstream with the same allocator as
@@ -71,15 +68,13 @@ using Char_stringstream_template=
   To work around this would require the creation of a temporary
   String_type from the string returned from stringstream::str().
 */
-typedef Char_stringstream_template<String_type_allocator>
-Stringstream_type;
+typedef Char_stringstream_template<String_type_allocator> Stringstream_type;
 
 template <typename LEX_STRING_TYPE>
-String_type make_string_type(const LEX_STRING_TYPE &lst)
-{
-  return { lst.str, lst.length };
+String_type make_string_type(const LEX_STRING_TYPE &lst) {
+  return {lst.str, lst.length};
 }
-} // namespace dd
+}  // namespace dd
 
 namespace std {
 
@@ -90,12 +85,11 @@ namespace std {
   @see murmur3_32
 */
 template <>
-struct hash<dd::String_type>
-{
+struct hash<dd::String_type> {
   typedef dd::String_type argument_type;
   typedef size_t result_type;
 
   size_t operator()(const dd::String_type &s) const;
 };
-} // namespace std
+}  // namespace std
 #endif /* DD__STRING_TYPE */

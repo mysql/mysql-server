@@ -22,10 +22,9 @@ DROP TABLE IF EXISTS t1 ;
 --enable_warnings
 
 --enable_connect_log
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
 --echo # READ_ONLY does nothing to SUPER users
 --echo # so we use a non-SUPER one:
+CREATE USER test@localhost;
 GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
 
 connect (con1,localhost,test,,test);
@@ -89,5 +88,4 @@ SET GLOBAL READ_ONLY=0;
 
 disconnect con1;
 DROP USER test@localhost;
-set sql_mode= @orig_sql_mode;
 --disable_connect_log

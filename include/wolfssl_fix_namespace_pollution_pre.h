@@ -13,7 +13,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   The WolfSSL library does #define certain global symbol that pollute the
   C namespace.
@@ -40,11 +39,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define SOCKET_ECONNRESET WSAECONNRESET
 #endif
 #if defined(SOCKET_EINTR)
-#define SOCKET_EINTR    WSAEINTR
+#define SOCKET_EINTR WSAEINTR
 #endif
 
 #endif /* _WIN32 */
 #endif /* HAVE_WOLFSSL */
 
 #endif /* WOLFSSL_FIX_NAMESPACE_POLLUTION_PRE_H */
-

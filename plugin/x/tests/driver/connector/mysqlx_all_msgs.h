@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,13 +32,12 @@
 
 #include "plugin/x/client/mysqlxclient/xprotocol.h"
 
+using Message_by_full_name = std::map<std::string, std::string>;
 
-using  Message_by_full_name = std::map<std::string, std::string>;
-
-template<typename Message_id>
-using Message_by_name = std::map<
-    std::string,
-    std::pair<xcl::XProtocol::Message *(*)(), Message_id>>;
+template <typename Message_id>
+using Message_by_name =
+    std::map<std::string,
+             std::pair<xcl::XProtocol::Message *(*)(), Message_id>>;
 
 using Message_server_by_name =
     Message_by_name<xcl::XProtocol::Server_message_type_id>;
@@ -46,11 +45,10 @@ using Message_server_by_name =
 using Message_client_by_name =
     Message_by_name<xcl::XProtocol::Client_message_type_id>;
 
-template<typename Message_id>
-using Message_by_id = std::map<
-    Message_id,
-    std::pair<xcl::XProtocol::Message *(*)(),
-              std::string>>;
+template <typename Message_id>
+using Message_by_id =
+    std::map<Message_id,
+             std::pair<xcl::XProtocol::Message *(*)(), std::string>>;
 
 using Message_server_by_id =
     Message_by_id<xcl::XProtocol::Server_message_type_id>;

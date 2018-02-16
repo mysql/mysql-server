@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -141,8 +141,8 @@ void xpl::Find_statement_builder::add_document_primary_projection_item(
       .put_identifier(item.alias());
 }
 
-void xpl::Find_statement_builder::add_grouping(const Grouping_list &group)
-    const {
+void xpl::Find_statement_builder::add_grouping(
+    const Grouping_list &group) const {
   if (group.size() > 0)
     m_builder.put(" GROUP BY ").put_list(group, &Generator::put_expr);
 }
@@ -155,7 +155,8 @@ void xpl::Find_statement_builder::add_grouping_criteria(
 void xpl::Find_statement_builder::add_row_locking(const Find &msg) const {
   if (!msg.has_locking()) {
     if (msg.has_locking_options())
-      throw ngs::Error(ER_X_BAD_LOCKING, "Invalid \"find\" message, \
+      throw ngs::Error(ER_X_BAD_LOCKING,
+                       "Invalid \"find\" message, \
 \"locking\" field is required when \"locking_options\" is set.");
     return;
   }
@@ -166,8 +167,7 @@ void xpl::Find_statement_builder::add_row_locking(const Find &msg) const {
   else if (lock_type == Find::EXCLUSIVE_LOCK)
     m_builder.put(" FOR UPDATE");
 
-  if (!msg.has_locking_options())
-    return;
+  if (!msg.has_locking_options()) return;
 
   const auto lock_options = msg.locking_options();
   if (lock_options == Find::NOWAIT)

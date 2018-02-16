@@ -40,19 +40,19 @@
   name conflicts etc.
 */
 
-#include <cstddef>                     // size_t
+#include <cstddef>  // size_t
 #include <functional>
-#include <map>                         // std::map
-#include <set>                         // std::set
-#include <string>                      // std::string
-#include <utility>                     // std::pair
+#include <map>      // std::map
+#include <set>      // std::set
+#include <string>   // std::string
+#include <utility>  // std::pair
 
-#include "lex_string.h"                // LEX_CSTRING
+#include "lex_string.h"  // LEX_CSTRING
 #include "m_ctype.h"
-#include "my_base.h"                   // ha_rows
+#include "my_base.h"  // ha_rows
 #include "sql/histograms/value_map_type.h"
-#include "sql/memroot_allocator.h"     // Memroot_allocator
-#include "sql/stateless_allocator.h"   // Stateless_allocator
+#include "sql/memroot_allocator.h"    // Memroot_allocator
+#include "sql/stateless_allocator.h"  // Stateless_allocator
 
 class Item;
 class Json_dom;
@@ -65,7 +65,8 @@ class Table;
 }  // namespace dd
 namespace histograms {
 struct Histogram_comparator;
-template <class T> class Value_map;
+template <class T>
+class Value_map;
 }  // namespace histograms
 struct MEM_ROOT;
 struct TABLE_LIST;
@@ -73,10 +74,9 @@ struct TABLE_LIST;
 namespace histograms {
 
 /// The default (and invalid) value for "m_null_values_fraction".
-static const double INVALID_NULL_VALUES_FRACTION= -1.0;
+static const double INVALID_NULL_VALUES_FRACTION = -1.0;
 
-enum class Message
-{
+enum class Message {
   FIELD_NOT_FOUND,
   UNSUPPORTED_DATA_TYPE,
   TEMPORARY_TABLE,
@@ -92,34 +92,32 @@ enum class Message
   SERVER_READ_ONLY
 };
 
-struct Histogram_psi_key_alloc
-{
-  void* operator()(size_t s) const;
+struct Histogram_psi_key_alloc {
+  void *operator()(size_t s) const;
 };
 
 template <class T>
-using Histogram_key_allocator= Stateless_allocator<T, Histogram_psi_key_alloc>;
+using Histogram_key_allocator = Stateless_allocator<T, Histogram_psi_key_alloc>;
 
 template <class T>
-using value_map_allocator= Memroot_allocator<std::pair<const T, ha_rows>>;
+using value_map_allocator = Memroot_allocator<std::pair<const T, ha_rows>>;
 
-template<typename T>
-using value_map_type= std::map<T, ha_rows, Histogram_comparator,
-                               value_map_allocator<T> >;
+template <typename T>
+using value_map_type =
+    std::map<T, ha_rows, Histogram_comparator, value_map_allocator<T>>;
 
-using columns_set= std::set<std::string, std::less<std::string>,
-                            Histogram_key_allocator<std::string>>;
+using columns_set = std::set<std::string, std::less<std::string>,
+                             Histogram_key_allocator<std::string>>;
 
-using results_map=
-  std::map<std::string, Message, std::less<std::string>,
-           Histogram_key_allocator<std::pair<const std::string, Message>>>;
+using results_map =
+    std::map<std::string, Message, std::less<std::string>,
+             Histogram_key_allocator<std::pair<const std::string, Message>>>;
 
 /**
   The different operators we can ask histogram statistics for selectivity
   estimations.
 */
-enum class enum_operator
-{
+enum class enum_operator {
   EQUALS_TO,
   GREATER_THAN,
   LESS_THAN,
@@ -137,31 +135,27 @@ enum class enum_operator
 /**
   Histogram base class.
 */
-class Histogram
-{
-public:
+class Histogram {
+ public:
   /// All supported histogram types in MySQL.
-  enum class enum_histogram_type
-  {
-    EQUI_HEIGHT,
-    SINGLETON
-  };
+  enum class enum_histogram_type { EQUI_HEIGHT, SINGLETON };
 
   /// String representation of the JSON field "histogram-type".
   static constexpr const char *histogram_type_str() { return "histogram-type"; }
 
   /// String representation of the JSON field "data-type".
-  static constexpr const char *data_type_str() {return "data-type"; }
+  static constexpr const char *data_type_str() { return "data-type"; }
 
   /// String representation of the JSON field "collation-id".
-  static constexpr const char *collation_id_str() {return "collation-id"; }
+  static constexpr const char *collation_id_str() { return "collation-id"; }
 
   /// String representation of the histogram type SINGLETON.
   static constexpr const char *singleton_str() { return "singleton"; }
 
   /// String representation of the histogram type EQUI-HEIGHT.
   static constexpr const char *equi_height_str() { return "equi-height"; }
-protected:
+
+ protected:
   double m_sampling_rate;
 
   /// The fraction of NULL values in the histogram (between 0.0 and 1.0).
@@ -180,13 +174,14 @@ protected:
   static constexpr const char *last_updated_str() { return "last-updated"; }
 
   /// String representation of the JSON field "null-values".
-  static constexpr const char *null_values_str() {return "null-values"; }
+  static constexpr const char *null_values_str() { return "null-values"; }
 
-  static constexpr const char *sampling_rate_str() {return "sampling-rate"; }
+  static constexpr const char *sampling_rate_str() { return "sampling-rate"; }
 
   /// String representation of the JSON field "number-of-buckets-specified".
-  static constexpr const char *numer_of_buckets_specified_str()
-  { return "number-of-buckets-specified"; }
+  static constexpr const char *numer_of_buckets_specified_str() {
+    return "number-of-buckets-specified";
+  }
 
   /**
     Write the data type of this histogram into a JSON object.
@@ -225,7 +220,8 @@ protected:
     @return true on error, false otherwise
   */
   virtual bool json_to_histogram(const Json_object &json_object) = 0;
-private:
+
+ private:
   /// The MEM_ROOT where the histogram contents will be allocated.
   MEM_ROOT *m_mem_root;
 
@@ -280,16 +276,16 @@ private:
 
     @return The estimated selectivity, between 0.0 and 1.0 inclusive.
   */
-  template <class T> double
-  get_less_than_selectivity_dispatcher(const T& value) const;
+  template <class T>
+  double get_less_than_selectivity_dispatcher(const T &value) const;
 
   /// @see get_less_than_selectivity_dispatcher
-  template <class T> double
-  get_greater_than_selectivity_dispatcher(const T& value) const;
+  template <class T>
+  double get_greater_than_selectivity_dispatcher(const T &value) const;
 
   /// @see get_less_than_selectivity_dispatcher
-  template <class T> double
-  get_equal_to_selectivity_dispatcher(const T& value) const;
+  template <class T>
+  double get_equal_to_selectivity_dispatcher(const T &value) const;
 
   /**
     An internal function for applying the correct function for the given
@@ -301,8 +297,9 @@ private:
     @return The estimated selectivity, between 0.0 and 1.0 inclusive.
   */
   template <class T>
-  double apply_operator(const enum_operator op, const T& value) const;
-public:
+  double apply_operator(const enum_operator op, const T &value) const;
+
+ public:
   /**
     Constructor.
 
@@ -461,14 +458,15 @@ public:
             or similar).
     @return false if success
   */
-  bool get_selectivity(Item **items, size_t item_count,
-                       enum_operator op, double *selectivity) const;
+  bool get_selectivity(Item **items, size_t item_count, enum_operator op,
+                       double *selectivity) const;
 
   /**
     @return the fraction of non-null values in the histogram.
   */
-  double get_non_null_values_frequency() const
-  { return 1.0 - get_null_values_fraction(); }
+  double get_non_null_values_frequency() const {
+    return 1.0 - get_null_values_fraction();
+  }
 };
 
 /**
@@ -518,9 +516,8 @@ Histogram *build_histogram(MEM_ROOT *mem_root, const Value_map<T> &value_map,
 
   @return false on success, true on error.
 */
-bool update_histogram(THD *thd, TABLE_LIST *table,
-                      const columns_set &columns, int num_buckets,
-                      results_map &results);
+bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
+                      int num_buckets, results_map &results);
 
 /**
   Drop histograms for all columns in a given table.
@@ -552,7 +549,6 @@ bool drop_all_histograms(THD *thd, const TABLE_LIST &table,
 bool drop_histograms(THD *thd, const TABLE_LIST &table,
                      const columns_set &columns, results_map &results);
 
-
 /**
   Rename histograms for all columns in a given table.
 
@@ -569,12 +565,10 @@ bool rename_histograms(THD *thd, const char *old_schema_name,
                        const char *old_table_name, const char *new_schema_name,
                        const char *new_table_name, results_map &results);
 
-
 bool find_histogram(THD *thd, const std::string &schema_name,
                     const std::string &table_name,
                     const std::string &column_name,
                     const Histogram **histogram);
-} // namespace histograms
-
+}  // namespace histograms
 
 #endif

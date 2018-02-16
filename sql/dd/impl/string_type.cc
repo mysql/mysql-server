@@ -27,21 +27,16 @@
 #include "my_sys.h"                     // MY_WME, MY_FATALERROR
 #include "mysql/service_mysql_alloc.h"  // my_malloc
 #include "mysql/udf_registration_types.h"
-#include "sql/psi_memory_key.h"         // key_memory_DD_String_type
-
+#include "sql/psi_memory_key.h"  // key_memory_DD_String_type
 
 namespace dd {
-void *String_type_alloc::operator()(size_t s) const
-{
-  return my_malloc(key_memory_DD_String_type, s,
-                   MYF(MY_WME | ME_FATALERROR));
+void *String_type_alloc::operator()(size_t s) const {
+  return my_malloc(key_memory_DD_String_type, s, MYF(MY_WME | ME_FATALERROR));
 }
-}
+}  // namespace dd
 
 namespace std {
-size_t hash<dd::String_type>::operator()(const dd::String_type &s)
-  const
-{
-  return murmur3_32(reinterpret_cast<const uchar*>(s.c_str()), s.size(), 0);
+size_t hash<dd::String_type>::operator()(const dd::String_type &s) const {
+  return murmur3_32(reinterpret_cast<const uchar *>(s.c_str()), s.size(), 0);
 }
-}
+}  // namespace std

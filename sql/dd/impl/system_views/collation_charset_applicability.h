@@ -34,31 +34,26 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.COLLATION_CHARSET_APPLICABILITY
   System view definition.
 */
-class Collation_charset_applicability :
-        public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
-    FIELD_COLLATION_NAME,
-    FIELD_CHARACTER_SET_NAME
-  };
+class Collation_charset_applicability
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields { FIELD_COLLATION_NAME, FIELD_CHARACTER_SET_NAME };
 
   Collation_charset_applicability();
 
   static const Collation_charset_applicability &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("COLLATION_CHARACTER_SET_APPLICABILITY");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Collation_charset_applicability::view_name(); }
+  virtual const String_type &name() const {
+    return Collation_charset_applicability::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__COLLATION_CHARSET_APPLICABILITY_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__COLLATION_CHARSET_APPLICABILITY_INCLUDED

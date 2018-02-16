@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -38,7 +38,6 @@
 #include "plugin/x/tests/driver/processor/script_stack.h"
 #include "plugin/x/tests/driver/processor/variable_container.h"
 
-
 class Execution_context {
  public:
   struct Options {
@@ -51,10 +50,8 @@ class Execution_context {
   };
 
  public:
-  Execution_context(const Options &options,
-                    Connection_manager *cm,
-                    Variable_container *variables,
-                    const Console &console)
+  Execution_context(const Options &options, Connection_manager *cm,
+                    Variable_container *variables, const Console &console)
       : m_options(options),
         m_connection(cm),
         m_expected_error(m_options.m_fatal_errors, console, &m_script_stack),
@@ -63,14 +60,14 @@ class Execution_context {
 
   void set_options(const Options &options) { m_options = options; }
 
-  Options             m_options;
-  std::string         m_command_name;
+  Options m_options;
+  std::string m_command_name;
   Connection_manager *m_connection;
-  Script_stack        m_script_stack;
-  Expected_error      m_expected_error;
+  Script_stack m_script_stack;
+  Expected_error m_expected_error;
   Variable_container *m_variables;
-  const Console      &m_console;
-  Macro_container     m_macros;
+  const Console &m_console;
+  Macro_container m_macros;
 
   xcl::XSession *session() { return m_connection->active_xsession(); }
 

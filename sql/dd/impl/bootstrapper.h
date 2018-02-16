@@ -23,11 +23,10 @@
 #ifndef DD__BOOTSTRAPPER_INCLUDED
 #define DD__BOOTSTRAPPER_INCLUDED
 
-
 #include <sys/types.h>
 
-#include "sql/dd/string_type.h"                // dd::String_type
-#include "sql/handler.h"                       // dict_init_mode_t
+#include "sql/dd/string_type.h"  // dd::String_type
+#include "sql/handler.h"         // dict_init_mode_t
 
 class THD;
 
@@ -42,7 +41,6 @@ class THD;
   @retval true   Error.
 */
 bool execute_query(THD *thd, const dd::String_type &q_buf);
-
 
 /**
   Data dictionary initialization.
@@ -157,7 +155,6 @@ namespace bootstrap {
 
 bool initialize(THD *thd);
 
-
 /**
   Initialize the dictionary while restarting the server.
 
@@ -228,7 +225,6 @@ bool initialize(THD *thd);
 
 bool restart(THD *thd);
 
-
 /**
   Iterate through all the plugins, and store IS table meta data
   into dictionary, once during MySQL server bootstrap.
@@ -239,7 +235,6 @@ bool restart(THD *thd);
 */
 bool store_plugin_IS_table_metadata(THD *thd);
 
-
 /**
   Initialization and verification of dictionary objects
   after upgrade, similar to what is done after normal server
@@ -248,7 +243,6 @@ bool store_plugin_IS_table_metadata(THD *thd);
   @param thd    Thread context
 */
 bool setup_dd_objects_and_collations(THD *thd);
-
 
 /**
   This function is used in case of crash during upgrade.
@@ -259,7 +253,6 @@ bool setup_dd_objects_and_collations(THD *thd);
   @param thd    Thread context.
 */
 void recover_innodb_upon_upgrade(THD *thd);
-
 
 /**
   Initialize InnoDB for
@@ -276,9 +269,7 @@ void recover_innodb_upon_upgrade(THD *thd);
 
   @return       Upon failure, return true, otherwise false.
 */
-bool DDSE_dict_init(THD *thd,
-                    dict_init_mode_t dict_init_mode,
-                    uint version);
+bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version);
 
 /**
   Create mysql schema. Create dictionary tables inside InnoDB.
@@ -296,11 +287,9 @@ bool DDSE_dict_init(THD *thd,
   @return       Upon failure, return true, otherwise false.
 
 */
-bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
-                           Dictionary_impl *d);
+bool initialize_dictionary(THD *thd, bool is_dd_upgrade, Dictionary_impl *d);
 
-
-}
+}  // namespace bootstrap
 
 /**
   Helper function to do rollback or commit, depending on
@@ -315,5 +304,5 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade,
 */
 bool end_transaction(THD *thd, bool error);
 
-}
-#endif // DD__BOOTSTRAPPER_INCLUDED
+}  // namespace dd
+#endif  // DD__BOOTSTRAPPER_INCLUDED

@@ -75,8 +75,6 @@ c1	c2	c3
 Warning	1292	Incorrect date value: '0000-00-00' for column 'c2' at row 1
 Warnings:
 SET SQL_MODE=ALLOW_INVALID_DATES;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t1 VALUES('2001-01-27','2001-01-28',19);
 UPDATE t1 SET c1='2009-04-31',c2='2009-02-30' WHERE c3=19;
 SELECT c1,c2,day(c1),day(c2) FROM t1 WHERE c3=19;

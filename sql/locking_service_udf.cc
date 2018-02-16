@@ -27,7 +27,7 @@
 #include "my_macros.h"
 #include "mysql/service_locking.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/locking_service.h"   // acquire_locking_service_locks
+#include "sql/locking_service.h"  // acquire_locking_service_locks
 
 /*
   These functions are provided as UDFs rather than built-in SQL functions
@@ -40,35 +40,31 @@
 */
 
 // Common initialization code for get_read_lock and get_write_lock
-static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
-{
-  initid->maybe_null= false;
-  initid->decimals= 0;
-  initid->max_length= 1;
-  initid->ptr= NULL;
-  initid->const_item= 0;
-  initid->extension= NULL;
+static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args,
+                                char *message) {
+  initid->maybe_null = false;
+  initid->decimals = 0;
+  initid->max_length = 1;
+  initid->ptr = NULL;
+  initid->const_item = 0;
+  initid->extension = NULL;
 
   // At least three arguments - namespace, lock, timeout
-  if (args->arg_count < 3)
-  {
+  if (args->arg_count < 3) {
     strcpy(message,
            "Requires at least three arguments: (namespace,lock(...),timeout).");
     return true;
   }
 
   // Timeout is the last argument, should be INT
-  if (args->arg_type[args->arg_count - 1] != INT_RESULT)
-  {
+  if (args->arg_type[args->arg_count - 1] != INT_RESULT) {
     strcpy(message, "Wrong argument type - expected integer.");
     return true;
   }
 
   // All other arguments should be strings
-  for (size_t i= 0; i < (args->arg_count - 1); i++)
-  {
-    if (args->arg_type[i] != STRING_RESULT)
-    {
+  for (size_t i = 0; i < (args->arg_count - 1); i++) {
+    if (args->arg_type[i] != STRING_RESULT) {
       strcpy(message, "Wrong argument type - expected string.");
       return true;
     }
@@ -80,67 +76,48 @@ static inline bool init_acquire(UDF_INIT *initid, UDF_ARGS *args, char *message)
 extern "C" {
 
 bool service_get_read_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                 char *message)
-{
+                                 char *message) {
   return init_acquire(initid, args, message);
 }
 
-
-long long service_get_read_locks(UDF_INIT*, UDF_ARGS *args,
-                                 char*, char*)
-{
-  const char *lock_namespace= args->args[0];
-  long long timeout= *((long long*)args->args[args->arg_count - 1]);
+long long service_get_read_locks(UDF_INIT *, UDF_ARGS *args, char *, char *) {
+  const char *lock_namespace = args->args[0];
+  long long timeout = *((long long *)args->args[args->arg_count - 1]);
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
-            NULL, lock_namespace,
-            const_cast<const char**>(&args->args[1]),
-            args->arg_count - 2,
-            LOCKING_SERVICE_READ,
-            static_cast<ulong>(timeout));
+      NULL, lock_namespace, const_cast<const char **>(&args->args[1]),
+      args->arg_count - 2, LOCKING_SERVICE_READ, static_cast<ulong>(timeout));
 }
-
 
 bool service_get_write_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                  char *message)
-{
+                                  char *message) {
   return init_acquire(initid, args, message);
 }
 
-
-long long service_get_write_locks(UDF_INIT*, UDF_ARGS *args,
-                                  char*, char*)
-{
-  const char *lock_namespace= args->args[0];
-  long long timeout= *((long long*)args->args[args->arg_count - 1]);
+long long service_get_write_locks(UDF_INIT *, UDF_ARGS *args, char *, char *) {
+  const char *lock_namespace = args->args[0];
+  long long timeout = *((long long *)args->args[args->arg_count - 1]);
   // For the UDF 1 == success, 0 == failure.
   return !acquire_locking_service_locks(
-            NULL, lock_namespace,
-            const_cast<const char**>(&args->args[1]),
-            args->arg_count - 2,
-            LOCKING_SERVICE_WRITE,
-            static_cast<ulong>(timeout));
+      NULL, lock_namespace, const_cast<const char **>(&args->args[1]),
+      args->arg_count - 2, LOCKING_SERVICE_WRITE, static_cast<ulong>(timeout));
 }
 
-
 bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
-                                char *message)
-{
-  initid->maybe_null= false;
-  initid->decimals= 0;
-  initid->max_length= 1;
-  initid->ptr= NULL;
-  initid->const_item= 0;
-  initid->extension= NULL;
+                                char *message) {
+  initid->maybe_null = false;
+  initid->decimals = 0;
+  initid->max_length = 1;
+  initid->ptr = NULL;
+  initid->const_item = 0;
+  initid->extension = NULL;
 
   // Only one argument - lock_namespace (string)
-  if (args->arg_count != 1)
-  {
+  if (args->arg_count != 1) {
     strcpy(message, "Requires one argument: (lock_namespace).");
     return true;
   }
-  if (args->arg_type[0] != STRING_RESULT)
-  {
+  if (args->arg_type[0] != STRING_RESULT) {
     strcpy(message, "Wrong argument type - expected string.");
     return true;
   }
@@ -148,11 +125,8 @@ bool service_release_locks_init(UDF_INIT *initid, UDF_ARGS *args,
   return false;
 }
 
-
-long long service_release_locks(UDF_INIT*, UDF_ARGS *args,
-                                char*, char*)
-{
-  const char *lock_namespace= args->args[0];
+long long service_release_locks(UDF_INIT *, UDF_ARGS *args, char *, char *) {
+  const char *lock_namespace = args->args[0];
   // For the UDF 1 == success, 0 == failure.
   return !release_locking_service_locks(NULL, lock_namespace);
 }

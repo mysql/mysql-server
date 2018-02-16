@@ -38,8 +38,7 @@ API for clone plugin
   st_mysql_plugin.
 */
 
-struct Mysql_clone
-{
+struct Mysql_clone {
   /** clone plugin interface version */
   int interface_version;
 
@@ -47,27 +46,27 @@ struct Mysql_clone
   @param[in]	thd		server thread handle
   @param[in]	data_dir	cloned data directory
   @return error code, 0 on success */
-  int (*clone_local)(THD* thd, const char* data_dir);
+  int (*clone_local)(THD *thd, const char *data_dir);
 
   /** Clone database from remote server.
   @param[in]	thd		server thread handle
   @param[in]	data_dir	cloned data directory
   @param[in]	socket		network socket to remote server
   @return error code, 0 on success */
-  int (*clone_client)(THD* thd, const char* data_dir, my_socket socket);
+  int (*clone_client)(THD *thd, const char *data_dir, my_socket socket);
 
   /** Clone database and send to remote clone client.
   @param[in]	thd	server thread handle
   @param[in]	socket	network socket to remote client
   @return error code, 0 on success*/
-  int (*clone_server)(THD* thd, my_socket socket);
+  int (*clone_server)(THD *thd, my_socket socket);
 };
 
 /** Create clone handle to  access the clone interfaces from server.
 Called when Clone plugin is installed.
 @param[in]	plugin_name	clone plugin name
 @return error code */
-int clone_handle_create(const char* plugin_name);
+int clone_handle_create(const char *plugin_name);
 
 /** Drop clone handle. Called when Clone plugin is uninstalled.
 @return error code */

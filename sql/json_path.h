@@ -36,17 +36,16 @@
 #include <new>
 #include <string>
 
-#include "my_alloc.h"                           // MEM_ROOT
-#include "my_dbug.h"                            // DBUG_ASSERT
+#include "my_alloc.h"  // MEM_ROOT
+#include "my_dbug.h"   // DBUG_ASSERT
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "prealloced_array.h"                   // Prealloced_array
+#include "prealloced_array.h"  // Prealloced_array
 
 class String;
 
 /** The type of a Json_path_leg. */
-enum enum_json_path_leg_type
-{
+enum enum_json_path_leg_type {
   /**
     A path leg that represents a JSON object member (such as `.name`).
     This path leg matches a single member in a JSON object.
@@ -85,13 +84,11 @@ enum enum_json_path_leg_type
   jpl_ellipsis
 };
 
-
 /**
   A class that represents the index of an element in a JSON array. The
   index is 0-based and relative to the beginning of the array.
 */
-class Json_array_index final
-{
+class Json_array_index final {
   /**
     The array index. It is 0 if the specified index was before the
     first element of the array, or equal to the array length if the
@@ -102,7 +99,7 @@ class Json_array_index final
   /** True if the array index is within the bounds of the array. */
   bool m_within_bounds;
 
-public:
+ public:
   /**
     Construct a new Json_array_index object representing the specified
     position in an array of the given length.
@@ -112,11 +109,9 @@ public:
     @param array_length  the length of the array
   */
   Json_array_index(size_t index, bool from_end, size_t array_length)
-    : m_index(from_end ?
-              (index < array_length ? array_length - index - 1: 0) :
-              std::min(index, array_length)),
-      m_within_bounds(index < array_length)
-  {}
+      : m_index(from_end ? (index < array_length ? array_length - index - 1 : 0)
+                         : std::min(index, array_length)),
+        m_within_bounds(index < array_length) {}
 
   /**
     Is the array index within the bounds of the array?
@@ -139,15 +134,13 @@ public:
   size_t position() const { return m_index; }
 };
 
-
 /**
   One path leg in a JSON path expression.
 
   A path leg describes either a key/value pair in an object
   or a 0-based index into an array.
 */
-class Json_path_leg final
-{
+class Json_path_leg final {
   /// The type of this path leg.
   enum_json_path_leg_type m_leg_type;
 
@@ -155,18 +148,18 @@ class Json_path_leg final
   size_t m_first_array_index;
 
   /// Is #m_first_array_index relative to the end of the array?
-  bool m_first_array_index_from_end= false;
+  bool m_first_array_index_from_end = false;
 
   /// The end (inclusive) of an array range.
   size_t m_last_array_index;
 
   /// Is #m_last_array_index relative to the end of the array?
-  bool m_last_array_index_from_end= false;
+  bool m_last_array_index_from_end = false;
 
   /// The member name of a member path leg.
   std::string m_member_name;
 
-public:
+ public:
   /**
     Construct a wildcard or ellipsis path leg.
 
@@ -174,10 +167,8 @@ public:
     #jpl_member_wildcard or #jpl_array_cell_wildcard)
   */
   explicit Json_path_leg(enum_json_path_leg_type leg_type)
-    : m_leg_type(leg_type)
-  {
-    DBUG_ASSERT(leg_type == jpl_ellipsis ||
-                leg_type == jpl_member_wildcard ||
+      : m_leg_type(leg_type) {
+    DBUG_ASSERT(leg_type == jpl_ellipsis || leg_type == jpl_member_wildcard ||
                 leg_type == jpl_array_cell_wildcard);
   }
 
@@ -187,9 +178,7 @@ public:
     @param index the 0-based index in the array,
       relative to the beginning of the array
   */
-  explicit Json_path_leg(size_t index)
-    : Json_path_leg(index, false)
-  {}
+  explicit Json_path_leg(size_t index) : Json_path_leg(index, false) {}
 
   /**
     Construct an array cell path leg.
@@ -198,10 +187,9 @@ public:
     @param from_end true if @a index is relative to the end of the array
   */
   Json_path_leg(size_t index, bool from_end)
-    : m_leg_type(jpl_array_cell),
-      m_first_array_index(index),
-      m_first_array_index_from_end(from_end)
-  {}
+      : m_leg_type(jpl_array_cell),
+        m_first_array_index(index),
+        m_first_array_index_from_end(from_end) {}
 
   /**
     Construct an array range path leg.
@@ -213,12 +201,13 @@ public:
     @param idx2_from_end  true if the last index is relative
                           to the end of the array
   */
-  Json_path_leg(size_t idx1, bool idx1_from_end,
-                size_t idx2, bool idx2_from_end)
-    : m_leg_type(jpl_array_range),
-      m_first_array_index(idx1), m_first_array_index_from_end(idx1_from_end),
-      m_last_array_index(idx2), m_last_array_index_from_end(idx2_from_end)
-  {}
+  Json_path_leg(size_t idx1, bool idx1_from_end, size_t idx2,
+                bool idx2_from_end)
+      : m_leg_type(jpl_array_range),
+        m_first_array_index(idx1),
+        m_first_array_index_from_end(idx1_from_end),
+        m_last_array_index(idx2),
+        m_last_array_index_from_end(idx2_from_end) {}
 
   /**
     Construct an object member path leg.
@@ -226,8 +215,7 @@ public:
     @param member_name  the name of the object member
   */
   explicit Json_path_leg(const std::string &member_name)
-    : m_leg_type(jpl_member), m_member_name(member_name)
-  {}
+      : m_leg_type(jpl_member), m_member_name(member_name) {}
 
   /** Get the type of the path leg. */
   enum_json_path_leg_type get_type() const { return m_leg_type; }
@@ -258,11 +246,9 @@ public:
 
     @param array_length the length of the array
   */
-  Json_array_index first_array_index(size_t array_length) const
-  {
+  Json_array_index first_array_index(size_t array_length) const {
     DBUG_ASSERT(m_leg_type == jpl_array_cell || m_leg_type == jpl_array_range);
-    return Json_array_index(m_first_array_index,
-                            m_first_array_index_from_end,
+    return Json_array_index(m_first_array_index, m_first_array_index_from_end,
                             array_length);
   }
 
@@ -272,21 +258,18 @@ public:
 
     @param array_length the length of the array
   */
-  Json_array_index last_array_index(size_t array_length) const
-  {
+  Json_array_index last_array_index(size_t array_length) const {
     DBUG_ASSERT(m_leg_type == jpl_array_range);
-    return Json_array_index(m_last_array_index,
-                            m_last_array_index_from_end,
+    return Json_array_index(m_last_array_index, m_last_array_index_from_end,
                             array_length);
   }
 
   /**
     A structure that represents an array range.
   */
-  struct Array_range
-  {
-    size_t m_begin;           ///< Beginning of the range, inclusive.
-    size_t m_end;             ///< End of the range, exclusive.
+  struct Array_range {
+    size_t m_begin;  ///< Beginning of the range, inclusive.
+    size_t m_end;    ///< End of the range, exclusive.
   };
 
   /**
@@ -297,22 +280,21 @@ public:
   Array_range get_array_range(size_t array_length) const;
 };
 
-using Json_path_leg_pointers= Prealloced_array<const Json_path_leg *, 8>;
-using Json_path_iterator= Json_path_leg_pointers::const_iterator;
+using Json_path_leg_pointers = Prealloced_array<const Json_path_leg *, 8>;
+using Json_path_iterator = Json_path_leg_pointers::const_iterator;
 
 /**
   A path expression which can be used to seek to
   a position inside a JSON value.
 */
-class Json_seekable_path
-{
-protected:
+class Json_seekable_path {
+ protected:
   /** An array of pointers to the legs of the JSON path. */
   Json_path_leg_pointers m_path_legs;
 
   Json_seekable_path();
 
-public:
+ public:
   /** Return the number of legs in this searchable path */
   size_t leg_count() const { return m_path_legs.size(); }
 
@@ -371,9 +353,8 @@ public:
 
       last ::= "last"
 */
-class Json_path final : public Json_seekable_path
-{
-private:
+class Json_path final : public Json_seekable_path {
+ private:
   /**
     A MEM_ROOT in which the Json_path_leg objects pointed to by
     #Json_seekable_path::m_path_legs are allocated.
@@ -400,8 +381,7 @@ private:
      @return The pointer advanced to around where the error, if any, occurred.
   */
   const char *parse_path(const bool begins_with_column_id,
-                         const size_t path_length,
-                         const char *path_expression,
+                         const size_t path_length, const char *path_expression,
                          bool *status);
 
   /**
@@ -460,21 +440,17 @@ private:
   const char *parse_member_leg(const char *charptr, const char *endptr,
                                bool *status);
 
-public:
+ public:
   Json_path();
 
-  ~Json_path()
-  {
-    for (const auto ptr : m_path_legs)
-      ptr->~Json_path_leg();
+  ~Json_path() {
+    for (const auto ptr : m_path_legs) ptr->~Json_path_leg();
   }
 
   /** Move constructor. */
-  Json_path(Json_path &&other)
-    : m_mem_root(std::move(other.m_mem_root))
-  {
+  Json_path(Json_path &&other) : m_mem_root(std::move(other.m_mem_root)) {
     // Move the contents of m_path_legs from other into this.
-    m_path_legs= std::move(other.m_path_legs);
+    m_path_legs = std::move(other.m_path_legs);
 
     /*
       Must also make sure that other.m_path_legs is empty, so that we
@@ -494,10 +470,8 @@ public:
   }
 
   /** Move assignment. */
-  Json_path &operator=(Json_path &&other)
-  {
-    if (&other != this)
-    {
+  Json_path &operator=(Json_path &&other) {
+    if (&other != this) {
       this->~Json_path();
       new (this) Json_path(std::move(other));
     }
@@ -509,20 +483,17 @@ public:
     @param[in] leg the leg to add
     @return false on success, true on error
   */
-  bool append(const Json_path_leg &leg)
-  {
-    auto ptr= new (&m_mem_root) Json_path_leg(leg);
+  bool append(const Json_path_leg &leg) {
+    auto ptr = new (&m_mem_root) Json_path_leg(leg);
     return ptr == nullptr || m_path_legs.push_back(ptr);
   }
 
   /**
     Resets this to an empty path with no legs.
   */
-  void clear()
-  {
+  void clear() {
     // Destruct all the Json_path_leg objects, and clear the pointers to them.
-    for (const auto ptr : m_path_legs)
-      ptr->~Json_path_leg();
+    for (const auto ptr : m_path_legs) ptr->~Json_path_leg();
     m_path_legs.clear();
     // Mark the memory as ready for reuse.
     free_root(&m_mem_root, MYF(MY_MARK_BLOCKS_FREE));
@@ -541,12 +512,9 @@ public:
   bool to_string(String *buf) const;
 
   friend bool parse_path(const bool begins_with_column_id,
-                         const size_t path_length,
-                         const char *path_expression,
-                         Json_path *path,
-                         size_t *bad_index);
+                         const size_t path_length, const char *path_expression,
+                         Json_path *path, size_t *bad_index);
 };
-
 
 /**
   A lightweight path expression. This exists so that paths can be cloned
@@ -555,9 +523,8 @@ public:
   Json_path_leg objects pointed to by #Json_seekable_path::m_path_legs, it
   just points to Json_path_leg objects that belong to a Json_path instance.
 */
-class Json_path_clone final : public Json_seekable_path
-{
-public:
+class Json_path_clone final : public Json_seekable_path {
+ public:
   /**
     Add a path leg to the end of this cloned path.
     @param[in] leg the leg to add
@@ -569,9 +536,7 @@ public:
     Resets this to an empty path with no legs.
   */
   void clear() { m_path_legs.clear(); }
-
 };
-
 
 /**
    Initialize a Json_path from a path expression.

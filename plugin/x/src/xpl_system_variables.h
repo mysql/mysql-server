@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,16 +33,14 @@
 
 #ifdef max_allowed_packet
 #undef max_allowed_packet
-#endif // max_allowed_packet
+#endif  // max_allowed_packet
 
 struct SYS_VAR;
 class THD;
 
-namespace xpl
-{
+namespace xpl {
 
-struct Ssl_config
-{
+struct Ssl_config {
   Ssl_config();
 
   bool is_configured() const;
@@ -55,55 +53,58 @@ struct Ssl_config
   char *ssl_crl;
   char *ssl_crlpath;
 
-private:
-  bool  has_value(const char *ptr) const;
+ private:
+  bool has_value(const char *ptr) const;
 
   char m_null_char;
 };
 
-class Plugin_system_variables
-{
-public:
-  static int          max_connections;
+class Plugin_system_variables {
+ public:
+  static int max_connections;
   static unsigned int port;
   static unsigned int min_worker_threads;
   static unsigned int idle_worker_thread_timeout;
   static unsigned int max_allowed_packet;
   static unsigned int connect_timeout;
-  static char        *socket;
+  static char *socket;
   static unsigned int port_open_timeout;
-  static char        *bind_address;
-  static uint32_t     m_interactive_timeout;
+  static char *bind_address;
+  static uint32_t m_interactive_timeout;
+  static uint32_t m_document_id_unique_prefix;
 
   static Ssl_config ssl_config;
 
-public:
-  typedef ngs::function<void(THD*)> Value_changed_callback;
+ public:
+  typedef ngs::function<void(THD *)> Value_changed_callback;
 
   static void clean_callbacks();
   static void registry_callback(Value_changed_callback callcback);
 
-  template<typename Copy_type>
-  static void update_func(THD *thd, SYS_VAR *var,
-                          void *tgt, const void *save);
+  template <typename Copy_type>
+  static void update_func(THD *thd, SYS_VAR *var, void *tgt, const void *save);
 
-  static void setup_system_variable_from_env_or_compile_opt(char *&cnf_option, const char *env_variable, const char *compile_option);
+  static void setup_system_variable_from_env_or_compile_opt(
+      char *&cnf_option, const char *env_variable, const char *compile_option);
 
-private:
-  static const char *get_system_variable_impl(const char *cnf_option, const char *env_variable, const char *compile_option);
+ private:
+  static const char *get_system_variable_impl(const char *cnf_option,
+                                              const char *env_variable,
+                                              const char *compile_option);
 
   static std::vector<Value_changed_callback> m_callbacks;
 };
 
-template<typename Copy_type>
-void Plugin_system_variables::update_func(THD *thd, SYS_VAR*, void *tgt, const void *save)
-{
-  *(Copy_type*)tgt = *(Copy_type*) save;
+template <typename Copy_type>
+void Plugin_system_variables::update_func(THD *thd, SYS_VAR *, void *tgt,
+                                          const void *save) {
+  *(Copy_type *)tgt = *(Copy_type *)save;
 
-  std::for_each(m_callbacks.begin(), m_callbacks.end(),
+  std::for_each(
+      m_callbacks.begin(), m_callbacks.end(),
       [&thd](const Value_changed_callback &callback) { callback(thd); });
 }
 
-} // namespace xpl
+}  // namespace xpl
 
 #endif /* XPL_SYSTEM_VARIABLES_H */

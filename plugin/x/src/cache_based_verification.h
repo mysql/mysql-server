@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,15 +35,15 @@ namespace xpl {
   password cache
 */
 class Cache_based_verification : public Challenge_response_verification {
-public:
-  explicit Cache_based_verification(
-      ngs::SHA256_password_cache_interface *cache)
-    : Challenge_response_verification(cache) {}
-  bool verify_authentication_string(const std::string &user,
-      const std::string &host, const std::string &client_string_hex,
-      const std::string &/* unused */) const override;
+ public:
+  explicit Cache_based_verification(ngs::SHA256_password_cache_interface *cache)
+      : Challenge_response_verification(cache) {}
+  bool verify_authentication_string(
+      const std::string &user, const std::string &host,
+      const std::string &client_string_hex,
+      const std::string & /* unused */) const override;
 
-private:
+ private:
   void hex2octet(uint8 *to, const char *str, std::uint32_t len) const;
 };
 

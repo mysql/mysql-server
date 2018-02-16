@@ -27,12 +27,10 @@
 #include "my_inttypes.h"
 #include "storage/heap/heapdef.h"
 
-int hp_rectest(HP_INFO *info, const uchar *old)
-{
+int hp_rectest(HP_INFO *info, const uchar *old) {
   DBUG_ENTER("hp_rectest");
 
-  if (memcmp(info->current_ptr,old,(size_t) info->s->reclength))
-  {
+  if (memcmp(info->current_ptr, old, (size_t)info->s->reclength)) {
     set_my_errno(HA_ERR_RECORD_CHANGED);
     DBUG_RETURN(HA_ERR_RECORD_CHANGED); /* Record have changed */
   }

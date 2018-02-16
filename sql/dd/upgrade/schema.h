@@ -25,7 +25,7 @@
 
 #include <vector>
 
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 
@@ -56,7 +56,7 @@ bool migrate_schema_to_dd(THD *thd, const char *dbname);
 */
 bool find_schema_from_datadir(std::vector<String_type> *db_name);
 
-} // namespace upgrade
-} // namespace dd
+}  // namespace upgrade_57
+}  // namespace dd
 
-#endif // DD_UPGRADE__SCHEMA_H_INCLUDED
+#endif  // DD_UPGRADE__SCHEMA_H_INCLUDED

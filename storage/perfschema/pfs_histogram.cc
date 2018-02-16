@@ -56,27 +56,21 @@
 */
 PFS_histogram_timers g_histogram_pico_timers;
 
-void
-PFS_histogram::reset()
-{
+void PFS_histogram::reset() {
   ulong bucket_index;
 
-  for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
-  {
+  for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++) {
     m_bucket[bucket_index] = 0;
   }
 }
 
-void
-PFS_histogram_timers::init()
-{
+void PFS_histogram_timers::init() {
   ulong bucket_index;
   double current_bucket_timer = BUCKET_BASE_TIMER;
 
   m_bucket_timer[0] = 0;
 
-  for (bucket_index = 1; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
-  {
+  for (bucket_index = 1; bucket_index < NUMBER_OF_BUCKETS; bucket_index++) {
     m_bucket_timer[bucket_index] = current_bucket_timer;
     current_bucket_timer *= BUCKET_BASE_FACTOR;
   }

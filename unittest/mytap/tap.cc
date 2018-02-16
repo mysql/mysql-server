@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,13 +45,13 @@
   everywhere instead, except when linking with libmysys is not
   desirable - the case here.
 */
-#if defined(_MSC_VER) && ( _MSC_VER == 1310 )
+#if defined(_MSC_VER) && (_MSC_VER == 1310)
 #define vsnprintf _vsnprintf
 #endif
 
 static void handle_core_signal(int signo) MY_ATTRIBUTE((noreturn));
 static void vemit_tap(int pass, char const *fmt, va_list ap)
-  MY_ATTRIBUTE((format(printf, 2, 0)));
+    MY_ATTRIBUTE((format(printf, 2, 0)));
 
 /**
    @defgroup MyTAP_Internal MyTAP Internals
@@ -66,7 +66,7 @@ static void vemit_tap(int pass, char const *fmt, va_list ap)
 
    @ingroup MyTAP_Internal
  */
-static TEST_DATA g_test = { NO_PLAN, 0, 0, "" };
+static TEST_DATA g_test = {NO_PLAN, 0, 0, ""};
 
 /**
    Output stream for test report message.
@@ -91,29 +91,17 @@ static TEST_DATA g_test = { NO_PLAN, 0, 0, "" };
   @param fmt   Description of test in printf() format.
   @param ap    Vararg list for the description string above.
  */
-static void
-vemit_tap(int pass, char const *fmt, va_list ap)
-{
-  fprintf(tapout, "%sok %d%s",
-          pass ? "" : "not ",
-          ++g_test.last,
+static void vemit_tap(int pass, char const *fmt, va_list ap) {
+  fprintf(tapout, "%sok %d%s", pass ? "" : "not ", ++g_test.last,
           (fmt && *fmt) ? " - " : "");
-  if (fmt && *fmt)
-    vfprintf(tapout, fmt, ap);
+  if (fmt && *fmt) vfprintf(tapout, fmt, ap);
   fflush(tapout);
 }
 
-
-static void
-vemit_tap1(int pass)
-{
-  fprintf(tapout, "%sok %d%s",
-          pass ? "" : "not ",
-          ++g_test.last,
-          "");
+static void vemit_tap1(int pass) {
+  fprintf(tapout, "%sok %d%s", pass ? "" : "not ", ++g_test.last, "");
   fflush(tapout);
 }
-
 
 /**
    Emit a TAP directive.
@@ -130,30 +118,23 @@ vemit_tap1(int pass)
    @param dir  Directive as a string
    @param why  Explanation string
  */
-static void
-emit_dir(const char *dir, const char *why)
-{
+static void emit_dir(const char *dir, const char *why) {
   fprintf(tapout, " # %s %s", dir, why);
   fflush(tapout);
 }
-
 
 /**
    Emit a newline to the TAP output stream.
 
    @ingroup MyTAP_Internal
  */
-static void
-emit_endl()
-{
+static void emit_endl() {
   fprintf(tapout, "\n");
   fflush(tapout);
 }
 
-static void
-handle_core_signal(int signo)
-{
-  /* BAIL_OUT("Signal %d thrown", signo); */
+static void handle_core_signal(int signo) {
+/* BAIL_OUT("Signal %d thrown", signo); */
 #ifdef HAVE_STACKTRACE
   fprintf(stderr, "Signal %d thrown, attempting backtrace.\n", signo);
   my_print_stacktrace(NULL, 0);
@@ -163,9 +144,7 @@ handle_core_signal(int signo)
   _exit(EXIT_FAILURE);
 }
 
-void
-BAIL_OUT(char const *fmt, ...)
-{
+void BAIL_OUT(char const *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(tapout, "Bail out! ");
@@ -175,10 +154,7 @@ BAIL_OUT(char const *fmt, ...)
   exit(255);
 }
 
-
-void
-diag(char const *fmt, ...)
-{
+void diag(char const *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   fprintf(tapout, "# ");
@@ -192,70 +168,67 @@ typedef struct signal_entry {
   void (*handler)(int);
 } signal_entry;
 
-static signal_entry install_signal[]= {
+static signal_entry install_signal[] = {
 #ifdef _WIN32
-  { SIGTERM, handle_core_signal },
+    {SIGTERM, handle_core_signal},
 #else
-  { SIGQUIT, handle_core_signal },
+    {SIGQUIT, handle_core_signal},
 #endif
-  { SIGILL,  handle_core_signal },
-  { SIGABRT, handle_core_signal },
-  { SIGFPE,  handle_core_signal },
-  { SIGSEGV, handle_core_signal }
+    {SIGILL, handle_core_signal},
+    {SIGABRT, handle_core_signal},
+    {SIGFPE, handle_core_signal},
+    {SIGSEGV, handle_core_signal}
 #ifdef SIGBUS
-  , { SIGBUS,  handle_core_signal }
+    ,
+    {SIGBUS, handle_core_signal}
 #endif
 #ifdef SIGXCPU
-  , { SIGXCPU, handle_core_signal }
+    ,
+    {SIGXCPU, handle_core_signal}
 #endif
 #ifdef SIGXCPU
-  , { SIGXFSZ, handle_core_signal }
+    ,
+    {SIGXFSZ, handle_core_signal}
 #endif
 #ifdef SIGXCPU
-  , { SIGSYS,  handle_core_signal }
+    ,
+    {SIGSYS, handle_core_signal}
 #endif
 #ifdef SIGXCPU
-  , { SIGTRAP, handle_core_signal }
+    ,
+    {SIGTRAP, handle_core_signal}
 #endif
 };
 
-int skip_big_tests= 1;
+int skip_big_tests = 1;
 
-void
-plan(int const count)
-{
-  char *config= getenv("MYTAP_CONFIG");
+void plan(int const count) {
+  char *config = getenv("MYTAP_CONFIG");
   size_t i;
 
-  if (config)
-    skip_big_tests= strcmp(config, "big");
+  if (config) skip_big_tests = strcmp(config, "big");
 
   /*
     Install signal handler
   */
 
-  for (i= 0; i < sizeof(install_signal)/sizeof(*install_signal); ++i)
+  for (i = 0; i < sizeof(install_signal) / sizeof(*install_signal); ++i)
     signal(install_signal[i].signo, install_signal[i].handler);
 
-  g_test.plan= count;
-  switch (count)
-  {
-  case NO_PLAN:
-    break;
-  default:
-    if (count > 0)
-    {
-      fprintf(tapout, "1..%d\n", count);
-      fflush(tapout);
-    }
-    break;
+  g_test.plan = count;
+  switch (count) {
+    case NO_PLAN:
+      break;
+    default:
+      if (count > 0) {
+        fprintf(tapout, "1..%d\n", count);
+        fflush(tapout);
+      }
+      break;
   }
 }
 
-
-void
-skip_all(char const *reason, ...)
-{
+void skip_all(char const *reason, ...) {
   va_list ap;
   va_start(ap, reason);
   fprintf(tapout, "1..0 # skip ");
@@ -265,95 +238,73 @@ skip_all(char const *reason, ...)
   exit(0);
 }
 
-void
-ok(int const pass, char const *fmt, ...)
-{
+void ok(int const pass, char const *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
 
-  if (!pass && *g_test.todo == '\0')
-    ++g_test.failed;
+  if (!pass && *g_test.todo == '\0') ++g_test.failed;
 
   vemit_tap(pass, fmt, ap);
   va_end(ap);
-  if (*g_test.todo != '\0')
-    emit_dir("todo", g_test.todo);
+  if (*g_test.todo != '\0') emit_dir("todo", g_test.todo);
   emit_endl();
 }
 
-void
-ok1(int const pass)
-{
+void ok1(int const pass) {
   va_list ap;
 
   memset(&ap, 0, sizeof(ap));
 
-  if (!pass && *g_test.todo == '\0')
-    ++g_test.failed;
+  if (!pass && *g_test.todo == '\0') ++g_test.failed;
 
   vemit_tap1(pass);
 
-  if (*g_test.todo != '\0')
-    emit_dir("todo", g_test.todo);
+  if (*g_test.todo != '\0') emit_dir("todo", g_test.todo);
 
   emit_endl();
 }
 
-void
-skip(int how_many, char const *fmt, ...)
-{
+void skip(int how_many, char const *fmt, ...) {
   char reason[80];
-  if (fmt && *fmt)
-  {
+  if (fmt && *fmt) {
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(reason, sizeof(reason), fmt, ap);
     va_end(ap);
-  }
-  else
+  } else
     reason[0] = '\0';
 
-  while (how_many-- > 0)
-  {
+  while (how_many-- > 0) {
     va_list ap;
-    memset((char*) &ap, 0, sizeof(ap));         /* Keep compiler happy */
+    memset((char *)&ap, 0, sizeof(ap)); /* Keep compiler happy */
     vemit_tap1(1);
     emit_dir("skip", reason);
     emit_endl();
   }
 }
 
-void
-todo_start(char const *message, ...)
-{
+void todo_start(char const *message, ...) {
   va_list ap;
   va_start(ap, message);
   vsnprintf(g_test.todo, sizeof(g_test.todo), message, ap);
   va_end(ap);
 }
 
-void
-todo_end()
-{
-  *g_test.todo = '\0';
-}
+void todo_end() { *g_test.todo = '\0'; }
 
 int exit_status() {
   /*
     If there were no plan, we write one last instead.
   */
-  if (g_test.plan == NO_PLAN)
-    plan(g_test.last);
+  if (g_test.plan == NO_PLAN) plan(g_test.last);
 
-  if (g_test.plan != g_test.last)
-  {
-    diag("%d tests planned but%s %d executed",
-         g_test.plan, (g_test.plan > g_test.last ? " only" : ""), g_test.last);
+  if (g_test.plan != g_test.last) {
+    diag("%d tests planned but%s %d executed", g_test.plan,
+         (g_test.plan > g_test.last ? " only" : ""), g_test.last);
     return EXIT_FAILURE;
   }
 
-  if (g_test.failed > 0)
-  {
+  if (g_test.failed > 0) {
     diag("Failed %d tests!", g_test.failed);
     return EXIT_FAILURE;
   }

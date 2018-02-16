@@ -7,8 +7,6 @@ alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value
@@ -26,8 +24,6 @@ alter table bug53592 add column c blob not null;
 create index bug53592_b on bug53592(b(81));
 create unique index bug53592_c on bug53592(c(1));
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 replace into bug53592 values (),();
 Warnings:
 Warning	1364	Field 'c' doesn't have a default value

@@ -288,8 +288,8 @@ CHANGE MASTER TO MASTER_USER= 'plug_user_wp', MASTER_PASSWORD= 'proxy_user_wp';
 #
 
 --connection slave
-CREATE USER 'ssl_user' IDENTIFIED BY '';
-GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
+CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
+GRANT ALL ON *.* TO ssl_user;
 --source include/stop_slave.inc
 --replace_result $SLAVE_MYPORT SLAVE_MYPORT
 connect (con_ssl,127.0.0.1,ssl_user,,test,$SLAVE_MYPORT,,SSL);

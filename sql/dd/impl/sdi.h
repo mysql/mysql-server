@@ -24,7 +24,7 @@
 #define DD__SDI_INCLUDED
 
 #include "my_compiler.h"
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 struct handlerton;
@@ -45,7 +45,7 @@ class View;
 
 typedef String_type Sdi_type;
 
-static constexpr std::uint64_t sdi_version= 1;
+static constexpr std::uint64_t sdi_version = 1;
 
 /**
   @defgroup serialize_api (De)serialize api functions.
@@ -66,7 +66,6 @@ static constexpr std::uint64_t sdi_version= 1;
 */
 Sdi_type serialize(const Schema &schema);
 
-
 /**
   Serialize a Table object.
 
@@ -76,8 +75,8 @@ Sdi_type serialize(const Schema &schema);
   @return sdi (as json string).
 
 */
-Sdi_type serialize(THD *thd, const Table &table, const String_type &schema_name);
-
+Sdi_type serialize(THD *thd, const Table &table,
+                   const String_type &schema_name);
 
 /**
   Serialize a Tablespace object.
@@ -89,7 +88,6 @@ Sdi_type serialize(THD *thd, const Table &table, const String_type &schema_name)
 */
 
 Sdi_type serialize(const Tablespace &tablespace);
-
 
 /**
   Deserialize a dd::Schema object.
@@ -110,7 +108,6 @@ Sdi_type serialize(const Tablespace &tablespace);
 
 bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
 
-
 /**
   Deserialize a dd::Table object.
 
@@ -130,8 +127,7 @@ bool deserialize(THD *thd, const Sdi_type &sdi, Schema *schema);
 */
 
 bool deserialize(THD *thd, const Sdi_type &sdi, Table *table,
-                 String_type *deser_schema_name= nullptr);
-
+                 String_type *deser_schema_name = nullptr);
 
 /**
   Deserialize a dd::Tablespace object.
@@ -178,11 +174,9 @@ namespace sdi {
 
 template <class DDT>
 inline bool store(THD *thd MY_ATTRIBUTE((unused)),
-                  const DDT *ddo MY_ATTRIBUTE((unused)))
-{
+                  const DDT *ddo MY_ATTRIBUTE((unused))) {
   return false;
 }
-
 
 /**
   Stores the SDI for a table.
@@ -203,7 +197,6 @@ inline bool store(THD *thd MY_ATTRIBUTE((unused)),
 
 bool store(THD *thd, const Table *t);
 
-
 /**
   Stores the SDI for a table space.
 
@@ -221,7 +214,6 @@ bool store(THD *thd, const Table *t);
 
 bool store(THD *thd, const Tablespace *ts);
 
-
 /**
   Generic noop for all types that don't have a specific overload. No
   SDIs are removed for these types.
@@ -232,12 +224,9 @@ bool store(THD *thd, const Tablespace *ts);
  */
 
 template <class DDT>
-inline bool drop(THD *thd MY_ATTRIBUTE((unused)),
-                 const DDT*)
-{
+inline bool drop(THD *thd MY_ATTRIBUTE((unused)), const DDT *) {
   return false;
 }
-
 
 /**
   Remove SDI for a table.
@@ -273,11 +262,9 @@ bool drop(THD *thd, const Table *t);
 template <class DDT>
 inline bool drop_after_update(THD *thd MY_ATTRIBUTE((unused)),
                               const DDT *old_ddo MY_ATTRIBUTE((unused)),
-                              const DDT *new_ddo MY_ATTRIBUTE((unused)))
-{
+                              const DDT *new_ddo MY_ATTRIBUTE((unused))) {
   return false;
 }
-
 
 /**
   Table cleanup hook. When a Dictionary_client issues a store which is
@@ -302,7 +289,7 @@ inline bool drop_after_update(THD *thd MY_ATTRIBUTE((unused)),
 bool drop_after_update(THD *thd, const Table *old_t, const Table *new_t);
 
 /** @} End of group sdi_storage_ops */
-} // namespace sdi
-} // namespace dd
+}  // namespace sdi
+}  // namespace dd
 
 #endif /* DD__SDI_INCLUDED */

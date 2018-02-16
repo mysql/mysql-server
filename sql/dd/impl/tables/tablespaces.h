@@ -37,13 +37,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespaces : public Entity_object_table_impl
-{
-public:
+class Tablespaces : public Entity_object_table_impl {
+ public:
   static const Tablespaces &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_NAME,
     FIELD_OPTIONS,
@@ -52,15 +50,12 @@ public:
     FIELD_ENGINE
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_NAME= static_cast<uint>(Common_index::UK_NAME)
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_NAME = static_cast<uint>(Common_index::UK_NAME)
   };
 
-  enum enum_foreign_keys
-  {
-  };
+  enum enum_foreign_keys {};
 
   Tablespaces();
 
@@ -72,7 +67,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TABLESPACES_INCLUDED
+#endif  // DD_TABLES__TABLESPACES_INCLUDED

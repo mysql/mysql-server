@@ -24,47 +24,39 @@
 
 #include <new>
 
-#include "sql/dd/impl/raw/object_keys.h" // Parent_id_range_key
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/raw/object_keys.h"       // Parent_id_range_key
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
 namespace tables {
 
-const Tablespace_files &Tablespace_files::instance()
-{
-  static Tablespace_files *s_instance= new Tablespace_files();
+const Tablespace_files &Tablespace_files::instance() {
+  static Tablespace_files *s_instance = new Tablespace_files();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Tablespace_files::Tablespace_files()
-{
+Tablespace_files::Tablespace_files() {
   m_target_def.set_table_name("tablespace_files");
 
-  m_target_def.add_field(FIELD_TABLESPACE_ID,
-                         "FIELD_TABLESPACE_ID",
+  m_target_def.add_field(FIELD_TABLESPACE_ID, "FIELD_TABLESPACE_ID",
                          "tablespace_id BIGINT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_ORDINAL_POSITION,
-                         "FIELD_ORDINAL_POSITION",
+  m_target_def.add_field(FIELD_ORDINAL_POSITION, "FIELD_ORDINAL_POSITION",
                          "ordinal_position INT UNSIGNED NOT NULL");
-  m_target_def.add_field(FIELD_FILE_NAME,
-                         "FIELD_FILE_NAME",
+  m_target_def.add_field(FIELD_FILE_NAME, "FIELD_FILE_NAME",
                          "file_name VARCHAR(512) NOT NULL");
-  m_target_def.add_field(FIELD_SE_PRIVATE_DATA,
-                         "FIELD_SE_PRIVATE_DATA",
+  m_target_def.add_field(FIELD_SE_PRIVATE_DATA, "FIELD_SE_PRIVATE_DATA",
                          "se_private_data MEDIUMTEXT");
 
   m_target_def.add_index(INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
                          "INEDX_UK_TABLESPACE_ID_ORDINAL_POSITION",
                          "UNIQUE KEY (tablespace_id, ordinal_position)");
-  m_target_def.add_index(INDEX_UK_FILE_NAME,
-                         "INEDX_UK_FILE_NAME",
+  m_target_def.add_index(INDEX_UK_FILE_NAME, "INEDX_UK_FILE_NAME",
                          "UNIQUE KEY (file_name)");
 
-  m_target_def.add_foreign_key(FK_TABLESPACE_ID,
-                               "FK_TABLESPACE_ID",
+  m_target_def.add_foreign_key(FK_TABLESPACE_ID, "FK_TABLESPACE_ID",
                                "FOREIGN KEY (tablespace_id) \
                                 REFERENCES tablespaces(id)");
 }
@@ -72,25 +64,22 @@ Tablespace_files::Tablespace_files()
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Tablespace_files::create_key_by_tablespace_id(
-  Object_id tablespace_id)
-{
-  return new (std::nothrow) Parent_id_range_key(
-          INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION, FIELD_TABLESPACE_ID,
-          tablespace_id);
+    Object_id tablespace_id) {
+  return new (std::nothrow)
+      Parent_id_range_key(INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
+                          FIELD_TABLESPACE_ID, tablespace_id);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Object_key *Tablespace_files::create_primary_key(
-  Object_id tablespace_id, int ordinal_position)
-{
-  return new (std::nothrow) Composite_pk(
-                          INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION,
-                          FIELD_TABLESPACE_ID, tablespace_id,
-                          FIELD_ORDINAL_POSITION, ordinal_position);
+Object_key *Tablespace_files::create_primary_key(Object_id tablespace_id,
+                                                 int ordinal_position) {
+  return new (std::nothrow)
+      Composite_pk(INDEX_UK_TABLESPACE_ID_ORDINAL_POSITION, FIELD_TABLESPACE_ID,
+                   tablespace_id, FIELD_ORDINAL_POSITION, ordinal_position);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

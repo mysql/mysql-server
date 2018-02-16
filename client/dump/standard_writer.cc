@@ -28,13 +28,12 @@
 
 using namespace Mysql::Tools::Dump;
 
-void Standard_writer::append(const std::string& data_to_append)
-{
+void Standard_writer::append(const std::string &data_to_append) {
   fwrite(data_to_append.c_str(), 1, data_to_append.size(), stdout);
 }
 
 Standard_writer::Standard_writer(
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator)
-  : Abstract_chain_element(message_handler, object_id_generator)
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler,
+    Simple_id_generator *object_id_generator)
+    : Abstract_chain_element(message_handler, object_id_generator) {}

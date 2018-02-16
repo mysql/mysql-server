@@ -481,9 +481,7 @@ SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
 ******************** CREATE USER ********************
-CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111';
-Warnings:
-Warning	1287	'IDENTIFIED BY PASSWORD' is deprecated and will be removed in a future release. Please use IDENTIFIED WITH <plugin> AS <hash> instead
+CREATE USER 'user_test_rpl'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111';
 ==========MASTER==========
 SELECT host, user, authentication_string, select_priv FROM mysql.user WHERE user LIKE 'user_test_rpl%';
 host	user	authentication_string	select_priv

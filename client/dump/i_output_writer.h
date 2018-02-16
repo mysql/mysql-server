@@ -29,23 +29,22 @@
 
 #include "client/dump/i_chain_element.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_output_writer : public virtual I_chain_element
-{
-public:
+class I_output_writer : public virtual I_chain_element {
+ public:
   /**
     Adds new block of data atomically to output. Atomicity assures that
     specified block of data will be added to output as one part, will not be
     divided or interleaved with another data.
    */
-  virtual void append(const std::string& data_to_append)= 0;
+  virtual void append(const std::string &data_to_append) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

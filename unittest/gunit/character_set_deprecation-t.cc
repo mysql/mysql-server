@@ -36,14 +36,13 @@ namespace character_set_deprecation_unittest {
   parse(const char*) makes sure of. The set-up involves changing a global
   variable, so we can't test it in MTR.
 */
-class CharacterSetDeprecationTest : public ParserTest
-{
-protected:
+class CharacterSetDeprecationTest : public ParserTest {
+ protected:
   void SetUp() override {
     ParserTest::SetUp();
-    thd()->lex->will_contextualize= false;
+    thd()->lex->will_contextualize = false;
     m_saved_cs = national_charset_info;
-    national_charset_info= &my_charset_bin;
+    national_charset_info = &my_charset_bin;
   }
 
   void TearDown() override {
@@ -51,16 +50,15 @@ protected:
     national_charset_info = m_saved_cs;
   }
 
-private:
+ private:
   CHARSET_INFO *m_saved_cs;
 };
 
-TEST_F(CharacterSetDeprecationTest, National)
-{
+TEST_F(CharacterSetDeprecationTest, National) {
   parse("SELECT n'abc'");
   parse("CREATE TABLE t ( a NATIONAL CHAR(1) )");
   parse("CREATE TABLE t ( a NCHAR(1) )");
   parse("CREATE TABLE t ( a NVARCHAR(1) )");
 }
 
-} // namespace
+}  // namespace character_set_deprecation_unittest

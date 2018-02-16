@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -43,8 +43,7 @@ class Admin_command_handler {
   class Command_arguments {
    public:
     using Argument_list = std::vector<std::string>;
-    using List =
-        ::google::protobuf::RepeatedPtrField< ::Mysqlx::Datatypes::Any>;
+    using List = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
     static const char *const PLACEHOLDER;
 
     virtual ~Command_arguments() {}
@@ -78,30 +77,42 @@ class Admin_command_handler {
                           const std::string &command, Command_arguments *args);
 
   static const char *const MYSQLX_NAMESPACE;
+
  protected:
   using Argument_list = Command_arguments::Argument_list;
   using Value_list = Command_arguments::List;
 
   ngs::Error_code ping(const std::string &name_space, Command_arguments *args);
 
-  ngs::Error_code list_clients(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code kill_client(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code list_clients(const std::string &name_space,
+                               Command_arguments *args);
+  ngs::Error_code kill_client(const std::string &name_space,
+                              Command_arguments *args);
 
-  ngs::Error_code create_collection(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code drop_collection(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code ensure_collection(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code create_collection(const std::string &name_space,
+                                    Command_arguments *args);
+  ngs::Error_code drop_collection(const std::string &name_space,
+                                  Command_arguments *args);
+  ngs::Error_code ensure_collection(const std::string &name_space,
+                                    Command_arguments *args);
 
-  ngs::Error_code create_collection_index(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code drop_collection_index(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code create_collection_index(const std::string &name_space,
+                                          Command_arguments *args);
+  ngs::Error_code drop_collection_index(const std::string &name_space,
+                                        Command_arguments *args);
 
-  ngs::Error_code list_objects(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code list_objects(const std::string &name_space,
+                               Command_arguments *args);
 
-  ngs::Error_code enable_notices(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code disable_notices(const std::string &name_space, Command_arguments *args);
-  ngs::Error_code list_notices(const std::string &name_space, Command_arguments *args);
+  ngs::Error_code enable_notices(const std::string &name_space,
+                                 Command_arguments *args);
+  ngs::Error_code disable_notices(const std::string &name_space,
+                                  Command_arguments *args);
+  ngs::Error_code list_notices(const std::string &name_space,
+                               Command_arguments *args);
 
-  using Method_ptr =
-      ngs::Error_code (Admin_command_handler::*)(const std::string &name_space, Command_arguments *args);
+  using Method_ptr = ngs::Error_code (Admin_command_handler::*)(
+      const std::string &name_space, Command_arguments *args);
   static const struct Command_handler
       : private std::map<std::string, Method_ptr> {
     Command_handler();

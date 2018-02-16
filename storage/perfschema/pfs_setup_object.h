@@ -46,8 +46,7 @@ class PFS_opaque_container_page;
 */
 
 /** Hash key for @sa PFS_setup_object. */
-struct PFS_setup_object_key
-{
+struct PFS_setup_object_key {
   /**
     Hash search key.
     This has to be a string for @c LF_HASH,
@@ -58,11 +57,8 @@ struct PFS_setup_object_key
 };
 
 /** A setup_object record. */
-struct PFS_ALIGNED PFS_setup_object
-{
-  enum_object_type
-  get_object_type()
-  {
+struct PFS_ALIGNED PFS_setup_object {
+  enum_object_type get_object_type() {
     return (enum_object_type)m_key.m_hash_key[0];
   }
 
@@ -91,25 +87,17 @@ void cleanup_setup_object(void);
 int init_setup_object_hash(const PFS_global_param *param);
 void cleanup_setup_object_hash(void);
 
-int insert_setup_object(enum_object_type object_type,
-                        const String *schema,
-                        const String *object,
-                        bool enabled,
-                        bool timed);
-int delete_setup_object(enum_object_type object_type,
-                        const String *schema,
+int insert_setup_object(enum_object_type object_type, const String *schema,
+                        const String *object, bool enabled, bool timed);
+int delete_setup_object(enum_object_type object_type, const String *schema,
                         const String *object);
 int reset_setup_object(void);
 long setup_object_count(void);
 
-void lookup_setup_object(PFS_thread *thread,
-                         enum_object_type object_type,
-                         const char *schema_name,
-                         int schema_name_length,
-                         const char *object_name,
-                         int object_name_length,
-                         bool *enabled,
-                         bool *timed);
+void lookup_setup_object(PFS_thread *thread, enum_object_type object_type,
+                         const char *schema_name, int schema_name_length,
+                         const char *object_name, int object_name_length,
+                         bool *enabled, bool *timed);
 
 /* For show status. */
 

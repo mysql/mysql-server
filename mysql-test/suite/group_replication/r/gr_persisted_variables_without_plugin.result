@@ -1,0 +1,56 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Persist configuration on server1. Uninstall plugin.
+[connection server1]
+SET PERSIST group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+SET PERSIST group_replication_group_seeds= @@GLOBAL.group_replication_group_seeds;
+SET PERSIST group_replication_local_address= @@GLOBAL.group_replication_local_address;
+SET PERSIST group_replication_start_on_boot= ON;
+SET PERSIST group_replication_bootstrap_group= ON;
+include/assert.inc ['Expect 5 persisted variables.']
+UNINSTALL PLUGIN group_replication;
+
+############################################################
+# 2. Restart server1 without plugin-load, it must NOT
+#    bootstrap the group. Verify warnings are generated.
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("unknown variable 'loose_group_replication");
+SET SESSION sql_log_bin= 1;
+# restart: --plugin-load=
+include/rpl_reconnect.inc
+
+include/assert.inc ['There must be NO variable shown as persisted in variables_info table.']
+
+Occurrences of 'unknown variable 'loose_group_replication_' in the input file: 5
+
+############################################################
+# 3. Install plugin and verify that variable_source is shown
+#    as PERSISTED and group is bootstrapped.
+INSTALL PLUGIN group_replication SONAME 'GROUP_REPLICATION';
+include/gr_wait_for_member_state.inc
+include/assert.inc ['Expect 5 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 5 persisted variables with matching persisted and global values.']
+UNINSTALL PLUGIN group_replication;
+
+############################################################
+# 4. Restart server again with plugin-load. Verify group is
+#    bootstrapped.
+# restart
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc ['Expect 5 persisted variables shown as PERSISTED in variables_info table.']
+include/assert.inc ['Expect 5 persisted variables with matching persisted and global values.']
+
+############################################################
+# 5. Clean up.
+[connection server1]
+RESET PERSIST;
+SET GLOBAL group_replication_start_on_boot= OFF;
+SET GLOBAL group_replication_bootstrap_group= OFF;
+include/assert.inc ['There must be 0 persisted variables.']
+include/group_replication_end.inc

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,85 +24,62 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/dict0crea.h
-Database object creation
+/** @file include/dict0crea.h
+ Database object creation
 
-Created 1/8/1996 Heikki Tuuri
-*******************************************************/
+ Created 1/8/1996 Heikki Tuuri
+ *******************************************************/
 
 #ifndef dict0crea_h
 #define dict0crea_h
 
-#include "univ.i"
-#include "dict0types.h"
 #include "dict0dict.h"
+#include "dict0types.h"
+#include "fsp0space.h"
+#include "mtr0mtr.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "mtr0mtr.h"
-#include "fsp0space.h"
+#include "univ.i"
 
 /** Build a table definition without updating SYSTEM TABLES
 @param[in,out]	table	dict table object
 @param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-dberr_t
-dict_build_table_def(
-	dict_table_t*	table,
-	trx_t*		trx);
+dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx);
 
 /** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
 @param[in,out]	tablespace	Tablespace object describing what to build.
 @return DB_SUCCESS or error code. */
-dberr_t
-dict_build_tablespace(
-	trx_t*		trx,
-	Tablespace*	tablespace);
+dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
 @param[in,out]	table	Table to build in its own tablespace.
 @param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
-dberr_t
-dict_build_tablespace_for_table(
-	dict_table_t*	table,
-	trx_t*		trx);
+dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID
 @param[in,out]	trx	Transaction */
-void
-dict_table_assign_new_id(
-	dict_table_t*	table,
-	trx_t*		trx);
+void dict_table_assign_new_id(dict_table_t *table, trx_t *trx);
 
-/***************************************************************//**
-Builds an index definition but doesn't update sys_table. */
-void
-dict_build_index_def(
-/*=================*/
-	const dict_table_t*	table,	/*!< in: table */
-	dict_index_t*		index,	/*!< in/out: index */
-	trx_t*			trx);	/*!< in/out: InnoDB transaction
-					handle */
-/***************************************************************//**
-Creates an index tree for the index if it is not a member of a cluster.
-@param[in,out]	index	InnoDB index object
-@param[in,out]	trx	transaction
-@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
-dberr_t
-dict_create_index_tree_in_mem(
-	dict_index_t*	index,
-	trx_t*		trx);
+/** Builds an index definition but doesn't update sys_table. */
+void dict_build_index_def(const dict_table_t *table, /*!< in: table */
+                          dict_index_t *index,       /*!< in/out: index */
+                          trx_t *trx); /*!< in/out: InnoDB transaction
+                                       handle */
+/** Creates an index tree for the index if it is not a member of a cluster.
+ @param[in,out]	index	InnoDB index object
+ @param[in,out]	trx	transaction
+ @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+dberr_t dict_create_index_tree_in_mem(dict_index_t *index, trx_t *trx);
 
 /** Drop an index tree belonging to a temporary table.
 @param[in]	index		index in a temporary table
 @param[in]	root_page_no	index root page number */
-void
-dict_drop_temporary_table_index(
-	const dict_index_t*	index,
-	page_no_t		root_page_no);
+void dict_drop_temporary_table_index(const dict_index_t *index,
+                                     page_no_t root_page_no);
 
 /** Generate a foreign key constraint name when it was not named by the user.
 A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
@@ -112,11 +89,8 @@ the number is not global, as it used to be before MySQL 4.0.18.
 @param[in]	name	table name
 @param[in,out]	foreign	foreign key */
 UNIV_INLINE
-dberr_t
-dict_create_add_foreign_id(
-	ulint*		id_nr,
-	const char*	name,
-	dict_foreign_t*	foreign);
+dberr_t dict_create_add_foreign_id(ulint *id_nr, const char *name,
+                                   dict_foreign_t *foreign);
 
 /** Check if a foreign constraint is on columns server as base columns
 of any stored column. This is to prevent creating SET NULL or CASCADE
@@ -126,35 +100,33 @@ the dictionary tables
 @param[in]	table		table to which the foreign key objects in
 local_fk_set belong to
 @return true if yes, otherwise, false */
-bool
-dict_foreigns_has_s_base_col(
-	const dict_foreign_set&	local_fk_set,
-	const dict_table_t*	table);
+bool dict_foreigns_has_s_base_col(const dict_foreign_set &local_fk_set,
+                                  const dict_table_t *table);
 
 /* Table create node structure */
-struct tab_node_t{
-	que_common_t	common;		/*!< node type: QUE_NODE_TABLE_CREATE */
-	dict_table_t*	table;		/*!< table to create, built as a
-					memory data structure with
-					dict_mem_... functions */
-	ins_node_t*	tab_def;	/*!< child node which does the insert of
-					the table definition; the row to be
-					inserted is built by the parent node  */
-	ins_node_t*	col_def;	/*!< child node which does the inserts
-					of the column definitions; the row to
-					be inserted is built by the parent
-					node  */
-	ins_node_t*	v_col_def;	/*!< child node which does the inserts
-					of the sys_virtual row definitions;
-					the row to be inserted is built by
-					the parent node  */
-	/*----------------------*/
-	/* Local storage for this graph node */
-	ulint		state;		/*!< node execution state */
-	ulint		col_no;		/*!< next column definition to insert */
-	ulint		base_col_no;	/*!< next base column to insert */
-	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
-					storage */
+struct tab_node_t {
+  que_common_t common;   /*!< node type: QUE_NODE_TABLE_CREATE */
+  dict_table_t *table;   /*!< table to create, built as a
+                         memory data structure with
+                         dict_mem_... functions */
+  ins_node_t *tab_def;   /*!< child node which does the insert of
+                         the table definition; the row to be
+                         inserted is built by the parent node  */
+  ins_node_t *col_def;   /*!< child node which does the inserts
+                         of the column definitions; the row to
+                         be inserted is built by the parent
+                         node  */
+  ins_node_t *v_col_def; /*!< child node which does the inserts
+                         of the sys_virtual row definitions;
+                         the row to be inserted is built by
+                         the parent node  */
+  /*----------------------*/
+  /* Local storage for this graph node */
+  ulint state;       /*!< node execution state */
+  ulint col_no;      /*!< next column definition to insert */
+  ulint base_col_no; /*!< next base column to insert */
+  mem_heap_t *heap;  /*!< memory heap used as auxiliary
+                     storage */
 };
 
 /** Create in-memory tablespace dictionary index & table
@@ -163,39 +135,34 @@ struct tab_node_t{
 @param[in]	in_flags	space flags to use when space_discarded is true
 @param[in]	is_create	true when creating SDI index
 @return in-memory index structure for tablespace dictionary or NULL */
-dict_index_t*
-dict_sdi_create_idx_in_mem(
-	space_id_t	space,
-	bool		space_discarded,
-	ulint		in_flags,
-	bool		is_create);
+dict_index_t *dict_sdi_create_idx_in_mem(space_id_t space, bool space_discarded,
+                                         ulint in_flags, bool is_create);
 
 /* Index create node struct */
 
-struct ind_node_t{
-	que_common_t	common;		/*!< node type: QUE_NODE_INDEX_CREATE */
-	dict_index_t*	index;		/*!< index to create, built as a
-					memory data structure with
-					dict_mem_... functions */
-	ins_node_t*	ind_def;	/*!< child node which does the insert of
-					the index definition; the row to be
-					inserted is built by the parent node  */
-	ins_node_t*	field_def;	/*!< child node which does the inserts
-					of the field definitions; the row to
-					be inserted is built by the parent
-					node  */
-	/*----------------------*/
-	/* Local storage for this graph node */
-	ulint		state;		/*!< node execution state */
-	ulint		page_no;	/* root page number of the index */
-	dict_table_t*	table;		/*!< table which owns the index */
-	dtuple_t*	ind_row;	/* index definition row built */
-	ulint		field_no;	/* next field definition to insert */
-	mem_heap_t*	heap;		/*!< memory heap used as auxiliary
-					storage */
-	const dict_add_v_col_t*
-			add_v;		/*!< new virtual columns that being
-					added along with an add index call */
+struct ind_node_t {
+  que_common_t common;   /*!< node type: QUE_NODE_INDEX_CREATE */
+  dict_index_t *index;   /*!< index to create, built as a
+                         memory data structure with
+                         dict_mem_... functions */
+  ins_node_t *ind_def;   /*!< child node which does the insert of
+                         the index definition; the row to be
+                         inserted is built by the parent node  */
+  ins_node_t *field_def; /*!< child node which does the inserts
+                         of the field definitions; the row to
+                         be inserted is built by the parent
+                         node  */
+  /*----------------------*/
+  /* Local storage for this graph node */
+  ulint state;                   /*!< node execution state */
+  ulint page_no;                 /* root page number of the index */
+  dict_table_t *table;           /*!< table which owns the index */
+  dtuple_t *ind_row;             /* index definition row built */
+  ulint field_no;                /* next field definition to insert */
+  mem_heap_t *heap;              /*!< memory heap used as auxiliary
+                                 storage */
+  const dict_add_v_col_t *add_v; /*!< new virtual columns that being
+                                 added along with an add index call */
 };
 
 /** Compose a column number for a virtual column, stored in the "POS" field
@@ -205,28 +172,21 @@ of Sys_columns. The column number includes both its virtual column sequence
 @param[in]	col_pos		column position in original table definition
 @return	composed column position number */
 UNIV_INLINE
-ulint
-dict_create_v_col_pos(
-	ulint	v_pos,
-	ulint	col_pos);
+ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos);
 
 /** Get the column number for a virtual column (the column position in
 original table), stored in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return column position in original table */
 UNIV_INLINE
-ulint
-dict_get_v_col_mysql_pos(
-	ulint	pos);
+ulint dict_get_v_col_mysql_pos(ulint pos);
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return virtual column sequence */
 UNIV_INLINE
-ulint
-dict_get_v_col_pos(
-	ulint	pos);
+ulint dict_get_v_col_pos(ulint pos);
 
 #include "dict0crea.ic"
 

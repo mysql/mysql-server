@@ -376,7 +376,7 @@ ALTER TABLE t1 CHANGE c1 c1 MEDIUMTEXT CHARACTER SET gb18030 NOT NULL;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumtext NOT NULL,
+  `c1` mediumtext CHARACTER SET gb18030 COLLATE gb18030_chinese_ci NOT NULL,
   `c2` text NOT NULL
 ) ENGINE=default_engine DEFAULT CHARSET=gb18030
 DROP TABLE t1;
@@ -1067,8 +1067,6 @@ HEX(WEIGHT_STRING(CAST(0x81309D3081309D3081309D30 AS CHAR), 25, 4, 0xC0))
 # INETTO_NTOA + MULTIBYTE CHARSET.
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT is_ipv4(inet_ntoa('1'));
 is_ipv4(inet_ntoa('1'))
 1

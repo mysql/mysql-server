@@ -22,21 +22,16 @@
 
 #include "storage/myisammrg/myrg_def.h"
 
-ha_rows myrg_records_in_range(MYRG_INFO *info, int inx,
-                              key_range *min_key, key_range *max_key)
-{
-  ha_rows records=0, res;
+ha_rows myrg_records_in_range(MYRG_INFO *info, int inx, key_range *min_key,
+                              key_range *max_key) {
+  ha_rows records = 0, res;
   MYRG_TABLE *table;
 
-  for (table=info->open_tables ; table != info->end_table ; table++)
-  {
-    res= mi_records_in_range(table->table, inx, min_key, max_key);
-    if (res == HA_POS_ERROR)
-      return HA_POS_ERROR; 
-    if (records > HA_POS_ERROR - res)
-      return HA_POS_ERROR-1;
-    records+=res;
+  for (table = info->open_tables; table != info->end_table; table++) {
+    res = mi_records_in_range(table->table, inx, min_key, max_key);
+    if (res == HA_POS_ERROR) return HA_POS_ERROR;
+    if (records > HA_POS_ERROR - res) return HA_POS_ERROR - 1;
+    records += res;
   }
   return records;
 }
-

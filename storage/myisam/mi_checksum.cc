@@ -27,47 +27,41 @@
 #include "my_inttypes.h"
 #include "storage/myisam/myisamdef.h"
 
-ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
-{
+ha_checksum mi_checksum(MI_INFO *info, const uchar *buf) {
   uint i;
-  ha_checksum crc=0;
-  MI_COLUMNDEF *rec=info->s->rec;
+  ha_checksum crc = 0;
+  MI_COLUMNDEF *rec = info->s->rec;
 
-  for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
-  {
+  for (i = info->s->base.fields; i--; buf += (rec++)->length) {
     uchar *pos;
     ulong length;
     switch (rec->type) {
-    case FIELD_BLOB:
-    {
-      length=_mi_calc_blob_length(rec->length-
-					portable_sizeof_char_ptr,
-					buf);
-      memcpy(&pos, buf+rec->length- portable_sizeof_char_ptr, sizeof(char*));
-      break;
+      case FIELD_BLOB: {
+        length =
+            _mi_calc_blob_length(rec->length - portable_sizeof_char_ptr, buf);
+        memcpy(&pos, buf + rec->length - portable_sizeof_char_ptr,
+               sizeof(char *));
+        break;
+      }
+      case FIELD_VARCHAR: {
+        uint pack_length = HA_VARCHAR_PACKLENGTH(rec->length - 1);
+        if (pack_length == 1)
+          length = (ulong) * (uchar *)buf;
+        else
+          length = uint2korr(buf);
+        pos = (uchar *)buf + pack_length;
+        break;
+      }
+      default:
+        length = rec->length;
+        pos = (uchar *)buf;
+        break;
     }
-    case FIELD_VARCHAR:
-    {
-      uint pack_length= HA_VARCHAR_PACKLENGTH(rec->length-1);
-      if (pack_length == 1)
-        length= (ulong) *(uchar*) buf;
-      else
-        length= uint2korr(buf);
-      pos= (uchar*)buf+pack_length;
-      break;
-    }
-    default:
-      length=rec->length;
-      pos= (uchar*)buf;
-      break;
-    }
-    crc=my_checksum(crc, pos ? pos : (uchar*) "", length);
+    crc = my_checksum(crc, pos ? pos : (uchar *)"", length);
   }
   return crc;
 }
 
-
-ha_checksum mi_static_checksum(MI_INFO *info, const uchar *pos)
-{
+ha_checksum mi_static_checksum(MI_INFO *info, const uchar *pos) {
   return my_checksum(0, pos, info->s->base.reclength);
 }

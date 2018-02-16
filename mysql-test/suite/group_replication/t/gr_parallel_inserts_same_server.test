@@ -1,0 +1,59 @@
+################################################################################
+# This test will create in parallel, in the same member, two transactions
+# with two different clients.
+#
+# The success of this test is determined by its termination. Any failure
+# in the parallelism of a transaction shall hang this test.
+#
+# Test:
+# 0. The test requires one server.
+# 1. With member ONLINE. Create a table t1.
+# 2. Creating several entries in parallel in the same table.
+# 3. Test if one succeeded creating all entries in the test.
+# 4. Clean up.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT, PRIMARY KEY (a), b int) engine=InnoDB;
+--source include/rpl_sync.inc
+
+--connection server1
+
+--echo #
+--echo # Creating several entries in parallel in the same table
+--echo #
+
+--disable_query_log
+--let $entries=50
+while($entries > 0)
+{
+  --connection server1
+  --send INSERT INTO t1 (b) VALUES(1)
+
+  --connection master
+  --send INSERT INTO t1 (b) VALUES(2)
+
+  --connection server1
+   --reap
+
+  --connection master
+   --reap
+
+  --dec $entries
+}
+--enable_query_log
+
+--echo #
+--echo # Test if one succeeded creating all entries in the test.
+--echo #
+--let $assert_text= Table t1 must have 100 entries
+--let $assert_cond=  "[SELECT COUNT(*) AS count FROM t1, count, 1]" = "100"
+--source include/assert.inc
+
+--connection server1
+DROP TABLE t1;
+
+--source include/group_replication_end.inc
+

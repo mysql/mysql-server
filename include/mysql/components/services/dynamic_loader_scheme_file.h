@@ -30,6 +30,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   See mysql_service_dynamic_loader_scheme_t.
 */
 typedef SERVICE_TYPE_NO_CONST(dynamic_loader_scheme)
-  SERVICE_TYPE_NO_CONST(dynamic_loader_scheme_file);
+    SERVICE_TYPE_NO_CONST(dynamic_loader_scheme_file);
 
 #endif /* DYNAMIC_LOADER_SCHEME_FILE_H */

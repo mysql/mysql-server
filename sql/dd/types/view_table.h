@@ -23,8 +23,7 @@
 #ifndef DD__VIEW_TABLE_INCLUDED
 #define DD__VIEW_TABLE_INCLUDED
 
-
-#include "sql/dd/types/weak_object.h" // dd::Weak_object
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 
@@ -34,20 +33,18 @@ class View;
 class View_table_impl;
 
 namespace tables {
-  class View_table_usage;
+class View_table_usage;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class View_table : virtual public Weak_object
-{
-public:
+class View_table : virtual public Weak_object {
+ public:
   typedef View_table_impl Impl;
   typedef tables::View_table_usage DD_table;
 
-public:
-  virtual ~View_table()
-  { };
+ public:
+  virtual ~View_table(){};
 
   /////////////////////////////////////////////////////////////////////////
   // View table catalog name.
@@ -82,6 +79,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__VIEW_TABLE_INCLUDED
+#endif  // DD__VIEW_TABLE_INCLUDED

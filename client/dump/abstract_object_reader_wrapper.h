@@ -30,33 +30,33 @@
 #include "client/dump/abstract_chain_element.h"
 #include "client/dump/i_object_reader_wrapper.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Implementation of common logic for classes that directs execution of
   dump tasks to Object Readers.
  */
 class Abstract_object_reader_wrapper : public I_object_reader_wrapper,
-  public Abstract_chain_element
-{
-public:
-  void register_object_reader(I_object_reader* new_object_reader);
+                                       public Abstract_chain_element {
+ public:
+  void register_object_reader(I_object_reader *new_object_reader);
 
-protected:
+ protected:
   Abstract_object_reader_wrapper(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void format_object(Item_processing_data* current_processing_data);
+  void format_object(Item_processing_data *current_processing_data);
 
-private:
-  std::vector<I_object_reader*> m_object_readers;
+ private:
+  std::vector<I_object_reader *> m_object_readers;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

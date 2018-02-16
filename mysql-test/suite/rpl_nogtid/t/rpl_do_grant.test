@@ -23,10 +23,8 @@ flush privileges;
 
 # test replication of GRANT
 connection master;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user rpl_do_grant@localhost;
 grant select on *.* to rpl_do_grant@localhost;
-set sql_mode= @orig_sql_mode;
 grant drop on test.* to rpl_do_grant@localhost;
 sync_slave_with_master;
 show grants for rpl_do_grant@localhost;
@@ -130,8 +128,9 @@ DROP DATABASE IF EXISTS bug42217_db;
 --enable_warnings
 CREATE DATABASE  bug42217_db;
 
+CREATE USER 'create_rout_db'@'localhost' IDENTIFIED BY 'create_rout_db';
 GRANT CREATE ROUTINE ON bug42217_db.* TO 'create_rout_db'@'localhost'
-        IDENTIFIED BY 'create_rout_db' WITH GRANT OPTION;
+  WITH GRANT OPTION;
 
 -- sync_slave_with_master
 -- connection master
@@ -338,6 +337,7 @@ DROP USER 'user49119'@'localhost';
 -- source include/rpl_reset.inc
 -- connection master
 
+create user foo@"1.2.3.4";
 grant all on *.* to foo@"1.2.3.4";
 -- error ER_REVOKE_GRANTS
 revoke all privileges, grant option from "foo";
@@ -354,6 +354,7 @@ DROP USER foo@"1.2.3.4";
 --echo # Bug#27606 GRANT statement should be replicated with DEFINER information
 --source include/rpl_reset.inc
 --connection master
+CREATE USER user_bug27606@localhost;
 GRANT SELECT, INSERT ON mysql.user TO user_bug27606@localhost;
 
 SELECT Grantor FROM mysql.tables_priv WHERE User='user_bug27606';

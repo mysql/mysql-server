@@ -52,77 +52,70 @@ class Tablespace;
 namespace dd {
 namespace cache {
 
-
 // Put a new element into the map.
 template <typename T>
-void Local_multi_map<T>::put(Cache_element<T> *element)
-{
+void Local_multi_map<T>::put(Cache_element<T> *element) {
 #ifndef DBUG_OFF
   // The new object instance may not be present in the map.
-  Cache_element<T> *e= NULL;
-  m_map<const T*>()->get(element->object(), &e);
+  Cache_element<T> *e = NULL;
+  m_map<const T *>()->get(element->object(), &e);
   DBUG_ASSERT(!e);
 
   // Get all keys that were created within the element.
-  const typename T::Id_key *id_key= element->id_key();
-  const typename T::Name_key *name_key= element->name_key();
-  const typename T::Aux_key *aux_key= element->aux_key();
+  const typename T::Id_key *id_key = element->id_key();
+  const typename T::Name_key *name_key = element->name_key();
+  const typename T::Aux_key *aux_key = element->aux_key();
 
   // There must be at least one key.
   DBUG_ASSERT(id_key || name_key || aux_key);
 
   // None of the keys may exist.
   DBUG_ASSERT(
-    (!id_key || !m_map<typename T::Id_key>()->is_present(*id_key)) &&
-    (!name_key || !m_map<typename T::Name_key>()->is_present(*name_key)) &&
-    (!aux_key || !m_map<typename T::Aux_key>()->is_present(*aux_key)));
+      (!id_key || !m_map<typename T::Id_key>()->is_present(*id_key)) &&
+      (!name_key || !m_map<typename T::Name_key>()->is_present(*name_key)) &&
+      (!aux_key || !m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Add the keys and the element to the maps.
   Multi_map_base<T>::add_single_element(element);
 }
 
-
 // Remove an element from the map.
 template <typename T>
-void Local_multi_map<T>::remove(Cache_element<T> *element)
-{
+void Local_multi_map<T>::remove(Cache_element<T> *element) {
 #ifndef DBUG_OFF
   // The object must be present.
-  Cache_element<T> *e= NULL;
-  m_map<const T*>()->get(element->object(), &e);
+  Cache_element<T> *e = NULL;
+  m_map<const T *>()->get(element->object(), &e);
   DBUG_ASSERT(e);
 
   // Get all keys that were created within the element.
-  const typename T::Id_key *id_key= element->id_key();
-  const typename T::Name_key *name_key= element->name_key();
-  const typename T::Aux_key *aux_key= element->aux_key();
+  const typename T::Id_key *id_key = element->id_key();
+  const typename T::Name_key *name_key = element->name_key();
+  const typename T::Aux_key *aux_key = element->aux_key();
 
   // All non-null keys must exist.
   DBUG_ASSERT(
-    (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
-    (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
-    (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
+      (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
+      (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
+      (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Remove the keys and the element from the maps.
   Multi_map_base<T>::remove_single_element(element);
 }
 
-
 // Remove and delete all elements and objects from the map.
 template <typename T>
-void Local_multi_map<T>::erase()
-{
+void Local_multi_map<T>::erase() {
   typename Multi_map_base<T>::Const_iterator it;
-  for (it= begin(); it != end();)
-  {
+  for (it = begin(); it != end();) {
     DBUG_ASSERT(it->second);
     DBUG_ASSERT(it->second->object());
 
     // Make sure we handle iterator invalidation: Increment
     // before erasing.
-    Cache_element<T> *element= it->second;
+    Cache_element<T> *element = it->second;
     ++it;
 
     // Remove the element from the multi map, delete the wrapped object.
@@ -134,8 +127,7 @@ void Local_multi_map<T>::erase()
 
 /* purecov: begin inspected */
 template <typename T>
-void Local_multi_map<T>::dump() const
-{
+void Local_multi_map<T>::dump() const {
 #ifndef DBUG_OFF
   fprintf(stderr, "  --------------------------------\n");
   fprintf(stderr, "  Local multi map for '%s'\n",
@@ -158,5 +150,5 @@ template class Local_multi_map<Schema>;
 template class Local_multi_map<Spatial_reference_system>;
 template class Local_multi_map<Tablespace>;
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd

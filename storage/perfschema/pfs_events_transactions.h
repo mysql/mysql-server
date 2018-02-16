@@ -55,8 +55,7 @@ struct PFS_host;
   @see XID in sql/handler.h
   @see MYSQL_XID in mysql/plugin.h
 */
-struct PSI_xid
-{
+struct PSI_xid {
   /** Format identifier. */
   long formatID;
   /** GTRID length, value 1-64. */
@@ -66,18 +65,9 @@ struct PSI_xid
   /** XID raw data, not \0-terminated */
   char data[MYSQL_XIDDATASIZE];
 
-  PSI_xid()
-  {
-    null();
-  }
-  bool
-  is_null()
-  {
-    return formatID == -1;
-  }
-  void
-  null()
-  {
+  PSI_xid() { null(); }
+  bool is_null() { return formatID == -1; }
+  void null() {
     formatID = -1;
     gtrid_length = 0;
     bqual_length = 0;
@@ -86,8 +76,7 @@ struct PSI_xid
 typedef struct PSI_xid PSI_xid;
 
 /** A transaction record. */
-struct PFS_events_transactions : public PFS_events
-{
+struct PFS_events_transactions : public PFS_events {
   /** Source identifier, mapped from internal format. */
   rpl_sid m_sid;
   /** InnoDB transaction ID. */
@@ -121,7 +110,7 @@ bool xid_printable(PSI_xid *xid, size_t offset, size_t length);
 void insert_events_transactions_history(PFS_thread *thread,
                                         PFS_events_transactions *transaction);
 void insert_events_transactions_history_long(
-  PFS_events_transactions *transaction);
+    PFS_events_transactions *transaction);
 
 extern bool flag_events_transactions_current;
 extern bool flag_events_transactions_history;
@@ -133,7 +122,7 @@ extern PFS_events_transactions *events_transactions_history_long_array;
 extern ulong events_transactions_history_long_size;
 
 int init_events_transactions_history_long(
-  uint events_transactions_history_long_sizing);
+    uint events_transactions_history_long_sizing);
 void cleanup_events_transactions_history_long();
 
 void reset_events_transactions_current();

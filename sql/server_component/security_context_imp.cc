@@ -34,10 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   optimization) the security_context methods, because libsql code
   is not calling any functions of it.
 */
-void mysql_security_context_init()
-{
-  return;
-}
+void mysql_security_context_init() { return; }
 
 /**
   Gets the security context for the thread.
@@ -48,21 +45,16 @@ void mysql_security_context_init()
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
-  (void *_thd, Security_context_handle *out_ctx))
-{
-  THD *thd= reinterpret_cast<THD *>(_thd);
+                   (void *_thd, Security_context_handle *out_ctx)) {
+  THD *thd = reinterpret_cast<THD *>(_thd);
 
-  if (!out_ctx)
-    return true;
+  if (!out_ctx) return true;
 
-  try
-  {
-    *out_ctx=
-      reinterpret_cast<Security_context_handle>(thd->security_context());
+  try {
+    *out_ctx =
+        reinterpret_cast<Security_context_handle>(thd->security_context());
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -77,20 +69,15 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
-  (void *_thd, Security_context_handle in_ctx))
-{
-  THD *thd= reinterpret_cast<THD *>(_thd);
+                   (void *_thd, Security_context_handle in_ctx)) {
+  THD *thd = reinterpret_cast<THD *>(_thd);
 
-  if (!in_ctx)
-    return true;
+  if (!in_ctx) return true;
 
-  try
-  {
+  try {
     thd->set_security_context(reinterpret_cast<Security_context *>(in_ctx));
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -106,16 +93,12 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::create,
-  (Security_context_handle *out_ctx))
-{
-  try
-  {
-    *out_ctx=
-      reinterpret_cast<Security_context_handle>(new Security_context());
+                   (Security_context_handle * out_ctx)) {
+  try {
+    *out_ctx =
+        reinterpret_cast<Security_context_handle>(new Security_context());
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -129,15 +112,11 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::create,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::destroy,
-  (Security_context_handle ctx))
-{
-  try
-  {
+                   (Security_context_handle ctx)) {
+  try {
     delete reinterpret_cast<Security_context *>(ctx);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -153,23 +132,19 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::destroy,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::copy,
-  (Security_context_handle in_ctx, Security_context_handle *out_ctx))
-{
-  try
-  {
-    if (out_ctx)
-    {
-      *out_ctx=
-        reinterpret_cast<Security_context_handle>(new Security_context());
+                   (Security_context_handle in_ctx,
+                    Security_context_handle *out_ctx)) {
+  try {
+    if (out_ctx) {
+      *out_ctx =
+          reinterpret_cast<Security_context_handle>(new Security_context());
       if (in_ctx && *out_ctx)
-        *out_ctx= reinterpret_cast<Security_context_handle>(in_ctx);
+        *out_ctx = reinterpret_cast<Security_context_handle>(in_ctx);
       else
         return true;
       return false;
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -191,34 +166,28 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::copy,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
-  (Security_context_handle ctx, const char *user, const char *host,
-   const char *ip, const char *db))
-{
-  try
-  {
-    THD *tmp_thd= NULL;
+                   (Security_context_handle ctx, const char *user,
+                    const char *host, const char *ip, const char *db)) {
+  try {
+    THD *tmp_thd = NULL;
     bool retval;
-    if (current_thd == NULL)
-    {
-      tmp_thd= create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
-      if (!tmp_thd)
-        return true;
+    if (current_thd == NULL) {
+      tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
+      if (!tmp_thd) return true;
     }
 
-    retval= acl_getroot(tmp_thd ? tmp_thd : current_thd,
-                        reinterpret_cast<Security_context *> (ctx),
-                        (char *) user, (char *) host, (char *) ip, db) ?
-                        true : false;
+    retval = acl_getroot(tmp_thd ? tmp_thd : current_thd,
+                         reinterpret_cast<Security_context *>(ctx),
+                         (char *)user, (char *)host, (char *)ip, db)
+                 ? true
+                 : false;
 
-    if (tmp_thd)
-    {
+    if (tmp_thd) {
       destroy_thd(tmp_thd);
-      tmp_thd= NULL;
+      tmp_thd = NULL;
     }
     return retval;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -250,62 +219,38 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::lookup,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
-  (Security_context_handle ctx_h, const char *name, void *inout_pvalue))
-{
-  try
-  {
-    Security_context *ctx= reinterpret_cast<Security_context *>(ctx_h);
-    if (inout_pvalue)
-    {
-      if (!strcmp(name, "user"))
-      {
-        *((MYSQL_LEX_CSTRING *)inout_pvalue)= ctx->user();
-      }
-      else if (!strcmp(name, "host"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->host();
-      }
-      else if (!strcmp(name, "ip"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->ip();
-      }
-      else if (!strcmp(name, "host_or_ip"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->host_or_ip();
-      }
-      else if (!strcmp(name, "priv_user"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->priv_user();
-      }
-      else if (!strcmp(name, "priv_host"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->priv_host();
-      }
-      else if (!strcmp(name, "proxy_user"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->proxy_user();
-      }
-      else if (!strcmp(name, "external_user"))
-      {
-        *((MYSQL_LEX_CSTRING *) inout_pvalue)= ctx->external_user();
-      }
-      else if (!strcmp(name, "privilege_super"))
-      {
-        bool checked= ctx->check_access(SUPER_ACL);
-        *((bool *) inout_pvalue)= checked ? true : false;
-      }
-      else if (!strcmp(name, "privilege_execute"))
-      {
-        bool checked= ctx->check_access(EXECUTE_ACL);
-        *((bool *) inout_pvalue)= checked ? true : false;
-      }
-      else
+                   (Security_context_handle ctx_h, const char *name,
+                    void *inout_pvalue)) {
+  try {
+    Security_context *ctx = reinterpret_cast<Security_context *>(ctx_h);
+    if (inout_pvalue) {
+      if (!strcmp(name, "user")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->user();
+      } else if (!strcmp(name, "host")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->host();
+      } else if (!strcmp(name, "ip")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->ip();
+      } else if (!strcmp(name, "host_or_ip")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->host_or_ip();
+      } else if (!strcmp(name, "priv_user")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->priv_user();
+      } else if (!strcmp(name, "priv_host")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->priv_host();
+      } else if (!strcmp(name, "proxy_user")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->proxy_user();
+      } else if (!strcmp(name, "external_user")) {
+        *((MYSQL_LEX_CSTRING *)inout_pvalue) = ctx->external_user();
+      } else if (!strcmp(name, "privilege_super")) {
+        bool checked = ctx->check_access(SUPER_ACL);
+        *((bool *)inout_pvalue) = checked ? true : false;
+      } else if (!strcmp(name, "privilege_execute")) {
+        bool checked = ctx->check_access(EXECUTE_ACL);
+        *((bool *)inout_pvalue) = checked ? true : false;
+      } else
         return true; /* invalid option */
     }
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -336,63 +281,44 @@ DEFINE_BOOL_METHOD(mysql_security_context_imp::get,
   @retval false   success
 */
 DEFINE_BOOL_METHOD(mysql_security_context_imp::set,
-  (Security_context_handle ctx_h, const char *name, void *pvalue))
-{
-  try
-  {
-    Security_context *ctx= reinterpret_cast<Security_context *>(ctx_h);
-    if (!strcmp(name, "user"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+                   (Security_context_handle ctx_h, const char *name,
+                    void *pvalue)) {
+  try {
+    Security_context *ctx = reinterpret_cast<Security_context *>(ctx_h);
+    if (!strcmp(name, "user")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_user(value->str, value->length);
-    }
-    else if (!strcmp(name, "host"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+    } else if (!strcmp(name, "host")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_host(value->str, value->length);
-    }
-    else if (!strcmp(name, "ip"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+    } else if (!strcmp(name, "ip")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_ip(value->str, value->length);
-    }
-    else if (!strcmp(name, "priv_user"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+    } else if (!strcmp(name, "priv_user")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_priv_user(value->str, value->length);
-    }
-    else if (!strcmp(name, "priv_host"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+    } else if (!strcmp(name, "priv_host")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_priv_host(value->str, value->length);
-    }
-    else if (!strcmp(name, "proxy_user"))
-    {
-      LEX_CSTRING *value= (LEX_CSTRING *) pvalue;
+    } else if (!strcmp(name, "proxy_user")) {
+      LEX_CSTRING *value = (LEX_CSTRING *)pvalue;
       ctx->assign_proxy_user(value->str, value->length);
-    }
-    else if (!strcmp(name, "privilege_super"))
-    {
-      char value= *(char *) pvalue;
+    } else if (!strcmp(name, "privilege_super")) {
+      char value = *(char *)pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (SUPER_ACL));
       else
         ctx->set_master_access(ctx->master_access() & ~(SUPER_ACL));
-    }
-    else if (!strcmp(name, "privilege_execute"))
-    {
-      char value= *(char *) pvalue;
+    } else if (!strcmp(name, "privilege_execute")) {
+      char value = *(char *)pvalue;
       if (value)
         ctx->set_master_access(ctx->master_access() | (EXECUTE_ACL));
       else
         ctx->set_master_access(ctx->master_access() & ~(EXECUTE_ACL));
-    }
-    else
+    } else
       return true; /* invalid option */
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,6 @@ MYSQL_ADD_PLUGIN(ngram_parser ./ngram_parser/plugin_ngram.cc
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}")
 INCLUDE(mecab)
 MYSQL_CHECK_MECAB()
-
-IF(BUNDLE_MECAB)
-  ADD_DEFINITIONS(-DBUNDLE_MECAB)
-ENDIF()
 
 IF(WITH_DEBUG)
   ADD_DEFINITIONS(-DDEBUG)

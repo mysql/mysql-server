@@ -1,0 +1,204 @@
+###############################################################################
+# Validate if granting privileges with 'Roles' works with group_replication
+
+# 0.Test uses 2 servers: server1, server2
+# 1.Verify that ROLES are replicated successfully.
+#   1.1 Create role, user on server1.
+#   1.2 Grant privileges to roles and grant roles to users.
+# 2.Verify execution of GR commands is successful by the user when
+#   different privileges are granted by roles.
+#   2.1 Error as user does not have privilege to execute command.
+#   2.2 Assign SYSTEM_VARIABLES_ADMIN privilege to user by enabling the role
+#       and test that command is executed successfully.
+# 3.Verify that ROLES on replication users used in 'CHANGE MASTER TO' work
+#   as expected for GR.
+#   3.1 Error in START GR as master_user used in CHM does not have privilege.
+#   3.2 Assign REPLICATION_SLAVE privilege to user by enabling the role and
+#       test that start group_replication succeeds.
+# 4.Verify that Activating the role by 'ALTER USER' is successful on
+#    all GR members.
+# 5.Clean Up.
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Test 1 : ROLES are replicated successfully
+
+# Create role, user on server1
+CREATE ROLE 'gr_user','gr_recovery_user';
+# Grant privileges to roles and grant roles to users.
+GRANT SYSTEM_VARIABLES_ADMIN ON *.* TO 'gr_user';
+GRANT REPLICATION SLAVE ON *.* TO 'gr_recovery_user';
+CREATE USER 'alpha' IDENTIFIED BY 'alpha';
+GRANT gr_user TO alpha;
+
+--echo # Check that 'gr_user' role is assigned to 'alpha' user
+--let $wait_condition=SELECT FROM_USER='gr_user' FROM mysql.role_edges WHERE TO_USER='alpha'
+--source include/wait_condition_or_abort.inc
+
+# Test 2 : Verify execution of GR commands is successful by the user when
+#          different privileges are granted by roles.
+
+# 'alpha' user is not granted any privileges, it will be denied to set GR related
+# variables or START GROUP_REPLICATION
+--echo [connection alpha]
+connect(alpha_con, localhost, alpha, alpha);
+--disable_query_log
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+--enable_query_log
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL group_replication_bootstrap_group= 1;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+START GROUP_REPLICATION;
+
+--disconnect alpha_con
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Enable 'gr_user' ROLE for USER 'alpha'
+ALTER USER alpha DEFAULT ROLE 'gr_user';
+
+--echo # Check that 'gr_user' role is enabled for 'alpha' user
+--let $wait_condition= SELECT DEFAULT_ROLE_USER='gr_user' FROM mysql.default_roles WHERE USER='alpha'
+--source include/wait_condition_or_abort.inc
+
+--let $wait_condition= SELECT FROM_USER='gr_user' FROM mysql.role_edges WHERE TO_USER='alpha';
+--source include/wait_condition_or_abort.inc
+
+--echo [connection alpha]
+connect(alpha_con, localhost, alpha, alpha,*NO-ONE*);
+SELECT CURRENT_ROLE();
+
+# Execution of commands should be successful.
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+SET GLOBAL group_replication_bootstrap_group= 1;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+START GROUP_REPLICATION;
+
+--disconnect alpha_con
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+GRANT GROUP_REPLICATION_ADMIN ON *.* TO 'gr_user';
+
+--echo [connection alpha]
+connect(alpha_con, localhost, alpha, alpha,*NO-ONE*);
+START GROUP_REPLICATION;
+SET GLOBAL group_replication_bootstrap_group= 0;
+
+--disconnect alpha_con
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--echo # Wait until server1 is ONLINE
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.replication_group_members WHERE member_state='ONLINE'
+--source include/wait_condition_or_abort.inc
+
+# Test 3 : Verify that ROLES on replication users used in 'CHANGE MASTER TO' work
+#          as expected for GR.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @group_replication_recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
+SET @group_replication_recovery_reconnect_interval_save= @@GLOBAL.group_replication_recovery_reconnect_interval;
+
+set sql_log_bin=0;
+call mtr.add_suppression(".*Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed.*");
+call mtr.add_suppression(".*Slave I/O thread couldn't register on master");
+call mtr.add_suppression("Maximum number of retries when*");
+call mtr.add_suppression("Fatal error during the Recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+set sql_log_bin=1;
+
+# Execute CHM where master_user='alpha'
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+SET GLOBAL group_replication_recovery_retry_count= 1;
+--echo # Set the reconnect interval to one. To prevent timeout on recovery.
+SET GLOBAL group_replication_recovery_reconnect_interval= 1;
+
+CHANGE MASTER TO MASTER_USER='alpha', MASTER_PASSWORD='alpha' FOR CHANNEL 'group_replication_recovery';
+
+# START GR on server2 will fail
+--let $group_replication_start_member_state= ERROR
+--source include/start_group_replication.inc
+
+# Error ER_SLAVE_MASTER_COM_FAILURE : as USER 'alpha' doesn't have
+# REPLICATION_SLAVE_ADMIN privilege
+--let $grep_pattern= Master command COM_REGISTER_SLAVE failed
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+--let $grep_pattern= Slave I/O thread couldn't register on master
+--let $grep_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_output= boolean
+--source include/grep_pattern.inc
+
+--source include/stop_group_replication.inc
+
+# Test 4 : Verify that Activating the role by 'ALTER USER' is successful on
+#          all GR members.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+# Enable 'REPLICATION_SLAVE_ADMIN' for 'alpha'
+GRANT gr_recovery_user TO alpha;
+ALTER USER alpha DEFAULT ROLE ALL;
+
+--echo # Check that all roles assigned to 'alpha' user are enabled
+SELECT DEFAULT_ROLE_USER FROM mysql.default_roles WHERE USER='alpha';
+SELECT FROM_USER FROM mysql.role_edges WHERE TO_USER='alpha';
+
+--echo [connection alpha]
+connect(alpha_con, localhost, alpha, alpha,*NO-ONE*);
+SELECT CURRENT_ROLE();
+SHOW GRANTS;
+
+# Creation of new database fails
+--error ER_DBACCESS_DENIED_ERROR
+CREATE DATABASE newtest;
+
+--disconnect alpha_con
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $group_replication_start_member_state= ONLINE
+--source include/start_group_replication.inc
+
+GRANT ALL ON newtest.* TO gr_recovery_user;
+
+--echo [connection alpha]
+connect(alpha_con, localhost, alpha, alpha,*NO-ONE*,$SLAVE_MYPORT,$SLAVE_MYSOCK);
+
+# Replicate data
+CREATE DATABASE newtest;
+use newtest;
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1),(2);
+UPDATE t1 SET a=4 WHERE a=1;
+DELETE FROM t1;
+
+# Cleanup
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_recovery_retry_count= @group_replication_recovery_retry_count_save;
+SET GLOBAL group_replication_recovery_reconnect_interval= @group_replication_recovery_reconnect_interval_save;
+
+DROP TABLE newtest.t1;
+DROP DATABASE newtest;
+DROP ROLE gr_user, gr_recovery_user;
+DROP USER alpha;
+
+--source include/group_replication_end.inc

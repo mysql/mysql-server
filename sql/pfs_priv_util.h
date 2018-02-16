@@ -27,6 +27,7 @@ class Plugin_table;
 
 extern bool create_native_table_for_pfs(const Plugin_table *t);
 
-extern bool drop_native_table_for_pfs(const char *schema_name, const char *table_name);
+extern bool drop_native_table_for_pfs(const char *schema_name,
+                                      const char *table_name);
 
 #endif /* PFS_PRIV_UTIL_INCLUDED */

@@ -1086,6 +1086,23 @@ EXPLAIN FORMAT=JSON
    GROUP BY t1.a;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # Printing the true number of "using temporary table"
+--echo #
+
+CREATE TABLE t1(a INT, b INT);
+INSERT INTO t1 VALUES(1, 1);
+# This query has a two-table join then windowing then ordering;
+# the two-table join is put into a tmp table (which EXPLAIN used to miss),
+# then windowing has two tmp tables (output and frame buffer).
+let $query=
+SELECT t1.a, SUM(t2.b) OVER(ORDER BY t1.a) FROM t1, t1 AS t2 ORDER BY t2.a;
+FLUSH STATUS;
+eval $query;
+SHOW STATUS LIKE 'Created_tmp_tables';
+eval EXPLAIN FORMAT=JSON $query;
+DROP TABLE t1;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

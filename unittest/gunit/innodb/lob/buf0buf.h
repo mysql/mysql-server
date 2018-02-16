@@ -27,23 +27,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _buf0buf_h_
 #define _buf0buf_h_
 
-#include "lot0types.h"
-#include "fil0types.h"
 #include "fil0fil.h"
+#include "fil0types.h"
+#include "lot0types.h"
 
-inline
-void
-buf_ptr_get_fsp_addr(
-        const void*     ptr,
-        space_id_t*     space,
-        fil_addr_t*     addr)
-{
-        const page_t*   page = (const page_t*) ut_align_down(ptr,
-                                                             UNIV_PAGE_SIZE);
+inline void buf_ptr_get_fsp_addr(const void *ptr, space_id_t *space,
+                                 fil_addr_t *addr) {
+  const page_t *page = (const page_t *)ut_align_down(ptr, UNIV_PAGE_SIZE);
 
-        *space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
-        addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);
-        addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
+  *space = mach_read_from_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+  addr->page = mach_read_from_4(page + FIL_PAGE_OFFSET);
+  addr->boffset = ut_align_offset(ptr, UNIV_PAGE_SIZE);
 }
 
-#endif // _buf0buf_h_
+#endif  // _buf0buf_h_

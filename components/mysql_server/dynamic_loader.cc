@@ -142,17 +142,14 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   mysql_dynamic_loader_scheme_file_path_filter_imp
 */
 
-
 static PSI_rwlock_key key_rwlock_LOCK_dynamic_loader;
 
-struct my_h_component_iterator_imp
-{
+struct my_h_component_iterator_imp {
   my_component_registry::const_iterator m_it;
   rwlock_scoped_lock m_lock;
 };
 
-struct my_h_component_metadata_iterator_imp
-{
+struct my_h_component_metadata_iterator_imp {
   my_metadata::const_iterator m_it;
   rwlock_scoped_lock m_lock;
 };
@@ -161,21 +158,19 @@ struct my_h_component_metadata_iterator_imp
   Initializes loader for usage. Initializes RW lock, all other structures
   should be empty. Shouldn't be called multiple times.
 */
-void mysql_dynamic_loader_imp::init()
-{
+void mysql_dynamic_loader_imp::init() {
   mysql_rwlock_init(key_rwlock_LOCK_dynamic_loader,
-    &mysql_dynamic_loader_imp::LOCK_dynamic_loader);
+                    &mysql_dynamic_loader_imp::LOCK_dynamic_loader);
 }
 /**
   De-initializes loader. De-initializes RW lock, all other structures
   doesn't require any action.
 */
-void mysql_dynamic_loader_imp::deinit()
-{
+void mysql_dynamic_loader_imp::deinit() {
   /* Leave scope and lock before destroying it. */
   {
     rwlock_scoped_lock lock(&mysql_dynamic_loader_imp::LOCK_dynamic_loader,
-      true, __FILE__, __LINE__);
+                            true, __FILE__, __LINE__);
 
     /* Unload all Components that are loaded. All Components are unloaded in
       one big group to prevent any problems with dependencies. This on the
@@ -183,19 +178,16 @@ void mysql_dynamic_loader_imp::deinit()
       properly, causing all other to not be unloaded, leaving them all still
       loaded in and not deinitialized. There should be an error message issued
       stating a problem during unload to help detect such a problem. */
-    if (mysql_dynamic_loader_imp::components_list.size() > 0)
-    {
-      const char** urns= new const char*[
-        mysql_dynamic_loader_imp::components_list.size()];
+    if (mysql_dynamic_loader_imp::components_list.size() > 0) {
+      const char **urns =
+          new const char *[mysql_dynamic_loader_imp::components_list.size()];
 
       /* Collect a list of components to unload. */
-      int i= 0;
-      for (my_component_registry::reverse_iterator
-        it= mysql_dynamic_loader_imp::components_list.rbegin();
-        it != mysql_dynamic_loader_imp::components_list.rend();
-        ++it)
-      {
-        urns[i]= it->first;
+      int i = 0;
+      for (my_component_registry::reverse_iterator it =
+               mysql_dynamic_loader_imp::components_list.rbegin();
+           it != mysql_dynamic_loader_imp::components_list.rend(); ++it) {
+        urns[i] = it->first;
         ++i;
       }
 
@@ -226,14 +218,12 @@ void mysql_dynamic_loader_imp::deinit()
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::load,
-  (const char *urns[], int component_count))
-{
-  try
-  {
+                   (const char *urns[], int component_count)) {
+  try {
     /* Acquire write lock for entire process, possibly this could be
       optimized, but must be done with care. */
     rwlock_scoped_lock lock(&mysql_dynamic_loader_imp::LOCK_dynamic_loader,
-      true, __FILE__, __LINE__);
+                            true, __FILE__, __LINE__);
 
     /* This method calls a chain of methods to perform load operation.
       Each element in chain performs specific part of process, a stage, is
@@ -249,10 +239,8 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::load,
       - load_do_initialize_components
       - load_do_commit */
     return mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
-      urns, component_count);
-  }
-  catch (...)
-  {
+        urns, component_count);
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -277,12 +265,10 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::load,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::unload,
-  (const char *urns[], int component_count))
-{
-  try
-  {
+                   (const char *urns[], int component_count)) {
+  try {
     rwlock_scoped_lock lock(&mysql_dynamic_loader_imp::LOCK_dynamic_loader,
-      true, __FILE__, __LINE__);
+                            true, __FILE__, __LINE__);
 
     /* This method calls a chain of methods to perform unload operation.
       Each element in chain performs specific part of process, a stage, is
@@ -300,11 +286,9 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::unload,
       - unload_do_unregister_services
       - unload_do_unload_components
       - unload_do_commit */
-    return mysql_dynamic_loader_imp::unload_do_list_components(
-      urns, component_count);
-  }
-  catch (...)
-  {
+    return mysql_dynamic_loader_imp::unload_do_list_components(urns,
+                                                               component_count);
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -321,31 +305,25 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::unload,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_create,
-  (my_h_component_iterator *out_iterator))
-{
-  try
-  {
-    *out_iterator= NULL;
+                   (my_h_component_iterator * out_iterator)) {
+  try {
+    *out_iterator = NULL;
 
     /* This read lock on whole component registry will be held, until the
       iterator is released. */
-    rwlock_scoped_lock lock(
-      &mysql_dynamic_loader_imp::LOCK_dynamic_loader, false, __FILE__,
-      __LINE__);
+    rwlock_scoped_lock lock(&mysql_dynamic_loader_imp::LOCK_dynamic_loader,
+                            false, __FILE__, __LINE__);
 
-    my_component_registry::const_iterator r=
-      mysql_dynamic_loader_imp::components_list.cbegin();
+    my_component_registry::const_iterator r =
+        mysql_dynamic_loader_imp::components_list.cbegin();
 
-    if (r == mysql_dynamic_loader_imp::components_list.cend())
-    {
+    if (r == mysql_dynamic_loader_imp::components_list.cend()) {
       return true;
     }
 
-    *out_iterator= new my_h_component_iterator_imp{ r, std::move(lock) };
+    *out_iterator = new my_h_component_iterator_imp{r, std::move(lock)};
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -360,20 +338,15 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_create,
   @retval true failure
 */
 DEFINE_METHOD(void, mysql_dynamic_loader_imp::iterator_release,
-  (my_h_component_iterator iterator))
-{
-  try
-  {
-    my_h_component_iterator_imp* iter=
-      reinterpret_cast<my_h_component_iterator_imp*>(iterator);
+              (my_h_component_iterator iterator)) {
+  try {
+    my_h_component_iterator_imp *iter =
+        reinterpret_cast<my_h_component_iterator_imp *>(iterator);
 
-    if (!iter)
-      return;
+    if (!iter) return;
 
     delete iter;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
 }
@@ -392,31 +365,25 @@ DEFINE_METHOD(void, mysql_dynamic_loader_imp::iterator_release,
     through all values already.
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_get,
-  (my_h_component_iterator iterator, const char **out_name,
-    const char **out_urn))
-{
-  try
-  {
-    *out_name= NULL;
-    *out_urn= NULL;
+                   (my_h_component_iterator iterator, const char **out_name,
+                    const char **out_urn)) {
+  try {
+    *out_name = NULL;
+    *out_urn = NULL;
 
-    if (!iterator)
-      return true;
+    if (!iterator) return true;
 
-    my_component_registry::const_iterator& iter=
-      reinterpret_cast<my_h_component_iterator_imp*>(iterator)->m_it;
+    my_component_registry::const_iterator &iter =
+        reinterpret_cast<my_h_component_iterator_imp *>(iterator)->m_it;
 
-    if (iter != mysql_dynamic_loader_imp::components_list.cend())
-    {
-      mysql_component* imp= iter->second.get();
-      *out_name= imp->name_c_str();
-      *out_urn= imp->urn_c_str();
+    if (iter != mysql_dynamic_loader_imp::components_list.cend()) {
+      mysql_component *imp = iter->second.get();
+      *out_name = imp->name_c_str();
+      *out_urn = imp->urn_c_str();
 
       return false;
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -433,24 +400,18 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_get,
   @retval true Failure or called on iterator that was on last element.
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_next,
-  (my_h_component_iterator iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (my_h_component_iterator iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_component_registry::const_iterator& iter=
-      reinterpret_cast<my_h_component_iterator_imp*>(iterator)->m_it;
+    my_component_registry::const_iterator &iter =
+        reinterpret_cast<my_h_component_iterator_imp *>(iterator)->m_it;
 
-    if (iter != mysql_dynamic_loader_imp::components_list.cend())
-    {
+    if (iter != mysql_dynamic_loader_imp::components_list.cend()) {
       ++iter;
       return iter == mysql_dynamic_loader_imp::components_list.cend();
     }
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -466,20 +427,15 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_next,
   @retval true Invalid or reached one-past-last element.
 */
 DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_is_valid,
-  (my_h_component_iterator iterator))
-{
-  try
-  {
-    if (!iterator)
-      return true;
+                   (my_h_component_iterator iterator)) {
+  try {
+    if (!iterator) return true;
 
-    my_component_registry::const_iterator& iter=
-      reinterpret_cast<my_h_component_iterator_imp*>(iterator)->m_it;
+    my_component_registry::const_iterator &iter =
+        reinterpret_cast<my_h_component_iterator_imp *>(iterator)->m_it;
 
     return iter == mysql_dynamic_loader_imp::components_list.cend();
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -515,29 +471,25 @@ DEFINE_BOOL_METHOD(mysql_dynamic_loader_imp::iterator_is_valid,
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
-  const char *urns[], int component_count)
-{
+    const char *urns[], int component_count) {
   scheme_service_map scheme_services;
 
   /* List of components that were just loaded by scheme loader services. */
-  std::vector<std::unique_ptr<mysql_component> > loaded_components;
+  std::vector<std::unique_ptr<mysql_component>> loaded_components;
 
-  auto guard= create_scope_guard([&loaded_components, &scheme_services]()
-  {
+  auto guard = create_scope_guard([&loaded_components, &scheme_services]() {
     /* In case we need to rollback we need to undo what next for loop does,
       i.e. unload all components using assigned scheme loader. */
-    for (std::unique_ptr<mysql_component>& loaded_component
-      : loaded_components)
-    {
-      const my_string& urn= loaded_component->get_urn();
+    for (std::unique_ptr<mysql_component> &loaded_component :
+         loaded_components) {
+      const my_string &urn = loaded_component->get_urn();
 
-      SERVICE_TYPE(dynamic_loader_scheme)* scheme_service;
+      SERVICE_TYPE(dynamic_loader_scheme) * scheme_service;
       /* We don't want scheme_services to be in the same scope as usages
         of this deleter are. Right now these are in try{} scope, and it is
         OK. */
       if (mysql_dynamic_loader_imp::get_scheme_service_from_urn(
-        urn, &scheme_service, scheme_services))
-      {
+              urn, &scheme_service, scheme_services)) {
         return;
       }
       scheme_service->unload(urn.c_str());
@@ -545,37 +497,32 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
   });
 
   /* First load all components. */
-  for (int it= 0; it < component_count; ++it)
-  {
+  for (int it = 0; it < component_count; ++it) {
     my_string urn(urns[it]);
 
-    SERVICE_TYPE(dynamic_loader_scheme)* scheme_service;
+    SERVICE_TYPE(dynamic_loader_scheme) * scheme_service;
 
     /* Try to get service responsible for handling specified scheme type. */
     if (mysql_dynamic_loader_imp::get_scheme_service_from_urn(
-      urn, &scheme_service, scheme_services))
-    {
+            urn, &scheme_service, scheme_services)) {
       return true;
     }
 
     /* Load component using scheme service. The result is pointer to NULL
       terminated list of components. */
-    mysql_component_t* loaded_component_raw;
-    if (scheme_service->load(urn.c_str(), &loaded_component_raw))
-    {
+    mysql_component_t *loaded_component_raw;
+    if (scheme_service->load(urn.c_str(), &loaded_component_raw)) {
       my_error(ER_COMPONENTS_CANT_LOAD, MYF(0), urn.c_str());
       return true;
     }
     /* Here we assume loaded_component_raw will be list with only one item. */
-    loaded_components.push_back(
-      std::unique_ptr<mysql_component>(
+    loaded_components.push_back(std::unique_ptr<mysql_component>(
         new mysql_component(loaded_component_raw, urn)));
   }
 
-  bool res= mysql_dynamic_loader_imp::load_do_collect_services_provided(
-    loaded_components);
-  if (!res)
-  {
+  bool res = mysql_dynamic_loader_imp::load_do_collect_services_provided(
+      loaded_components);
+  if (!res) {
     guard.commit();
   }
   return res;
@@ -592,36 +539,30 @@ bool mysql_dynamic_loader_imp::load_do_load_component_by_scheme(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_collect_services_provided(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
   /* Set of names of services without implementation names that
     specified components provide. */
   std::set<my_string> services_provided;
 
   /* Add all services this component provides to list of provided services. */
-  for (const std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
-    for (const mysql_service_ref_t* service_provided
-      : loaded_component->get_provided_services())
-    {
-      const char* dot_position= strchr(service_provided->name, '.');
-      if (dot_position == NULL)
-      {
+  for (const std::unique_ptr<mysql_component> &loaded_component :
+       loaded_components) {
+    for (const mysql_service_ref_t *service_provided :
+         loaded_component->get_provided_services()) {
+      const char *dot_position = strchr(service_provided->name, '.');
+      if (dot_position == NULL) {
         services_provided.insert(my_string(service_provided->name));
-      }
-      else
-      {
+      } else {
         /* Insert only part before the dot, which is only the service name,
           without implementation name. */
         services_provided.insert(my_string(
-          service_provided->name, dot_position - service_provided->name));
+            service_provided->name, dot_position - service_provided->name));
       }
     }
   }
 
   return mysql_dynamic_loader_imp::load_do_check_dependencies(
-    loaded_components, services_provided);
+      loaded_components, services_provided);
 }
 
 /**
@@ -636,42 +577,36 @@ bool mysql_dynamic_loader_imp::load_do_collect_services_provided(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_check_dependencies(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components,
-  const std::set<my_string>& services_provided)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components,
+    const std::set<my_string> &services_provided) {
   /* Check all dependencies can be met with services already registered in
     registry or from components that are being loaded. */
-  for (const std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
-    for (const mysql_service_placeholder_ref_t* service_required
-      : loaded_component->get_required_services())
-    {
+  for (const std::unique_ptr<mysql_component> &loaded_component :
+       loaded_components) {
+    for (const mysql_service_placeholder_ref_t *service_required :
+         loaded_component->get_required_services()) {
       /* Try lookup in services provided by other components being loaded. */
-      if (services_provided.find(my_string(service_required->name))
-        != services_provided.end())
-      {
+      if (services_provided.find(my_string(service_required->name)) !=
+          services_provided.end()) {
         continue;
       }
 
       /* Try to lookup in services registered in registry service */
       my_h_service_iterator service_iterator;
       if (!mysql_registry_imp::iterator_create(service_required->name,
-        &service_iterator))
-      {
+                                               &service_iterator)) {
         mysql_registry_imp::iterator_release(service_iterator);
         continue;
       }
 
       /* None service matches requirement, we shall fail. */
       my_error(ER_COMPONENTS_CANT_SATISFY_DEPENDENCY, MYF(0),
-        service_required->name, loaded_component->name_c_str());
+               service_required->name, loaded_component->name_c_str());
       return true;
     }
   }
 
-  return mysql_dynamic_loader_imp::load_do_register_services(
-    loaded_components);
+  return mysql_dynamic_loader_imp::load_do_register_services(loaded_components);
 }
 
 /**
@@ -685,42 +620,37 @@ bool mysql_dynamic_loader_imp::load_do_check_dependencies(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_register_services(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
   /* List of services from components that were registered. */
-  std::vector<const char* > registered_services;
-  auto guard= create_scope_guard([&registered_services]()
-  {
-    for (const char* service_name : registered_services)
-    {
+  std::vector<const char *> registered_services;
+  auto guard = create_scope_guard([&registered_services]() {
+    for (const char *service_name : registered_services) {
       mysql_registry_imp::unregister(service_name);
     }
   });
 
   /* Register services from components. */
-  for (const std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
+  for (const std::unique_ptr<mysql_component> &loaded_component :
+       loaded_components) {
     /* Register all services from component. */
-    for (const mysql_service_ref_t* implementation_it
-      : loaded_component->get_provided_services())
-    {
+    for (const mysql_service_ref_t *implementation_it :
+         loaded_component->get_provided_services()) {
       if (mysql_registry_imp::register_service(
-        implementation_it->name, reinterpret_cast<my_h_service>(
-          implementation_it->implementation)))
-      {
+              implementation_it->name,
+              reinterpret_cast<my_h_service>(
+                  implementation_it->implementation))) {
         my_error(ER_COMPONENTS_LOAD_CANT_REGISTER_SERVICE_IMPLEMENTATION,
-          MYF(0), implementation_it->name, loaded_component->name_c_str());
+                 MYF(0), implementation_it->name,
+                 loaded_component->name_c_str());
         return true;
       }
       registered_services.push_back(implementation_it->name);
     }
   }
 
-  bool res= mysql_dynamic_loader_imp::load_do_resolve_dependencies(
-    loaded_components);
-  if (!res)
-  {
+  bool res =
+      mysql_dynamic_loader_imp::load_do_resolve_dependencies(loaded_components);
+  if (!res) {
     guard.commit();
   }
   return res;
@@ -737,43 +667,37 @@ bool mysql_dynamic_loader_imp::load_do_register_services(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_resolve_dependencies(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
   /* List of services acquired for component dependencies. */
-  std::vector<my_h_service*> acquired_services;
-  auto guard= create_scope_guard([&acquired_services]()
-  {
-    for (my_h_service* service_storage : acquired_services)
-    {
+  std::vector<my_h_service *> acquired_services;
+  auto guard = create_scope_guard([&acquired_services]() {
+    for (my_h_service *service_storage : acquired_services) {
       mysql_registry_imp::release(*service_storage);
       *service_storage = NULL;
     }
   });
 
   /* Acquire services to meet component dependencies. */
-  for (const std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
+  for (const std::unique_ptr<mysql_component> &loaded_component :
+       loaded_components) {
     /* Meet all dependencies for all components. */
-    for (mysql_service_placeholder_ref_t* implementation_it
-      : loaded_component->get_required_services())
-    {
+    for (mysql_service_placeholder_ref_t *implementation_it :
+         loaded_component->get_required_services()) {
       if (mysql_registry_imp::acquire(implementation_it->name,
-        reinterpret_cast<my_h_service*>(implementation_it->implementation)))
-      {
+                                      reinterpret_cast<my_h_service *>(
+                                          implementation_it->implementation))) {
         my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
-          implementation_it->name);
+                 implementation_it->name);
         return true;
       }
-      acquired_services.push_back(reinterpret_cast<my_h_service*>(
-        implementation_it->implementation));
+      acquired_services.push_back(
+          reinterpret_cast<my_h_service *>(implementation_it->implementation));
     }
   }
 
-  bool res= mysql_dynamic_loader_imp::load_do_initialize_components(
-    loaded_components);
-  if (!res)
-  {
+  bool res = mysql_dynamic_loader_imp::load_do_initialize_components(
+      loaded_components);
+  if (!res) {
     guard.commit();
   }
   return res;
@@ -790,44 +714,36 @@ bool mysql_dynamic_loader_imp::load_do_resolve_dependencies(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_initialize_components(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
   /* List of components that were initialized. */
-  std::vector<mysql_component* > initialized_components;
+  std::vector<mysql_component *> initialized_components;
 
-  auto guard= create_scope_guard([&initialized_components]()
-  {
-    for (mysql_component* initialized_component
-      : initialized_components)
-    {
-      if (initialized_component->get_data()->deinit != NULL)
-      {
+  auto guard = create_scope_guard([&initialized_components]() {
+    for (mysql_component *initialized_component : initialized_components) {
+      if (initialized_component->get_data()->deinit != NULL) {
         initialized_component->get_data()->deinit();
       }
     }
   });
 
   /* Initialize components. */
-  for (const std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
+  for (const std::unique_ptr<mysql_component> &loaded_component :
+       loaded_components) {
     /* Initialize component, move to main collection of components,
       add to temporary list of components registered, in case we need to
       unregister them on failure. */
     if (loaded_component->get_data()->init != NULL &&
-      loaded_component->get_data()->init())
-    {
+        loaded_component->get_data()->init()) {
       my_error(ER_COMPONENTS_LOAD_CANT_INITIALIZE, MYF(0),
-        loaded_component->name_c_str());
+               loaded_component->name_c_str());
       return true;
     }
 
     initialized_components.push_back(loaded_component.get());
   }
 
-  bool res= mysql_dynamic_loader_imp::load_do_commit(loaded_components);
-  if (!res)
-  {
+  bool res = mysql_dynamic_loader_imp::load_do_commit(loaded_components);
+  if (!res) {
     guard.commit();
   }
   return res;
@@ -843,14 +759,11 @@ bool mysql_dynamic_loader_imp::load_do_initialize_components(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::load_do_commit(
-  std::vector<std::unique_ptr<mysql_component> >& loaded_components)
-{
+    std::vector<std::unique_ptr<mysql_component>> &loaded_components) {
   /* Move components to the main list of components loaded. */
-  for (std::unique_ptr<mysql_component>& loaded_component
-    : loaded_components)
-  {
+  for (std::unique_ptr<mysql_component> &loaded_component : loaded_components) {
     mysql_dynamic_loader_imp::components_list.emplace(
-      loaded_component->urn_c_str(), std::move(loaded_component));
+        loaded_component->urn_c_str(), std::move(loaded_component));
   }
 
   return false;
@@ -866,35 +779,31 @@ bool mysql_dynamic_loader_imp::load_do_commit(
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp::unload_do_list_components(
-  const char *urns[], int component_count)
-{
-  std::vector<mysql_component* > components_to_unload;
+bool mysql_dynamic_loader_imp::unload_do_list_components(const char *urns[],
+                                                         int component_count) {
+  std::vector<mysql_component *> components_to_unload;
   /* Finds any duplicated entries in the group specified. */
-  std::set<mysql_component* > components_in_group;
+  std::set<mysql_component *> components_in_group;
 
   /* Lookup for components by URNs specified. */
-  for (int it= 0; it < component_count; ++it)
-  {
-    my_string urn= my_string(urns[it]);
-    my_component_registry::iterator component_it=
-      mysql_dynamic_loader_imp::components_list.find(urn.c_str());
+  for (int it = 0; it < component_count; ++it) {
+    my_string urn = my_string(urns[it]);
+    my_component_registry::iterator component_it =
+        mysql_dynamic_loader_imp::components_list.find(urn.c_str());
     /* Return error if any component is not loaded. */
-    if (component_it == mysql_dynamic_loader_imp::components_list.end())
-    {
+    if (component_it == mysql_dynamic_loader_imp::components_list.end()) {
       my_error(ER_COMPONENTS_UNLOAD_NOT_LOADED, MYF(0), urn.c_str());
       return true;
     }
     components_to_unload.push_back(component_it->second.get());
-    if (!components_in_group.insert(component_it->second.get()).second)
-    {
+    if (!components_in_group.insert(component_it->second.get()).second) {
       my_error(ER_COMPONENTS_UNLOAD_DUPLICATE_IN_GROUP, MYF(0), urn.c_str());
       return true;
     }
   }
 
   return mysql_dynamic_loader_imp::unload_do_topological_order(
-    components_to_unload);
+      components_to_unload);
 }
 
 /**
@@ -910,38 +819,32 @@ bool mysql_dynamic_loader_imp::unload_do_list_components(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_topological_order(
-  const std::vector<mysql_component*>& components_to_unload)
-{
+    const std::vector<mysql_component *> &components_to_unload) {
   /* A graph of dependencies between the Components to be unloaded. For each
     Service Implementation that is provided by any of the Components to be
     unloaded a list of other Components to be unloaded is specified, which all
     have an actual dependency resolved to that particular Service
     Implementation. */
-  std::map<const void*, std::vector<mysql_component*>> dependency_graph;
+  std::map<const void *, std::vector<mysql_component *>> dependency_graph;
 
   /* First list all Service Implementations that are provided by the Components
     to be unloaded.*/
-  for (mysql_component* component : components_to_unload)
-  {
-    for (const mysql_service_ref_t* service
-      : component->get_provided_services())
-    {
+  for (mysql_component *component : components_to_unload) {
+    for (const mysql_service_ref_t *service :
+         component->get_provided_services()) {
       dependency_graph.emplace(service->implementation,
-        std::vector<mysql_component*>{});
+                               std::vector<mysql_component *>{});
     }
   }
   /* Iterate through all dependencies of the Components to be unloaded to check
     which were resolved using Service Implementations provided by any of listed
     above. */
-  for (mysql_component* component : components_to_unload)
-  {
-    for (const mysql_service_placeholder_ref_t* service
-      : component->get_required_services())
-    {
-      std::map<const void*, std::vector<mysql_component*>>::iterator it=
-        dependency_graph.find(*service->implementation);
-      if (it != dependency_graph.end())
-      {
+  for (mysql_component *component : components_to_unload) {
+    for (const mysql_service_placeholder_ref_t *service :
+         component->get_required_services()) {
+      std::map<const void *, std::vector<mysql_component *>>::iterator it =
+          dependency_graph.find(*service->implementation);
+      if (it != dependency_graph.end()) {
         it->second.push_back(component);
       }
     }
@@ -949,49 +852,46 @@ bool mysql_dynamic_loader_imp::unload_do_topological_order(
 
   /* Iterate through all components to get the topological order of
     the Components to be unloaded. */
-  std::vector<mysql_component*> components_to_unload_ordered;
+  std::vector<mysql_component *> components_to_unload_ordered;
   /* Set of Components that were already visited by the DFS, to keep state
     between calls to the DFS. */
-  std::set<mysql_component*> visited_set;
+  std::set<mysql_component *> visited_set;
 
-  for (mysql_component* component : components_to_unload)
-  {
+  for (mysql_component *component : components_to_unload) {
     /* A DFS run on directional graph, possibly a cyclic-one, with
       V=(list of the Components to unload) and
       E={A->B : component B depends on component A}. A DFS post-order will
       result in a topological ordered list of components. */
-    depth_first_search(component,
-      [](mysql_component*) {},
-      [&components_to_unload_ordered](mysql_component* visited_component) {
-        components_to_unload_ordered.push_back(visited_component);
-      },
-      [&dependency_graph](mysql_component* visited_component) {
-        /* List of neighbors, i.e. all components that are dependent on
-          currently visited one. */
-        std::vector<mysql_component*> component_dependencies;
+    depth_first_search(
+        component, [](mysql_component *) {},
+        [&components_to_unload_ordered](mysql_component *visited_component) {
+          components_to_unload_ordered.push_back(visited_component);
+        },
+        [&dependency_graph](mysql_component *visited_component) {
+          /* List of neighbors, i.e. all components that are dependent on
+            currently visited one. */
+          std::vector<mysql_component *> component_dependencies;
 
-        /* Iterate though all provided services to see if any other Component to
-          be unloaded is not depending on that Service Implementation. */
-        for (const mysql_service_ref_t* service
-          : visited_component->get_provided_services())
-        {
-          for (mysql_component* dependent_component
-            : dependency_graph[service->implementation])
-          {
-            component_dependencies.push_back(dependent_component);
+          /* Iterate though all provided services to see if any other Component
+            to be unloaded is not depending on that Service Implementation. */
+          for (const mysql_service_ref_t *service :
+               visited_component->get_provided_services()) {
+            for (mysql_component *dependent_component :
+                 dependency_graph[service->implementation]) {
+              component_dependencies.push_back(dependent_component);
+            }
           }
-        }
 
-        return component_dependencies;
-      },
-      visited_set);
+          return component_dependencies;
+        },
+        visited_set);
   }
 
-  DBUG_ASSERT(
-    components_to_unload.size() == components_to_unload_ordered.size());
+  DBUG_ASSERT(components_to_unload.size() ==
+              components_to_unload_ordered.size());
 
   return mysql_dynamic_loader_imp::unload_do_get_scheme_services(
-    components_to_unload_ordered, dependency_graph);
+      components_to_unload_ordered, dependency_graph);
 }
 
 /**
@@ -1005,26 +905,24 @@ bool mysql_dynamic_loader_imp::unload_do_topological_order(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_get_scheme_services(
-  const std::vector<mysql_component*>& components_to_unload,
-  const std::map<const void*, std::vector<mysql_component*>>& dependency_graph)
-{
+    const std::vector<mysql_component *> &components_to_unload,
+    const std::map<const void *, std::vector<mysql_component *>>
+        &dependency_graph) {
   scheme_service_map scheme_services;
 
-  for (mysql_component* component : components_to_unload)
-  {
-    SERVICE_TYPE(dynamic_loader_scheme)* scheme_service;
+  for (mysql_component *component : components_to_unload) {
+    SERVICE_TYPE(dynamic_loader_scheme) * scheme_service;
 
     /* Try to get service responsible for handling specified scheme type. */
     if (mysql_dynamic_loader_imp::get_scheme_service_from_urn(
-      my_string(component->urn_c_str()),
-      &scheme_service, scheme_services))
-    {
+            my_string(component->urn_c_str()), &scheme_service,
+            scheme_services)) {
       return true;
     }
   }
 
   return mysql_dynamic_loader_imp::unload_do_lock_provided_services(
-    components_to_unload, dependency_graph, scheme_services);
+      components_to_unload, dependency_graph, scheme_services);
 }
 
 /**
@@ -1041,16 +939,16 @@ bool mysql_dynamic_loader_imp::unload_do_get_scheme_services(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
-  const std::vector<mysql_component*>& components_to_unload,
-  const std::map<const void*, std::vector<mysql_component*>>& dependency_graph,
-  scheme_service_map& scheme_services)
-{
+    const std::vector<mysql_component *> &components_to_unload,
+    const std::map<const void *, std::vector<mysql_component *>>
+        &dependency_graph,
+    scheme_service_map &scheme_services) {
   /* We do lock the whole registry, as we don't have yet any better granulation.
-  */
-  rwlock_scoped_lock lock= mysql_registry_imp::lock_registry_for_write();
-  return mysql_dynamic_loader_imp
-    ::unload_do_check_provided_services_reference_count(
-      components_to_unload, dependency_graph, scheme_services);
+   */
+  rwlock_scoped_lock lock = mysql_registry_imp::lock_registry_for_write();
+  return mysql_dynamic_loader_imp ::
+      unload_do_check_provided_services_reference_count(
+          components_to_unload, dependency_graph, scheme_services);
 }
 
 /**
@@ -1069,40 +967,36 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp
-  ::unload_do_check_provided_services_reference_count(
-    const std::vector<mysql_component* >& components_to_unload,
-    const std::map<const void*, std::vector<mysql_component*>>&
-      dependency_graph, scheme_service_map& scheme_services)
-{
+bool mysql_dynamic_loader_imp ::
+    unload_do_check_provided_services_reference_count(
+        const std::vector<mysql_component *> &components_to_unload,
+        const std::map<const void *, std::vector<mysql_component *>>
+            &dependency_graph,
+        scheme_service_map &scheme_services) {
   /* Iterate through all Service Implementations that are provided by the
     Components to be unloaded to see if all have provided Service
     Implementations that are not used by Components outside the group of
     Components to unload.*/
-  for (mysql_component* component : components_to_unload)
-  {
-    for (const mysql_service_ref_t* service
-      : component->get_provided_services())
-    {
-      uint64_t reference_count=
-        mysql_registry_imp::get_service_implementation_reference_count(
-          reinterpret_cast<my_h_service>(service->implementation));
-      if (reference_count > 0)
-      {
-        std::map<const void*, std::vector<mysql_component*>>::const_iterator it=
-          dependency_graph.find(service->implementation);
-        if (it == dependency_graph.end()
-          || reference_count != it->second.size())
-        {
+  for (mysql_component *component : components_to_unload) {
+    for (const mysql_service_ref_t *service :
+         component->get_provided_services()) {
+      uint64_t reference_count =
+          mysql_registry_imp::get_service_implementation_reference_count(
+              reinterpret_cast<my_h_service>(service->implementation));
+      if (reference_count > 0) {
+        std::map<const void *, std::vector<mysql_component *>>::const_iterator
+            it = dependency_graph.find(service->implementation);
+        if (it == dependency_graph.end() ||
+            reference_count != it->second.size()) {
           my_error(ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE, MYF(0),
-            service->name, component->name_c_str());
+                   service->name, component->name_c_str());
           return true;
         }
       }
     }
   }
-   return mysql_dynamic_loader_imp::unload_do_deinitialize_components(
-    components_to_unload, scheme_services);
+  return mysql_dynamic_loader_imp::unload_do_deinitialize_components(
+      components_to_unload, scheme_services);
 }
 
 /**
@@ -1118,32 +1012,28 @@ bool mysql_dynamic_loader_imp
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
-  const std::vector<mysql_component* >& components_to_unload,
-  scheme_service_map& scheme_services)
-{
-  bool deinit_result= false;
+    const std::vector<mysql_component *> &components_to_unload,
+    scheme_service_map &scheme_services) {
+  bool deinit_result = false;
   /* Release all Services that are used as dependencies, as there can be
     references to Services provided by other components to be unloaded. */
-  for (mysql_component* component : components_to_unload)
-  {
-    if (component->get_data()->deinit != NULL)
-    {
-      if (component->get_data()->deinit())
-      {
+  for (mysql_component *component : components_to_unload) {
+    if (component->get_data()->deinit != NULL) {
+      if (component->get_data()->deinit()) {
         /* In case of error we don't want to try to restore consistent state.
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
         my_error(ER_COMPONENTS_UNLOAD_CANT_DEINITIALIZE, MYF(0),
-          component->name_c_str());
-        deinit_result= true;
+                 component->name_c_str());
+        deinit_result = true;
       }
     }
   }
 
   return deinit_result ||
-    mysql_dynamic_loader_imp::unload_do_unload_dependencies(
-      components_to_unload, scheme_services);
+         mysql_dynamic_loader_imp::unload_do_unload_dependencies(
+             components_to_unload, scheme_services);
 }
 
 /**
@@ -1159,33 +1049,29 @@ bool mysql_dynamic_loader_imp::unload_do_deinitialize_components(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_unload_dependencies(
-  const std::vector<mysql_component* >& components_to_unload,
-  scheme_service_map& scheme_services)
-{
-  bool unload_depends_result= false;
+    const std::vector<mysql_component *> &components_to_unload,
+    scheme_service_map &scheme_services) {
+  bool unload_depends_result = false;
   /* Release all services that are used as dependencies, as there can be
     references to services provided by other components to be unloaded. */
-  for (mysql_component* component : components_to_unload)
-  {
-    for (mysql_service_placeholder_ref_t* service_dependency
-      : component->get_required_services())
-    {
-      if (mysql_registry_imp::release_nolock(
-        reinterpret_cast<my_h_service>(*service_dependency->implementation)))
-      {
+  for (mysql_component *component : components_to_unload) {
+    for (mysql_service_placeholder_ref_t *service_dependency :
+         component->get_required_services()) {
+      if (mysql_registry_imp::release_nolock(reinterpret_cast<my_h_service>(
+              *service_dependency->implementation))) {
         /* In case of error we don't want to try to restore consistent state.
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
         my_error(ER_COMPONENTS_CANT_RELEASE_SERVICE, MYF(0));
-        unload_depends_result= true;
+        unload_depends_result = true;
       }
     }
   }
 
   return mysql_dynamic_loader_imp::unload_do_unregister_services(
-      components_to_unload, scheme_services)
-    || unload_depends_result;
+             components_to_unload, scheme_services) ||
+         unload_depends_result;
 }
 
 /**
@@ -1201,32 +1087,28 @@ bool mysql_dynamic_loader_imp::unload_do_unload_dependencies(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_unregister_services(
-  const std::vector<mysql_component* >& components_to_unload,
-  scheme_service_map& scheme_services)
-{
-  bool unregister_result= false;
+    const std::vector<mysql_component *> &components_to_unload,
+    scheme_service_map &scheme_services) {
+  bool unregister_result = false;
   /* Unregister all services that are provided by these components. */
-  for (mysql_component* component : components_to_unload)
-  {
-    for (const mysql_service_ref_t* service_provided
-      : component->get_provided_services())
-    {
-      if (mysql_registry_imp::unregister_nolock(service_provided->name))
-      {
+  for (mysql_component *component : components_to_unload) {
+    for (const mysql_service_ref_t *service_provided :
+         component->get_provided_services()) {
+      if (mysql_registry_imp::unregister_nolock(service_provided->name)) {
         /* In case of error we don't want to try to restore consistent state.
           This is arbitrary decision, rollback of this operation is possible,
           but it's not sure if components will be able to initialize again
           properly, causing state to be inconsistent. */
         my_error(ER_COMPONENTS_UNLOAD_CANT_UNREGISTER_SERVICE, MYF(0),
-          service_provided->name, component->name_c_str());
-        unregister_result= true;
+                 service_provided->name, component->name_c_str());
+        unregister_result = true;
       }
     }
   }
 
   return mysql_dynamic_loader_imp::unload_do_unload_components(
-      components_to_unload, scheme_services)
-    || unregister_result;
+             components_to_unload, scheme_services) ||
+         unregister_result;
 }
 
 /**
@@ -1245,47 +1127,41 @@ bool mysql_dynamic_loader_imp::unload_do_unregister_services(
   @retval true failure
 */
 bool mysql_dynamic_loader_imp::unload_do_unload_components(
-  const std::vector<mysql_component* >& components_to_unload,
-  scheme_service_map& scheme_services)
-{
-  bool unload_result= false;
+    const std::vector<mysql_component *> &components_to_unload,
+    scheme_service_map &scheme_services) {
+  bool unload_result = false;
   /* Unload components and remove them from main dictionary. */
-  for (mysql_component* component : components_to_unload)
-  {
-    SERVICE_TYPE(dynamic_loader_scheme)* scheme_service;
+  for (mysql_component *component : components_to_unload) {
+    SERVICE_TYPE(dynamic_loader_scheme) * scheme_service;
 
     /* Try to get service responsible for handling specified scheme type. */
     if (mysql_dynamic_loader_imp::get_scheme_service_from_urn(
-      my_string(component->urn_c_str()),
-      &scheme_service, scheme_services))
-    {
+            my_string(component->urn_c_str()), &scheme_service,
+            scheme_services)) {
       /* In case of error we don't want to try to restore consistent state.
         This is arbitrary decision, rollback of this operation is possible,
         but it's not sure if components will be able to initialize again
         properly, causing state to be inconsistent. */
-      unload_result= true;
+      unload_result = true;
       continue;
     }
 
-    my_string component_urn= my_string(component->urn_c_str());
+    my_string component_urn = my_string(component->urn_c_str());
 
     mysql_dynamic_loader_imp::components_list.erase(
-      mysql_dynamic_loader_imp::components_list.find(
-      component_urn.c_str()));
+        mysql_dynamic_loader_imp::components_list.find(component_urn.c_str()));
 
-    if (scheme_service->unload(component_urn.c_str()))
-    {
+    if (scheme_service->unload(component_urn.c_str())) {
       /* In case of error we don't want to try to restore consistent state.
         This is arbitrary decision, rollback of this operation is possible,
         but it's not sure if components will be able to initialize again
         properly, causing state to be inconsistent. */
       my_error(ER_COMPONENTS_CANT_UNLOAD, MYF(0), component_urn.c_str());
-      unload_result= true;
+      unload_result = true;
     }
   }
 
-  return mysql_dynamic_loader_imp::unload_do_commit()
-    || unload_result;
+  return mysql_dynamic_loader_imp::unload_do_commit() || unload_result;
 }
 
 /**
@@ -1295,8 +1171,7 @@ bool mysql_dynamic_loader_imp::unload_do_unload_components(
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp::unload_do_commit()
-{
+bool mysql_dynamic_loader_imp::unload_do_commit() {
   /* All components were successfully unloaded, we commit changes by returning
     no error. */
   return false;
@@ -1316,40 +1191,34 @@ bool mysql_dynamic_loader_imp::unload_do_commit()
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp::get_scheme_service_from_urn(const my_string& urn,
-  SERVICE_TYPE(dynamic_loader_scheme)** out_scheme_service,
-  scheme_service_map& scheme_services)
-{
+bool mysql_dynamic_loader_imp::get_scheme_service_from_urn(
+    const my_string &urn,
+    SERVICE_TYPE(dynamic_loader_scheme) * *out_scheme_service,
+    scheme_service_map &scheme_services) {
   /* Find scheme prefix. */
-  size_t scheme_end= urn.find("://");
-  if (scheme_end == my_string::npos)
-  {
+  size_t scheme_end = urn.find("://");
+  if (scheme_end == my_string::npos) {
     my_error(ER_COMPONENTS_NO_SCHEME, MYF(0), urn.c_str());
     return true;
   }
-  my_string scheme(
-    urn.begin(), urn.begin() + scheme_end, urn.get_allocator());
+  my_string scheme(urn.begin(), urn.begin() + scheme_end, urn.get_allocator());
 
   /* Look for scheme loading service in cache. */
-  scheme_service_map::iterator scheme_it= scheme_services.find(scheme);
-  if (scheme_it != scheme_services.end())
-  {
-    *out_scheme_service= scheme_it->second;
-  }
-  else
-  {
+  scheme_service_map::iterator scheme_it = scheme_services.find(scheme);
+  if (scheme_it != scheme_services.end()) {
+    *out_scheme_service = scheme_it->second;
+  } else {
     /* If not present, acquire from registry service and insert to cache. */
     my_service<SERVICE_TYPE(dynamic_loader_scheme)> service(
-      (my_string("dynamic_loader_scheme_") + scheme).c_str(),
-      &imp_mysql_server_registry);
+        (my_string("dynamic_loader_scheme_") + scheme).c_str(),
+        &imp_mysql_server_registry);
 
-    if (service)
-    {
+    if (service) {
       my_error(ER_COMPONENTS_NO_SCHEME_SERVICE, MYF(0), scheme.c_str(),
-        urn.c_str());
+               urn.c_str());
       return true;
     }
-    *out_scheme_service= service;
+    *out_scheme_service = service;
     scheme_services.insert(make_pair(scheme, std::move(service)));
   }
 
@@ -1364,31 +1233,24 @@ mysql_rwlock_t mysql_dynamic_loader_imp::LOCK_dynamic_loader;
   managing RW locks and their PSI augmentation. */
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_rwlock_info all_dynamic_loader_rwlocks[]=
-{
-  { &key_rwlock_LOCK_dynamic_loader, "LOCK_dynamic_loader", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
-};
+static PSI_rwlock_info all_dynamic_loader_rwlocks[] = {
+    {&key_rwlock_LOCK_dynamic_loader, "LOCK_dynamic_loader", PSI_FLAG_SINGLETON,
+     0, PSI_DOCUMENT_ME}};
 
-
-static void init_dynamic_loader_psi_keys(void)
-{
-  const char *category= "components";
+static void init_dynamic_loader_psi_keys(void) {
+  const char *category = "components";
   int count;
 
-  count= static_cast<int>(array_elements(all_dynamic_loader_rwlocks));
+  count = static_cast<int>(array_elements(all_dynamic_loader_rwlocks));
   mysql_rwlock_register(category, all_dynamic_loader_rwlocks, count);
 }
 #endif
 
-void dynamic_loader_init()
-{
+void dynamic_loader_init() {
 #ifdef HAVE_PSI_INTERFACE
   init_dynamic_loader_psi_keys();
 #endif
   mysql_dynamic_loader_imp::init();
 }
 
-void dynamic_loader_deinit()
-{
-  mysql_dynamic_loader_imp::deinit();
-}
+void dynamic_loader_deinit() { mysql_dynamic_loader_imp::deinit(); }

@@ -28,6 +28,4 @@
 
 using namespace Mysql::Tools::Dump;
 
-Dump_end_dump_task::Dump_end_dump_task()
-  : Abstract_dump_task(NULL)
-{}
+Dump_end_dump_task::Dump_end_dump_task() : Abstract_dump_task(NULL) {}

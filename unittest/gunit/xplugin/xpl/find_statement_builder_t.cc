@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,11 +34,11 @@ class Find_statement_builder_stub : public Find_statement_builder {
  public:
   explicit Find_statement_builder_stub(Expression_generator *gen)
       : Find_statement_builder(*gen) {}
-  using Find_statement_builder::add_table_projection;
   using Find_statement_builder::add_document_projection;
   using Find_statement_builder::add_grouping;
   using Find_statement_builder::add_grouping_criteria;
   using Find_statement_builder::add_row_locking;
+  using Find_statement_builder::add_table_projection;
 };
 
 class Find_statement_builder_test : public ::testing::Test {
@@ -47,8 +47,8 @@ class Find_statement_builder_test : public ::testing::Test {
       : args(*msg.mutable_args()), expr_gen(nullptr) {}
 
   std::unique_ptr<Find_statement_builder_stub> builder() {
-    expr_gen.reset(new Expression_generator(
-          &query, args, schema, is_table_data_model(msg)));
+    expr_gen.reset(new Expression_generator(&query, args, schema,
+                                            is_table_data_model(msg)));
 
     std::unique_ptr<Find_statement_builder_stub> stub(
         new Find_statement_builder_stub(expr_gen.get()));
@@ -61,10 +61,7 @@ class Find_statement_builder_test : public ::testing::Test {
   std::string schema;
   std::unique_ptr<Expression_generator> expr_gen;
 
-  enum {
-    DM_DOCUMENT = 0,
-    DM_TABLE = 1
-  };
+  enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 };
 
 TEST_F(Find_statement_builder_test, add_projection_table_empty) {
@@ -129,14 +126,14 @@ TEST_F(Find_statement_builder_test, add_projection_document_one_item_no_alias) {
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
-      {ColumnIdentifier("alpha", "xtable"), "beta"}}));
+  ASSERT_NO_THROW(builder()->add_document_projection(
+      Projection_list{{ColumnIdentifier("alpha", "xtable"), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', `xtable`.`alpha`) AS doc", query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_member_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
-      {ColumnIdentifier(Document_path{"alpha"}), "beta"}}));
+  ASSERT_NO_THROW(builder()->add_document_projection(
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', JSON_EXTRACT(doc,'$.alpha')) AS doc",
             query.get());
 }

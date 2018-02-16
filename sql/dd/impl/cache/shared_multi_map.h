@@ -24,7 +24,7 @@
 #define DD_CACHE__SHARED_MULTI_MAP_INCLUDED
 
 #include <stdio.h>
-#include <vector>                            // std::vector
+#include <vector>  // std::vector
 
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_cond_bits.h"
@@ -33,11 +33,11 @@
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_thread.h"          // mysql_mutex_t, mysql_cond_t
+#include "mysql/psi/mysql_thread.h"  // mysql_mutex_t, mysql_cond_t
 #include "mysql/psi/psi_base.h"
-#include "sql/dd/cache/multi_map_base.h"     // Multi_map_base
-#include "sql/dd/impl/cache/cache_element.h" // Cache_element
-#include "sql/dd/impl/cache/free_list.h"     // Free_list
+#include "sql/dd/cache/multi_map_base.h"      // Multi_map_base
+#include "sql/dd/impl/cache/cache_element.h"  // Cache_element
+#include "sql/dd/impl/cache/free_list.h"      // Free_list
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"
 #include "sql/dd/types/collation.h"
@@ -49,14 +49,16 @@
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/dd/types/tablespace.h"
-#include "sql/malloc_allocator.h"            // Malloc_allocator.
-#include "sql/mysqld.h"                      // max_connections
+#include "sql/malloc_allocator.h"  // Malloc_allocator.
+#include "sql/mysqld.h"            // max_connections
 #include "thr_mutex.h"
 
 namespace dd {
 namespace cache {
-template <typename K, typename E> class Element_map;
-template <typename T> class Cache_element;
+template <typename K, typename E>
+class Element_map;
+template <typename T>
+class Cache_element;
 }  // namespace cache
 }  // namespace dd
 
@@ -67,7 +69,6 @@ extern PSI_cond_key key_object_loading_cond;
 
 namespace dd {
 namespace cache {
-
 
 /**
   Implementation of a shared set of maps for a given object type.
@@ -111,60 +112,58 @@ namespace cache {
 */
 
 template <typename T>
-class Shared_multi_map: public Multi_map_base<T>
-{
-private:
-  static const size_t initial_capacity= 256;
+class Shared_multi_map : public Multi_map_base<T> {
+ private:
+  static const size_t initial_capacity = 256;
 
   // Inner class to lock and unlock the multi map instance.
-  class Autolocker
-  {
-  private:
+  class Autolocker {
+   private:
     // Vector containing objects to be deleted unconditionally.
-    typedef std::vector<const T*, Malloc_allocator<const T*> >
-              Object_list_type;
-    Object_list_type  m_objects_to_delete;
+    typedef std::vector<const T *, Malloc_allocator<const T *>>
+        Object_list_type;
+    Object_list_type m_objects_to_delete;
 
     // Vector containing elements to be deleted unconditionally, which
     // happens when elements are evicted while the pool is already full.
-    typedef std::vector<const Cache_element<T>*,
-                        Malloc_allocator<const Cache_element<T>*> >
-                          Element_list_type;
+    typedef std::vector<const Cache_element<T> *,
+                        Malloc_allocator<const Cache_element<T> *>>
+        Element_list_type;
     Element_list_type m_elements_to_delete;
 
-    Shared_multi_map<T> *m_map;         // Pointer to the enclosing multi map.
+    Shared_multi_map<T> *m_map;  // Pointer to the enclosing multi map.
 
-  public:
+   public:
     // Lock the multi map on instantiation.
-    explicit Autolocker(Shared_multi_map<T> *map):
-      m_objects_to_delete(Malloc_allocator<const T*>(PSI_INSTRUMENT_ME)),
-      m_elements_to_delete(Malloc_allocator<const Cache_element<T>*>(
-                             PSI_INSTRUMENT_ME)),
-      m_map(map)
-    { mysql_mutex_lock(&m_map->m_lock); }
+    explicit Autolocker(Shared_multi_map<T> *map)
+        : m_objects_to_delete(Malloc_allocator<const T *>(PSI_INSTRUMENT_ME)),
+          m_elements_to_delete(
+              Malloc_allocator<const Cache_element<T> *>(PSI_INSTRUMENT_ME)),
+          m_map(map) {
+      mysql_mutex_lock(&m_map->m_lock);
+    }
 
     // Add object to be deleted.
-    void auto_delete(const T* object)
-    { m_objects_to_delete.push_back(object); }
+    void auto_delete(const T *object) { m_objects_to_delete.push_back(object); }
 
     // Add element to be deleted.
-    void auto_delete(const Cache_element<T>* element)
-    { m_elements_to_delete.push_back(element); }
+    void auto_delete(const Cache_element<T> *element) {
+      m_elements_to_delete.push_back(element);
+    }
 
     // Unlock the multi map when being deleted (e.g. going out of scope)
     // and delete the objects and elements.
-    ~Autolocker()
-    {
+    ~Autolocker() {
       mysql_mutex_unlock(&m_map->m_lock);
       // Delete the objects.
-      for (typename Object_list_type::const_iterator it=
-             m_objects_to_delete.begin();
+      for (typename Object_list_type::const_iterator it =
+               m_objects_to_delete.begin();
            it != m_objects_to_delete.end(); ++it)
         delete *it;
 
       // Delete the elements.
-      for (typename Element_list_type::const_iterator it=
-             m_elements_to_delete.begin();
+      for (typename Element_list_type::const_iterator it =
+               m_elements_to_delete.begin();
            it != m_elements_to_delete.end(); ++it)
         delete *it;
     }
@@ -176,15 +175,15 @@ private:
     provide a set of operations for using these variables.
   */
 
-  mysql_mutex_t            m_lock;          // Single mutex to lock the map.
-  mysql_cond_t             m_miss_handled;  // Broadcast a miss being handled.
+  mysql_mutex_t m_lock;         // Single mutex to lock the map.
+  mysql_cond_t m_miss_handled;  // Broadcast a miss being handled.
 
-  Free_list<Cache_element<T> > m_free_list; // Free list.
-  std::vector<Cache_element<T>*> m_element_pool; // Pool of allocated elements.
-  size_t m_capacity;                        // Total capacity, i.e., if the
-                                            // number of elements exceeds this
-                                            // limit, shrink the free list.
-
+  Free_list<Cache_element<T>> m_free_list;  // Free list.
+  std::vector<Cache_element<T> *>
+      m_element_pool;  // Pool of allocated elements.
+  size_t m_capacity;   // Total capacity, i.e., if the
+                       // number of elements exceeds this
+                       // limit, shrink the free list.
 
   /**
     Template helper function getting the element map.
@@ -200,13 +199,14 @@ private:
    */
 
   template <typename K>
-  Element_map<K, Cache_element<T> > *m_map()
-  { return Multi_map_base<T>::template m_map<K>(); }
+  Element_map<K, Cache_element<T>> *m_map() {
+    return Multi_map_base<T>::template m_map<K>();
+  }
 
   template <typename K>
-  const Element_map<K, Cache_element<T> > *m_map() const
-  { return Multi_map_base<T>::template m_map<K>(); }
-
+  const Element_map<K, Cache_element<T>> *m_map() const {
+    return Multi_map_base<T>::template m_map<K>();
+  }
 
   /**
     Template function to find an element and mark it as used.
@@ -226,7 +226,6 @@ private:
   template <typename K>
   Cache_element<T> *use_if_present(const K &key);
 
-
   /**
     Remove an element from the map.
 
@@ -241,7 +240,6 @@ private:
 
   void remove(Cache_element<T> *element, Autolocker *lock);
 
-
   /**
     Check if the current map capacity is exceeded.
 
@@ -249,12 +247,10 @@ private:
              false If there is additional capacity in the cache.
   */
 
-  bool map_capacity_exceeded() const
-  {
+  bool map_capacity_exceeded() const {
     mysql_mutex_assert_owner(&m_lock);
-    return this->m_map<const T*>()->size() > m_capacity;
+    return this->m_map<const T *>()->size() > m_capacity;
   }
-
 
   /**
     Check if the pool capacity is exceeded.
@@ -267,12 +263,10 @@ private:
              false If there is additional capacity for vacant elements.
   */
 
-  bool pool_capacity_exceeded() const
-  {
+  bool pool_capacity_exceeded() const {
     mysql_mutex_assert_owner(&m_lock);
     return m_element_pool.size() > max_connections;
   }
-
 
   /**
     Helper function to evict unused elements from the free list
@@ -283,7 +277,6 @@ private:
 
   void rectify_free_list(Autolocker *lock);
 
-
   /**
     Helper function to evict all unused elements from the free list
     and the cache. Used during e.g. shutdown.
@@ -293,38 +286,31 @@ private:
 
   void evict_all_unused(Autolocker *lock);
 
-
-public:
-
+ public:
   /**
     Initialize the mutex and condition variable.
     Set initial map capacity.
   */
 
-  Shared_multi_map(): m_capacity(initial_capacity)
-  {
+  Shared_multi_map() : m_capacity(initial_capacity) {
     mysql_mutex_init(key_object_cache_mutex, &m_lock, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_object_loading_cond, &m_miss_handled);
   }
-
 
   /**
     Destroy the mutex and condition variable.
   */
 
-  ~Shared_multi_map()
-  {
+  ~Shared_multi_map() {
     mysql_mutex_destroy(&m_lock);
     mysql_cond_destroy(&m_miss_handled);
   }
-
 
   /**
     Shutdown the shared map. Delete all objects present.
   */
 
   void shutdown();
-
 
   /**
     Reset the shared map. Locks and deletes all objects present,
@@ -338,15 +324,13 @@ public:
 
   bool reset(THD *thd);
 
-
   /**
     Set capacity of the shared map.
   */
 
-  void set_capacity(size_t capacity)
-  {
+  void set_capacity(size_t capacity) {
     Autolocker lock(this);
-    m_capacity= capacity;
+    m_capacity = capacity;
     rectify_free_list(&lock);
   }
 
@@ -355,14 +339,12 @@ public:
   */
 
   template <typename K>
-  bool available(const K &key)
-  {
+  bool available(const K &key) {
     Autolocker lock(this);
-    Cache_element<T> *e= nullptr;
+    Cache_element<T> *e = nullptr;
     m_map<K>()->get(key, &e);
     return (e != nullptr);
   }
-
 
   /**
     Get a wrapper element from the map handling the given key type.
@@ -388,7 +370,6 @@ public:
 
   template <typename K>
   bool get(const K &key, Cache_element<T> **element);
-
 
   /**
     Put a new object and element wrapper into the map.
@@ -433,7 +414,6 @@ public:
   template <typename K>
   void put(const K *key, const T *object, Cache_element<T> **element);
 
-
   /**
     Release one element.
 
@@ -445,7 +425,6 @@ public:
   */
 
   void release(Cache_element<T> *element);
-
 
   /**
     Delete an element from the map.
@@ -460,7 +439,6 @@ public:
   */
 
   void drop(Cache_element<T> *element);
-
 
   /**
     Delete an object corresponding to the key from the map if exists.
@@ -478,7 +456,6 @@ public:
   template <typename K>
   void drop_if_present(const K &key);
 
-
   /**
     Replace the object and re-generate the keys for an element.
 
@@ -490,15 +467,13 @@ public:
     @param  object    New object to replace the old one.
   */
 
-  void replace(Cache_element<T> *element, const T* object);
-
+  void replace(Cache_element<T> *element, const T *object);
 
   /**
     Debug dump of the shared multi map to stderr.
   */
   /* purecov: begin inspected */
-  void dump() const
-  {
+  void dump() const {
 #ifndef DBUG_OFF
     fprintf(stderr, "  --------------------------------\n");
     fprintf(stderr, "  Shared multi map for '%s'\n",
@@ -512,7 +487,7 @@ public:
   /* purecov: end */
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
-#endif // DD_CACHE__SHARED_MULTI_MAP_INCLUDED
+#endif  // DD_CACHE__SHARED_MULTI_MAP_INCLUDED

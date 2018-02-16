@@ -33,7 +33,8 @@ extern LIST *myrg_open_list;
 
 extern mysql_mutex_t THR_LOCK_open;
 
-int _myrg_init_queue(MYRG_INFO *info,int inx,enum ha_rkey_function search_flag);
+int _myrg_init_queue(MYRG_INFO *info, int inx,
+                     enum ha_rkey_function search_flag);
 int _myrg_mi_read_record(MI_INFO *info, uchar *buf);
 
 C_MODE_START
@@ -51,4 +52,3 @@ void init_myisammrg_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
 
 C_MODE_END
-

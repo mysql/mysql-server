@@ -35,17 +35,16 @@
 #include "map_helpers.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "prealloced_array.h"                   // Prealloced_arrray
-#include "sql/options_mysqld.h"                 // options_mysqld
+#include "prealloced_array.h"    // Prealloced_arrray
+#include "sql/options_mysqld.h"  // options_mysqld
 #include "sql/rpl_gtid.h"
-#include "sql/sql_cmd.h"                        // Sql_cmd
-#include "sql/sql_list.h"                       // I_List
+#include "sql/sql_cmd.h"   // Sql_cmd
+#include "sql/sql_list.h"  // I_List
 #include "sql_string.h"
 
 class Item;
 class THD;
 struct TABLE_LIST;
-
 
 /*
 There are five classes related to replication filters:
@@ -72,24 +71,19 @@ The vectors of Rpl_pfs_filters objects are rebuilt whenever filters
 are modified (i.e., channels created/dropped or filters changed).
 */
 
-
-struct TABLE_RULE_ENT
-{
-  char* db;
-  char* tbl_name;
+struct TABLE_RULE_ENT {
+  char *db;
+  char *tbl_name;
   uint key_len;
 };
 
-
 /** Enum values for CONFIGURED_BY column. */
-enum enum_configured_by
-{
-  CONFIGURED_BY_STARTUP_OPTIONS= 1,
+enum enum_configured_by {
+  CONFIGURED_BY_STARTUP_OPTIONS = 1,
   CONFIGURED_BY_CHANGE_REPLICATION_FILTER,
   CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL,
   CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL
 };
-
 
 /**
   The class Rpl_filter_statistics encapsulates the following three
@@ -106,9 +100,8 @@ enum enum_configured_by
   performance_schema.replication_applier_filters table and
   performance_schema.replication_applier_global_filters table.
 */
-class Rpl_filter_statistics
-{
-public:
+class Rpl_filter_statistics {
+ public:
   Rpl_filter_statistics();
   ~Rpl_filter_statistics();
   void reset();
@@ -120,24 +113,12 @@ public:
   */
   void set_all(enum_configured_by configured_by);
 
-  enum_configured_by get_configured_by()
-  {
-    return m_configured_by;
-  }
-  ulonglong get_active_since()
-  {
-    return m_active_since;
-  }
-  ulonglong get_counter()
-  {
-    return m_atomic_counter;
-  }
-  void increase_counter()
-  {
-    m_atomic_counter++;
-  }
+  enum_configured_by get_configured_by() { return m_configured_by; }
+  ulonglong get_active_since() { return m_active_since; }
+  ulonglong get_counter() { return m_atomic_counter; }
+  void increase_counter() { m_atomic_counter++; }
 
-private:
+ private:
   /*
     The replication filters can be configured with the following four states:
     STARTUP_OPTIONS, //STARTUP_OPTIONS: --REPLICATE-*
@@ -159,12 +140,11 @@ private:
   std::atomic<uint64> m_atomic_counter{0};
 
   /* Prevent user from invoking default constructor function. */
-  Rpl_filter_statistics(Rpl_filter_statistics const&);
+  Rpl_filter_statistics(Rpl_filter_statistics const &);
 
   /* Prevent user from invoking default assignment function. */
-  Rpl_filter_statistics& operator=(Rpl_filter_statistics const&);
+  Rpl_filter_statistics &operator=(Rpl_filter_statistics const &);
 };
-
 
 /**
   The class Rpl_pfs_filter is introduced to serve the
@@ -181,51 +161,38 @@ private:
   deleting the filter, destroyed when creating, changing
   or deleting the filter next time.
 */
-class Rpl_pfs_filter
-{
-public:
+class Rpl_pfs_filter {
+ public:
   Rpl_pfs_filter();
-  Rpl_pfs_filter(const char* channel_name, const char* filter_name,
-                 const String& filter_rule,
-                 Rpl_filter_statistics* rpl_filter_statistics);
+  Rpl_pfs_filter(const char *channel_name, const char *filter_name,
+                 const String &filter_rule,
+                 Rpl_filter_statistics *rpl_filter_statistics);
   Rpl_pfs_filter(const Rpl_pfs_filter &other);
   ~Rpl_pfs_filter();
 
-  const char* get_channel_name()
-  {
-    return m_channel_name;
-  }
-  const char* get_filter_name()
-  {
-    return m_filter_name;
-  }
-  const String& get_filter_rule()
-  {
-    return m_filter_rule;
-  }
-  Rpl_filter_statistics* get_rpl_filter_statistics()
-  {
+  const char *get_channel_name() { return m_channel_name; }
+  const char *get_filter_name() { return m_filter_name; }
+  const String &get_filter_rule() { return m_filter_rule; }
+  Rpl_filter_statistics *get_rpl_filter_statistics() {
     return m_rpl_filter_statistics;
   }
 
-private:
-
+ private:
   /* A pointer to the channel name. */
-  const char* m_channel_name;
+  const char *m_channel_name;
 
   /* A pointer to the filer name. */
-  const char* m_filter_name;
+  const char *m_filter_name;
 
   /* A pointer to replication filter statistics. */
-  Rpl_filter_statistics* m_rpl_filter_statistics;
+  Rpl_filter_statistics *m_rpl_filter_statistics;
 
   /* A filter rule. */
   String m_filter_rule;
 
   /* Prevent user from invoking default assignment function. */
-  Rpl_pfs_filter& operator=(Rpl_pfs_filter const&);
+  Rpl_pfs_filter &operator=(Rpl_pfs_filter const &);
 };
-
 
 /**
   Rpl_filter
@@ -241,18 +208,17 @@ private:
     The instance is created when the server is started, destroyed
     when the server is stopped.
  */
-class Rpl_filter 
-{
-public:
+class Rpl_filter {
+ public:
   Rpl_filter();
   virtual ~Rpl_filter();
-  Rpl_filter(Rpl_filter const&);
-  Rpl_filter& operator=(Rpl_filter const&);
- 
+  Rpl_filter(Rpl_filter const &);
+  Rpl_filter &operator=(Rpl_filter const &);
+
   /* Checks - returns true if ok to replicate/log */
 
-  bool tables_ok(const char* db, TABLE_LIST* tables);
-  bool db_ok(const char* db, bool need_increase_counter= true);
+  bool tables_ok(const char *db, TABLE_LIST *tables);
+  bool db_ok(const char *db, bool need_increase_counter = true);
   bool db_ok_with_wild_table(const char *db);
 
   bool is_on();
@@ -279,23 +245,22 @@ public:
   int build_do_table_hash();
   int build_ignore_table_hash();
 
-  int add_string_list(I_List<i_string> *list, const char* spec);
-  int add_string_pair_list(I_List<i_string_pair> *list, char* key, char *val);
-  int add_do_table_array(const char* table_spec);
-  int add_ignore_table_array(const char* table_spec);
+  int add_string_list(I_List<i_string> *list, const char *spec);
+  int add_string_pair_list(I_List<i_string_pair> *list, char *key, char *val);
+  int add_do_table_array(const char *table_spec);
+  int add_ignore_table_array(const char *table_spec);
 
-  int add_wild_do_table(const char* table_spec);
-  int add_wild_ignore_table(const char* table_spec);
+  int add_wild_do_table(const char *table_spec);
+  int add_wild_ignore_table(const char *table_spec);
 
   int set_do_db(List<Item> *list, enum_configured_by configured_by);
   int set_ignore_db(List<Item> *list, enum_configured_by configured_by);
   int set_do_table(List<Item> *list, enum_configured_by configured_by);
   int set_ignore_table(List<Item> *list, enum_configured_by configured_by);
   int set_wild_do_table(List<Item> *list, enum_configured_by configured_by);
-  int set_wild_ignore_table(List<Item> *list,
-                            enum_configured_by configured_by);
+  int set_wild_ignore_table(List<Item> *list, enum_configured_by configured_by);
   int set_db_rewrite(List<Item> *list, enum_configured_by configured_by);
-  typedef int (Rpl_filter::*Add_filter)(char const*);
+  typedef int (Rpl_filter::*Add_filter)(char const *);
   int parse_filter_list(List<Item> *item_list, Add_filter func);
   /**
     Execute the specified func with elements of the list as input.
@@ -307,23 +272,23 @@ public:
     @retval 1 Error
   */
   int parse_filter_list(I_List<i_string> *list, Add_filter add);
-  int add_do_db(const char* db_spec);
-  int add_ignore_db(const char* db_spec);
+  int add_do_db(const char *db_spec);
+  int add_ignore_db(const char *db_spec);
 
-  int add_db_rewrite(const char* from_db, const char* to_db);
+  int add_db_rewrite(const char *from_db, const char *to_db);
 
   /* Getters - to get information about current rules */
 
-  void get_do_table(String* str);
-  void get_ignore_table(String* str);
+  void get_do_table(String *str);
+  void get_ignore_table(String *str);
 
-  void get_wild_do_table(String* str);
-  void get_wild_ignore_table(String* str);
+  void get_wild_do_table(String *str);
+  void get_wild_ignore_table(String *str);
 
-  const char* get_rewrite_db(const char* db, size_t *new_len);
+  const char *get_rewrite_db(const char *db, size_t *new_len);
   void get_rewrite_db(String *str);
 
-  I_List<i_string>* get_do_db();
+  I_List<i_string> *get_do_db();
   /*
     Get do_db rule.
 
@@ -331,7 +296,7 @@ public:
   */
   void get_do_db(String *str);
 
-  I_List<i_string>* get_ignore_db();
+  I_List<i_string> *get_ignore_db();
   /*
     Get ignore_db rule.
 
@@ -343,8 +308,7 @@ public:
 
     @retval A pointer to a rewrite_db_statistics object.
   */
-  Rpl_filter_statistics* get_rewrite_db_statistics()
-  {
+  Rpl_filter_statistics *get_rewrite_db_statistics() {
     return &rewrite_db_statistics;
   }
 
@@ -359,40 +323,34 @@ public:
     @param channel_name the name of the channel attached or NULL if
                         there is no channel attached.
   */
-  void put_filters_into_vector(
-    std::vector<Rpl_pfs_filter>& rpl_pfs_filter_vec,
-    const char* channel_name);
+  void put_filters_into_vector(std::vector<Rpl_pfs_filter> &rpl_pfs_filter_vec,
+                               const char *channel_name);
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   /**
     Acquire the write lock.
   */
-  void wrlock()
-  { m_rpl_filter_lock->wrlock(); }
+  void wrlock() { m_rpl_filter_lock->wrlock(); }
 
   /**
     Acquire the read lock.
   */
-  void rdlock()
-  { m_rpl_filter_lock->rdlock(); }
+  void rdlock() { m_rpl_filter_lock->rdlock(); }
 
   /**
     Release the lock (whether it is a write or read lock).
   */
-  void unlock()
-  { m_rpl_filter_lock->unlock(); }
+  void unlock() { m_rpl_filter_lock->unlock(); }
 
   /**
     Assert that some thread holds the write lock.
   */
-  void assert_some_wrlock()
-  { m_rpl_filter_lock->assert_some_wrlock(); }
+  void assert_some_wrlock() { m_rpl_filter_lock->assert_some_wrlock(); }
 
   /**
     Assert that some thread holds the read lock.
   */
-  void assert_some_rdlock()
-  { m_rpl_filter_lock->assert_some_rdlock(); }
+  void assert_some_rdlock() { m_rpl_filter_lock->assert_some_rdlock(); }
 
   /**
     Check if the relation between the per-channel filter and
@@ -401,19 +359,13 @@ public:
     @retval true if the relation is established
     @retval false if the relation is not established
   */
-  bool is_attached()
-  {
-    return attached;
-  }
+  bool is_attached() { return attached; }
 
   /**
     Set attached to true when the relation between the per-channel filter
     and the channel's Relay_log_info is established.
   */
-  void set_attached()
-  {
-    attached= true;
-  }
+  void set_attached() { attached = true; }
 
   void reset();
 
@@ -425,8 +377,7 @@ public:
   Rpl_filter_statistics ignore_db_statistics;
   Rpl_filter_statistics rewrite_db_statistics;
 
-
-private:
+ private:
   bool table_rules_on;
   /*
     State if the relation between the per-channel filter
@@ -483,23 +434,21 @@ private:
   */
   Checkable_rwlock *m_rpl_filter_lock;
 
-  typedef Prealloced_array<TABLE_RULE_ENT*, 16> Table_rule_array;
-  typedef collation_unordered_map<
-    std::string, unique_ptr_my_free<TABLE_RULE_ENT>> Table_rule_hash;
+  typedef Prealloced_array<TABLE_RULE_ENT *, 16> Table_rule_array;
+  typedef collation_unordered_map<std::string,
+                                  unique_ptr_my_free<TABLE_RULE_ENT>>
+      Table_rule_hash;
 
-  void init_table_rule_hash(Table_rule_hash** h, bool* h_inited);
-  void init_table_rule_array(Table_rule_array*, bool* a_inited);
+  void init_table_rule_hash(Table_rule_hash **h, bool *h_inited);
+  void init_table_rule_array(Table_rule_array *, bool *a_inited);
 
-  int add_table_rule_to_array(Table_rule_array* a, const char* table_spec);
-  int add_table_rule_to_hash(
-     Table_rule_hash* h, const char* table_spec, uint len);
+  int add_table_rule_to_array(Table_rule_array *a, const char *table_spec);
+  int add_table_rule_to_hash(Table_rule_hash *h, const char *table_spec,
+                             uint len);
 
   void free_string_array(Table_rule_array *a);
 
-  void table_rule_ent_hash_to_str(
-    String* s,
-    Table_rule_hash* h,
-    bool inited);
+  void table_rule_ent_hash_to_str(String *s, Table_rule_hash *h, bool inited);
   /**
     Builds a Table_rule_array from a hash of TABLE_RULE_ENT. Cannot be used for
     any other hash, as it assumes that the hash entries are TABLE_RULE_ENT.
@@ -511,10 +460,8 @@ private:
     @retval 0 OK
     @retval 1 Error
   */
-  int table_rule_ent_hash_to_array(
-    Table_rule_array* table_array,
-    Table_rule_hash* h,
-    bool inited);
+  int table_rule_ent_hash_to_array(Table_rule_array *table_array,
+                                   Table_rule_hash *h, bool inited);
   /**
     Builds a destination Table_rule_array from a source Table_rule_array
     of TABLE_RULE_ENT.
@@ -526,17 +473,16 @@ private:
     @retval 0 OK
     @retval 1 Error
   */
-  int table_rule_ent_array_to_array(Table_rule_array* dest_array,
-                                    Table_rule_array* source_array,
+  int table_rule_ent_array_to_array(Table_rule_array *dest_array,
+                                    Table_rule_array *source_array,
                                     bool inited);
-  void table_rule_ent_dynamic_array_to_str(String* s, Table_rule_array* a,
+  void table_rule_ent_dynamic_array_to_str(String *s, Table_rule_array *a,
                                            bool inited);
-  TABLE_RULE_ENT* find_wild(Table_rule_array *a, const char* key, size_t len);
+  TABLE_RULE_ENT *find_wild(Table_rule_array *a, const char *key, size_t len);
 
-  int build_table_hash_from_array(
-    Table_rule_array *table_array,
-    Table_rule_hash **table_hash,
-    bool array_inited, bool *hash_inited);
+  int build_table_hash_from_array(Table_rule_array *table_array,
+                                  Table_rule_hash **table_hash,
+                                  bool array_inited, bool *hash_inited);
 
   /*
     Those 6 structures below are uninitialized memory unless the
@@ -565,7 +511,6 @@ private:
   I_List<i_string_pair> rewrite_db;
 };
 
-
 /**
   The class is a Rpl_filter representing global replication filters,
   with a vector that references all Rpl_pfs_filter objects used to
@@ -574,9 +519,8 @@ private:
   replication global filter. The rpl_global_filter is created when
   the server is started, destroyed when the server is stopped.
 */
-class Rpl_global_filter : public Rpl_filter
-{
-public:
+class Rpl_global_filter : public Rpl_filter {
+ public:
   Rpl_global_filter() {}
   ~Rpl_global_filter() {}
 
@@ -598,7 +542,7 @@ public:
     @retval Rpl_pfs_filter A pointer to a Rpl_pfs_filter, or NULL if it
                            arrived the end of the rpl_pfs_filter_vec.
   */
-  Rpl_pfs_filter* get_filter_at_pos(uint pos);
+  Rpl_pfs_filter *get_filter_at_pos(uint pos);
   /**
     This member function is called everytime the rules of the global
     repliation filter are changed. Once that happens the PFS view of
@@ -607,7 +551,7 @@ public:
   void reset_pfs_view();
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
-private:
+ private:
   /*
     Store pointers of all Rpl_pfs_filter objects in
     replication filter.
@@ -619,35 +563,32 @@ private:
   Rpl_global_filter(const Rpl_global_filter &info);
 };
 
-
 /** Sql_cmd_change_repl_filter represents the command CHANGE REPLICATION
  * FILTER.
  */
-class Sql_cmd_change_repl_filter : public Sql_cmd
-{
-public:
+class Sql_cmd_change_repl_filter : public Sql_cmd {
+ public:
   /** Constructor.  */
-  Sql_cmd_change_repl_filter():
-    do_db_list(NULL), ignore_db_list(NULL),
-    do_table_list(NULL), ignore_table_list(NULL),
-    wild_do_table_list(NULL), wild_ignore_table_list(NULL),
-    rewrite_db_pair_list(NULL)
-  {}
+  Sql_cmd_change_repl_filter()
+      : do_db_list(NULL),
+        ignore_db_list(NULL),
+        do_table_list(NULL),
+        ignore_table_list(NULL),
+        wild_do_table_list(NULL),
+        wild_ignore_table_list(NULL),
+        rewrite_db_pair_list(NULL) {}
 
-  ~Sql_cmd_change_repl_filter()
-  {}
+  ~Sql_cmd_change_repl_filter() {}
 
-  virtual enum_sql_command sql_command_code() const
-  {
+  virtual enum_sql_command sql_command_code() const {
     return SQLCOM_CHANGE_REPLICATION_FILTER;
   }
   bool execute(THD *thd);
 
-  void set_filter_value(List<Item>* item_list, options_mysqld filter_type);
-  bool change_rpl_filter(THD* thd);
+  void set_filter_value(List<Item> *item_list, options_mysqld filter_type);
+  bool change_rpl_filter(THD *thd);
 
-private:
-
+ private:
   List<Item> *do_db_list;
   List<Item> *ignore_db_list;
   List<Item> *do_table_list;
@@ -655,10 +596,9 @@ private:
   List<Item> *wild_do_table_list;
   List<Item> *wild_ignore_table_list;
   List<Item> *rewrite_db_pair_list;
-
 };
 
 extern Rpl_filter *rpl_filter;
 extern Rpl_filter *binlog_filter;
 
-#endif // RPL_FILTER_H
+#endif  // RPL_FILTER_H

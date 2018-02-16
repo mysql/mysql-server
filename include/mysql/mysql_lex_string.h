@@ -31,14 +31,12 @@
 #include <stddef.h>
 #endif
 
-struct MYSQL_LEX_STRING
-{
+struct MYSQL_LEX_STRING {
   char *str;
   size_t length;
 };
 
-struct MYSQL_LEX_CSTRING
-{
+struct MYSQL_LEX_CSTRING {
   const char *str;
   size_t length;
 };

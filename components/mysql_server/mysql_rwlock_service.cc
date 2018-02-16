@@ -26,138 +26,80 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/services/mysql_rwlock_service.h>
 #include <mysql/psi/mysql_rwlock.h>
 
-void
-impl_mysql_rwlock_register(const char *category, PSI_rwlock_info *info, int count)
-{
+void impl_mysql_rwlock_register(const char *category, PSI_rwlock_info *info,
+                                int count) {
   mysql_rwlock_register(category, info, count);
 }
 
-int
-impl_mysql_rwlock_init(
-  PSI_rwlock_key key,
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_init(PSI_rwlock_key key, mysql_rwlock_t *that,
+                           const char *src_file, unsigned int src_line) {
   return mysql_rwlock_init_with_src(key, that, src_file, src_line);
 }
 
-int
-impl_mysql_prlock_init(
-  PSI_rwlock_key key,
-  mysql_prlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_prlock_init(PSI_rwlock_key key, mysql_prlock_t *that,
+                           const char *src_file, unsigned int src_line) {
   return mysql_prlock_init_with_src(key, that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_destroy(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_destroy(mysql_rwlock_t *that, const char *src_file,
+                              unsigned int src_line) {
   return mysql_rwlock_destroy_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_prlock_destroy(
-  mysql_prlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_prlock_destroy(mysql_prlock_t *that, const char *src_file,
+                              unsigned int src_line) {
   return mysql_prlock_destroy_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_rdlock(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_rdlock(mysql_rwlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_rwlock_rdlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_prlock_rdlock(
-  mysql_prlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_prlock_rdlock(mysql_prlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_prlock_rdlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_wrlock(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_wrlock(mysql_rwlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_rwlock_wrlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_prlock_wrlock(
-  mysql_prlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_prlock_wrlock(mysql_prlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_prlock_wrlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_tryrdlock(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_tryrdlock(mysql_rwlock_t *that, const char *src_file,
+                                unsigned int src_line) {
   return mysql_rwlock_tryrdlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_trywrlock(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_trywrlock(mysql_rwlock_t *that, const char *src_file,
+                                unsigned int src_line) {
   return mysql_rwlock_trywrlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_rwlock_unlock(
-  mysql_rwlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_rwlock_unlock(mysql_rwlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_rwlock_unlock_with_src(that, src_file, src_line);
 }
 
-int
-impl_mysql_prlock_unlock(
-  mysql_prlock_t *that,
-  const char *src_file,
-  unsigned int src_line)
-{
+int impl_mysql_prlock_unlock(mysql_prlock_t *that, const char *src_file,
+                             unsigned int src_line) {
   return mysql_prlock_unlock_with_src(that, src_file, src_line);
 }
 
-extern SERVICE_TYPE(mysql_rwlock_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_rwlock_v1);
+extern SERVICE_TYPE(mysql_rwlock_v1)
+    SERVICE_IMPLEMENTATION(mysql_server, mysql_rwlock_v1);
 
-SERVICE_TYPE(mysql_rwlock_v1) SERVICE_IMPLEMENTATION(mysql_server, mysql_rwlock_v1) =
-{
-  impl_mysql_rwlock_register,
-  impl_mysql_rwlock_init,
-  impl_mysql_prlock_init,
-  impl_mysql_rwlock_destroy,
-  impl_mysql_prlock_destroy,
-  impl_mysql_rwlock_rdlock,
-  impl_mysql_prlock_rdlock,
-  impl_mysql_rwlock_wrlock,
-  impl_mysql_prlock_wrlock,
-  impl_mysql_rwlock_tryrdlock,
-  impl_mysql_rwlock_trywrlock,
-  impl_mysql_rwlock_unlock,
-  impl_mysql_prlock_unlock
-};
-
+SERVICE_TYPE(mysql_rwlock_v1)
+SERVICE_IMPLEMENTATION(mysql_server, mysql_rwlock_v1) = {
+    impl_mysql_rwlock_register,  impl_mysql_rwlock_init,
+    impl_mysql_prlock_init,      impl_mysql_rwlock_destroy,
+    impl_mysql_prlock_destroy,   impl_mysql_rwlock_rdlock,
+    impl_mysql_prlock_rdlock,    impl_mysql_rwlock_wrlock,
+    impl_mysql_prlock_wrlock,    impl_mysql_rwlock_tryrdlock,
+    impl_mysql_rwlock_trywrlock, impl_mysql_rwlock_unlock,
+    impl_mysql_prlock_unlock};

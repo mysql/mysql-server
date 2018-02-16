@@ -9,3 +9,5 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+
+innodb_is_data_locks : Bug#27491547 2018-02-08 Marc Alff PERFSCHEMA.INNODB_IS_DATA_LOCKS FAILS SPORADICALLY ON PB2

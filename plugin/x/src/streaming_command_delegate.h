@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,7 +31,6 @@
 #include "plugin/x/ngs/include/ngs/command_delegate.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 
-
 namespace ngs {
 
 class Protocol_encoder_interface;
@@ -41,7 +40,7 @@ class Protocol_encoder_interface;
 namespace xpl {
 
 class Streaming_command_delegate : public ngs::Command_delegate {
-public:
+ public:
   Streaming_command_delegate(ngs::Protocol_encoder_interface *proto);
   virtual ~Streaming_command_delegate();
 
@@ -50,13 +49,12 @@ public:
 
   virtual void reset();
 
-private:
+ private:
   virtual int start_result_metadata(uint num_cols, uint flags,
                                     const CHARSET_INFO *resultcs);
   virtual int field_metadata(struct st_send_field *field,
                              const CHARSET_INFO *charset);
-  virtual int end_result_metadata(uint server_status,
-                                  uint warn_count);
+  virtual int end_result_metadata(uint server_status, uint warn_count);
 
   virtual int start_row();
   virtual int end_row();
@@ -70,13 +68,15 @@ private:
   virtual int get_date(const MYSQL_TIME *value);
   virtual int get_time(const MYSQL_TIME *value, uint decimals);
   virtual int get_datetime(const MYSQL_TIME *value, uint decimals);
-  virtual int get_string(const char * const value, size_t length,
+  virtual int get_string(const char *const value, size_t length,
                          const CHARSET_INFO *const valuecs);
   virtual void handle_ok(uint server_status, uint statement_warn_count,
                          ulonglong affected_rows, ulonglong last_insert_id,
-                         const char * const message);
+                         const char *const message);
 
-  virtual enum cs_text_or_binary representation() const { return CS_BINARY_REPRESENTATION; }
+  virtual enum cs_text_or_binary representation() const {
+    return CS_BINARY_REPRESENTATION;
+  }
 
   ngs::Protocol_encoder_interface *m_proto;
   const CHARSET_INFO *m_resultcs;
@@ -86,4 +86,4 @@ private:
 
 }  // namespace xpl
 
-#endif //  _XPL_STREAMING_COMMAND_DELEGATE_H_
+#endif  //  _XPL_STREAMING_COMMAND_DELEGATE_H_

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,14 +32,12 @@
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/thread.h"
 
-namespace ngs
-{
+namespace ngs {
 
 typedef ngs::shared_ptr<Client_interface> Client_ptr;
 
-class Client_list
-{
-public:
+class Client_list {
+ public:
   Client_list();
   ~Client_list();
 
@@ -57,32 +55,31 @@ public:
     Enumeration process can be stopped by 'matcher' any time,
     its done by returning 'true'.
    */
-  template<typename Functor>
+  template <typename Functor>
   void enumerate(Functor &matcher);
-  template<typename Functor>
+  template <typename Functor>
   void enumerate(const Functor &matcher);
 
   void get_all_clients(std::vector<Client_ptr> &result);
-private:
-  struct Match_client
-  {
+
+ private:
+  struct Match_client {
     Match_client(uint64_t client_id);
 
-    bool operator () (Client_ptr client);
+    bool operator()(Client_ptr client);
 
     uint64_t m_id;
   };
 
-  Client_list(const Client_list&);
-  Client_list& operator=(const Client_list&);
+  Client_list(const Client_list &);
+  Client_list &operator=(const Client_list &);
 
   RWLock m_clients_lock;
   std::list<Client_ptr> m_clients;
 };
 
-template<typename Functor>
-void Client_list::enumerate(Functor &matcher)
-{
+template <typename Functor>
+void Client_list::enumerate(Functor &matcher) {
   RWLock_readlock guard(m_clients_lock);
 
   /*
@@ -93,9 +90,8 @@ void Client_list::enumerate(Functor &matcher)
   std::find_if(m_clients.begin(), m_clients.end(), matcher);
 }
 
-template<typename Functor>
-void Client_list::enumerate(const Functor &matcher)
-{
+template <typename Functor>
+void Client_list::enumerate(const Functor &matcher) {
   RWLock_readlock guard(m_clients_lock);
 
   /*
@@ -106,7 +102,6 @@ void Client_list::enumerate(const Functor &matcher)
   std::find_if(m_clients.begin(), m_clients.end(), matcher);
 }
 
+}  // namespace ngs
 
-} // namespace ngs
-
-#endif // _NGS_CLIENT_LIST_H_
+#endif  // _NGS_CLIENT_LIST_H_

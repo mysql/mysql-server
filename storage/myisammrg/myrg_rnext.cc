@@ -26,38 +26,30 @@
 #include "my_inttypes.h"
 #include "storage/myisammrg/myrg_def.h"
 
-	/*
-	   Read next row with the same key as previous read
-	*/
+/*
+   Read next row with the same key as previous read
+*/
 
-int myrg_rnext(MYRG_INFO *info, uchar *buf, int inx)
-{
+int myrg_rnext(MYRG_INFO *info, uchar *buf, int inx) {
   int err;
   MI_INFO *mi;
 
-  if (!info->current_table)
-    return (HA_ERR_KEY_NOT_FOUND);
+  if (!info->current_table) return (HA_ERR_KEY_NOT_FOUND);
 
   /* at first, do rnext for the table found before */
-  if ((err=mi_rnext(info->current_table->table,NULL,inx)))
-  {
-    if (err == HA_ERR_END_OF_FILE)
-    {
-      queue_remove(&(info->by_key),0);
-      if (!info->by_key.elements)
-        return HA_ERR_END_OF_FILE;
-    }
-    else
+  if ((err = mi_rnext(info->current_table->table, NULL, inx))) {
+    if (err == HA_ERR_END_OF_FILE) {
+      queue_remove(&(info->by_key), 0);
+      if (!info->by_key.elements) return HA_ERR_END_OF_FILE;
+    } else
       return err;
-  }
-  else
-  {
+  } else {
     /* Found here, adding to queue */
-    queue_top(&(info->by_key))=(uchar *)(info->current_table);
+    queue_top(&(info->by_key)) = (uchar *)(info->current_table);
     queue_replaced(&(info->by_key));
   }
 
   /* now, mymerge's read_next is as simple as one queue_top */
-  mi=(info->current_table=(MYRG_TABLE *)queue_top(&(info->by_key)))->table;
-  return _myrg_mi_read_record(mi,buf);
+  mi = (info->current_table = (MYRG_TABLE *)queue_top(&(info->by_key)))->table;
+  return _myrg_mi_read_record(mi, buf);
 }
