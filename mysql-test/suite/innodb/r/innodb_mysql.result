@@ -589,7 +589,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='123'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='123'
 drop table t1;
 CREATE TABLE t1 (a CHAR(2), KEY (a)) ENGINE = InnoDB DEFAULT CHARSET=UTF8;
 Warnings:
@@ -1466,7 +1466,7 @@ t1	CREATE TABLE `t1` (
   `b` char(4) NOT NULL,
   UNIQUE KEY `bb` (`b`),
   UNIQUE KEY `aa` (`a`(1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES 
@@ -1555,7 +1555,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f1`),
   KEY `f2_ref` (`f2`),
   CONSTRAINT `f2_ref` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
 # Bug #36995: valgrind error in remove_const during subquery executions
@@ -1827,7 +1827,7 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `c2` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `f3` FOREIGN KEY (`c`) REFERENCES `t1` (`a`),
   CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`c`) REFERENCES `t1` (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t2;
 DROP TABLE t1;
 create table t1 (a int auto_increment primary key) engine=innodb;
@@ -2937,7 +2937,7 @@ t2	CREATE TABLE `t2` (
   `fk` int(11) DEFAULT NULL,
   KEY `x` (`fk`),
   CONSTRAINT `x` FOREIGN KEY (`fk`) REFERENCES `t1` (`pk`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t2, t1;
 #
 # Test for bug #11762012 - "54553: INNODB ASSERTS IN HA_INNOBASE::
@@ -3113,7 +3113,7 @@ t1	CREATE TABLE `t1` (
   `b` text NOT NULL,
   `c` text,
   UNIQUE KEY `b` (`b`(8) DESC,`a`,`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 #
 # Bug#25650516. The problem is the index order for the old and new
