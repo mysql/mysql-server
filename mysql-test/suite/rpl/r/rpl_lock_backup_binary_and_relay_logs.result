@@ -8,11 +8,11 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 SET @saved_expire_logs_days= @@GLOBAL.expire_logs_days;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @saved_binlog_expire_logs_seconds= @@GLOBAL.binlog_expire_logs_seconds;
 SET @@GLOBAL.expire_logs_days= 0;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@GLOBAL.binlog_expire_logs_seconds= 1;
 [connection master1]
 LOCK INSTANCE FOR BACKUP;
@@ -54,5 +54,5 @@ SHOW RELAYLOG EVENTS IN 'LAST_RELAY_LOG_FILE';
 SET @@GLOBAL.binlog_expire_logs_seconds= @saved_binlog_expire_logs_seconds;
 SET @@GLOBAL.expire_logs_days= @saved_expire_logs_days;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 include/rpl_end.inc

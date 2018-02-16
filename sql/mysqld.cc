@@ -3894,8 +3894,8 @@ int init_common_variables() {
       return 1;
     }
     if (!my_charset_same(default_charset_info, default_collation)) {
-      LogErr(ERROR_LEVEL, ER_COLLATION_CHARSET_MISMATCH, default_collation_name,
-             default_charset_info->csname);
+      LogErr(ERROR_LEVEL, ER_INVALID_COLLATION_FOR_CHARSET,
+             default_collation_name, default_charset_info->csname);
       return 1;
     }
     default_charset_info = default_collation;
@@ -4851,26 +4851,26 @@ static int init_server_components() {
 
   if (global_system_variables.binlog_row_value_options != 0) {
     const char *msg = NULL;
-    int err = ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED;
+    longlong err = ER_BINLOG_ROW_VALUE_OPTION_IGNORED;
     if (!opt_bin_log)
       msg = "the binary log is disabled";
     else if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
       msg = "binlog_format=STATEMENT";
     else if (log_bin_use_v1_row_events) {
       msg = "binlog_row_value_options=PARTIAL_JSON";
-      err = ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED;
+      err = ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED;
     } else if (global_system_variables.binlog_row_image ==
                BINLOG_ROW_IMAGE_FULL) {
       msg = "binlog_row_image=FULL";
-      err = ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES;
+      err = ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES;
     }
     if (msg) {
       switch (err) {
-        case ER_WARN_BINLOG_PARTIAL_UPDATES_DISABLED:
-        case ER_WARN_BINLOG_PARTIAL_UPDATES_SUGGESTS_PARTIAL_IMAGES:
+        case ER_BINLOG_ROW_VALUE_OPTION_IGNORED:
+        case ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES:
           LogErr(WARNING_LEVEL, err, msg, "PARTIAL_JSON");
           break;
-        case ER_WARN_BINLOG_V1_ROW_EVENTS_DISABLED:
+        case ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED:
           LogErr(WARNING_LEVEL, err, msg);
           break;
         default:
@@ -5262,7 +5262,7 @@ extern "C" void *handle_shutdown_and_restart(void *arg) {
 
   if (ret_code == WAIT_OBJECT_0 || ret_code == WAIT_OBJECT_0 + 1) {
     if (ret_code == WAIT_OBJECT_0)
-      LogErr(SYSTEM_LEVEL, ER_NORMAL_SHUTDOWN, my_progname);
+      LogErr(SYSTEM_LEVEL, ER_NORMAL_SERVER_SHUTDOWN, my_progname);
     else
       signal_hand_thr_exit_code = MYSQLD_RESTART_EXIT;
 

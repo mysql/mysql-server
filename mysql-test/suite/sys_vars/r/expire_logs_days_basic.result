@@ -1,6 +1,6 @@
 SET @start_value = @@global.expire_logs_days;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @start_value;
 @start_value
 0
@@ -12,124 +12,124 @@ SET @@global.binlog_expire_logs_seconds = 0;
 '#--------------------FN_DYNVARS_029_01------------------------#'
 SET @@global.expire_logs_days = 99;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = DEFAULT;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#---------------------FN_DYNVARS_029_02-------------------------#'
 SET @@global.expire_logs_days = @start_value;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days = 0;
 @@global.expire_logs_days = 0
 1
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#--------------------FN_DYNVARS_029_03_01------------------------#'
 SET @@global.expire_logs_days = 0;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 99;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 10;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 10
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 21;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 21
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#--------------------FN_DYNVARS_029_04_01-------------------------#'
 SET @@global.expire_logs_days = -1;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '-1'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 100;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '100'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 1024;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '1024'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'expire_logs_days'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = -1024;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '-1024'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 42949672950;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 Warning	1292	Truncated incorrect expire_logs_days value: '42949672950'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = ON;
 ERROR 42000: Incorrect argument type to variable 'expire_logs_days'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = 'test';
 ERROR 42000: Incorrect argument type to variable 'expire_logs_days'
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#-------------------FN_DYNVARS_029_05_01----------------------------#'
 SET @@session.expire_logs_days = 0;
 ERROR HY000: Variable 'expire_logs_days' is a GLOBAL variable and should be set with SET GLOBAL
@@ -137,7 +137,7 @@ SELECT @@expire_logs_days;
 @@expire_logs_days
 99
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#----------------------FN_DYNVARS_029_06_01------------------------#'
 SELECT @@global.expire_logs_days = VARIABLE_VALUE 
 FROM performance_schema.global_variables 
@@ -152,30 +152,30 @@ WHERE VARIABLE_NAME='expire_logs_days';
 '#---------------------FN_DYNVARS_029_07_01----------------------#'
 SET @@global.expire_logs_days = TRUE;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 1
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.expire_logs_days = FALSE;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#---------------------FN_DYNVARS_029_08_01----------------------#'
 SET @@global.expire_logs_days = 1;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@expire_logs_days = @@global.expire_logs_days;
 @@expire_logs_days = @@global.expire_logs_days
 1
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 '#---------------------FN_DYNVARS_029_09_01----------------------#'
 SET expire_logs_days = 1;
 ERROR HY000: Variable 'expire_logs_days' is a GLOBAL variable and should be set with SET GLOBAL
@@ -183,7 +183,7 @@ SELECT @@expire_logs_days;
 @@expire_logs_days
 1
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET local.expire_logs_days = 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.expire_logs_days = 1' at line 1
 SELECT local.expire_logs_days;
@@ -196,12 +196,12 @@ SELECT expire_logs_days = @@session.expire_logs_days;
 ERROR 42S22: Unknown column 'expire_logs_days' in 'field list'
 SET @@global.expire_logs_days = @start_value;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
 0
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
 SELECT @@global.binlog_expire_logs_seconds;
 @@global.binlog_expire_logs_seconds
