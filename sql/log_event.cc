@@ -4068,6 +4068,13 @@ bool Query_log_event::write(IO_CACHE *file) {
     start += 8;
   }
 
+  if (default_collation_for_utf8mb4_number) {
+    DBUG_ASSERT(default_collation_for_utf8mb4_number <= 0xFF);
+    *start++ = Q_DEFAULT_COLLATION_FOR_UTF8MB4;
+    int2store(start, default_collation_for_utf8mb4_number);
+    start += 2;
+  }
+
   /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h
@@ -4246,6 +4253,9 @@ Query_log_event::Query_log_event(THD *thd_arg, const char *query_arg,
   db_len = (db) ? strlen(db) : 0;
   if (thd_arg->variables.collation_database != thd_arg->db_charset)
     charset_database_number = thd_arg->variables.collation_database->number;
+
+  default_collation_for_utf8mb4_number =
+      thd_arg->variables.default_collation_for_utf8mb4->number;
 
   /*
     We only replicate over the bits of flags2 that we need: the rest
@@ -4713,6 +4723,15 @@ void Query_log_event::print_query_header(IO_CACHE *file,
     my_b_printf(file, "SET @@session.explicit_defaults_for_timestamp=%d%s\n",
                 explicit_defaults_ts == TERNARY_OFF ? 0 : 1,
                 print_event_info->delimiter);
+  if (default_collation_for_utf8mb4_number !=
+      print_event_info->default_collation_for_utf8mb4_number) {
+    if (default_collation_for_utf8mb4_number)
+      my_b_printf(
+          file, "/*!80005 SET @@session.default_collation_for_utf8mb4=%d*/%s\n",
+          default_collation_for_utf8mb4_number, print_event_info->delimiter);
+    print_event_info->default_collation_for_utf8mb4_number =
+        default_collation_for_utf8mb4_number;
+  }
 }
 
 void Query_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) {
@@ -5030,6 +5049,20 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
         thd->variables.collation_database = cs;
       } else
         thd->variables.collation_database = thd->db_charset;
+      if (default_collation_for_utf8mb4_number) {
+        CHARSET_INFO *cs;
+        if (!(cs = get_charset(default_collation_for_utf8mb4_number, MYF(0)))) {
+          char buf[20];
+          int10_to_str((int)default_collation_for_utf8mb4_number, buf, -10);
+          my_error(ER_UNKNOWN_COLLATION, MYF(0), buf);
+          goto compare_errors;
+        }
+        thd->variables.default_collation_for_utf8mb4 = cs;
+      } else
+        // The transaction was replicated from a server with utf8mb4_general_ci
+        // as default collation for utf8mb4 (versions 5.7-)
+        thd->variables.default_collation_for_utf8mb4 =
+            &my_charset_utf8mb4_general_ci;
 
       thd->table_map_for_update = (table_map)table_map_for_update;
 
@@ -13456,6 +13489,7 @@ PRINT_EVENT_INFO::PRINT_EVENT_INFO()
       charset_inited(0),
       lc_time_names_number(~0),
       charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
+      default_collation_for_utf8mb4_number(ILLEGAL_CHARSET_INFO_NUMBER),
       thread_id(0),
       thread_id_printed(false),
       base64_output_mode(BASE64_OUTPUT_UNSPEC),

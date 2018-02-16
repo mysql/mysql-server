@@ -1,0 +1,22 @@
+include/rpl_init.inc [topology=1->2, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server_2]
+RESET SLAVE;
+include/start_slave.inc
+include/wait_for_slave_param.inc [Slave_SQL_Running_State]
+[connection server_3]
+RESET SLAVE;
+include/start_slave.inc
+[connection server_2]
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+RESET SLAVE;
+[connection server_2]
+include/stop_slave.inc
+RESET SLAVE;
+include/rpl_end.inc

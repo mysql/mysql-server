@@ -429,6 +429,7 @@ struct PRINT_EVENT_INFO {
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
+  uint default_collation_for_utf8mb4_number;
   my_thread_id thread_id;
   bool thread_id_printed;
 
