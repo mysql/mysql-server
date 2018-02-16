@@ -17,6 +17,7 @@
 --echo # connect the root user which uses the default auth plugin
 let $shm_name= query_get_value("SHOW GLOBAL VARIABLES LIKE 'shared_memory_base_name'", Value, 1);
 connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM);
+connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 
@@ -26,6 +27,7 @@ disconnect shm_con1;
 --echo
 --echo # connect the root user which uses the mysql_native_password auth plugin
 connect(shm_con1,localhost,root,passwd,,,$shm_name,SHM,mysql_native_password);
+connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 
@@ -35,6 +37,7 @@ disconnect shm_con1;
 --echo
 --echo # connect the user which uses the non-default auth plugin
 connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM);
+connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 
@@ -45,6 +48,7 @@ disconnect shm_con1;
 --echo # connect the native_user user which uses corresponding
 --echo # mysql_native_password auth plugin
 connect(shm_con1,localhost,native_user,passwd,,,$shm_name,SHM,mysql_native_password);
+connection shm_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 
@@ -69,6 +73,7 @@ disconnect pipe_con1;
 --echo
 --echo # connect the root user which uses the mysql_native_password auth plugin
 connect(pipe_con1,localhost,root,passwd,,,,PIPE,mysql_native_password);
+connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 connection default;
@@ -77,6 +82,7 @@ disconnect pipe_con1;
 --echo
 --echo # connect the user which uses the non-default auth plugin
 connect(pipe_con1,localhost,native_user,passwd,,,,PIPE);
+connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 connection default;
@@ -86,6 +92,7 @@ disconnect pipe_con1;
 --echo # connect the native_user user which uses corresponding
 --echo # mysql_native_password auth plugin
 connect(pipe_con1,localhost,native_user,passwd,,,,PIPE,mysql_native_password);
+connection pipe_con1;
 SELECT connection_type FROM performance_schema.threads WHERE processlist_command='Query';
 SELECT CURRENT_USER;
 
