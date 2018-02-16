@@ -115,7 +115,7 @@ t1	CREATE TABLE `t1` (
   `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8 NOT NULL,
   `DESCRIPTION` varchar(2048) CHARACTER SET utf8 NOT NULL,
   `MAXLEN` int(10) unsigned NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # CREATE TABLE LIKE works for I_S tables that are not system view.
 CREATE TABLE t1 LIKE information_schema.processlist;
