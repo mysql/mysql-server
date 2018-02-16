@@ -9021,7 +9021,10 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
         that there are no % in the error message or change the logging API
         to use verbatim() to avoid % substitutions.
       */
-      LogErr(WARNING_LEVEL, slave_errno);
+      longlong log_errno = (slave_errno == ER_STOP_SLAVE_SQL_THREAD_TIMEOUT)
+                               ? ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
+                               : ER_RPL_SLAVE_IO_THREAD_STOP_CMD_EXEC_TIMEOUT;
+      LogErr(WARNING_LEVEL, log_errno);
     }
     if (net_report) my_error(slave_errno, MYF(0));
     DBUG_RETURN(1);

@@ -1829,7 +1829,7 @@ ER_READY
         spa "%s: preparado para conexiones\nVersion: '%s'  socket: '%s'  port: %d"
         swe "%s: klar att ta emot klienter\nVersion: '%s'  socket: '%s'  port: %d"
         ukr "%s: Готовий для з'єднань!\nVersion: '%s'  socket: '%s'  port: %d"
-ER_NORMAL_SHUTDOWN  
+OBSOLETE_ER_NORMAL_SHUTDOWN
         cze "%s: normální ukončení\n"
         dan "%s: Normal nedlukning\n"
         nla "%s: Normaal afgesloten \n"
@@ -11717,7 +11717,7 @@ ER_DEPRECATED_SYNTAX_NO_REPLACEMENT
   eng "The syntax '%s' is deprecated and will be removed in a future release."
 
 ER_DEPRECATE_MSG_NO_REPLACEMENT
-  eng "%s is deprecated and will be removed in a future release."
+  eng "'%s' is deprecated and will be removed in a future release."
 
 ER_LOG_PRINTF_MSG
   eng "%s"
@@ -17787,6 +17787,39 @@ ER_IB_MSG_1269
 
 ER_IB_MSG_1270
   eng "%s"
+
+ER_RPL_SLAVE_SQL_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave SQL thread got the stop signal, thread is busy, SQL thread will stop once the current task is complete."
+
+ER_RPL_SLAVE_IO_THREAD_STOP_CMD_EXEC_TIMEOUT
+  eng "STOP SLAVE command execution is incomplete: Slave IO thread got the stop signal, thread is busy, IO thread will stop once the current task is complete."
+
+ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE
+  eng "Statement violates GTID consistency: Updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
+
+ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT
+  eng "Statement violates GTID consistency: CREATE TABLE ... SELECT."
+
+ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE
+  eng "Statement violates GTID consistency: CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can only be executed outside transactional context.  These statements are also not allowed in a function or trigger because functions and triggers are also considered to be multi-statement transactions."
+
+ER_BINLOG_ROW_VALUE_OPTION_IGNORED
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be ignored and updates will be written in full format to binary log."
+
+ER_BINLOG_USE_V1_ROW_EVENTS_IGNORED
+  eng "When %.192s, the option log_bin_use_v1_row_events=1 will be ignored and row events will be written in new format to binary log."
+
+ER_BINLOG_ROW_VALUE_OPTION_USED_ONLY_FOR_AFTER_IMAGES
+  eng "When %.192s, the option binlog_row_value_options=%.192s will be used only for the after-image. Full values will be written in the before-image, so the saving in disk space due to binlog_row_value_options is limited to less than 50%%."
+
+ER_CONNECTION_ABORTED
+  eng "Aborted connection %u to db: '%-.192s' user: '%-.48s' host: '%-.64s' (%-.64s)."
+
+ER_NORMAL_SERVER_SHUTDOWN
+  eng "%s: Normal shutdown."
+
+ER_KEYRING_MIGRATE_FAILED
+  eng "Can not perform keyring migration : %s."
 
 #
 # End of 8.0 Server error messages.

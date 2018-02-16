@@ -59,4 +59,4 @@ include/assert.inc [The value of binlog_expire_logs_seconds is changed to 259200
 SET GLOBAL binlog_expire_logs_seconds= 2592000;
 SET GLOBAL expire_logs_days= 0;
 Warnings:
-Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
+Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead.

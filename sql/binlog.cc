@@ -10239,10 +10239,14 @@ int THD::decide_logging_format(TABLE_LIST *tables) {
   @param error_code The error code to use, if error or warning is to
   be generated.
 
+  @param log_error_code The error code to use, if error message is to
+  be logged.
+
   @retval false Error was generated.
   @retval true No error was generated (possibly a warning was generated).
 */
-static bool handle_gtid_consistency_violation(THD *thd, int error_code) {
+static bool handle_gtid_consistency_violation(THD *thd, int error_code,
+                                              int log_error_code) {
   DBUG_ENTER("handle_gtid_consistency_violation");
 
   enum_gtid_type gtid_next_type = thd->variables.gtid_next.type;
@@ -10310,7 +10314,7 @@ static bool handle_gtid_consistency_violation(THD *thd, int error_code) {
     if (gtid_consistency_mode == GTID_CONSISTENCY_MODE_WARN) {
       // Need to print to log so that replication admin knows when users
       // have adjusted their workloads.
-      LogErr(WARNING_LEVEL, error_code);
+      LogErr(WARNING_LEVEL, log_error_code);
       // Need to print to client so that users can adjust their workload.
       push_warning(thd, Sql_condition::SL_WARNING, error_code,
                    ER_THD(thd, error_code));
@@ -10349,8 +10353,9 @@ bool THD::is_ddl_gtid_compatible() {
       and then written to the slave's binary log as two separate
       transactions with the same GTID.
     */
-    bool ret =
-        handle_gtid_consistency_violation(this, ER_GTID_UNSAFE_CREATE_SELECT);
+    bool ret = handle_gtid_consistency_violation(
+        this, ER_GTID_UNSAFE_CREATE_SELECT,
+        ER_RPL_GTID_UNSAFE_STMT_CREATE_SELECT);
     DBUG_RETURN(ret);
   } else if ((lex->sql_command == SQLCOM_CREATE_TABLE &&
               (lex->create_info->options & HA_LEX_CREATE_TMP_TABLE) != 0) ||
@@ -10364,7 +10369,8 @@ bool THD::is_ddl_gtid_compatible() {
     */
     if (in_multi_stmt_transaction_mode() || in_sub_stmt) {
       bool ret = handle_gtid_consistency_violation(
-          this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION);
+          this, ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION,
+          ER_RPL_GTID_UNSAFE_STMT_ON_TEMPORARY_TABLE);
       DBUG_RETURN(ret);
     }
   }
@@ -10414,7 +10420,8 @@ bool THD::is_dml_gtid_compatible(bool some_transactional_table,
         is_current_stmt_binlog_format_row()) &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0)) {
     DBUG_RETURN(handle_gtid_consistency_violation(
-        this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE));
+        this, ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE,
+        ER_RPL_GTID_UNSAFE_STMT_ON_NON_TRANS_TABLE));
   }
 
   DBUG_RETURN(true);
