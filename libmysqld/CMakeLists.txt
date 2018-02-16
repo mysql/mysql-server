@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -110,20 +110,10 @@ SET(SQL_EMBEDDED_SOURCES
 )
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-ADD_COMPILE_FLAGS(
-  ../sql/debug_sync.cc
-  ../sql/handler.cc
-  ../sql/geometry_rtree.cc
-  ../sql/item_geofunc.cc
-  ../sql/item_geofunc_buffer.cc
-  ../sql/item_geofunc_internal.cc
-  ../sql/item_geofunc_relchecks.cc
-  ../sql/item_geofunc_relchecks_bgwrap.cc
-  ../sql/item_geofunc_setops.cc
-  ../sql/item_json_func.cc
-  ../sql/spatial.cc
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
 
 ADD_COMPILE_FLAGS(
   ../extra/lz4/xxhash.c

@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -211,8 +211,13 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   size_t key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
-
-  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  decoy= *view;
+  /*
+    It's not clear what the above assignment actually wants to
+    accomplish. What we do know is that it does *not* want to copy the MDL
+    request, so we overwrite it with an uninitialized request.
+  */
+  decoy.mdl_request = MDL_request();
 
   key_length= get_table_def_key(view, &key);
 
@@ -2090,7 +2095,6 @@ mysql_rename_view(THD *thd,
       view definition parsing or use temporary 'view_def'
       object for it.
     */
-    memset(&view_def, 0, sizeof(view_def));
     view_def.timestamp.str= view_def.timestamp_buffer;
     view_def.view_suid= TRUE;
 
