@@ -229,7 +229,7 @@ dberr_t buf_pool_init(ulint size, /*!< in: Size of the total pool in bytes */
                       ulint n_instances); /*!< in: Number of instances */
 /** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
-void buf_pool_free(ulint n_instances); /*!< in: numbere of instances to free */
+void buf_pool_free_all();
 
 /** Determines if a block is intended to be withdrawn.
 @param[in]	buf_pool	buffer pool instance
