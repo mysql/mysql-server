@@ -3097,7 +3097,7 @@ void srv_shutdown() {
   /* 4. Free all allocated memory */
 
   pars_lexer_close();
-  buf_pool_free(srv_buf_pool_instances);
+  buf_pool_free_all();
 
   /* 6. Free the thread management resoruces. */
   os_thread_close();

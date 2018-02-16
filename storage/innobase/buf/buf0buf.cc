@@ -45,9 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "fsp0sysspace.h"
 #include "ha_prototypes.h"
 #include "mem0mem.h"
-#include "my_compiler.h"
 #include "my_dbug.h"
-#include "my_inttypes.h"
 #include "page0size.h"
 #ifndef UNIV_HOTBACKUP
 #include "btr0sea.h"
@@ -998,15 +996,36 @@ static void buf_pool_set_sizes(void) {
 }
 
 /** Initialize a buffer pool instance.
-@param[in]	buf_pool	buffer pool instance
-@param[in]	buf_pool_size	size in bytes
-@param[in]	instance_no	id of the instance
-@return DB_SUCCESS if all goes well. */
-static ulint buf_pool_init_instance(buf_pool_t *buf_pool, ulint buf_pool_size,
-                                    ulint instance_no) {
+@param[in]	buf_pool	    buffer pool instance
+@param[in]	buf_pool_size size in bytes
+@param[in]	instance_no   id of the instance
+@param[out] err           DB_SUCCESS if all goes well */
+static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
+                            ulint instance_no, dberr_t &err) {
   ulint i;
   ulint chunk_size;
   buf_chunk_t *chunk;
+
+#ifdef UNIV_LINUX
+  cpu_set_t cpuset;
+
+  CPU_ZERO(&cpuset);
+
+  const long n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+
+  CPU_SET(instance_no % n_cores, &cpuset);
+
+  os_thread_id_t thread_id;
+
+  thread_id = os_thread_get_curr_id();
+
+  if (pthread_setaffinity_np(thread_id, sizeof(cpuset), &cpuset) == -1) {
+    ib::error() << "sched_setaffinity() failed!";
+  }
+  /* Linux might be able to set different setting for each thread
+  worth to try to set high priority for this thread. */
+  setpriority(PRIO_PROCESS, (pid_t)syscall(SYS_gettid), -20);
+#endif /* UNIV_LINUX */
 
   ut_ad(buf_pool_size % srv_buf_pool_chunk_unit == 0);
 
@@ -1062,8 +1081,10 @@ static ulint buf_pool_init_instance(buf_pool_t *buf_pool, ulint buf_pool_size,
           buf_pool->allocator.deallocate_large(chunk->mem, &chunk->mem_pfx);
         }
         ut_free(buf_pool->chunks);
+        buf_pool->chunks = nullptr;
 
-        return (DB_ERROR);
+        err = DB_ERROR;
+        return;
       }
 
       buf_pool->curr_size += chunk->size;
@@ -1131,7 +1152,7 @@ static ulint buf_pool_init_instance(buf_pool_t *buf_pool, ulint buf_pool_size,
   /* Initialize the iterator for single page scan search */
   new (&buf_pool->single_scan_itr) LRUItr(buf_pool, &buf_pool->LRU_list_mutex);
 
-  return (DB_SUCCESS);
+  err = DB_SUCCESS;
 }
 
 /** Free one buffer pool instance
@@ -1197,12 +1218,22 @@ static void buf_pool_free_instance(buf_pool_t *buf_pool) {
   buf_pool->allocator.~ut_allocator();
 }
 
+/** Frees the buffer pool global data structures. */
+static void buf_pool_free() {
+  UT_DELETE(buf_stat_per_index);
+
+  UT_DELETE(buf_chunk_map_reg);
+  buf_chunk_map_reg = nullptr;
+
+  ut_free(buf_pool_ptr);
+  buf_pool_ptr = nullptr;
+}
+
 /** Creates the buffer pool.
- @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(
-    ulint total_size,  /*!< in: size of the total pool in bytes */
-    ulint n_instances) /*!< in: number of instances */
-{
+@param[in]  total_Size    Size of the total pool in bytes.
+@param[in]  n_instances   Number of buffer pool instances to create.
+@return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
+dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
   ulint i;
   const ulint size = total_size / n_instances;
 
@@ -1221,15 +1252,63 @@ dberr_t buf_pool_init(
 
   buf_chunk_map_reg = UT_NEW_NOKEY(buf_pool_chunk_map_t());
 
-  for (i = 0; i < n_instances; i++) {
-    buf_pool_t *ptr = &buf_pool_ptr[i];
+  std::vector<dberr_t> errs;
 
-    if (buf_pool_init_instance(ptr, size, i) != DB_SUCCESS) {
-      /* Free all the instances created so far. */
-      buf_pool_free(i);
+  errs.assign(n_instances, DB_SUCCESS);
 
-      return (DB_ERROR);
+#ifdef UNIV_LINUX
+  ulint n_cores = sysconf(_SC_NPROCESSORS_ONLN);
+
+  /* Magic nuber 8 is from empirical testing on a
+  4 socket x 10 Cores x 2 HT host. 128G / 16 instances
+  takes about 4 secs, compared to 10 secs without this
+  optimisation.. */
+
+  if (n_cores > 8) {
+    n_cores = 8;
+  }
+#else
+  ulint n_cores = 4;
+#endif /* UNIV_LINUX */
+
+  dberr_t err = DB_SUCCESS;
+
+  for (i = 0; i < n_instances; /* no op */) {
+    ulint n = i + n_cores;
+
+    if (n > n_instances) {
+      n = n_instances;
     }
+
+    std::vector<std::thread> threads;
+
+    for (ulint id = i; id < n; ++id) {
+      threads.emplace_back(std::thread(buf_pool_create, &buf_pool_ptr[id], size,
+                                       id, std::ref(errs[id])));
+    }
+
+    for (ulint id = i; id < n; ++id) {
+      threads[id].join();
+
+      if (errs[id] != DB_SUCCESS) {
+        err = errs[id];
+      }
+    }
+
+    if (err != DB_SUCCESS) {
+      for (size_t id = 0; i < n; ++id) {
+        if (buf_pool_ptr[id].chunks != nullptr) {
+          buf_pool_free_instance(&buf_pool_ptr[id]);
+        }
+      }
+
+      buf_pool_free();
+
+      return (err);
+    }
+
+    /* Do the next block of instances */
+    i = n;
   }
 
   buf_pool_set_sizes();
@@ -1241,23 +1320,6 @@ dberr_t buf_pool_init(
       UT_NEW(buf_stat_per_index_t(), mem_key_buf_stat_per_index_t);
 
   return (DB_SUCCESS);
-}
-
-/** Frees the buffer pool at shutdown.  This must not be invoked before
- freeing all mutexes. */
-void buf_pool_free(ulint n_instances) /*!< in: numbere of instances to free */
-{
-  UT_DELETE(buf_stat_per_index);
-
-  for (ulint i = 0; i < n_instances; i++) {
-    buf_pool_free_instance(buf_pool_from_array(i));
-  }
-
-  UT_DELETE(buf_chunk_map_reg);
-  buf_chunk_map_reg = NULL;
-
-  ut_free(buf_pool_ptr);
-  buf_pool_ptr = NULL;
 }
 
 /** Reallocate a control block.
@@ -5863,3 +5925,16 @@ const char *buf_block_t::get_page_type_str() const {
   ut_ad(0);
   return ("UNKNOWN");
 }
+
+#ifndef UNIV_HOTBACKUP
+/** Frees the buffer pool instances and the global data structures. */
+void buf_pool_free_all() {
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    buf_pool_t *ptr = &buf_pool_ptr[i];
+
+    buf_pool_free_instance(ptr);
+  }
+
+  buf_pool_free();
+}
+#endif /* !UNIV_HOTBACKUP */
