@@ -124,7 +124,7 @@ if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
    --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
    --source include/search_pattern.inc
 }
 --replace_result $start_page_size START_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
@@ -140,7 +140,7 @@ if ( $default_page_size != $other_page_size )
 {
    # It gets detected that the assigned page size is not the default one
    --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
    --source include/search_pattern.inc
 }
 
@@ -171,7 +171,7 @@ if ( $default_page_size != $adjust_page_size )
 {
    # It gets detected that the assigned page size is not the default one
    --replace_result $default_page_size DEFAULT_PAGE_SIZE $adjust_page_size ADJUST_PAGE_SIZE
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $adjust_page_size;
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $adjust_page_size;
    --source include/search_pattern.inc
 }
 # Some checks omitted because they are already in 1.
@@ -201,7 +201,7 @@ let SEARCH_PATTERN= \[Warning\] \[[^]]*\] option 'innodb-page-size': unsigned va
 --source include/search_pattern_multiline.inc
 # It gets detected that the innodb page size has been changed.
 --replace_result $default_page_size DEFAULT_PAGE_SIZE $minimal_page_size MINIMAL_PAGE_SIZE
-let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $minimal_page_size;
+let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $minimal_page_size;
 --source include/search_pattern_multiline.inc
 # Some checks omitted because they are already in 1.
 }
@@ -218,7 +218,7 @@ let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default v
 --exec $mysqld=$illegal_pagesize
 # InnoDB cannot handle this value.
 --replace_result $illegal_pagesize ILLEGAL_PAGESIZE
-let SEARCH_PATTERN= \[ERROR\] \[[^]]*\] InnoDB: Invalid page size=$illegal_pagesize;
+let SEARCH_PATTERN= \[ERROR\] .*MY-\\d+.* Invalid page size=$illegal_pagesize;
 --source include/search_pattern.inc
 # Some checks omitted because they are already in 1.
 
@@ -235,7 +235,7 @@ if ( $default_page_size != $adjust_page_size )
 {
    # It gets detected that the assigned page size is not the default one
    --replace_result $default_page_size DEFAULT_PAGE_SIZE $other_page_size OTHER_PAGE_SIZE
-   let SEARCH_PATTERN= InnoDB: innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
+   let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $default_page_size to $other_page_size;
    --source include/search_pattern.inc
 }
 # But this change does not fit to the history of the data.

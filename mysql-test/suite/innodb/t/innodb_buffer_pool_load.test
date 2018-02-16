@@ -94,7 +94,7 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 --replace_result 83 {checked_valid} 163 {checked_valid} 329 {checked_valid} 662 {checked_valid} 1392 {checked_valid}
 --eval $check_cnt
 
-call mtr.add_suppression("InnoDB: Error parsing");
+call mtr.add_suppression("Error parsing");
 --source include/shutdown_mysqld.inc
 
 # Add some total garbage to the dump file

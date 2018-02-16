@@ -5,7 +5,7 @@ INDEX(b(5), c(10), a) ) charset latin1 ENGINE=INNODB  ROW_FORMAT=COMPRESSED
 KEY_BLOCK_SIZE=1;
 # restart
 SET GLOBAL innodb_random_read_ahead = 1;
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: '.*t1.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
-call mtr.add_suppression("\\[Warning\\].*InnoDB: Ignoring '.*t1.ibd' invalid tablespace ID in the header");
+call mtr.add_suppression("\\[ERROR\\].* '.*t1.ibd' read failed! - attempted to read 4 bytes, read only 0 bytes at offset 16418");
+call mtr.add_suppression("\\[Warning\\].* Ignoring '.*t1.ibd' invalid tablespace ID in the header");
 DROP TABLE t1;
 SET GLOBAL innodb_random_read_ahead = default;

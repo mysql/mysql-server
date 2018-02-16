@@ -764,7 +764,7 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
 
     if (err_msg) {
       if (err_msg != dict_load_virtual_del) {
-        ib::fatal() << err_msg;
+        ib::fatal(ER_IB_MSG_187) << err_msg;
       } else {
         skipped++;
       }
@@ -1210,14 +1210,16 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLESPACES__SPACE, &len);
   if (len != DICT_FLD_LEN_SPACE) {
-    ib::error() << "Wrong field length in SYS_TABLESPACES.SPACE: " << len;
+    ib::error(ER_IB_MSG_188)
+        << "Wrong field length in SYS_TABLESPACES.SPACE: " << len;
     return (false);
   }
   *id = mach_read_from_4(field);
 
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLESPACES__NAME, &len);
   if (len == 0 || len == UNIV_SQL_NULL) {
-    ib::error() << "Wrong field length in SYS_TABLESPACES.NAME: " << len;
+    ib::error(ER_IB_MSG_189)
+        << "Wrong field length in SYS_TABLESPACES.NAME: " << len;
     return (false);
   }
   strncpy(name, reinterpret_cast<const char *>(field), NAME_LEN);
@@ -1225,7 +1227,8 @@ static bool dict_sys_tablespaces_rec_read(const rec_t *rec, space_id_t *id,
   /* read the 4 byte flags from the TYPE field */
   field = rec_get_nth_field_old(rec, DICT_FLD__SYS_TABLESPACES__FLAGS, &len);
   if (len != 4) {
-    ib::error() << "Wrong field length in SYS_TABLESPACES.FLAGS: " << len;
+    ib::error(ER_IB_MSG_190)
+        << "Wrong field length in SYS_TABLESPACES.FLAGS: " << len;
     return (false);
   }
   *flags = mach_read_from_4(field);
@@ -1289,8 +1292,8 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
                      space_name, space_name, filepath, true, true);
 
     if (err != DB_SUCCESS) {
-      ib::warn() << "Ignoring tablespace " << id_name_t(space_name)
-                 << " because it could not be opened.";
+      ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
+                              << " because it could not be opened.";
     }
 
     if (!dict_sys_t::is_reserved(space_id)) {
@@ -1353,11 +1356,11 @@ static bool dict_sys_tables_rec_read(const rec_t *rec,
   dict_table_t::flags. */
 
   if (ULINT_UNDEFINED == dict_sys_tables_type_validate(type, *n_cols)) {
-    ib::error() << "Table " << table_name
-                << " in InnoDB"
-                   " data dictionary contains invalid flags."
-                   " SYS_TABLES.TYPE="
-                << type << " SYS_TABLES.N_COLS=" << *n_cols;
+    ib::error(ER_IB_MSG_192) << "Table " << table_name
+                             << " in InnoDB"
+                                " data dictionary contains invalid flags."
+                                " SYS_TABLES.TYPE="
+                             << type << " SYS_TABLES.N_COLS=" << *n_cols;
     *flags = ULINT_UNDEFINED;
     return (false);
   }
@@ -1442,8 +1445,8 @@ space_id_t dict_check_sys_tables(bool validate) {
     }
 
     if (flags2 & DICT_TF2_DISCARDED) {
-      ib::info() << "Ignoring tablespace " << table_name
-                 << " because the DISCARD flag is set .";
+      ib::info(ER_IB_MSG_193) << "Ignoring tablespace " << table_name
+                              << " because the DISCARD flag is set .";
       ut_free(table_name.m_name);
       continue;
     }
@@ -1505,8 +1508,8 @@ space_id_t dict_check_sys_tables(bool validate) {
                      space_name, tbl_name, filepath, true, true);
 
     if (err != DB_SUCCESS) {
-      ib::warn() << "Ignoring tablespace " << id_name_t(space_name)
-                 << " because it could not be opened.";
+      ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
+                              << " because it could not be opened.";
     } else {
       /* This tablespace is not found in
       SYS_TABLESPACES and we are able to
@@ -1599,7 +1602,7 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
       n_skipped++;
       goto next_rec;
     } else if (err_msg) {
-      ib::fatal() << err_msg;
+      ib::fatal(ER_IB_MSG_195) << err_msg;
     }
 
     /* Note: Currently we have one DOC_ID column that is
@@ -1701,7 +1704,7 @@ static ulint dict_load_fields(
 
       goto next_rec;
     } else if (err_msg) {
-      ib::error() << err_msg;
+      ib::error(ER_IB_MSG_196) << err_msg;
       error = DB_CORRUPTION;
       goto func_exit;
     }
@@ -1771,9 +1774,9 @@ loading the index definition */
       for drop table */
       if (table->first_index() == NULL &&
           !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-        ib::warn() << "Cannot load table " << table->name
-                   << " because it has no indexes in"
-                      " InnoDB internal data dictionary.";
+        ib::warn(ER_IB_MSG_197) << "Cannot load table " << table->name
+                                << " because it has no indexes in"
+                                   " InnoDB internal data dictionary.";
         error = DB_CORRUPTION;
         goto func_exit;
       }
@@ -1813,14 +1816,14 @@ loading the index definition */
 
       if (table->first_index() == NULL &&
           !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-        ib::warn() << "Failed to load the"
-                      " clustered index for table "
-                   << table->name
-                   << " because of the following error: " << err_msg
-                   << "."
-                      " Refusing to load the rest of the"
-                      " indexes (if any) and the whole table"
-                      " altogether.";
+        ib::warn(ER_IB_MSG_198)
+            << "Failed to load the"
+               " clustered index for table "
+            << table->name << " because of the following error: " << err_msg
+            << "."
+               " Refusing to load the rest of the"
+               " indexes (if any) and the whole table"
+               " altogether.";
         error = DB_CORRUPTION;
         goto func_exit;
       }
@@ -1830,7 +1833,7 @@ loading the index definition */
       /* Skip delete-marked records. */
       goto next_rec;
     } else if (err_msg) {
-      ib::error() << err_msg;
+      ib::error(ER_IB_MSG_199) << err_msg;
       if (ignore_err & DICT_ERR_IGNORE_CORRUPT) {
         goto next_rec;
       }
@@ -1842,8 +1845,8 @@ loading the index definition */
 
     /* Check whether the index is corrupted */
     if (index->is_corrupted()) {
-      ib::error() << "Index " << index->name << " of table " << table->name
-                  << " is corrupted";
+      ib::error(ER_IB_MSG_200) << "Index " << index->name << " of table "
+                               << table->name << " is corrupted";
 
       if (!srv_load_corrupted && !(ignore_err & DICT_ERR_IGNORE_CORRUPT) &&
           index->is_clustered()) {
@@ -1858,8 +1861,8 @@ loading the index definition */
         DICT_ERR_IGNORE_CORRUPT
         3) if the index corrupted is a secondary
         index */
-        ib::info() << "Load corrupted index " << index->name << " of table "
-                   << table->name;
+        ib::info(ER_IB_MSG_201) << "Load corrupted index " << index->name
+                                << " of table " << table->name;
       }
     }
 
@@ -1873,15 +1876,16 @@ loading the index definition */
     subsequent checks are relevant for the supported types. */
     if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE | DICT_CORRUPT | DICT_FTS |
                         DICT_SPATIAL | DICT_VIRTUAL)) {
-      ib::error() << "Unknown type " << index->type << " of index "
-                  << index->name << " of table " << table->name;
+      ib::error(ER_IB_MSG_202) << "Unknown type " << index->type << " of index "
+                               << index->name << " of table " << table->name;
 
       error = DB_UNSUPPORTED;
       dict_mem_index_free(index);
       goto func_exit;
     } else if (!index->is_clustered() && NULL == table->first_index()) {
-      ib::error() << "Trying to load index " << index->name << " for table "
-                  << table->name << ", but the first index is not clustered!";
+      ib::error(ER_IB_MSG_203)
+          << "Trying to load index " << index->name << " for table "
+          << table->name << ", but the first index is not clustered!";
 
       dict_mem_index_free(index);
       error = DB_CORRUPTION;
@@ -2148,8 +2152,8 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   }
 
   if (table->flags2 & DICT_TF2_DISCARDED) {
-    ib::warn() << "Tablespace for table " << table->name
-               << " is set as discarded.";
+    ib::warn(ER_IB_MSG_204)
+        << "Tablespace for table " << table->name << " is set as discarded.";
     table->ibd_file_missing = TRUE;
     return;
   }
@@ -2193,10 +2197,11 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   }
 
   if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK) && !srv_is_upgrade_mode) {
-    ib::error() << "Failed to find tablespace for table " << table->name
-                << " in the cache. Attempting"
-                   " to load the tablespace with space id "
-                << table->space;
+    ib::error(ER_IB_MSG_205)
+        << "Failed to find tablespace for table " << table->name
+        << " in the cache. Attempting"
+           " to load the tablespace with space id "
+        << table->space;
   }
 
   /* Use the remote filepath if needed. This parameter is optional
@@ -2221,9 +2226,9 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
     fil_system or SYS_DATAFILES. */
     filepath = dict_get_first_path(table->space);
     if (filepath == NULL) {
-      ib::warn() << "Could not find the filepath"
-                    " for table "
-                 << table->name << ", space ID " << table->space;
+      ib::warn(ER_IB_MSG_206) << "Could not find the filepath"
+                                 " for table "
+                              << table->name << ", space ID " << table->space;
     }
   }
 
@@ -2359,7 +2364,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   err_msg = dict_load_table_low(name, rec, &table);
 
   if (err_msg) {
-    ib::error() << err_msg;
+    ib::error(ER_IB_MSG_207) << err_msg;
     goto err_exit;
   }
 
@@ -2412,10 +2417,10 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
     clustered index */
     ut_ad(!srv_load_corrupted);
 
-    ib::error() << "Load table " << table->name
-                << " failed, the table contains a"
-                   " corrupted clustered index. Turn on"
-                   " 'innodb_force_load_corrupted' to drop it";
+    ib::error(ER_IB_MSG_208) << "Load table " << table->name
+                             << " failed, the table contains a"
+                                " corrupted clustered index. Turn on"
+                                " 'innodb_force_load_corrupted' to drop it";
     dict_table_remove_from_cache(table);
     table = NULL;
     goto func_exit;
@@ -2436,11 +2441,11 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                   });
 
   if (!dict_tf2_is_valid(table->flags, table->flags2)) {
-    ib::error() << "Table " << table->name
-                << " in InnoDB"
-                   " data dictionary contains invalid flags."
-                   " SYS_TABLES.MIX_LEN="
-                << table->flags2;
+    ib::error(ER_IB_MSG_209) << "Table " << table->name
+                             << " in InnoDB"
+                                " data dictionary contains invalid flags."
+                                " SYS_TABLES.MIX_LEN="
+                             << table->flags2;
     table->flags2 &= ~(DICT_TF2_TEMPORARY | DICT_TF2_INTRINSIC);
     dict_table_remove_from_cache(table);
     table = NULL;
@@ -2463,10 +2468,10 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
                              fk_tables);
 
     if (err != DB_SUCCESS) {
-      ib::warn() << "Load table " << table->name
-                 << " failed, the table has missing"
-                    " foreign key indexes. Turn off"
-                    " 'foreign_key_checks' and try again.";
+      ib::warn(ER_IB_MSG_210) << "Load table " << table->name
+                              << " failed, the table has missing"
+                                 " foreign key indexes. Turn off"
+                                 " 'foreign_key_checks' and try again.";
 
       dict_table_remove_from_cache(table);
       table = NULL;
@@ -2810,9 +2815,9 @@ stack. */
   if (!btr_pcur_is_on_user_rec(&pcur) || rec_get_deleted_flag(rec, 0)) {
     /* Not found */
 
-    ib::error() << "Cannot load foreign constraint " << id
-                << ": could not find the relevant record in "
-                << "SYS_FOREIGN";
+    ib::error(ER_IB_MSG_211) << "Cannot load foreign constraint " << id
+                             << ": could not find the relevant record in "
+                             << "SYS_FOREIGN";
 
     btr_pcur_close(&pcur);
     mtr_commit(&mtr);
@@ -2826,7 +2831,7 @@ stack. */
   /* Check if the id in record is the searched one */
   if (len != id_len || ut_memcmp(id, field, len) != 0) {
     {
-      ib::error err;
+      ib::error err(ER_IB_MSG_1227);
       err << "Cannot load foreign constraint " << id << ": found ";
       err.write(field, len);
       err << " instead in SYS_FOREIGN";
@@ -2961,7 +2966,7 @@ foreign key constraints. */
   if (sys_foreign == NULL) {
     /* No foreign keys defined yet in this database */
 
-    ib::info() << "No foreign key system tables in the database";
+    ib::info(ER_IB_MSG_212) << "No foreign key system tables in the database";
     DBUG_RETURN(DB_ERROR);
   }
 

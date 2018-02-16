@@ -969,8 +969,8 @@ static void opt_clust_access(sel_node_t *sel_node, /*!< in: select node */
     if (dict_is_old_sys_table(index->table->id) &&
         (index->get_field(pos)->prefix_len != 0 ||
          clust_index->get_field(i)->prefix_len != 0)) {
-      ib::error() << "Error in pars0opt.cc: table " << index->table->name
-                  << " has prefix_len != 0";
+      ib::error(ER_IB_MSG_916) << "Error in pars0opt.cc: table "
+                               << index->table->name << " has prefix_len != 0";
     }
 
     *(plan->clust_map + i) = pos;

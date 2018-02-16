@@ -1044,9 +1044,9 @@ dict_table_t *dict_table_open_on_name(
         mutex_exit(&dict_sys->mutex);
       }
 
-      ib::info() << "Table " << table->name
-                 << " is corrupted. Please drop the table"
-                    " and recreate it";
+      ib::info(ER_IB_MSG_175) << "Table " << table->name
+                              << " is corrupted. Please drop the table"
+                                 " and recreate it";
       DBUG_RETURN(NULL);
     }
 
@@ -1210,10 +1210,10 @@ void dict_table_add_to_cache(dict_table_t *table, ibool can_be_evicted,
 
   dict_sys->size +=
       mem_heap_get_size(table->heap) + strlen(table->name.m_name) + 1;
-  DBUG_EXECUTE_IF("dd_upgrade",
-                  if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
-                    ib::info() << "Adding table to cache: " << table->name;
-                  });
+  DBUG_EXECUTE_IF(
+      "dd_upgrade", if (srv_is_upgrade_mode && srv_upgrade_old_undo_found) {
+        ib::info(ER_IB_MSG_176) << "Adding table to cache: " << table->name;
+      });
 }
 
 /** Test whether a table can be evicted from the LRU cache.
@@ -1445,8 +1445,8 @@ dberr_t dict_table_rename_in_cache(
   if (strlen(table->name.m_name) + 1 <= sizeof(old_name)) {
     strcpy(old_name, table->name.m_name);
   } else {
-    ib::fatal() << "Too long table name: " << table->name << ", max length is "
-                << MAX_FULL_NAME_LEN;
+    ib::fatal(ER_IB_MSG_177) << "Too long table name: " << table->name
+                             << ", max length is " << MAX_FULL_NAME_LEN;
   }
 
   fold = ut_fold_string(new_name);
@@ -1461,10 +1461,11 @@ dberr_t dict_table_rename_in_cache(
                   if (table2 == NULL) { table2 = (dict_table_t *)-1; });
 
   if (table2 != nullptr) {
-    ib::error() << "Cannot rename table '" << old_name << "' to '" << new_name
-                << "' since the"
-                   " dictionary cache already contains '"
-                << new_name << "'.";
+    ib::error(ER_IB_MSG_178)
+        << "Cannot rename table '" << old_name << "' to '" << new_name
+        << "' since the"
+           " dictionary cache already contains '"
+        << new_name << "'.";
 
     return (DB_ERROR);
   }
@@ -1495,15 +1496,15 @@ dberr_t dict_table_rename_in_cache(
          err == DB_IO_ERROR);
 
     if (err == DB_IO_ERROR) {
-      ib::info() << "IO error while deleting: " << table->space
-                 << " during rename of '" << old_name << "' to"
-                 << " '" << new_name << "'";
+      ib::info(ER_IB_MSG_179) << "IO error while deleting: " << table->space
+                              << " during rename of '" << old_name << "' to"
+                              << " '" << new_name << "'";
     }
 
     /* Delete any temp file hanging around. */
     if (os_file_status(filepath, &exists, &ftype) && exists &&
         !os_file_delete_if_exists(innodb_temp_file_key, filepath, NULL)) {
-      ib::info() << "Delete of " << filepath << " failed.";
+      ib::info(ER_IB_MSG_180) << "Delete of " << filepath << " failed.";
     }
 
     ut_free(filepath);
@@ -2514,13 +2515,13 @@ static void dict_index_remove_from_cache_low(
 
     if (retries % 500 == 0) {
       /* No luck after 5 seconds of wait. */
-      ib::error() << "Waited for " << retries / 100
-                  << " secs for hash index"
-                     " ref_count ("
-                  << ref_count
-                  << ") to drop to 0."
-                     " index: "
-                  << index->name << " table: " << table->name;
+      ib::error(ER_IB_MSG_181) << "Waited for " << retries / 100
+                               << " secs for hash index"
+                                  " ref_count ("
+                               << ref_count
+                               << ") to drop to 0."
+                                  " index: "
+                               << index->name << " table: " << table->name;
     }
 
     /* To avoid a hang here we commit suicide if the
@@ -2665,8 +2666,9 @@ static ibool dict_index_find_cols(const dict_table_t *table,
   dup_err:
 #ifdef UNIV_DEBUG
     /* It is an error not to find a matching column. */
-    ib::error() << "No matching column for " << field->name << " in index "
-                << index->name << " of table " << table->name;
+    ib::error(ER_IB_MSG_182)
+        << "No matching column for " << field->name << " in index "
+        << index->name << " of table " << table->name;
 #endif /* UNIV_DEBUG */
     return (FALSE);
 
@@ -3999,7 +4001,8 @@ static dberr_t dict_create_foreign_constraints_low(trx_t *trx, mem_heap_t *heap,
   ptr = dict_scan_table_name(cs, ptr, &table_to_alter, &mdl, name, &success,
                              heap, &referenced_table_name);
   if (!success) {
-    ib::error() << "Could not find the table being ALTERED in: " << sql_string;
+    ib::error(ER_IB_MSG_183)
+        << "Could not find the table being ALTERED in: " << sql_string;
 
     return (DB_ERROR);
   }
@@ -5159,11 +5162,12 @@ bool dict_table_apply_dynamic_metadata(
       /* In some cases, we could only load some indexes
       of a table but not all(See dict_load_indexes()).
       So we might not find it here */
-      ib::info() << "Failed to find the index: " << index_id.m_index_id
-                 << " in space: " << index_id.m_space_id
-                 << " of table: " << table->name << "(table id: " << table->id
-                 << "). The index should have been dropped"
-                 << " or couldn't be loaded.";
+      ib::info(ER_IB_MSG_184)
+          << "Failed to find the index: " << index_id.m_index_id
+          << " in space: " << index_id.m_space_id
+          << " of table: " << table->name << "(table id: " << table->id
+          << "). The index should have been dropped"
+          << " or couldn't be loaded.";
     }
   }
 
@@ -7153,8 +7157,9 @@ void dict_upgrade_evict_tables_cache() {
     prev_table = UT_LIST_GET_PREV(table_LRU, table);
 
     if (!dict_table_is_system(table->id)) {
-      DBUG_EXECUTE_IF("dd_upgrade", ib::info() << "Moving table " << table->name
-                                               << " from non-LRU to LRU";);
+      DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_185)
+                                        << "Moving table " << table->name
+                                        << " from non-LRU to LRU";);
 
       dict_table_move_from_non_lru_to_lru(table);
     }
@@ -7169,8 +7174,9 @@ void dict_upgrade_evict_tables_cache() {
 
     ut_ad(dict_table_can_be_evicted(table));
 
-    DBUG_EXECUTE_IF("dd_upgrade",
-                    ib::info() << "Evicting table: LRU: " << table->name;);
+    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_186)
+                                      << "Evicting table: LRU: "
+                                      << table->name;);
 
     dict_table_remove_from_cache_low(table, TRUE);
 

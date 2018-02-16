@@ -31,7 +31,7 @@ let $undo_tablespaces=`SELECT @@GLOBAL.innodb_undo_tablespaces`;
 ####################################################################
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Expected to open 127 undo tablespaces but found 0. Will create the rest");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Expected to open 127 undo tablespaces but found 0. Will create the rest");
 --enable_query_log
 
 SET GLOBAL innodb_undo_tablespaces=2;

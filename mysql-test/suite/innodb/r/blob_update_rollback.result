@@ -1,5 +1,5 @@
 #
-# WL#8985: InnoDB: Refactor compressed BLOB code to facilitate partial
+# WL#8985:  Refactor compressed BLOB code to facilitate partial
 # fetch/update
 #
 set global innodb_compression_level = 0;

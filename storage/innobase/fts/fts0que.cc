@@ -1016,7 +1016,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
   {
-    ib::info out;
+    ib::info out(ER_IB_MSG_1221);
     out << "DIFFERENCE: Searching: '";
     out.write(token->f_str, token->f_len);
     out << "'";
@@ -1106,7 +1106,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_intersect(
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
   {
-    ib::info out;
+    ib::info out(ER_IB_MSG_1222);
     out << "INTERSECT: Searching: '";
     out.write(token->f_str, token->f_len);
     out << "'";
@@ -1283,7 +1283,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
   {
-    ib::info out;
+    ib::info out(ER_IB_MSG_1223);
     out << "UNION: Searching: '";
     out.write(token->f_str, token->f_len);
     out << "'";
@@ -2009,12 +2009,12 @@ fts_query_find_term(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib::warn() << "lock wait timeout reading FTS"
+				ib::warn(ER_IB_MSG_506) << "lock wait timeout reading FTS"
 					" index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib::error() << error
+				ib::error(ER_IB_MSG_507) << error
 					<< " while reading FTS index.";
 
 				break;			/* Exit the loop. */
@@ -2126,12 +2126,12 @@ fts_query_total_docs_containing_term(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib::warn() << "lock wait timeout reading FTS"
+				ib::warn(ER_IB_MSG_508) << "lock wait timeout reading FTS"
 					" index. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib::error() << error
+				ib::error(ER_IB_MSG_509) << error
 					<< " while reading FTS index.";
 
 				break;			/* Exit the loop. */
@@ -2207,12 +2207,12 @@ fts_query_terms_in_document(
 		} else {
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				ib::warn() << "lock wait timeout reading FTS"
+				ib::warn(ER_IB_MSG_510) << "lock wait timeout reading FTS"
 					" doc id table. Retrying!";
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				ib::error() << error << " while reading FTS"
+				ib::error(ER_IB_MSG_511) << error << " while reading FTS"
 					" doc id table.";
 
 				break;			/* Exit the loop. */
@@ -2253,7 +2253,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_query_match_document(
                                   fts_query_fetch_document, &phrase);
 
   if (error != DB_SUCCESS) {
-    ib::error() << "(" << ut_strerr(error) << ") matching document.";
+    ib::error(ER_IB_MSG_512)
+        << "(" << ut_strerr(error) << ") matching document.";
   } else {
     *found = phrase.found;
   }
@@ -2296,9 +2297,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool fts_query_is_in_proximity_range(
                                 fts_query_fetch_document, &phrase);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "(" << ut_strerr(err)
-                << ") in verification"
-                   " phase of proximity search";
+    ib::error(ER_IB_MSG_513) << "(" << ut_strerr(err)
+                             << ") in verification"
+                                " phase of proximity search";
   }
 
   /* Free the prepared statement. */
@@ -2345,7 +2346,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   rw_lock_x_unlock(&cache->lock);
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-  ib::info() << "Start phrase search";
+  ib::info(ER_IB_MSG_514) << "Start phrase search";
 #endif
 
   /* Read the document from disk and do the actual
@@ -3220,9 +3221,10 @@ static void fts_query_calculate_idf(fts_query_t *query) /*!< in: Query state */
     }
 
     if (fts_enable_diag_print) {
-      ib::info() << "'" << word_freq->word.f_str << "' -> " << query->total_docs
-                 << "/" << word_freq->doc_count << " " << std::setw(6)
-                 << std::setprecision(5) << word_freq->idf;
+      ib::info(ER_IB_MSG_515)
+          << "'" << word_freq->word.f_str << "' -> " << query->total_docs << "/"
+          << word_freq->doc_count << " " << std::setw(6) << std::setprecision(5)
+          << word_freq->idf;
     }
   }
 }
@@ -3766,19 +3768,17 @@ dberr_t fts_query(trx_t *trx, dict_index_t *index, uint flags,
   if (fts_enable_diag_print && (*result)) {
     ulint diff_time = ut_time_ms() - start_time_ms;
 
-    ib::info() << "FTS Search Processing time: " << diff_time / 1000
-               << " secs: " << diff_time % 1000 << " millisec: row(s) "
-               << ((*result)->rankings_by_id
-                       ? rbt_size((*result)->rankings_by_id)
-                       : -1);
+    ib::info(ER_IB_MSG_516)
+        << "FTS Search Processing time: " << diff_time / 1000
+        << " secs: " << diff_time % 1000 << " millisec: row(s) "
+        << ((*result)->rankings_by_id ? rbt_size((*result)->rankings_by_id)
+                                      : -1);
 
     /* Log memory consumption & result size */
-    ib::info() << "Full Search Memory: " << query.total_size
-               << " (bytes),  Row: "
-               << ((*result)->rankings_by_id
-                       ? rbt_size((*result)->rankings_by_id)
-                       : 0)
-               << ".";
+    ib::info(ER_IB_MSG_517)
+        << "Full Search Memory: " << query.total_size << " (bytes),  Row: "
+        << ((*result)->rankings_by_id ? rbt_size((*result)->rankings_by_id) : 0)
+        << ".";
   }
 
 func_exit:
@@ -3852,13 +3852,13 @@ static void fts_print_doc_id(
     fts_ranking_t *ranking;
     ranking = rbt_value(fts_ranking_t, node);
 
-    ib::info() << "doc_ids info, doc_id: " << ranking->doc_id;
+    ib::info(ER_IB_MSG_518) << "doc_ids info, doc_id: " << ranking->doc_id;
 
     ulint pos = 0;
     fts_string_t word;
 
     while (fts_ranking_words_get_next(query, ranking, &pos, &word)) {
-      ib::info() << "doc_ids info, value: " << word.f_str;
+      ib::info(ER_IB_MSG_519) << "doc_ids info, value: " << word.f_str;
     }
   }
 }

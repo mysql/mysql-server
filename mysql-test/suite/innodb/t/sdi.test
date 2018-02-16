@@ -437,13 +437,12 @@ if ($RECORD == 1) {
 --echo # Bug#27151163 - INNODB: ASSERTION FAILURE: DICT0SDI.CC:.*
 --echo #
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot find space for ts1 in tablespace memory cache");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("InnoDB: Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
-call mtr.add_suppression("InnoDB: Cannot find tablespace for 'ts1' in tablespace memory cache");
+call mtr.add_suppression("Operating system error number 2 in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
+call mtr.add_suppression("Cannot open datafile for read-only:");
+call mtr.add_suppression("Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("Tablespace .*, name 'ts1', file 'ts1.ibd' is missing!");
+call mtr.add_suppression("Cannot find tablespace for 'ts1' in the tablespace memory cache");
 
 --enable_query_log
 

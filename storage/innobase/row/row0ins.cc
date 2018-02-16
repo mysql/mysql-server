@@ -603,16 +603,17 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint row_ins_cascade_calc_update_vec(
               static_cast<const byte *>(dfield_get_data(&ufield->new_val)));
 
           if (new_doc_id <= 0) {
-            ib::error() << "FTS Doc ID"
-                           " must be larger than"
-                           " 0";
+            ib::error(ER_IB_MSG_954) << "FTS Doc ID"
+                                        " must be larger than"
+                                        " 0";
             return (ULINT_UNDEFINED);
           }
 
           if (new_doc_id < n_doc_id) {
-            ib::error() << "FTS Doc ID"
-                           " must be larger than "
-                        << n_doc_id - 1 << " for table " << table->name;
+            ib::error(ER_IB_MSG_955)
+                << "FTS Doc ID"
+                   " must be larger than "
+                << n_doc_id - 1 << " for table " << table->name;
 
             return (ULINT_UNDEFINED);
           }
@@ -647,10 +648,10 @@ static MY_ATTRIBUTE((warn_unused_result)) ulint row_ins_cascade_calc_update_vec(
         ut_ad(new_doc_id);
         fts_trx_add_op(trx, table, new_doc_id, FTS_INSERT, NULL);
       } else {
-        ib::error() << "FTS Doc ID must be updated"
-                       " along with FTS indexed column for"
-                       " table "
-                    << table->name;
+        ib::error(ER_IB_MSG_956) << "FTS Doc ID must be updated"
+                                    " along with FTS indexed column for"
+                                    " table "
+                                 << table->name;
         return (ULINT_UNDEFINED);
       }
     }
@@ -1070,8 +1071,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     if (!page_rec_is_user_rec(clust_rec) ||
         btr_pcur_get_low_match(cascade->pcur) <
             dict_index_get_n_unique(clust_index)) {
-      ib::error() << "In cascade of a foreign key op index " << index->name
-                  << " of table " << index->table->name;
+      ib::error(ER_IB_MSG_957)
+          << "In cascade of a foreign key op index " << index->name
+          << " of table " << index->table->name;
 
       fputs("InnoDB: record ", stderr);
       rec_print(stderr, rec, index);
@@ -1984,9 +1986,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         state so in the error log */
         if (index == index->table->fts_doc_id_index &&
             DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_FTS_HAS_DOC_ID)) {
-          ib::error() << "Duplicate FTS_DOC_ID"
-                         " value on table "
-                      << index->table->name;
+          ib::error(ER_IB_MSG_958) << "Duplicate FTS_DOC_ID"
+                                      " value on table "
+                                   << index->table->name;
         }
 
         goto end_scan;
@@ -2571,8 +2573,9 @@ func_exit:
   btr_pcur_close(&pcur);
 
   DBUG_EXECUTE_IF("ib_sdi", if (dict_table_is_sdi(index->table->id)) {
-    ib::info() << "ib_sdi: row_ins_clust_index_entry_low: " << index->name
-               << " " << index->table->name << " return status: " << err;
+    ib::info(ER_IB_MSG_959)
+        << "ib_sdi: row_ins_clust_index_entry_low: " << index->name << " "
+        << index->table->name << " return status: " << err;
   });
 
   DBUG_RETURN(err);

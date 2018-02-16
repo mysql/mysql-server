@@ -106,8 +106,9 @@ static ibool dfield_check_typed_no_assert(
 {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::error() << "Data field type " << dfield_get_type(field)->mtype
-                << ", len " << dfield_get_len(field);
+    ib::error(ER_IB_MSG_156)
+        << "Data field type " << dfield_get_type(field)->mtype << ", len "
+        << dfield_get_len(field);
 
     return (FALSE);
   }
@@ -124,8 +125,8 @@ static ibool dtuple_check_typed_no_assert(
   ulint i;
 
   if (dtuple_get_n_fields(tuple) > REC_MAX_N_FIELDS) {
-    ib::error() << "Index entry has " << dtuple_get_n_fields(tuple)
-                << " fields";
+    ib::error(ER_IB_MSG_157)
+        << "Index entry has " << dtuple_get_n_fields(tuple) << " fields";
   dump:
     fputs("InnoDB: Tuple contents: ", stderr);
     dtuple_print(stderr, tuple);
@@ -153,8 +154,9 @@ ibool dfield_check_typed(const dfield_t *field) /*!< in: data field */
 {
   if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX ||
       dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
-    ib::fatal() << "Data field type " << dfield_get_type(field)->mtype
-                << ", len " << dfield_get_len(field);
+    ib::fatal(ER_IB_MSG_158)
+        << "Data field type " << dfield_get_type(field)->mtype << ", len "
+        << dfield_get_len(field);
   }
 
   return (TRUE);
@@ -500,7 +502,7 @@ big_rec_t *dtuple_convert_big_rec(dict_index_t *index, /*!< in: index */
   size = rec_get_converted_size(index, entry, *n_ext);
 
   if (UNIV_UNLIKELY(size > 1000000000)) {
-    ib::warn() << "Tuple size is very big: " << size;
+    ib::warn(ER_IB_MSG_159) << "Tuple size is very big: " << size;
     fputs("InnoDB: Tuple contents: ", stderr);
     dtuple_print(stderr, entry);
     putc('\n', stderr);

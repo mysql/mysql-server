@@ -284,7 +284,7 @@ CHARSET_INFO *fts_get_charset(ulint prtype) {
     return (cs);
   }
 
-  ib::fatal() << "Unable to find charset-collation " << cs_num;
+  ib::fatal(ER_IB_MSG_461) << "Unable to find charset-collation " << cs_num;
   return (NULL);
 }
 
@@ -448,14 +448,14 @@ static ibool fts_load_user_stopword(
       fts_sql_rollback(trx);
 
       if (error == DB_LOCK_WAIT_TIMEOUT) {
-        ib::warn() << "Lock wait timeout reading user"
-                      " stopword table. Retrying!";
+        ib::warn(ER_IB_MSG_462) << "Lock wait timeout reading user"
+                                   " stopword table. Retrying!";
 
         trx->error_state = DB_SUCCESS;
       } else {
-        ib::error() << "Error '" << ut_strerr(error)
-                    << "' while reading user stopword"
-                       " table.";
+        ib::error(ER_IB_MSG_463) << "Error '" << ut_strerr(error)
+                                 << "' while reading user stopword"
+                                    " table.";
         ret = FALSE;
         break;
       }
@@ -1302,8 +1302,8 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
         row_drop_table_for_mysql(table_name, trx, SQLCOM_DROP_DB, false, NULL);
 
     if (error != DB_SUCCESS) {
-      ib::error() << "Unable to drop FTS index aux table " << table_name << ": "
-                  << ut_strerr(error);
+      ib::error(ER_IB_MSG_464) << "Unable to drop FTS index aux table "
+                               << table_name << ": " << ut_strerr(error);
       return (error);
     }
 
@@ -1848,7 +1848,8 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
   if (error != DB_SUCCESS) {
     trx->error_state = error;
     new_table = NULL;
-    ib::warn() << "Failed to create FTS common table " << fts_table_name;
+    ib::warn(ER_IB_MSG_465)
+        << "Failed to create FTS common table " << fts_table_name;
   }
 
   return (new_table);
@@ -2034,7 +2035,8 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
   if (error != DB_SUCCESS) {
     trx->error_state = error;
     new_table = NULL;
-    ib::warn() << "Failed to create FTS index table " << table_name;
+    ib::warn(ER_IB_MSG_466)
+        << "Failed to create FTS index table " << table_name;
   }
 
   return (new_table);
@@ -2221,7 +2223,8 @@ static dberr_t fts_create_one_index_dd_tables(const dict_index_t *index) {
     ut_ad(new_table != nullptr);
 
     if (!dd_create_fts_index_table(fts_table.table, new_table, charset)) {
-      ib::warn() << "Failed to create FTS index dd table " << table_name;
+      ib::warn(ER_IB_MSG_467)
+          << "Failed to create FTS index dd table " << table_name;
       error = DB_FAIL;
     }
 
@@ -2700,31 +2703,31 @@ static ulint fts_get_max_cache_size(
     cache_size_in_mb = strtoul((char *)value.f_str, NULL, 10);
 
     if (cache_size_in_mb > FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB) {
-      ib::warn() << "FTS max cache size (" << cache_size_in_mb
-                 << ") out of range."
-                    " Minimum value is "
-                 << FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB
-                 << "MB and the maximum value is "
-                 << FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
-                 << "MB, setting cache size to upper limit";
+      ib::warn(ER_IB_MSG_468)
+          << "FTS max cache size (" << cache_size_in_mb
+          << ") out of range."
+             " Minimum value is "
+          << FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB << "MB and the maximum value is "
+          << FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
+          << "MB, setting cache size to upper limit";
 
       cache_size_in_mb = FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB;
 
     } else if (cache_size_in_mb < FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB) {
-      ib::warn() << "FTS max cache size (" << cache_size_in_mb
-                 << ") out of range."
-                    " Minimum value is "
-                 << FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB
-                 << "MB and the maximum value is"
-                 << FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
-                 << "MB, setting cache size to lower limit";
+      ib::warn(ER_IB_MSG_469)
+          << "FTS max cache size (" << cache_size_in_mb
+          << ") out of range."
+             " Minimum value is "
+          << FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB << "MB and the maximum value is"
+          << FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB
+          << "MB, setting cache size to lower limit";
 
       cache_size_in_mb = FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB;
     }
   } else {
-    ib::error() << "(" << ut_strerr(error)
-                << ") reading max"
-                   " cache config value from config table";
+    ib::error(ER_IB_MSG_470) << "(" << ut_strerr(error)
+                             << ") reading max"
+                                " cache config value from config table";
   }
 
   ut_free(value.f_str);
@@ -2876,9 +2879,9 @@ func_exit:
   } else {
     *doc_id = 0;
 
-    ib::error() << "(" << ut_strerr(error)
-                << ") while getting"
-                   " next doc id.";
+    ib::error(ER_IB_MSG_471) << "(" << ut_strerr(error)
+                             << ") while getting"
+                                " next doc id.";
     fts_sql_rollback(trx);
 
     if (error == DB_DEADLOCK) {
@@ -2951,9 +2954,9 @@ static dberr_t fts_update_sync_doc_id(
       fts_sql_commit(trx);
       cache->synced_doc_id = doc_id;
     } else {
-      ib::error() << "(" << ut_strerr(error)
-                  << ") while"
-                     " updating last doc id.";
+      ib::error(ER_IB_MSG_472) << "(" << ut_strerr(error)
+                               << ") while"
+                                  " updating last doc id.";
 
       fts_sql_rollback(trx);
     }
@@ -4105,9 +4108,9 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     n_nodes += ib_vector_size(word->nodes);
 
     if (error != DB_SUCCESS && !print_error) {
-      ib::error() << "(" << ut_strerr(error)
-                  << ") writing"
-                     " word node to FTS auxiliary index table.";
+      ib::error(ER_IB_MSG_473) << "(" << ut_strerr(error)
+                               << ") writing"
+                                  " word node to FTS auxiliary index table.";
       print_error = TRUE;
     }
   }
@@ -4133,9 +4136,10 @@ static void fts_sync_begin(fts_sync_t *sync) /*!< in: sync state */
   sync->trx = trx_allocate_for_background();
 
   if (fts_enable_diag_print) {
-    ib::info() << "FTS SYNC for table " << sync->table->name
-               << ", deleted count: " << ib_vector_size(cache->deleted_doc_ids)
-               << " size: " << cache->total_size << " bytes";
+    ib::info(ER_IB_MSG_474)
+        << "FTS SYNC for table " << sync->table->name
+        << ", deleted count: " << ib_vector_size(cache->deleted_doc_ids)
+        << " size: " << cache->total_size << " bytes";
   }
 }
 
@@ -4151,7 +4155,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   trx->op_info = "doing SYNC index";
 
   if (fts_enable_diag_print) {
-    ib::info() << "SYNC words: " << rbt_size(index_cache->words);
+    ib::info(ER_IB_MSG_475) << "SYNC words: " << rbt_size(index_cache->words);
   }
 
   ut_ad(rbt_validate(index_cache->words));
@@ -4236,14 +4240,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   } else if (error != DB_SUCCESS) {
     fts_sql_rollback(trx);
 
-    ib::error() << "(" << ut_strerr(error) << ") during SYNC.";
+    ib::error(ER_IB_MSG_476) << "(" << ut_strerr(error) << ") during SYNC.";
   }
 
   if (fts_enable_diag_print && elapsed_time) {
-    ib::info() << "SYNC for table " << sync->table->name
-               << ": SYNC time: " << (ut_time() - sync->start_time)
-               << " secs: elapsed " << (double)n_nodes / elapsed_time
-               << " ins/sec";
+    ib::info(ER_IB_MSG_477)
+        << "SYNC for table " << sync->table->name
+        << ": SYNC time: " << (ut_time() - sync->start_time)
+        << " secs: elapsed " << (double)n_nodes / elapsed_time << " ins/sec";
   }
 
   /* Avoid assertion in trx_free(). */
@@ -4956,12 +4960,13 @@ ulint fts_get_rows_count(fts_table_t *fts_table) /*!< in: fts table to read */
       fts_sql_rollback(trx);
 
       if (error == DB_LOCK_WAIT_TIMEOUT) {
-        ib::warn() << "lock wait timeout reading"
-                      " FTS table. Retrying!";
+        ib::warn(ER_IB_MSG_478) << "lock wait timeout reading"
+                                   " FTS table. Retrying!";
 
         trx->error_state = DB_SUCCESS;
       } else {
-        ib::error() << "(" << ut_strerr(error) << ") while reading FTS table.";
+        ib::error(ER_IB_MSG_479)
+            << "(" << ut_strerr(error) << ") while reading FTS table.";
 
         break; /* Exit the loop. */
       }
@@ -5275,9 +5280,9 @@ ibool fts_wait_for_background_thread_to_start(
     }
 
     if (count >= FTS_BACKGROUND_THREAD_WAIT_COUNT) {
-      ib::error() << "The background thread for the FTS"
-                     " table "
-                  << table->name << " refuses to start";
+      ib::error(ER_IB_MSG_480) << "The background thread for the FTS"
+                                  " table "
+                               << table->name << " refuses to start";
 
       count = 0;
     }
@@ -5840,8 +5845,8 @@ CHARSET_INFO *fts_valid_stopword_table(
                                 DICT_ERR_IGNORE_NONE);
 
   if (!table) {
-    ib::error() << "User stopword table " << stopword_table_name
-                << " does not exist.";
+    ib::error(ER_IB_MSG_481)
+        << "User stopword table " << stopword_table_name << " does not exist.";
 
     return (NULL);
   } else {
@@ -5852,11 +5857,11 @@ CHARSET_INFO *fts_valid_stopword_table(
     col_name = table->get_col_name(0);
 
     if (ut_strcmp(col_name, "value")) {
-      ib::error() << "Invalid column name for stopword"
-                     " table "
-                  << stopword_table_name
-                  << ". Its"
-                     " first column must be named as 'value'.";
+      ib::error(ER_IB_MSG_482) << "Invalid column name for stopword"
+                                  " table "
+                               << stopword_table_name
+                               << ". Its"
+                                  " first column must be named as 'value'.";
 
       return (NULL);
     }
@@ -5864,11 +5869,11 @@ CHARSET_INFO *fts_valid_stopword_table(
     col = table->get_col(0);
 
     if (col->mtype != DATA_VARCHAR && col->mtype != DATA_VARMYSQL) {
-      ib::error() << "Invalid column type for stopword"
-                     " table "
-                  << stopword_table_name
-                  << ". Its"
-                     " first column must be of varchar type";
+      ib::error(ER_IB_MSG_483) << "Invalid column type for stopword"
+                                  " table "
+                               << stopword_table_name
+                               << ". Its"
+                                  " first column must be of varchar type";
 
       return (NULL);
     }
@@ -6302,13 +6307,13 @@ dberr_t fts_upgrade_aux_tables(dict_table_t *table) {
 
     fts_get_table_name_5_7(&fts_old_table, old_name);
 
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info()
+    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_484)
                                       << "Old fts table name is " << old_name;);
 
     fts_new_table.suffix = fts_common_tables[i];
     fts_get_table_name(&fts_new_table, new_name);
 
-    DBUG_EXECUTE_IF("dd_upgrade", ib::info()
+    DBUG_EXECUTE_IF("dd_upgrade", ib::info(ER_IB_MSG_485)
                                       << "New fts table name is " << new_name;);
 
     dict_table_t *new_table =

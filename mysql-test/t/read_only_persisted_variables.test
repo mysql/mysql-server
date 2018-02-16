@@ -58,7 +58,6 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
-CALL mtr.add_suppression("InnoDB: *");
 CALL mtr.add_suppression("You need to use --log-bin to make --log-slave-updates work.");
 
 --echo # default values

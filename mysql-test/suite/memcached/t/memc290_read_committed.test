@@ -5,7 +5,7 @@ source include/have_memcached_plugin.inc;
 --disable_query_log
 CALL mtr.add_suppression("daemon-memcached-w-batch-size': unsigned");
 CALL mtr.add_suppression("Could not obtain server's UPN to be used as target service name");
-CALL mtr.add_suppression("InnoDB: Warning: MySQL is trying to drop");
+CALL mtr.add_suppression("Warning: MySQL is trying to drop");
 # Create the memcached tables
 source include/memcache_config.inc;
 --enable_query_log

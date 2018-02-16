@@ -146,9 +146,9 @@ DROP TABLE t1, t2;
 DROP TABLESPACE s1;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 13 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means mysqld does not have the access rights to the directory.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot create file '.*'");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 13 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means mysqld does not have the access rights to the directory.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot create file '.*'");
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
 --enable_query_log

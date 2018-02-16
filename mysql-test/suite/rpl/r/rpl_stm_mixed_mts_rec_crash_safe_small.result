@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
-call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
+call mtr.add_suppression(".*   Warning: allocated tablespace .*, old maximum was .*");
 ########################################################################
 #                               SET UP
 ########################################################################

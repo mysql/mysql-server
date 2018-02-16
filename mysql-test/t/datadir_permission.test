@@ -10,7 +10,6 @@ let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslo
 --exec echo $MYSQL_TMP_DIR/.mysql_secret > $MYSQL_TMP_DIR/readpwdfilepath.txt
 
 --echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
 --echo #
 --echo #-------------------------------------------------------------------------
 

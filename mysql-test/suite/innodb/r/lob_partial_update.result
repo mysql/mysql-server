@@ -29,7 +29,7 @@ commit;
 select json_extract(j1, '$[0]') from t;
 json_extract(j1, '$[0]')
 "Knut"
-Pattern "InnoDB: LOB partial update of field=\(j1\) on index=\(\`GEN_CLUST_INDEX\`\) in table=\(test/t\)" found
+Pattern "LOB partial update of field=\(j1\) on index=\(\`GEN_CLUST_INDEX\`\) in table=\(test/t\)" found
 drop table t;
 set debug = '-d,lob_print_partial_update_hit';
 set debug = '+d,zlob_print_partial_update_hit';
@@ -60,7 +60,7 @@ commit;
 select json_extract(j1, '$[0]') from t2;
 json_extract(j1, '$[0]')
 "Knut"
-Pattern "InnoDB: ZLOB partial update of field=\(j1\) on index=\(\`GEN_CLUST_INDEX\`\) in table=\(test/t2\)" found
+Pattern "ZLOB partial update of field=\(j1\) on index=\(\`GEN_CLUST_INDEX\`\) in table=\(test/t2\)" found
 drop table t2;
 set debug = '-d,zlob_print_partial_update_hit';
 set global innodb_compression_level = default;

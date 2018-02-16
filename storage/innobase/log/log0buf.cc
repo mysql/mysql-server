@@ -571,9 +571,10 @@ static void log_wait_for_space_after_reserving(log_t &log,
     must happen at the very end of the resize procedure. */
     ut_a(log_translate_lsn_to_sn(log.write_lsn.load()) == start_sn);
 
-    ib::info() << "The transaction log size is too large"
-               << " for srv_log_buffer_size (" << len << " > "
-               << log.buf_size_sn.load() << "). Trying to extend it.";
+    ib::info(ER_IB_MSG_1231)
+        << "The transaction log size is too large"
+        << " for srv_log_buffer_size (" << len << " > "
+        << log.buf_size_sn.load() << "). Trying to extend it.";
 
     /* Resize without extra locking required.
 

@@ -3,13 +3,13 @@
 --source include/not_crashrep.inc
 --source include/have_log_bin.inc
 # Observed under high parallel load
-# [ERROR] InnoDB: Could not find a valid tablespace ...
-# [Note] InnoDB: Unable to open tablespace ...
+# [ERROR] Could not find a valid tablespace ...
+# [Note] Unable to open tablespace ...
 #        This should be fixed after data dictionary and DDL recovery later.
 # ... and the crash recovery has finally success.
 --disable_query_log
-CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Could not find a valid tablespace file for");
-CALL mtr.add_suppression("\\[ERROR\\].*InnoDB: Tablespace.*, name 'test.t1', unable to open file '.*test.t1.ibd' - Data structure corruption");
+CALL mtr.add_suppression("\\[ERROR\\]  Could not find a valid tablespace file for");
+CALL mtr.add_suppression("\\[ERROR\\].* Tablespace.*, name 'test.t1', unable to open file '.*test.t1.ibd' - Data structure corruption");
 --enable_query_log
 
 SET SESSION debug= '+d,skip_dd_table_access_check';

@@ -127,7 +127,7 @@ Warning	139	Row size too large (> 16318). Changing some columns to TEXT or BLOB 
 DROP TABLE tab5;
 # Stop DB server with page size 32k
 # Check Server startup failure when page size 64K
-Pattern "\[Warning\] \[[^]]*\] InnoDB: innodb-page-size has been changed from the default value 16384 to 32768" found
+Pattern "\[Warning\] .*MY-\d+.* innodb-page-size has been changed from the default value 16384 to 32768" found
 # Restart the DB server with datadir1 with same 32k page size 
 # restart: --innodb_page_size=32K --datadir=MYSQLD_DATADIR1 --innodb_log_file_size=5M --innodb_log_files_in_group=2
 SELECT @@innodb_page_size;

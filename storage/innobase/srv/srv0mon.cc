@@ -1363,8 +1363,9 @@ void srv_mon_set_module_control(
     should be aware some counters are already on before
     turn them on again (which could reset counter value) */
     if (MONITOR_IS_ON(ix) && (set_option == MONITOR_TURN_ON)) {
-      ib::info() << "Monitor '" << srv_mon_get_name((monitor_id_t)ix)
-                 << "' is already enabled.";
+      ib::info(ER_IB_MSG_1045)
+          << "Monitor '" << srv_mon_get_name((monitor_id_t)ix)
+          << "' is already enabled.";
       continue;
     }
 

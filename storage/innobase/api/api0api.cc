@@ -2842,8 +2842,8 @@ static ib_err_t ib_sdi_open_table(uint32_t tablespace_id, trx_t *trx,
       dict_sdi_get_table_id(tablespace_id), trx, ib_crsr);
 
   DBUG_EXECUTE_IF("ib_sdi", if (err != DB_SUCCESS) {
-    ib::warn() << "Unable to open SDI dict table for tablespace: "
-               << tablespace_id << " error returned is " << err;
+    ib::warn(ER_IB_MSG_1) << "Unable to open SDI dict table for tablespace: "
+                          << tablespace_id << " error returned is " << err;
   });
   return (err);
 }
@@ -2863,10 +2863,11 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
   ut_ad(ib_sdi_key != NULL);
   ut_ad(sdi != NULL);
 
-  DBUG_EXECUTE_IF("ib_sdi", ib::info() << "ib_sdi: sdi_set: " << tablespace_id
-                                       << " Key: " << ib_sdi_key->sdi_key->type
-                                       << " " << ib_sdi_key->sdi_key->id
-                                       << " sdi_len: " << comp_len;);
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_2)
+                                << "ib_sdi: sdi_set: " << tablespace_id
+                                << " Key: " << ib_sdi_key->sdi_key->type << " "
+                                << ib_sdi_key->sdi_key->id
+                                << " sdi_len: " << comp_len;);
 
   ib_crsr_t ib_crsr = NULL;
   ib_err_t err = ib_sdi_open_table(tablespace_id, trx, &ib_crsr);
@@ -2913,7 +2914,7 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     if (upd->n_fields == 0) {
       /* Old row is same as new row */
       err = DB_SUCCESS;
-      DBUG_EXECUTE_IF("ib_sdi", ib::info()
+      DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_3)
                                     << "ib_sdi: sdi_set: Update row:"
                                     << " old row same as new: " << tablespace_id
                                     << " Key: " << ib_sdi_key->sdi_key->type
@@ -2928,11 +2929,12 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
       err = ib_cursor_moveto(ib_crsr, key_tpl, IB_CUR_LE, 0);
       ut_ad(err == DB_SUCCESS);
 
-      DBUG_EXECUTE_IF(
-          "ib_sdi",
-          ib::info() << "ib_sdi: sdi_set: Existing row found: " << tablespace_id
-                     << " Key: " << ib_sdi_key->sdi_key->type << " "
-                     << ib_sdi_key->sdi_key->id << " trx: " << trx->id;);
+      DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_4)
+                                    << "ib_sdi: sdi_set: Existing row found: "
+                                    << tablespace_id
+                                    << " Key: " << ib_sdi_key->sdi_key->type
+                                    << " " << ib_sdi_key->sdi_key->id
+                                    << " trx: " << trx->id;);
 
       err = ib_cursor_update_row(ib_crsr, old_tuple, new_tuple);
 
@@ -2945,17 +2947,18 @@ dberr_t ib_sdi_set(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 
   } else if (err == DB_SUCCESS) {
     DBUG_EXECUTE_IF("ib_sdi",
-                    ib::info()
+                    ib::info(ER_IB_MSG_5)
                         << "ib_sdi: sdi_set: insert: " << tablespace_id
                         << " Key: " << ib_sdi_key->sdi_key->type << " "
                         << ib_sdi_key->sdi_key->id << " trx: " << trx->id;);
   } else {
-    DBUG_EXECUTE_IF("ib_sdi",
-                    ib::warn() << "ib_sdi: sdi_set: failed for"
-                               << " tablespace_id: " << tablespace_id
-                               << " Key: " << ib_sdi_key->sdi_key->type << " "
-                               << ib_sdi_key->sdi_key->id << " Error returned: "
-                               << err << " by trx->id: " << trx->id;);
+    DBUG_EXECUTE_IF("ib_sdi", ib::warn(ER_IB_MSG_6)
+                                  << "ib_sdi: sdi_set: failed for"
+                                  << " tablespace_id: " << tablespace_id
+                                  << " Key: " << ib_sdi_key->sdi_key->type
+                                  << " " << ib_sdi_key->sdi_key->id
+                                  << " Error returned: " << err
+                                  << " by trx->id: " << trx->id;);
 
     ut_ad(err == DB_SUCCESS || trx_is_interrupted(trx) || !"sdi_insert_failed");
   }
@@ -3035,10 +3038,11 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
     return (DB_ERROR);
   }
 
-  DBUG_EXECUTE_IF("ib_sdi", ib::info() << "ib_sdi: sdi_get: " << tablespace_id
-                                       << " Key: " << ib_sdi_key->sdi_key->type
-                                       << " " << ib_sdi_key->sdi_key->id
-                                       << " input_buffer_len " << *comp_sdi_len;
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_7)
+                                << "ib_sdi: sdi_get: " << tablespace_id
+                                << " Key: " << ib_sdi_key->sdi_key->type << " "
+                                << ib_sdi_key->sdi_key->id
+                                << " input_buffer_len " << *comp_sdi_len;
 
   );
 
@@ -3082,12 +3086,13 @@ dberr_t ib_sdi_get(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
   } else {
     DBUG_EXECUTE_IF("ib_sdi",
                     if (err == DB_RECORD_NOT_FOUND) {
-                      ib::warn() << "sdi_get: Record not found:"
-                                 << " tablespace " << tablespace_id
-                                 << " Key: " << ib_sdi_key->sdi_key->type << " "
-                                 << ib_sdi_key->sdi_key->id;
+                      ib::warn(ER_IB_MSG_8)
+                          << "sdi_get: Record not found:"
+                          << " tablespace " << tablespace_id
+                          << " Key: " << ib_sdi_key->sdi_key->type << " "
+                          << ib_sdi_key->sdi_key->id;
                     } else if (err != DB_SUCCESS) {
-                      ib::warn()
+                      ib::warn(ER_IB_MSG_9)
                           << "sdi_get: Get Failed: tablespace " << tablespace_id
                           << " Key: " << ib_sdi_key->sdi_key->type << " "
                           << ib_sdi_key->sdi_key->id << " error: " << err;
@@ -3117,7 +3122,7 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
                        trx_t *trx) {
   ut_ad(ib_sdi_key != NULL);
 
-  DBUG_EXECUTE_IF("ib_sdi", ib::info()
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_10)
                                 << "ib_sdi: sdi_delete: " << tablespace_id
                                 << " Key: " << ib_sdi_key->sdi_key->type << " "
                                 << ib_sdi_key->sdi_key->id;);
@@ -3142,17 +3147,18 @@ ib_err_t ib_sdi_delete(uint32_t tablespace_id, const ib_sdi_key_t *ib_sdi_key,
 #ifdef UNIV_DEBUG
   if (err != DB_SUCCESS && !trx_is_interrupted(trx)) {
     if (err == DB_RECORD_NOT_FOUND) {
-      ib::warn() << "sdi_delete failed: Record Doesn't exist:"
-                 << " tablespace_id: " << tablespace_id
-                 << " Key: " << ib_sdi_key->sdi_key->type << " "
-                 << ib_sdi_key->sdi_key->id;
+      ib::warn(ER_IB_MSG_11) << "sdi_delete failed: Record Doesn't exist:"
+                             << " tablespace_id: " << tablespace_id
+                             << " Key: " << ib_sdi_key->sdi_key->type << " "
+                             << ib_sdi_key->sdi_key->id;
       bool sdi_delete_record_not_found = true;
       ut_ad(!sdi_delete_record_not_found);
 
     } else {
-      ib::warn() << "sdi_delete failed: tablespace_id: " << tablespace_id
-                 << " Key: " << ib_sdi_key->sdi_key->type << " "
-                 << ib_sdi_key->sdi_key->id << " Error returned: " << err;
+      ib::warn(ER_IB_MSG_12)
+          << "sdi_delete failed: tablespace_id: " << tablespace_id
+          << " Key: " << ib_sdi_key->sdi_key->type << " "
+          << ib_sdi_key->sdi_key->id << " Error returned: " << err;
       bool sdi_delete_failed = true;
       ut_ad(!sdi_delete_failed);
     }

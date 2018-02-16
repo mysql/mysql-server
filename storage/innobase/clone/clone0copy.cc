@@ -177,10 +177,11 @@ dberr_t Clone_Snapshot::init_file_copy() {
     return (err);
   }
 
-  ib::info() << "Clone State FILE COPY : " << m_num_current_chunks
-             << " chunks, "
-             << " chunk size : "
-             << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024) << " M";
+  ib::info(ER_IB_MSG_151) << "Clone State FILE COPY : " << m_num_current_chunks
+                          << " chunks, "
+                          << " chunk size : "
+                          << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024)
+                          << " M";
 
   return (err);
 }
@@ -231,11 +232,13 @@ dberr_t Clone_Snapshot::init_page_copy(byte *page_buffer,
   aligned_size = ut_calc_align(m_num_pages, chunk_size());
   m_num_current_chunks = aligned_size >> m_chunk_size_pow2;
 
-  ib::info() << "Clone State PAGE COPY : " << m_num_pages << " pages, "
-             << m_num_duplicate_pages << " duplicate pages, "
-             << m_num_current_chunks << " chunks, "
-             << " chunk size : "
-             << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024) << " M";
+  ib::info(ER_IB_MSG_152) << "Clone State PAGE COPY : " << m_num_pages
+                          << " pages, " << m_num_duplicate_pages
+                          << " duplicate pages, " << m_num_current_chunks
+                          << " chunks, "
+                          << " chunk size : "
+                          << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024)
+                          << " M";
 
 func_end:
   m_page_ctx.release();
@@ -283,10 +286,11 @@ dberr_t Clone_Snapshot::init_redo_copy() {
 
   m_num_current_chunks = m_num_redo_chunks;
 
-  ib::info() << "Clone State REDO COPY : " << m_num_current_chunks
-             << " chunks, "
-             << " chunk size : "
-             << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024) << " M";
+  ib::info(ER_IB_MSG_153) << "Clone State REDO COPY : " << m_num_current_chunks
+                          << " chunks, "
+                          << " chunk size : "
+                          << (chunk_size() * UNIV_PAGE_SIZE) / (1024 * 1024)
+                          << " M";
 
   return (err);
 }
@@ -883,7 +887,8 @@ dberr_t Clone_Handle::copy(Ha_clone_cbk *callback) {
         percent_done = current_percent;
         disp_time = current_time;
 
-        ib::info() << "Stage progress: " << percent_done << "% completed.";
+        ib::info(ER_IB_MSG_154)
+            << "Stage progress: " << percent_done << "% completed.";
       }
 
     } else {

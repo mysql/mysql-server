@@ -63,7 +63,7 @@ select length(ff1) from tt2;
 select json_extract(ff1, '$[1]') from tt2;
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
-let SEARCH_PATTERN=InnoDB: LOB partial update of field=\\(ff1\\) on index=\\(\\`GEN_CLUST_INDEX\\`\\) in table=\\(test/tt2\\);
+let SEARCH_PATTERN= LOB partial update of field=\\(ff1\\) on index=\\(\\`GEN_CLUST_INDEX\\`\\) in table=\\(test/tt2\\);
 --source include/search_pattern.inc
 
 drop table tt2;

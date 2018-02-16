@@ -42,8 +42,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <sys/types.h>
 #include <time.h>
 
-#include "ha_prototypes.h"
+#ifndef UNIV_NO_ERR_MSGS
 #include "lock0lock.h"
+#endif /* !UNIV_NO_ERR_MSGS */
+
+#include "ha_prototypes.h"
 #include "my_inttypes.h"
 #include "os0event.h"
 #include "os0file.h"
@@ -426,8 +429,13 @@ void sync_array_wait_event(
   rw_lock_debug_mutex_enter();
 
   if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
-    ib::fatal() << "########################################"
-                   " Deadlock Detected!";
+#ifdef UNIV_NO_ERR_MSGS
+    ib::fatal()
+#else
+    ib::fatal(ER_IB_MSG_1157)
+#endif /* UNIV_NO_ERR_MSGS */
+        << "########################################"
+           " Deadlock Detected!";
   }
 
   rw_lock_debug_mutex_exit();
@@ -680,11 +688,16 @@ static bool sync_array_detect_deadlock(
             name = "NULL";
           }
 
-          ib::info() << "Mutex " << mutex
-                     << " owned by"
-                        " thread "
-                     << thread << " file " << name << " line "
-                     << policy.get_enter_line();
+#ifdef UNIV_NO_ERR_MSGS
+          ib::info()
+#else
+          ib::info(ER_IB_MSG_1158)
+#endif /* UNIV_NO_ERR_MSGS */
+              << "Mutex " << mutex
+              << " owned by"
+                 " thread "
+              << thread << " file " << name << " line "
+              << policy.get_enter_line();
 
           sync_array_cell_print(stderr, cell);
 
@@ -724,11 +737,16 @@ static bool sync_array_detect_deadlock(
             name = "NULL";
           }
 
-          ib::info() << "Mutex " << mutex
-                     << " owned by"
-                        " thread "
-                     << thread << " file " << name << " line "
-                     << policy.get_enter_line();
+#ifdef UNIV_NO_ERR_MSGS
+          ib::info()
+#else
+          ib::info(ER_IB_MSG_1159)
+#endif /* UNIV_NO_ERR_MSGS */
+              << "Mutex " << mutex
+              << " owned by"
+                 " thread "
+              << thread << " file " << name << " line "
+              << policy.get_enter_line();
 
           sync_array_cell_print(stderr, cell);
 
@@ -1002,7 +1020,13 @@ static bool sync_array_print_long_waits_low(
     double diff = difftime(time(NULL), cell->reservation_time);
 
     if (diff > SYNC_ARRAY_TIMEOUT) {
-      ib::warn() << "A long semaphore wait:";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::warn()
+#else
+      ib::warn(ER_IB_MSG_1160)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "A long semaphore wait:";
+
       sync_array_cell_print(stderr, cell);
       *noticed = TRUE;
     }
@@ -1065,7 +1089,9 @@ ibool sync_array_print_long_waits(
 
     srv_print_innodb_monitor = TRUE;
 
+#ifndef UNIV_NO_ERR_MSGS
     lock_set_timeout_event();
+#endif /* !UNIV_NO_ERR_MSGS */
 
     os_thread_sleep(30000000);
 

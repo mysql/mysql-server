@@ -46,7 +46,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <vector>
 
 #include "my_inttypes.h"
+
+#include "sync0rw.h"
+#include "ut0mutex.h"
+
+#ifndef UNIV_NO_ERR_MSGS
 #include "srv0start.h"
+#endif /* !UNIV_NO_ERR_MSGS */
+
 #include "ut0new.h"
 
 #ifdef UNIV_DEBUG
@@ -473,14 +480,24 @@ LatchDebug::LatchDebug() {
 /** Print the latches acquired by a thread
 @param[in]	latches		Latches acquired by a thread */
 void LatchDebug::print_latches(const Latches *latches) const UNIV_NOTHROW {
-  ib::error() << "Latches already owned by this thread: ";
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1161)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Latches already owned by this thread: ";
 
   Latches::const_iterator end = latches->end();
 
   for (Latches::const_iterator it = latches->begin(); it != end; ++it) {
-    ib::error() << sync_latch_get_name(it->m_latch->get_id()) << " -> "
-                << it->m_level << " "
-                << "(" << get_level_name(it->m_level) << ")";
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::error(ER_IB_MSG_1162)
+#endif /* UNIV_NO_ERR_MSGS */
+        << sync_latch_get_name(it->m_latch->get_id()) << " -> " << it->m_level
+        << " "
+        << "(" << get_level_name(it->m_level) << ")";
   }
 }
 
@@ -495,13 +512,17 @@ void LatchDebug::crash(const Latches *latches, const Latched *latched,
 
   const std::string &latch_level_name = get_level_name(latched->m_level);
 
-  ib::error() << "Thread " << os_thread_get_curr_id()
-              << " already owns a latch " << sync_latch_get_name(latch->m_id)
-              << " at level"
-              << " " << latched->m_level << " (" << latch_level_name
-              << " ), which is at a lower/same level than the"
-              << " requested latch: " << level << " (" << in_level_name << "). "
-              << latch->to_string();
+#ifdef UNIV_NO_ERR_MSGS
+  ib::error()
+#else
+  ib::error(ER_IB_MSG_1163)
+#endif /* UNIV_NO_ERR_MSGS */
+      << "Thread " << os_thread_get_curr_id() << " already owns a latch "
+      << sync_latch_get_name(latch->m_id) << " at level"
+      << " " << latched->m_level << " (" << latch_level_name
+      << " ), which is at a lower/same level than the"
+      << " requested latch: " << level << " (" << in_level_name << "). "
+      << latch->to_string();
 
   print_latches(latches);
 
@@ -954,8 +975,12 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
     }
 
     if (latch->get_level() != SYNC_LEVEL_VARYING) {
-      ib::error() << "Couldn't find latch "
-                  << sync_latch_get_name(latch->get_id());
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_1164)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Couldn't find latch " << sync_latch_get_name(latch->get_id());
 
       print_latches(latches);
 
@@ -1604,8 +1629,9 @@ std::string sync_file_created_get(const void *ptr) {
   return (create_tracker->get(ptr));
 }
 
-/** Initializes the synchronization data structures. */
-void sync_check_init() {
+/** Initializes the synchronization data structures.
+@param[in]	max_threads	Maximum threads that can be created. */
+void sync_check_init(size_t max_threads) {
   ut_ad(!LatchDebug::s_initialized);
   ut_d(LatchDebug::s_initialized = true);
 
@@ -1625,7 +1651,7 @@ void sync_check_init() {
 
   ut_d(LatchDebug::init());
 
-  sync_array_init(srv_max_n_threads);
+  sync_array_init(max_threads);
 }
 
 /** Frees the resources in InnoDB's own synchronization data structures. Use

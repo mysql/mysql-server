@@ -314,14 +314,14 @@ SET @@session.lock_wait_timeout= @start_session_value;
 # six test cases check the behavior.
 
 --disable_query_log
-CALL mtr.add_suppression("InnoDB: Failed to find tablespace");
-CALL mtr.add_suppression("InnoDB: Ignoring tablespace");
-CALL mtr.add_suppression("InnoDB: Cannot rename");
-CALL mtr.add_suppression("InnoDB: Cannot calculate");
-CALL mtr.add_suppression("InnoDB: Cannot open datafile");
-CALL mtr.add_suppression("InnoDB: The error means the system cannot find");
-CALL mtr.add_suppression("InnoDB: File ./s/t_innodb.ibd");
-CALL mtr.add_suppression("InnoDB: Operating system error number");
+CALL mtr.add_suppression("Failed to find tablespace");
+CALL mtr.add_suppression("Ignoring tablespace");
+CALL mtr.add_suppression("Cannot rename");
+CALL mtr.add_suppression("Cannot calculate");
+CALL mtr.add_suppression("Cannot open datafile");
+CALL mtr.add_suppression("The error means the system cannot find");
+CALL mtr.add_suppression("File ./s/t_innodb.ibd");
+CALL mtr.add_suppression("Operating system error number");
 --enable_query_log
 
 # 1. Create schema, remove directory, then try schema statements.
@@ -645,7 +645,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_alter';
 --reap
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace .*, name '.*', file '.*' is missing!");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace .*, name '.*', file '.*' is missing!");
 --enable_query_log
 
 --echo #

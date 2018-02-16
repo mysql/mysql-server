@@ -92,14 +92,15 @@ void *os_mem_alloc_large(ulint *n) {
 
   shmid = shmget(IPC_PRIVATE, (size_t)size, SHM_HUGETLB | SHM_R | SHM_W);
   if (shmid < 0) {
-    ib::warn() << "Failed to allocate " << size << " bytes. errno " << errno;
+    ib::warn(ER_IB_MSG_852)
+        << "Failed to allocate " << size << " bytes. errno " << errno;
     ptr = NULL;
   } else {
     ptr = shmat(shmid, NULL, 0);
     if (ptr == (void *)-1) {
-      ib::warn() << "Failed to attach shared memory segment,"
-                    " errno "
-                 << errno;
+      ib::warn(ER_IB_MSG_853) << "Failed to attach shared memory segment,"
+                                 " errno "
+                              << errno;
       ptr = NULL;
     }
 
@@ -117,7 +118,7 @@ void *os_mem_alloc_large(ulint *n) {
     return (ptr);
   }
 
-  ib::warn() << "Using conventional memory pool";
+  ib::warn(ER_IB_MSG_854) << "Using conventional memory pool";
 skip:
 #endif /* HAVE_LINUX_LARGE_PAGES && UNIV_LINUX */
 
@@ -133,10 +134,10 @@ skip:
                             (ulint)system_info.dwPageSize);
   ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
   if (!ptr) {
-    ib::info() << "VirtualAlloc(" << size
-               << " bytes) failed;"
-                  " Windows error "
-               << GetLastError();
+    ib::info(ER_IB_MSG_855) << "VirtualAlloc(" << size
+                            << " bytes) failed;"
+                               " Windows error "
+                            << GetLastError();
   } else {
     os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
     UNIV_MEM_ALLOC(ptr, size);
@@ -149,10 +150,10 @@ skip:
   ptr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | OS_MAP_ANON, -1,
              0);
   if (UNIV_UNLIKELY(ptr == (void *)-1)) {
-    ib::error() << "mmap(" << size
-                << " bytes) failed;"
-                   " errno "
-                << errno;
+    ib::error(ER_IB_MSG_856) << "mmap(" << size
+                             << " bytes) failed;"
+                                " errno "
+                             << errno;
     ptr = NULL;
   } else {
     os_atomic_increment_ulint(&os_total_large_mem_allocated, size);
@@ -179,8 +180,8 @@ void os_mem_free_large(void *ptr, ulint size) {
   /* When RELEASE memory, the size parameter must be 0.
   Do not use MEM_RELEASE with MEM_DECOMMIT. */
   if (!VirtualFree(ptr, 0, MEM_RELEASE)) {
-    ib::error() << "VirtualFree(" << ptr << ", " << size
-                << ") failed; Windows error " << GetLastError();
+    ib::error(ER_IB_MSG_857) << "VirtualFree(" << ptr << ", " << size
+                             << ") failed; Windows error " << GetLastError();
   } else {
     os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
     UNIV_MEM_FREE(ptr, size);
@@ -193,10 +194,10 @@ void os_mem_free_large(void *ptr, ulint size) {
 #else
   if (munmap(ptr, size)) {
 #endif /* UNIV_SOLARIS */
-    ib::error() << "munmap(" << ptr << ", " << size
-                << ") failed;"
-                   " errno "
-                << errno;
+    ib::error(ER_IB_MSG_858) << "munmap(" << ptr << ", " << size
+                             << ") failed;"
+                                " errno "
+                             << errno;
   } else {
     os_atomic_decrement_ulint(&os_total_large_mem_allocated, size);
     UNIV_MEM_FREE(ptr, size);

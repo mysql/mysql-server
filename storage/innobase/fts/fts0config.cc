@@ -285,7 +285,8 @@ dberr_t fts_config_get_index_ulint(trx_t *trx,          /*!< in: transaction */
   error = fts_config_get_index_value(trx, index, name, &value);
 
   if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-    ib::error() << "(" << ut_strerr(error) << ") reading `" << name << "'";
+    ib::error(ER_IB_MSG_457)
+        << "(" << ut_strerr(error) << ") reading `" << name << "'";
   } else {
     *int_value = strtoul((char *)value.f_str, NULL, 10);
   }
@@ -319,7 +320,8 @@ dberr_t fts_config_set_index_ulint(trx_t *trx,          /*!< in: transaction */
   error = fts_config_set_index_value(trx, index, name, &value);
 
   if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-    ib::error() << "(" << ut_strerr(error) << ") writing `" << name << "'";
+    ib::error(ER_IB_MSG_458)
+        << "(" << ut_strerr(error) << ") writing `" << name << "'";
   }
 
   ut_free(value.f_str);
@@ -347,7 +349,8 @@ dberr_t fts_config_get_ulint(trx_t *trx,             /*!< in: transaction */
   error = fts_config_get_value(trx, fts_table, name, &value);
 
   if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-    ib::error() << "(" << ut_strerr(error) << ") reading `" << name << "'";
+    ib::error(ER_IB_MSG_459)
+        << "(" << ut_strerr(error) << ") reading `" << name << "'";
   } else {
     *int_value = strtoul((char *)value.f_str, NULL, 10);
   }
@@ -381,7 +384,8 @@ dberr_t fts_config_set_ulint(trx_t *trx,             /*!< in: transaction */
   error = fts_config_set_value(trx, fts_table, name, &value);
 
   if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
-    ib::error() << "(" << ut_strerr(error) << ") writing `" << name << "'";
+    ib::error(ER_IB_MSG_460)
+        << "(" << ut_strerr(error) << ") writing `" << name << "'";
   }
 
   ut_free(value.f_str);

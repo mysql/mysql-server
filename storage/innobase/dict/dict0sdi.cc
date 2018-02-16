@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -105,9 +105,10 @@ upgrading a tablespace with no SDI.
 @retval		false		success
 @retval		true		failure */
 bool dict_sdi_create(dd::Tablespace *tablespace) {
-  DBUG_EXECUTE_IF("ib_sdi", ib::info() << "SDI_CREATE: dict_sdi_create("
-                                       << tablespace->name() << ","
-                                       << tablespace->id() << ")";);
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_213)
+                                << "SDI_CREATE: dict_sdi_create("
+                                << tablespace->name() << "," << tablespace->id()
+                                << ")";);
 
   uint32 space_id;
   if (tablespace->se_private_data().get_uint32("id", &space_id)) {
@@ -216,7 +217,7 @@ bool dict_sdi_get(const dd::Tablespace &tablespace,
                   const dd::sdi_key_t *sdi_key, void *sdi, uint64 *sdi_len) {
 #if 0 /* TODO: Enable in WL#9761 */
 	DBUG_EXECUTE_IF("ib_sdi",
-		ib::info() << "dict_sdi_get(" << tablespace.name()
+		ib::info(ER_IB_MSG_214) << "dict_sdi_get(" << tablespace.name()
 			<< "," << tablespace.id()
 			<< " sdi_key: type: " << sdi_key->type
 			<< " id: " << sdi_key->id
@@ -297,10 +298,11 @@ bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
                   uint64 sdi_len) {
   const char *operation = "set";
 
-  DBUG_EXECUTE_IF("ib_sdi", ib::info() << "dict_sdi_set(" << tablespace.name()
-                                       << "," << tablespace.id()
-                                       << " sdi_key: type: " << sdi_key->type
-                                       << " id: " << sdi_key->id << ")";);
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_215)
+                                << "dict_sdi_set(" << tablespace.name() << ","
+                                << tablespace.id()
+                                << " sdi_key: type: " << sdi_key->type
+                                << " id: " << sdi_key->id << ")";);
 
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
@@ -322,11 +324,11 @@ bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
     added SE-specific data. Cannot, and should not, store sdi at
     this point. We should not throw error here. There will be SDI
     store again with valid se_private_id/data */
-    DBUG_EXECUTE_IF("ib_sdi", ib::info() << "dict_sdi_set(" << tablespace.name()
-                                         << "," << tablespace.id()
-                                         << " sdi_key: type: " << sdi_key->type
-                                         << " id: " << sdi_key->id
-                                         << "): invalid se_private_id";);
+    DBUG_EXECUTE_IF(
+        "ib_sdi", ib::info(ER_IB_MSG_216)
+                      << "dict_sdi_set(" << tablespace.name() << ","
+                      << tablespace.id() << " sdi_key: type: " << sdi_key->type
+                      << " id: " << sdi_key->id << "): invalid se_private_id";);
 
     return (false);
   }
@@ -373,12 +375,13 @@ bool dict_sdi_set(const dd::Tablespace &tablespace, const dd::Table *table,
 
   if (err == DB_INTERRUPTED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
-    DBUG_EXECUTE_IF(
-        "ib_sdi", ib::info() << "dict_sdi_set: " << tablespace.name() << ","
-                             << tablespace.id() << " InnoDB space_id: "
-                             << space_id << " sdi_key: type: " << sdi_key->type
-                             << " id: " << sdi_key->id << " trx_id: " << trx->id
-                             << " is interrupted";);
+    DBUG_EXECUTE_IF("ib_sdi",
+                    ib::info(ER_IB_MSG_217)
+                        << "dict_sdi_set: " << tablespace.name() << ","
+                        << tablespace.id() << " InnoDB space_id: " << space_id
+                        << " sdi_key: type: " << sdi_key->type
+                        << " id: " << sdi_key->id << " trx_id: " << trx->id
+                        << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
     ut_ad(0);
@@ -400,10 +403,11 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
                      const dd::sdi_key_t *sdi_key) {
   const char *operation = "delete";
 
-  DBUG_EXECUTE_IF(
-      "ib_sdi", ib::info() << "dict_sdi_delete(" << tablespace.name() << ","
-                           << tablespace.id() << " sdi_key: type: "
-                           << sdi_key->type << " id: " << sdi_key->id << ")";);
+  DBUG_EXECUTE_IF("ib_sdi", ib::info(ER_IB_MSG_218)
+                                << "dict_sdi_delete(" << tablespace.name()
+                                << "," << tablespace.id()
+                                << " sdi_key: type: " << sdi_key->type
+                                << " id: " << sdi_key->id << ")";);
 
   /* Used for testing purpose for DDLs from Memcached */
   DBUG_EXECUTE_IF("skip_sdi", return (false););
@@ -427,7 +431,7 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
     store again with valid se_private_id/data */
 
     DBUG_EXECUTE_IF(
-        "ib_sdi", ib::info()
+        "ib_sdi", ib::info(ER_IB_MSG_219)
                       << "dict_sdi_delete(" << tablespace.name() << ","
                       << tablespace.id() << " sdi_key: type: " << sdi_key->type
                       << " id: " << sdi_key->id << "): invalid se_private_id";);
@@ -467,12 +471,13 @@ bool dict_sdi_delete(const dd::Tablespace &tablespace, const dd::Table *table,
   if (err == DB_INTERRUPTED) {
     my_error(ER_QUERY_INTERRUPTED, MYF(0));
 
-    DBUG_EXECUTE_IF(
-        "ib_sdi", ib::info() << "dict_sdi_delete(" << tablespace.name() << ","
-                             << tablespace.id() << " InnoDB space_id: "
-                             << space_id << " sdi_key: type: " << sdi_key->type
-                             << " id: " << sdi_key->id << " trx_id: " << trx->id
-                             << " is interrupted";);
+    DBUG_EXECUTE_IF("ib_sdi",
+                    ib::info(ER_IB_MSG_220)
+                        << "dict_sdi_delete(" << tablespace.name() << ","
+                        << tablespace.id() << " InnoDB space_id: " << space_id
+                        << " sdi_key: type: " << sdi_key->type
+                        << " id: " << sdi_key->id << " trx_id: " << trx->id
+                        << " is interrupted";);
     return (true);
   } else if (err != DB_SUCCESS) {
     ut_ad(0);

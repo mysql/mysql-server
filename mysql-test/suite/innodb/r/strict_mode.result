@@ -2,7 +2,7 @@
 # Bug #17852083 PRINT A WARNING WHEN DDL HAS AN ERROR IN
 # INNODB_STRICT_MODE = 1
 #
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 set innodb_strict_mode = 0;
 create table t1 (id int auto_increment primary key,
 v varchar(32),

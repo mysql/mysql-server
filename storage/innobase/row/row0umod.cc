@@ -475,9 +475,9 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     if (dict_index_is_spatial(index)) {
       rec_t *rec = btr_pcur_get_rec(&pcur);
       if (rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
-        ib::error() << "Record found in index " << index->name
-                    << " is deleted marked"
-                       " on rollback update.";
+        ib::error(ER_IB_MSG_1038) << "Record found in index " << index->name
+                                  << " is deleted marked"
+                                     " on rollback update.";
       }
     }
 
@@ -645,20 +645,21 @@ try_again:
         finished building the index, but it does not
         yet exist in MySQL. In this case, we suppress
         the printout to the error log. */
-        ib::warn() << "Record in index " << index->name << " of table "
-                   << index->table->name
-                   << " was not found on rollback, trying to"
-                      " insert: "
-                   << *entry << " at: "
-                   << rec_index_print(btr_cur_get_rec(btr_cur), index);
+        ib::warn(ER_IB_MSG_1039)
+            << "Record in index " << index->name << " of table "
+            << index->table->name
+            << " was not found on rollback, trying to"
+               " insert: "
+            << *entry
+            << " at: " << rec_index_print(btr_cur_get_rec(btr_cur), index);
       }
 
       if (btr_cur->up_match >= dict_index_get_n_unique(index) ||
           btr_cur->low_match >= dict_index_get_n_unique(index)) {
         if (index->is_committed()) {
-          ib::warn() << "Record in index " << index->name
-                     << " was not found on rollback, and"
-                        " a duplicate exists";
+          ib::warn(ER_IB_MSG_1040) << "Record in index " << index->name
+                                   << " was not found on rollback, and"
+                                      " a duplicate exists";
         }
         err = DB_DUPLICATE_KEY;
         break;

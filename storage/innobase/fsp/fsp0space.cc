@@ -177,9 +177,9 @@ void Tablespace::delete_files() {
                                             it->m_filepath, &file_pre_exists);
 
     if (success && file_pre_exists) {
-      ib::info() << "Removed temporary tablespace data"
-                    " file: \""
-                 << it->m_name << "\"";
+      ib::info(ER_IB_MSG_430) << "Removed temporary tablespace data"
+                                 " file: \""
+                              << it->m_name << "\"";
     }
   }
 }

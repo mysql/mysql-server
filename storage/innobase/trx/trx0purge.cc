@@ -333,7 +333,7 @@ void trx_purge_add_update_undo_to_history(
     /* The undo log segment will not be reused */
 
     if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-      ib::fatal() << "undo->id is " << undo->id;
+      ib::fatal(ER_IB_MSG_1165) << "undo->id is " << undo->id;
     }
 
     trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);
@@ -819,8 +819,8 @@ bool is_active_truncate_log_present(space_id_t space_id) {
     os_file_close(handle);
 
     if (err != DB_SUCCESS) {
-      ib::info() << "Unable to read '" << log_file_name
-                 << "' : " << ut_strerr(err);
+      ib::info(ER_IB_MSG_1166)
+          << "Unable to read '" << log_file_name << "' : " << ut_strerr(err);
 
       os_file_delete(innodb_log_file_key, log_file_name);
 
@@ -938,8 +938,9 @@ static void trx_purge_mark_undo_for_truncate(undo::Truncate *undo_trunc) {
 
 #ifdef UNIV_DEBUG
   ut_ad(space_id == undo_trunc->get_marked_space_id());
-  ib::info() << "Undo tablespace number " << undo::id2num(space_id)
-             << " is marked for truncate";
+  ib::info(ER_IB_MSG_1167) << "Undo tablespace number "
+                           << undo::id2num(space_id)
+                           << " is marked for truncate";
 #endif /* UNIV_DEBUG */
 }
 
@@ -1073,7 +1074,7 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
   d. Execute actual truncate
   e. Remove the DDL log. */
   DBUG_EXECUTE_IF("ib_undo_trunc_before_checkpoint",
-                  ib::info() << "ib_undo_trunc_before_checkpoint";
+                  ib::info(ER_IB_MSG_1168) << "ib_undo_trunc_before_checkpoint";
                   DBUG_SUICIDE(););
 
   /* After truncate if server crashes then redo logging done for this
@@ -1081,23 +1082,24 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
   truncated. */
   log_make_latest_checkpoint();
 
-  ib::info() << "Truncating UNDO tablespace number "
-             << undo::id2num(undo_trunc->get_marked_space_id());
+  ib::info(ER_IB_MSG_1169) << "Truncating UNDO tablespace number "
+                           << undo::id2num(undo_trunc->get_marked_space_id());
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
-                  ib::info() << "ib_undo_trunc_before_ddl_log_start";
+                  ib::info(ER_IB_MSG_1170)
+                      << "ib_undo_trunc_before_ddl_log_start";
                   DBUG_SUICIDE(););
 
   dberr_t err = undo::start_logging(undo_trunc->get_marked_space_id());
   if (err != DB_SUCCESS) {
-    ib::error() << "Cannot create truncate log for undo"
-                   " tablespace ID="
-                << undo_trunc->get_marked_space_id();
+    ib::error(ER_IB_MSG_1171) << "Cannot create truncate log for undo"
+                                 " tablespace ID="
+                              << undo_trunc->get_marked_space_id();
   }
   ut_ad(err == DB_SUCCESS);
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
-                  ib::info() << "ib_undo_trunc_before_truncate";
+                  ib::info(ER_IB_MSG_1172) << "ib_undo_trunc_before_truncate";
                   DBUG_SUICIDE(););
 
   trx_purge_cleanse_purge_queue(undo_trunc);
@@ -1107,8 +1109,9 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
     /* Note: In case of error we don't enable the rsegs
     and neither unmark the tablespace so the tablespace
     continue to remain inactive. */
-    ib::error() << "Failed to truncate undo tablespace number"
-                << undo::id2num(undo_trunc->get_marked_space_id());
+    ib::error(ER_IB_MSG_1173)
+        << "Failed to truncate undo tablespace number"
+        << undo::id2num(undo_trunc->get_marked_space_id());
     return;
   }
 
@@ -1125,7 +1128,8 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
   }
 
   DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",
-                  ib::info() << "ib_undo_trunc_before_ddl_log_end";
+                  ib::info(ER_IB_MSG_1174)
+                      << "ib_undo_trunc_before_ddl_log_end";
                   DBUG_SUICIDE(););
 
   log_make_latest_checkpoint();
@@ -1144,10 +1148,10 @@ static void trx_purge_initiate_truncate(purge_iter_t *limit,
 
   marked_rsegs->x_unlock();
 
-  ib::info() << "Completed truncate of undo tablespace number "
-             << undo::id2num(marked_space_id);
+  ib::info(ER_IB_MSG_1175) << "Completed truncate of undo tablespace number "
+                           << undo::id2num(marked_space_id);
 
-  DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info()
+  DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done", ib::info(ER_IB_MSG_1176)
                                                   << "ib_undo_trunc_trunc_done";
                   DBUG_SUICIDE(););
 }
@@ -1299,18 +1303,18 @@ static void trx_purge_rseg_get_next_history_log(
     list cannot be longer than 2000 000 undo logs now. */
 
     if (trx_sys->rseg_history_len > 2000000) {
-      ib::warn() << "Purge reached the head of the history"
-                    " list, but its length is still reported as "
-                 << trx_sys->rseg_history_len
-                 << " which is"
-                    " unusually high.";
-      ib::info() << "This can happen for multiple reasons";
-      ib::info() << "1. A long running transaction is"
-                    " withholding purging of undo logs or a read"
-                    " view is open. Please try to commit the long"
-                    " running transaction.";
-      ib::info() << "2. Try increasing the number of purge"
-                    " threads to expedite purging of undo logs.";
+      ib::warn(ER_IB_MSG_1177) << "Purge reached the head of the history"
+                                  " list, but its length is still reported as "
+                               << trx_sys->rseg_history_len
+                               << " which is"
+                                  " unusually high.";
+      ib::info(ER_IB_MSG_1178) << "This can happen for multiple reasons";
+      ib::info(ER_IB_MSG_1179) << "1. A long running transaction is"
+                                  " withholding purging of undo logs or a read"
+                                  " view is open. Please try to commit the long"
+                                  " running transaction.";
+      ib::info(ER_IB_MSG_1180) << "2. Try increasing the number of purge"
+                                  " threads to expedite purging of undo logs.";
     }
 
     trx_sys_mutex_exit();
@@ -1932,7 +1936,7 @@ void trx_purge_stop(void) {
   state = purge_sys->state;
 
   if (state == PURGE_STATE_RUN) {
-    ib::info() << "Stopping purge";
+    ib::info(ER_IB_MSG_1181) << "Stopping purge";
 
     /* We need to wakeup the purge thread in case it is suspended,
     so that it can acknowledge the state change. */
@@ -1956,7 +1960,7 @@ void trx_purge_stop(void) {
     /* Wait for purge to signal that it has actually stopped. */
     while (purge_sys->running) {
       if (once) {
-        ib::info() << "Waiting for purge to stop";
+        ib::info(ER_IB_MSG_1182) << "Waiting for purge to stop";
         once = false;
       }
 
@@ -1994,7 +1998,7 @@ void trx_purge_run(void) {
     --purge_sys->n_stop;
 
     if (purge_sys->n_stop == 0) {
-      ib::info() << "Resuming purge";
+      ib::info(ER_IB_MSG_1183) << "Resuming purge";
 
       purge_sys->state = PURGE_STATE_RUN;
     }

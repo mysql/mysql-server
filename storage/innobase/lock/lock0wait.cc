@@ -162,11 +162,12 @@ static srv_slot_t *lock_wait_table_reserve_slot(
     }
   }
 
-  ib::error() << "There appear to be " << srv_max_n_threads
-              << " user"
-                 " threads currently waiting inside InnoDB, which is the upper"
-                 " limit. Cannot continue operation. Before aborting, we print"
-                 " a list of waiting threads.";
+  ib::error(ER_IB_MSG_646)
+      << "There appear to be " << srv_max_n_threads
+      << " user"
+         " threads currently waiting inside InnoDB, which is the upper"
+         " limit. Cannot continue operation. Before aborting, we print"
+         " a list of waiting threads.";
   lock_wait_table_print();
 
   ut_error;

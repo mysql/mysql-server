@@ -1186,7 +1186,7 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
   n_fields = rec_get_n_fields_old(rec);
 
   if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-    ib::error() << "Record has " << n_fields << " fields";
+    ib::error(ER_IB_MSG_922) << "Record has " << n_fields << " fields";
     return (FALSE);
   }
 
@@ -1194,7 +1194,7 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
     rec_get_nth_field_offs_old(rec, i, &len);
 
     if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-      ib::error() << "Record field " << i << " len " << len;
+      ib::error(ER_IB_MSG_923) << "Record field " << i << " len " << len;
       return (FALSE);
     }
 
@@ -1206,8 +1206,8 @@ static ibool rec_validate_old(const rec_t *rec) /*!< in: physical record */
   }
 
   if (len_sum != rec_get_data_size_old(rec)) {
-    ib::error() << "Record len should be " << len_sum << ", len "
-                << rec_get_data_size_old(rec);
+    ib::error(ER_IB_MSG_924) << "Record len should be " << len_sum << ", len "
+                             << rec_get_data_size_old(rec);
     return (FALSE);
   }
 
@@ -1229,7 +1229,7 @@ ibool rec_validate(
   n_fields = rec_offs_n_fields(offsets);
 
   if ((n_fields == 0) || (n_fields > REC_MAX_N_FIELDS)) {
-    ib::error() << "Record has " << n_fields << " fields";
+    ib::error(ER_IB_MSG_925) << "Record has " << n_fields << " fields";
     return (FALSE);
   }
 
@@ -1239,7 +1239,7 @@ ibool rec_validate(
     rec_get_nth_field_offs(offsets, i, &len);
 
     if (!((len < UNIV_PAGE_SIZE) || (len == UNIV_SQL_NULL))) {
-      ib::error() << "Record field " << i << " len " << len;
+      ib::error(ER_IB_MSG_926) << "Record field " << i << " len " << len;
       return (FALSE);
     }
 
@@ -1251,8 +1251,8 @@ ibool rec_validate(
   }
 
   if (len_sum != rec_offs_data_size(offsets)) {
-    ib::error() << "Record len should be " << len_sum << ", len "
-                << rec_offs_data_size(offsets);
+    ib::error(ER_IB_MSG_927) << "Record len should be " << len_sum << ", len "
+                             << rec_offs_data_size(offsets);
     return (FALSE);
   }
 

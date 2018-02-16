@@ -8,9 +8,6 @@ let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslo
 let BOOTSTRAP_SQL=$MYSQL_TMP_DIR/tiny_bootstrap.sql;
 let PASSWD_FILE=$MYSQL_TMP_DIR/password_file.txt;
 
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
-
 --echo # Save the count of columns in mysql
 --let $mysql_cnt=`SELECT COUNT(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='mysql'`
 

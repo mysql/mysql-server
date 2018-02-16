@@ -95,8 +95,9 @@ dberr_t Page_Arch_Client_Ctx::start() {
 
   m_state = ARCH_CLIENT_STATE_STARTED;
 
-  ib::info() << "Clone Start PAGE ARCH : start LSN : " << m_start_lsn
-             << ", checkpoint LSN : " << log_sys->last_checkpoint_lsn;
+  ib::info(ER_IB_MSG_20) << "Clone Start PAGE ARCH : start LSN : "
+                         << m_start_lsn << ", checkpoint LSN : "
+                         << log_sys->last_checkpoint_lsn;
 
   return (DB_SUCCESS);
 }
@@ -113,8 +114,9 @@ dberr_t Page_Arch_Client_Ctx::stop() {
 
   m_state = ARCH_CLIENT_STATE_STOPPED;
 
-  ib::info() << "Clone Stop  PAGE ARCH : end   LSN : " << m_stop_lsn
-             << ", checkpoint LSN : " << log_sys->last_checkpoint_lsn;
+  ib::info(ER_IB_MSG_21) << "Clone Stop  PAGE ARCH : end   LSN : " << m_stop_lsn
+                         << ", checkpoint LSN : "
+                         << log_sys->last_checkpoint_lsn;
 
   return (DB_SUCCESS);
 }
@@ -297,8 +299,8 @@ bool Arch_Block::wait_flush() {
     ++count;
 
     if (count % 50 == 0) {
-      ib::warn() << "Page Tracking Write: Waiting"
-                    " for archiver to flush blocks.";
+      ib::warn(ER_IB_MSG_22) << "Page Tracking Write: Waiting"
+                                " for archiver to flush blocks.";
 
       if (count > 600) {
         /* Wait too long - 1 minutes */
@@ -546,9 +548,9 @@ void Arch_Page_Sys::track_page(buf_page_t *bpage, lsn_t track_lsn,
 
       ut_ad(false);
 
-      ib::warn() << "Fail to add page for tracking."
-                 << " Space ID: " << bpage->id.space()
-                 << " Page NO: " << bpage->id.page_no();
+      ib::warn(ER_IB_MSG_23) << "Fail to add page for tracking."
+                             << " Space ID: " << bpage->id.space()
+                             << " Page NO: " << bpage->id.page_no();
       return;
     }
 
@@ -642,12 +644,12 @@ bool Arch_Page_Sys::wait_idle() {
     ++count;
 
     if (count % 50 == 0) {
-      ib::info() << "Page Tracking IDLE: Waiting for"
-                    " archiver to flush last blocks.";
+      ib::info(ER_IB_MSG_24) << "Page Tracking IDLE: Waiting for"
+                                " archiver to flush last blocks.";
 
       if (count > 600) {
         /* Wait too long - 1 minute */
-        ib::error() << "Page Tracking wait too long";
+        ib::error(ER_IB_MSG_25) << "Page Tracking wait too long";
         return (false);
       }
     }
@@ -868,8 +870,8 @@ dberr_t Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
     arch_oper_mutex_exit();
     arch_mutex_exit();
 
-    ib::error() << "Could not start"
-                << " Archiver background task";
+    ib::error(ER_IB_MSG_26) << "Could not start"
+                            << " Archiver background task";
     return (DB_ERROR);
   }
 

@@ -540,15 +540,16 @@ bool log_sys_init(uint32_t n_files, uint64_t file_size, space_id_t space_id) {
   log_calc_buf_size(log);
 
   if (!log_calc_max_ages(log)) {
-    ib::error() << "Cannot continue operation. ib_logfiles are too"
-                << " small for innodb_thread_concurrency "
-                << srv_thread_concurrency << ". The combined size of"
-                << " ib_logfiles should be bigger than"
-                << " 200 kB * innodb_thread_concurrency. To get mysqld"
-                << " to start up, set innodb_thread_concurrency in"
-                << " my.cnf to a lower value, for example, to 8. After"
-                << " an ERROR-FREE shutdown of mysqld you can adjust"
-                << " the size of ib_logfiles. " << INNODB_PARAMETERS_MSG;
+    ib::error(ER_IB_MSG_1267)
+        << "Cannot continue operation. ib_logfiles are too"
+        << " small for innodb_thread_concurrency " << srv_thread_concurrency
+        << ". The combined size of"
+        << " ib_logfiles should be bigger than"
+        << " 200 kB * innodb_thread_concurrency. To get mysqld"
+        << " to start up, set innodb_thread_concurrency in"
+        << " my.cnf to a lower value, for example, to 8. After"
+        << " an ERROR-FREE shutdown of mysqld you can adjust"
+        << " the size of ib_logfiles. " << INNODB_PARAMETERS_MSG;
 
     return (false);
   }
@@ -701,7 +702,7 @@ void log_background_threads_inactive_validate(const log_t &log) {
 }
 
 void log_start_background_threads(log_t &log) {
-  ib::info() << "Log background threads are being started...";
+  ib::info(ER_IB_MSG_1258) << "Log background threads are being started...";
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
 
@@ -749,7 +750,7 @@ void log_stop_background_threads(log_t &log) {
             have been stopped - log_checkpointer is not stopped. */
   ut_ad(!log.sn_lock.x_own());
 
-  ib::info() << "Log background threads are being closed...";
+  ib::info(ER_IB_MSG_1259) << "Log background threads are being closed...";
 
   std::atomic_thread_fence(std::memory_order_seq_cst);
 
@@ -904,7 +905,8 @@ bool log_buffer_resize_low(log_t &log, size_t new_size, lsn_t end_lsn) {
 
   ut_a(srv_log_buffer_size == log.buf_size);
 
-  ib::info() << "srv_log_buffer_size was extended to " << log.buf_size << ".";
+  ib::info(ER_IB_MSG_1260) << "srv_log_buffer_size was extended to "
+                           << log.buf_size << ".";
 
   return (true);
 }
@@ -1054,7 +1056,6 @@ static void log_deallocate_write_events(log_t &log) {
 static void log_allocate_recent_written(log_t &log) {
   log.recent_written = Link_buf<lsn_t>{srv_log_recent_written_size};
 }
-
 static void log_deallocate_recent_written(log_t &log) {
   log.recent_written.validate_no_links();
   log.recent_written = {};

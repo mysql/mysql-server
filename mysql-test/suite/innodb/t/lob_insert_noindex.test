@@ -1,7 +1,7 @@
 --source include/have_debug.inc
 
 --echo #
---echo # WL#8960 InnoDB: Partial Fetch and Update of BLOB
+--echo # WL#8960  Partial Fetch and Update of BLOB
 --echo #
 
 CREATE TABLE t1 (f1 int, f2 longblob ) engine=innodb;

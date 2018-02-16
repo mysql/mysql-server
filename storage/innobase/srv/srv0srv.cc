@@ -1133,8 +1133,8 @@ void srv_free(void) {
 
 /** Initializes the synchronization primitives, memory system, and the thread
  local storage. */
-static void srv_general_init(void) {
-  sync_check_init();
+static void srv_general_init() {
+  sync_check_init(srv_max_n_threads);
   /* Reset the system variables in the recovery module. */
   recv_sys_var_init();
   os_thread_open();
@@ -1651,10 +1651,7 @@ loop:
   new_lsn = log_get_lsn(*log_sys);
 
   if (new_lsn < old_lsn) {
-    ib::error() << "Old log sequence number " << old_lsn << " was"
-                << " greater than the new log sequence number " << new_lsn
-                << ". Please submit a bug report to"
-                   " http://bugs.mysql.com";
+    ib::error(ER_IB_MSG_1046, old_lsn, new_lsn);
     ut_ad(0);
   }
 
@@ -1681,10 +1678,7 @@ loop:
       os_thread_eq(waiter, old_waiter)) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
-      ib::fatal() << "Semaphore wait has lasted > "
-                  << srv_fatal_semaphore_wait_threshold
-                  << " seconds. We intentionally crash the"
-                     " server because it appears to be hung.";
+      ib::fatal(ER_IB_MSG_1047, srv_fatal_semaphore_wait_threshold);
     }
   } else {
     fatal_cnt = 0;
@@ -1888,17 +1882,13 @@ static void srv_shutdown_print_master_pending(
     *last_print_time = ut_time();
 
     if (n_tables_to_drop) {
-      ib::info() << "Waiting for " << n_tables_to_drop
-                 << " table(s) to be dropped";
+      ib::info(ER_IB_MSG_1048, n_tables_to_drop);
     }
 
     /* Check change buffer merge, we only wait for change buffer
     merge if it is a slow shutdown */
     if (!srv_fast_shutdown && n_bytes_merged) {
-      ib::info() << "Waiting for change buffer merge to"
-                    " complete number of bytes of change buffer"
-                    " just merged: "
-                 << n_bytes_merged;
+      ib::info(ER_IB_MSG_1049, n_bytes_merged);
     }
   }
 }
@@ -2327,12 +2317,13 @@ It will try to enable the undo log encryption and write the metadata to
 undo log file header, if innodb_undo_log_encrypt is ON. */
 static void srv_enable_undo_encryption_if_set() {
   fil_space_t *space;
-  const char *cant_set_undo_tablespace = "Can't set undo tablespace";
-  const char *to_be_encrypted = " to be encrypted";
 
   if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
     return;
   }
+
+  //"Can't set undo tablespace(s) to be encrypted since
+  //--innodb_undo_tablespaces=0."
 
   /* Check if encryption for undo log is enabled or not. If it's
   enabled, we will store the encryption metadata to the space header
@@ -2340,15 +2331,13 @@ static void srv_enable_undo_encryption_if_set() {
   if (srv_undo_log_encrypt) {
     if (undo::spaces->empty()) {
       srv_undo_log_encrypt = false;
-      ib::error() << cant_set_undo_tablespace << "s" << to_be_encrypted
-                  << ", since innodb_undo_tablespaces=0.";
+      ib::error(ER_IB_MSG_1050);
       return;
     }
 
     if (srv_read_only_mode) {
       srv_undo_log_encrypt = false;
-      ib::error() << cant_set_undo_tablespace << "s" << to_be_encrypted
-                  << " in read-only mode.";
+      ib::error(ER_IB_MSG_1051);
       return;
     }
 
@@ -2392,8 +2381,9 @@ static void srv_enable_undo_encryption_if_set() {
 
       if (!Encryption::fill_encryption_info(key, iv, encrypt_info, false)) {
         srv_undo_log_encrypt = false;
-        ib::error() << cant_set_undo_tablespace << " number "
-                    << undo_space->num() << to_be_encrypted << ".";
+
+        ib::error(ER_IB_MSG_1052, undo_space->num());
+
         mtr_commit(&mtr);
         undo::spaces->s_unlock();
         return;
@@ -2401,10 +2391,9 @@ static void srv_enable_undo_encryption_if_set() {
         if (!fsp_header_write_encryption(space->id, new_flags, encrypt_info,
                                          true, &mtr)) {
           srv_undo_log_encrypt = false;
-          ib::error() << cant_set_undo_tablespace << " number "
-                      << undo_space->num() << to_be_encrypted
-                      << ". Failed to write header"
-                      << " page.";
+
+          ib::error(ER_IB_MSG_1053);
+
           mtr_commit(&mtr);
           undo::spaces->s_unlock();
           return;
@@ -2413,20 +2402,20 @@ static void srv_enable_undo_encryption_if_set() {
         err = fil_set_encryption(space->id, Encryption::AES, key, iv);
         if (err != DB_SUCCESS) {
           srv_undo_log_encrypt = false;
-          ib::error() << cant_set_undo_tablespace << " number "
-                      << undo_space->num() << to_be_encrypted
-                      << ". Error=" << err << ".";
+
+          ib::error(ER_IB_MSG_1054, err, ut_strerr(err));
+
           mtr_commit(&mtr);
           undo::spaces->s_unlock();
           return;
         } else {
-          ib::info() << "Encryption is enabled"
-                        " for undo tablespace number "
-                     << undo::id2num(undo_space->id()) << ".";
+          auto id = undo::id2num(undo_space->id());
+
+          ib::info(ER_IB_MSG_1055, id);
 #ifdef UNIV_ENCRYPT_DEBUG
           ut_print_buf(stderr, key, 32);
           ut_print_buf(stderr, iv, 32);
-#endif
+#endif /* UNIV_ENCRYPT_DEBUG */
         }
       }
       mtr_commit(&mtr);
@@ -2471,13 +2460,9 @@ static void srv_enable_undo_encryption_if_set() {
     memset(encrypt_info, 0, ENCRYPTION_INFO_SIZE);
 
     if (!fsp_header_rotate_encryption(space, encrypt_info, &mtr)) {
-      ib::error() << "Can't rotate encryption on undo"
-                     " tablespace number "
-                  << undo::id2num(space->id) << ".";
+      ib::error(ER_IB_MSG_1056, undo::id2num(space->id));
     } else {
-      ib::info() << "Encryption is enabled"
-                    " for undo tablespace number "
-                 << undo::id2num(space->id) << ".";
+      ib::info(ER_IB_MSG_1057, undo::id2num(space->id));
     }
     mtr_commit(&mtr);
   }
@@ -3047,4 +3032,9 @@ bool srv_purge_threads_active() {
 
   return (false);
 }
+
 #endif /* !UNIV_HOTBACKUP */
+
+const char *srv_get_server_errmsgs(int errcode) {
+  return (error_message_for_error_log(errcode));
+}

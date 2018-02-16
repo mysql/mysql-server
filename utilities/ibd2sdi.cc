@@ -60,22 +60,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "my_io.h"
 #include "my_macros.h"
 #include "print_version.h"
-#include "storage/innobase/include/btr0cur.h"
-#include "storage/innobase/include/dict0sdi-decompress.h"
-#include "storage/innobase/include/fil0fil.h"
-#include "storage/innobase/include/fsp0fsp.h"
-#include "storage/innobase/include/lob0lob.h"
-#include "storage/innobase/include/mach0data.h"
-#include "storage/innobase/include/page0page.h"
-#include "storage/innobase/include/page0size.h"
-#include "storage/innobase/include/page0types.h"
-#include "storage/innobase/include/univ.i"
-#include "storage/innobase/include/ut0byte.h"
-#include "storage/innobase/include/ut0crc32.h"
 #include "typelib.h"
 #include "welcome_copyright_notice.h"
 
-typedef enum { SUCCESS = 0, FALIURE = 1, NO_RECORDS = 2 } err_t;
+#include "btr0cur.h"
+#include "dict0sdi-decompress.h"
+#include "fil0fil.h"
+#include "fsp0fsp.h"
+#include "lob0lob.h"
+#include "mach0data.h"
+#include "page0page.h"
+#include "page0size.h"
+#include "page0types.h"
+#include "univ.i"
+#include "ut0byte.h"
+#include "ut0crc32.h"
+
+typedef enum { SUCCESS, FALIURE, NO_RECORDS } err_t;
 
 /** Length of ID field in record of SDI Index. */
 static const uint32_t REC_DATA_ID_LEN = 8;
@@ -368,6 +369,9 @@ static bool get_options(int *argc, char ***argv) {
 
 /** Error logging classes. */
 namespace ib {
+
+logger::~logger() {}
+
 info::~info() {
   std::cerr << "[INFO] ibd2sdi: " << m_oss.str() << "." << std::endl;
 }

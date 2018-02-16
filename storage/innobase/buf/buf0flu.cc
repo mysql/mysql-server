@@ -595,8 +595,8 @@ ibool buf_flush_ready_for_replace(buf_page_t *bpage) {
             buf_page_get_io_fix(bpage) == BUF_IO_NONE);
   }
 
-  ib::fatal() << "Buffer block " << bpage << " state " << bpage->state
-              << " in the LRU list!";
+  ib::fatal(ER_IB_MSG_123) << "Buffer block " << bpage << " state "
+                           << bpage->state << " in the LRU list!";
 
   return (FALSE);
 }
@@ -874,8 +874,8 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
         return;
     }
 
-    ib::error() << "The compressed page to be written"
-                   " seems corrupt:";
+    ib::error(ER_IB_MSG_124) << "The compressed page to be written"
+                                " seems corrupt:";
     ut_print_buf(stderr, page, size);
     fputs("\nInnoDB: Possibly older version of the page:", stderr);
     ut_print_buf(stderr, page_zip->data, size);
@@ -946,8 +946,9 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
       }
 
       if (UNIV_UNLIKELY(page_type != reset_type)) {
-        ib::info() << "Resetting invalid page " << block->page.id << " type "
-                   << page_type << " to " << reset_type << " when flushing.";
+        ib::info(ER_IB_MSG_125)
+            << "Resetting invalid page " << block->page.id << " type "
+            << page_type << " to " << reset_type << " when flushing.";
         fil_page_set_type(page, reset_type);
       }
     }
@@ -2891,12 +2892,12 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   /* linux might be able to set different setting for each thread.
   worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
-    ib::info() << "page_cleaner coordinator priority: "
-               << buf_flush_page_cleaner_priority;
+    ib::info(ER_IB_MSG_126) << "page_cleaner coordinator priority: "
+                            << buf_flush_page_cleaner_priority;
   } else {
-    ib::info() << "If the mysqld execution user is authorized,"
-                  " page cleaner thread priority can be changed."
-                  " See the man page of setpriority().";
+    ib::info(ER_IB_MSG_127) << "If the mysqld execution user is authorized,"
+                               " page cleaner thread priority can be changed."
+                               " See the man page of setpriority().";
   }
 #endif /* UNIV_LINUX */
 
@@ -2984,9 +2985,9 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
           us = 1000 + curr_time - next_loop_time;
 
-          ib::info() << "Page cleaner took " << us << "ms to flush "
-                     << n_flushed_last << " and evict " << n_evicted
-                     << " pages";
+          ib::info(ER_IB_MSG_128)
+              << "Page cleaner took " << us << "ms to flush " << n_flushed_last
+              << " and evict " << n_evicted << " pages";
 
           if (warn_interval > 300) {
             warn_interval = 600;
@@ -3233,8 +3234,8 @@ static void buf_flush_page_cleaner_thread() {
   /* linux might be able to set different setting for each thread
   worth to try to set high priority for page cleaner threads */
   if (buf_flush_page_cleaner_set_priority(buf_flush_page_cleaner_priority)) {
-    ib::info() << "page_cleaner worker priority: "
-               << buf_flush_page_cleaner_priority;
+    ib::info(ER_IB_MSG_129)
+        << "page_cleaner worker priority: " << buf_flush_page_cleaner_priority;
   }
 #endif /* UNIV_LINUX */
 
@@ -3452,7 +3453,7 @@ FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
   }
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info() << "FlushObserver constructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_130) << "FlushObserver constructor: " << m_trx->id;
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
@@ -3464,7 +3465,7 @@ FlushObserver::~FlushObserver() {
   UT_DELETE(m_removed);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info() << "FlushObserver deconstructor: " << m_trx->id;
+  ib::info(ER_IB_MSG_131) << "FlushObserver deconstructor: " << m_trx->id;
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 

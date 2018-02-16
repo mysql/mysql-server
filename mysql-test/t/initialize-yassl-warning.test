@@ -12,9 +12,6 @@ let DDIR=$MYSQL_TMP_DIR/installdb_test;
 let MYSQLD_LOG=$MYSQL_TMP_DIR/server.log;
 let extra_args=--no-defaults --innodb_dedicated_server=OFF --console --log-syslog=0 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
 
---echo # We don't care about innodb warnings at this point
-CALL mtr.add_suppression("InnoDB:");
-
 --echo # shut server down
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server

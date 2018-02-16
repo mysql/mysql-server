@@ -34,7 +34,7 @@ t1	CREATE TABLE `t1` (
 (PARTITION p10 VALUES LESS THAN (734708) ENGINE = InnoDB,
  PARTITION p20 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
 DROP TABLE t1;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table `test`.`t1` .* Partition.* InnoDB internal");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table `test`.`t1` .* Partition.* InnoDB internal");
 #
 # Bug#55091: Server crashes on ADD PARTITION after a failed attempt
 #

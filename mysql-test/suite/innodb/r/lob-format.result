@@ -1,5 +1,5 @@
 #
-# WL#9263 InnoDB: Independent compress/decompress of BLOB pages
+# WL#9263  Independent compress/decompress of BLOB pages
 #
 set global innodb_compression_level = 0;
 create table t1 (f1 int primary key, f2 longblob)

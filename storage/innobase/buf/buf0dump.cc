@@ -117,11 +117,11 @@ static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_dump_status(
 
   switch (severity) {
     case STATUS_INFO:
-      ib::info() << export_vars.innodb_buffer_pool_dump_status;
+      ib::info(ER_IB_MSG_119) << export_vars.innodb_buffer_pool_dump_status;
       break;
 
     case STATUS_ERR:
-      ib::error() << export_vars.innodb_buffer_pool_dump_status;
+      ib::error(ER_IB_MSG_120) << export_vars.innodb_buffer_pool_dump_status;
       break;
 
     case STATUS_VERBOSE:
@@ -153,11 +153,11 @@ static MY_ATTRIBUTE((format(printf, 2, 3))) void buf_load_status(
 
   switch (severity) {
     case STATUS_INFO:
-      ib::info() << export_vars.innodb_buffer_pool_load_status;
+      ib::info(ER_IB_MSG_121) << export_vars.innodb_buffer_pool_load_status;
       break;
 
     case STATUS_ERR:
-      ib::error() << export_vars.innodb_buffer_pool_load_status;
+      ib::error(ER_IB_MSG_122) << export_vars.innodb_buffer_pool_load_status;
       break;
 
     case STATUS_VERBOSE:

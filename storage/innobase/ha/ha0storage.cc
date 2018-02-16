@@ -153,13 +153,13 @@ void test_ha_storage() {
     p = ha_storage_put(storage, buf, sizeof(buf));
 
     if (p != stored[i]) {
-      ib::warn() << "ha_storage_put() returned " << p << " instead of "
-                 << stored[i] << ", i=" << i;
+      ib::warn(ER_IB_MSG_523) << "ha_storage_put() returned " << p
+                              << " instead of " << stored[i] << ", i=" << i;
       return;
     }
   }
 
-  ib::info() << "all ok";
+  ib::info(ER_IB_MSG_524) << "all ok";
 
   ha_storage_free(storage);
 }
