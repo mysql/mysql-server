@@ -1094,6 +1094,9 @@ ERROR 42000: Too-big precision 66 specified for 'CONVERT('',DECIMAL(65,0))'. Max
 #
 SELECT 1<
 !(1 XOR TO_BASE64()));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 2
+SELECT 1<
+!(1 XOR TO_BASE64());
 ERROR 42000: Incorrect parameter count in the call to native function 'TO_BASE64'
 SELECT  !('' XOR LENGTH());
 ERROR 42000: Incorrect parameter count in the call to native function 'LENGTH'

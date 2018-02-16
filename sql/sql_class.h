@@ -3993,6 +3993,8 @@ class THD : public MDL_context_owner,
     Returns the current waiting_for_disk_space flag value.
   */
   bool is_waiting_for_disk_space() const { return waiting_for_disk_space; }
+
+  bool sql_parser();
 };
 
 inline void THD::vsyntax_error_at(const YYLTYPE &location, const char *format,
