@@ -26,7 +26,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.15"
+VERSION="autotest-run.sh version 1.16"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -364,20 +364,35 @@ if [ ${verbose} -gt 0 ] ; then
 fi
 
 # Setup configuration
-$atrt ${atrt_defaults_group_suffix_arg} Cdq ${site_arg} ${clusters_arg} ${verbose_arg} $prefix my.cnf
+$atrt ${atrt_defaults_group_suffix_arg} Cdq \
+   ${site_arg} \
+   ${clusters_arg} \
+   ${verbose_arg} \
+   $prefix \
+   my.cnf \
+   | tee log.txt
 
-# Start...
-args="${atrt_defaults_group_suffix_arg}"
-args="$args --report-file=report.txt"
-args="$args --log-file=log.txt"
-args="$args --testcase-file=$test_dir/$RUN-tests.txt"
-args="$args ${baseport_arg}"
-args="$args ${site_arg} ${clusters_arg}"
-args="$args $prefix"
-args="$args ${verbose_arg}"
-$atrt $args my.cnf || echo "ERROR: $?: $atrt $args my.cnf"
+atrt_conf_status=${PIPESTATUS[0]}
+if [ ${atrt_conf_status} -ne 0 ]; then
+    echo "Setup configuration failure"
+else
+    args="${atrt_defaults_group_suffix_arg}"
+    args="$args --report-file=report.txt"
+    args="$args --testcase-file=$test_dir/$RUN-tests.txt"
+    args="$args ${baseport_arg}"
+    args="$args ${site_arg} ${clusters_arg}"
+    args="$args $prefix"
+    args="$args ${verbose_arg}"
+    $atrt $args my.cnf | tee -a log.txt
+
+    atrt_test_status=${PIPESTATUS[0]}
+    if [ $atrt_test_status -ne 0 ]; then
+        echo "ERROR: $atrt_test_status: $atrt $args my.cnf"
+    fi
+fi
 
 # Make tar-ball
+[ -f my.cnf ] && mv my.cnf $res_dir
 [ -f log.txt ] && mv log.txt $res_dir
 [ -f report.txt ] && mv report.txt $res_dir
 [ "`find . -name 'result*'`" ] && mv result* $res_dir

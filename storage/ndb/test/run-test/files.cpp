@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,6 +262,7 @@ setup_files(atrt_config& config, int setup, int sshx)
                              proc.m_proc.m_cwd.c_str(),
                              tmp.c_str());
             }
+            return false;
           }
           else
           {
