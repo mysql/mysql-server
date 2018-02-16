@@ -43,7 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include <unistd.h>
 #endif /* UNIV_LINUX */
 
-#include "ut0ut.h" /* ib::info() */
+#include "ut0ut.h"
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innodb_init_params() sets the value. */
@@ -84,11 +84,21 @@ bool os_thread_set_priority(int priority) {
 void os_thread_set_priority(int priority, const char *thread_name) {
 #ifdef UNIV_LINUX
   if (os_thread_set_priority(priority)) {
-    ib::info() << thread_name << " priority: " << priority;
+#ifdef UNIV_NO_ERR_MSGS
+    ib::info()
+#else
+    ib::error(ER_IB_MSG_1262)
+#endif /* UNIV_NO_ERR_MSGS */
+        << thread_name << " priority: " << priority;
   } else {
-    ib::info() << "If the mysqld execution user is authorized," << thread_name
-               << " thread priority can be changed."
-               << " See the man page of setpriority().";
+#ifdef UNIV_NO_ERR_MSGS
+    ib::error()
+#else
+    ib::info(ER_IB_MSG_1268)
+#endif /* UNIV_NO_ERR_MSGS */
+        << "If the mysqld execution user is authorized," << thread_name
+        << " thread priority can be changed."
+        << " See the man page of setpriority().";
   }
 #endif /* UNIV_LINUX */
 }

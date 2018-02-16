@@ -948,8 +948,8 @@ space_id_t fsp_header_get_space_id(
   DBUG_EXECUTE_IF("fsp_header_get_space_id_failure", id = SPACE_UNKNOWN;);
 
   if (id != fsp_id) {
-    ib::error() << "Space ID in fsp header is " << fsp_id
-                << ", but in the page header it is " << id << ".";
+    ib::error(ER_IB_MSG_414) << "Space ID in fsp header is " << fsp_id
+                             << ", but in the page header it is " << id << ".";
     return (SPACE_UNKNOWN);
   }
 
@@ -1093,8 +1093,8 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
     to reset the flag to false as dealing with this
     error requires server restart. */
     if (!srv_sys_space.get_tablespace_full_status()) {
-      ib::error() << "Tablespace " << srv_sys_space.name() << " "
-                  << OUT_OF_SPACE_MSG << " innodb_data_file_path.";
+      ib::error(ER_IB_MSG_415) << "Tablespace " << srv_sys_space.name() << " "
+                               << OUT_OF_SPACE_MSG << " innodb_data_file_path.";
       srv_sys_space.set_tablespace_full_status(true);
     }
     DBUG_RETURN(false);
@@ -1105,8 +1105,9 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
     to reset the flag to false as dealing with this
     error requires server restart. */
     if (!srv_tmp_space.get_tablespace_full_status()) {
-      ib::error() << "Tablespace " << srv_tmp_space.name() << " "
-                  << OUT_OF_SPACE_MSG << " innodb_temp_data_file_path.";
+      ib::error(ER_IB_MSG_416)
+          << "Tablespace " << srv_tmp_space.name() << " " << OUT_OF_SPACE_MSG
+          << " innodb_temp_data_file_path.";
       srv_tmp_space.set_tablespace_full_status(true);
     }
     DBUG_RETURN(false);
@@ -1565,12 +1566,12 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *fsp_alloc_free_page(
 
     ut_a(!fsp_is_system_or_temp_tablespace(space));
     if (page_no >= FSP_EXTENT_SIZE) {
-      ib::error() << "Trying to extend a single-table"
-                     " tablespace "
-                  << space
-                  << " , by single"
-                     " page(s) though the space size "
-                  << space_size << ". Page no " << page_no << ".";
+      ib::error(ER_IB_MSG_417) << "Trying to extend a single-table"
+                                  " tablespace "
+                               << space
+                               << " , by single"
+                                  " page(s) though the space size "
+                               << space_size << ". Page no " << page_no << ".";
       return (NULL);
     }
 
@@ -1612,8 +1613,8 @@ static void fsp_free_page(const page_id_t &page_id,
   state = xdes_get_state(descr, mtr);
 
   if (state != XDES_FREE_FRAG && state != XDES_FULL_FRAG) {
-    ib::error() << "File space extent descriptor of page " << page_id
-                << " has state " << state;
+    ib::error(ER_IB_MSG_418) << "File space extent descriptor of page "
+                             << page_id << " has state " << state;
     fputs("InnoDB: Dump of descriptor: ", stderr);
     ut_print_buf(stderr, ((byte *)descr) - 50, 200);
     putc('\n', stderr);
@@ -1633,8 +1634,9 @@ static void fsp_free_page(const page_id_t &page_id,
 
   if (xdes_mtr_get_bit(descr, XDES_FREE_BIT,
                        page_id.page_no() % FSP_EXTENT_SIZE, mtr)) {
-    ib::error() << "File space extent descriptor of page " << page_id
-                << " says it is free. Dump of descriptor: ";
+    ib::error(ER_IB_MSG_419)
+        << "File space extent descriptor of page " << page_id
+        << " says it is free. Dump of descriptor: ";
     ut_print_buf(stderr, ((byte *)descr) - 50, 200);
     putc('\n', stderr);
     /* Crash in debug version, so that we get a core dump
@@ -2701,11 +2703,11 @@ static buf_block_t *fseg_alloc_free_page_low(fil_space_t *space,
     tablespace whose size is still < 64 pages */
 
     if (ret_page >= FSP_EXTENT_SIZE) {
-      ib::error() << "Error (2): trying to extend"
-                     " a single-table tablespace "
-                  << space_id << " by single page(s) though the"
-                  << " space size " << space->size << ". Page no " << ret_page
-                  << ".";
+      ib::error(ER_IB_MSG_420)
+          << "Error (2): trying to extend"
+             " a single-table tablespace "
+          << space_id << " by single page(s) though the"
+          << " space size " << space->size << ". Page no " << ret_page << ".";
       ut_ad(!has_done_reservation);
       return (NULL);
     }
@@ -3124,13 +3126,13 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
     fputs("InnoDB: Dump of the tablespace extent descriptor: ", stderr);
     ut_print_buf(stderr, descr, 40);
 
-    ib::error() << "InnoDB is trying to free page " << page_id
-                << " though it is already marked as free in the"
-                   " tablespace! The tablespace free space info is"
-                   " corrupt. You may need to dump your tables and"
-                   " recreate the whole database!";
+    ib::error(ER_IB_MSG_421) << "InnoDB is trying to free page " << page_id
+                             << " though it is already marked as free in the"
+                                " tablespace! The tablespace free space info is"
+                                " corrupt. You may need to dump your tables and"
+                                " recreate the whole database!";
   crash:
-    ib::fatal() << FORCE_RECOVERY_MSG;
+    ib::fatal(ER_IB_MSG_422) << FORCE_RECOVERY_MSG;
   }
 
   xdes_state_t state = xdes_get_state(descr, mtr);
@@ -3171,9 +3173,10 @@ static void fseg_free_page_low(fseg_inode_t *seg_inode,
     ut_print_buf(stderr, seg_inode, 40);
     putc('\n', stderr);
 
-    ib::error() << "InnoDB is trying to free page " << page_id
-                << ", which does not belong to segment " << descr_id
-                << " but belongs to segment " << seg_id << ".";
+    ib::error(ER_IB_MSG_423)
+        << "InnoDB is trying to free page " << page_id
+        << ", which does not belong to segment " << descr_id
+        << " but belongs to segment " << seg_id << ".";
     goto crash;
   }
 
@@ -3402,8 +3405,8 @@ ibool fseg_free_step(
   inode = fseg_inode_try_get(header, space_id, page_size, mtr, &iblock);
 
   if (inode == NULL) {
-    ib::info() << "Double free of inode from "
-               << page_id_t(space_id, header_page);
+    ib::info(ER_IB_MSG_424)
+        << "Double free of inode from " << page_id_t(space_id, header_page);
     DBUG_RETURN(TRUE);
   }
 
@@ -3571,13 +3574,15 @@ static void fseg_print_low(fseg_inode_t *inode, /*!< in: segment inode */
   n_not_full = flst_get_len(inode + FSEG_NOT_FULL);
   n_full = flst_get_len(inode + FSEG_FULL);
 
-  ib::info() << "SEGMENT id " << seg_id << " space " << space << ";"
-             << " page " << page_no << ";"
-             << " res " << reserved << " used " << used << ";"
-             << " full ext " << n_full << ";"
-             << " fragm pages " << n_frag << ";"
-             << " free extents " << n_free << ";"
-             << " not full extents " << n_not_full << ": pages " << n_used;
+  ib::info(ER_IB_MSG_425) << "SEGMENT id " << seg_id << " space " << space
+                          << ";"
+                          << " page " << page_no << ";"
+                          << " res " << reserved << " used " << used << ";"
+                          << " full ext " << n_full << ";"
+                          << " fragm pages " << n_frag << ";"
+                          << " free extents " << n_free << ";"
+                          << " not full extents " << n_not_full << ": pages "
+                          << n_used;
 
   ut_ad(mach_read_from_4(inode + FSEG_MAGIC_N) == FSEG_MAGIC_N_VALUE);
 }
@@ -3624,8 +3629,8 @@ page_no_t fsp_sdi_get_root_page_num(space_id_t space,
   uint32_t sdi_ver = mach_read_from_4(page + sdi_offset);
 
   if (sdi_ver != SDI_VERSION) {
-    ib::warn() << "SDI version mismatch. Expected: " << SDI_VERSION
-               << " Current version: " << sdi_ver;
+    ib::warn(ER_IB_MSG_426) << "SDI version mismatch. Expected: " << SDI_VERSION
+                            << " Current version: " << sdi_ver;
   }
   ut_ad(sdi_ver == SDI_VERSION);
 
@@ -3795,10 +3800,10 @@ or DB_TABLESPACE_NOT_FOUND */
 dberr_t fsp_has_sdi(space_id_t space_id) {
   fil_space_t *space = fil_space_acquire_silent(space_id);
   if (space == NULL) {
-    DBUG_EXECUTE_IF("ib_sdi", ib::warn()
-                                  << "Tablespace doesn't exist for space_id: "
-                                  << space_id;
-                    ib::warn() << "Is the tablespace dropped or discarded";);
+    DBUG_EXECUTE_IF(
+        "ib_sdi", ib::warn(ER_IB_MSG_427)
+                      << "Tablespace doesn't exist for space_id: " << space_id;
+        ib::warn(ER_IB_MSG_428) << "Is the tablespace dropped or discarded";);
     return (DB_TABLESPACE_NOT_FOUND);
   }
 
@@ -3812,7 +3817,8 @@ dberr_t fsp_has_sdi(space_id_t space_id) {
 
   fil_space_release(space);
   DBUG_EXECUTE_IF("ib_sdi", if (!FSP_FLAGS_HAS_SDI(space->flags)) {
-    ib::warn() << "SDI doesn't exist in tablespace: " << space->name;
+    ib::warn(ER_IB_MSG_429)
+        << "SDI doesn't exist in tablespace: " << space->name;
   });
   return (FSP_FLAGS_HAS_SDI(space->flags) ? DB_SUCCESS : DB_ERROR);
 }

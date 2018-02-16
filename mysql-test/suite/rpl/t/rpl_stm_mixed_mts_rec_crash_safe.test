@@ -7,8 +7,10 @@
 --source include/not_valgrind.inc
 --source include/master-slave.inc
 
+--disable_query_log
 call mtr.add_suppression('Attempting backtrace');
 call mtr.add_suppression("Recovery from master pos .*");
-call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
+call mtr.add_suppression("allocated tablespace .*, old maximum was .*");
+--enable_query_log
 
 --source extra/rpl_tests/rpl_mts_crash_safe.test

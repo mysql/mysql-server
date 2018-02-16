@@ -43,8 +43,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sync0types.h"
 #include "univ.i"
 
-/** Initializes the synchronization data structures. */
-void sync_check_init();
+/** Initializes the synchronization data structures.
+@param[in]	max_threads	Maximum threads that can be created. */
+void sync_check_init(size_t max_threads);
 
 /** Frees the resources in synchronization data structures. */
 void sync_check_close();

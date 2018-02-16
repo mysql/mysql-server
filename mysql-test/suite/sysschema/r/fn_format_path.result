@@ -1,4 +1,3 @@
-call mtr.add_suppression("InnoDB: No space ID to filename mapping file found");
 # restart: --datadir=CUSTOM_DATADIR --innodb_data_home_dir=MYSQLTEST_VARDIR/tmp/innodb --innodb_log_group_home_dir=MYSQLTEST_VARDIR/tmp/innodb_logs --innodb_undo_directory=MYSQLTEST_VARDIR/tmp/innodb_undo --innodb_undo_tablespaces=innodb_undo_tablespaces
 SELECT sys.format_path(NULL);
 sys.format_path(NULL)

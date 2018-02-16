@@ -314,12 +314,15 @@ void log_files_header_read(log_t &log, uint32_t header) {
 /** Print a log file header.
 @param[in]     block   pointer to the log buffer */
 void meb_log_print_file_hdr(byte *block) {
-  ib::info() << "Log file header:"
-             << " format " << mach_read_from_4(block + LOG_HEADER_FORMAT)
-             << " pad1 " << mach_read_from_4(block + LOG_HEADER_PAD1)
-             << " start_lsn " << mach_read_from_8(block + LOG_HEADER_START_LSN)
-             << " creator '" << block + LOG_HEADER_CREATOR << "'"
-             << " checksum " << log_block_get_checksum(block);
+  ib::info(ER_IB_MSG_1232) << "Log file header:"
+                           << " format "
+                           << mach_read_from_4(block + LOG_HEADER_FORMAT)
+                           << " pad1 "
+                           << mach_read_from_4(block + LOG_HEADER_PAD1)
+                           << " start_lsn "
+                           << mach_read_from_8(block + LOG_HEADER_START_LSN)
+                           << " creator '" << block + LOG_HEADER_CREATOR << "'"
+                           << " checksum " << log_block_get_checksum(block);
 }
 
 #endif /* UNIV_DEBUG */
@@ -569,7 +572,7 @@ static void log_request_checkpoint_low(log_t &log, lsn_t requested_lsn) {
 #ifdef UNIV_DEBUG
   if (srv_checkpoint_disabled) {
     /* Checkpoints are disabled. Pretend it succeeded. */
-    ib::info() << "Checkpoint explicitly disabled!";
+    ib::info(ER_IB_MSG_1233) << "Checkpoint explicitly disabled!";
     return;
   }
 #endif /* UNIV_DEBUG */

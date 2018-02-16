@@ -5,26 +5,26 @@
 
 --source include/no_valgrind_without_big.inc
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Function 'keyring_file' already exists");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Couldn't load plugin named 'keyring_file' with soname 'keyring_file.dll'.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Can't generate new master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption information in datafile");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Could not find a valid tablespace file for");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Ignoring tablespace `test/.*` because it could not be opened.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Failed to find tablespace for table");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Can't read encryption key from file");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Table .* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Please refer to .* for how to resolve the issue");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Plugin keyring_file reported: 'keyring_file initialization failure.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Function 'keyring_file' already exists");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.so'.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Couldn't load plugin named 'keyring_file' with soname 'keyring_file.dll'.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't generate new master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption information in datafile");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Could not find a valid tablespace file for");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Ignoring tablespace `test/.*` because it could not be opened.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Failed to find tablespace for table");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Can't read encryption key from file");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot open table .* from the internal data dictionary of InnoDB though the .frm file for the table exists.*");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Table .* in the InnoDB data dictionary has tablespace id .*, but tablespace with that id or name does not exist");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Please refer to .* for how to resolve the issue");
 call mtr.add_suppression("Could not flush keys to keyring's backup");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Tablespace [0-9]+, name 'test.t[0-9]+', unable to open file '.*test.t[0-9]+.ibd' - Data structure corruption");
+call mtr.add_suppression("\\[ERROR\\].* Tablespace [0-9]+, name 'test.t[0-9]+', unable to open file '.*test.t[0-9]+.ibd' - Data structure corruption");
 --enable_query_log
 
 # Invalid syntax

@@ -1284,7 +1284,7 @@ SET @@sql_safe_updates= @bug42778;
 DROP TABLE t1;
 
 --echo #
---echo # BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+--echo # BUG#10206 -  Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
 --echo #
 
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
@@ -1633,7 +1633,7 @@ SHOW VARIABLES LIKE 'sql_mode';
 
 # When log-bin, skip-log-bin and binlog-format options are specified, mask the warning
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] You need to use --log-bin to make --binlog-format work.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* You need to use --log-bin to make --binlog-format work.");
 --enable_query_log
 
 --echo ---- Init ----

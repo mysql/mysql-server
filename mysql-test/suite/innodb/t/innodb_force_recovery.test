@@ -1,7 +1,7 @@
 
 # This test case needs InnoDB.
 
-call mtr.add_suppression("InnoDB: Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
+call mtr.add_suppression("Failed to find tablespace for table .* in the cache. Attempting to load the tablespace with space id");
 
 --disable_query_log
 call mtr.add_suppression("Skip re-populating collations and character sets tables in InnoDB read-only mode.");

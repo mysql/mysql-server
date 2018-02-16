@@ -86,7 +86,8 @@ static ulint buf_read_page_low(dberr_t *err, bool sync, ulint type, ulint mode,
 
   if (page_id.space() == TRX_SYS_SPACE &&
       buf_dblwr_page_inside(page_id.page_no())) {
-    ib::error() << "Trying to read doublewrite buffer page " << page_id;
+    ib::error(ER_IB_MSG_139)
+        << "Trying to read doublewrite buffer page " << page_id;
     return (0);
   }
 
@@ -280,11 +281,11 @@ read_ahead:
                                  cur_page_id, page_size, false);
 
       if (err == DB_TABLESPACE_DELETED) {
-        ib::warn() << "Random readahead trying to"
-                      " access page "
-                   << cur_page_id
-                   << " in nonexisting or"
-                      " being-dropped tablespace";
+        ib::warn(ER_IB_MSG_140) << "Random readahead trying to"
+                                   " access page "
+                                << cur_page_id
+                                << " in nonexisting or"
+                                   " being-dropped tablespace";
         break;
       }
     }
@@ -328,8 +329,8 @@ ibool buf_read_page(const page_id_t &page_id, const page_size_t &page_size) {
   srv_stats.buf_pool_reads.add(count);
 
   if (err == DB_TABLESPACE_DELETED) {
-    ib::error() << "trying to read page " << page_id
-                << " in nonexisting or being-dropped tablespace";
+    ib::error(ER_IB_MSG_141) << "trying to read page " << page_id
+                             << " in nonexisting or being-dropped tablespace";
   }
 
   /* Increment number of I/O operations used for LRU policy. */
@@ -616,11 +617,11 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
                                  cur_page_id, page_size, false);
 
       if (err == DB_TABLESPACE_DELETED) {
-        ib::warn() << "linear readahead trying to"
-                      " access page "
-                   << page_id_t(page_id.space(), i)
-                   << " in nonexisting or being-dropped"
-                      " tablespace";
+        ib::warn(ER_IB_MSG_142) << "linear readahead trying to"
+                                   " access page "
+                                << page_id_t(page_id.space(), i)
+                                << " in nonexisting or being-dropped"
+                                   " tablespace";
       }
     }
   }
@@ -737,18 +738,18 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
       req_size = ut_calc_align(req_size, FSP_EXTENT_SIZE);
     }
 
-    ib::info() << "Extending tablespace : " << space->id
-               << " space name: " << space->name
-               << " from page number: " << space->size << " pages"
-               << " to " << req_size << " pages"
-               << " for page number: " << page_nos[n_stored - 1]
-               << " during recovery.";
+    ib::info(ER_IB_MSG_143) << "Extending tablespace : " << space->id
+                            << " space name: " << space->name
+                            << " from page number: " << space->size << " pages"
+                            << " to " << req_size << " pages"
+                            << " for page number: " << page_nos[n_stored - 1]
+                            << " during recovery.";
 
     if (!fil_space_extend(space, req_size)) {
-      ib::error() << "Could not extend tablespace: " << space->id
-                  << " space name: " << space->name << " to " << req_size
-                  << " pages"
-                  << " during recovery.";
+      ib::error(ER_IB_MSG_144)
+          << "Could not extend tablespace: " << space->id
+          << " space name: " << space->name << " to " << req_size << " pages"
+          << " during recovery.";
     }
   }
 
@@ -770,8 +771,9 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
       count++;
 
       if (!(count % 1000)) {
-        ib::error() << "Waited for " << count / 100 << " seconds for "
-                    << buf_pool->n_pend_reads << " pending reads";
+        ib::error(ER_IB_MSG_145)
+            << "Waited for " << count / 100 << " seconds for "
+            << buf_pool->n_pend_reads << " pending reads";
       }
     }
 

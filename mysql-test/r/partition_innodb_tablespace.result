@@ -416,7 +416,7 @@ SUBPARTITION BY HASH (`a`)
  (SUBPARTITION sp9 TABLESPACE = `ts_part4` ENGINE = InnoDB,
   SUBPARTITION sp10 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
   SUBPARTITION sp11 TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB)) */
-call mtr.add_suppression("InnoDB: Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
+call mtr.add_suppression("Table .* Partition .* Subpartition .* does not exist in the InnoDB internal data dictionary");
 ALTER TABLE t2 ADD PARTITION
 (PARTITION p4 VALUES LESS THAN (400)
 TABLESPACE `ts_part1_a_very_long_tablespace_name_longer_than_64_characters!!!`);

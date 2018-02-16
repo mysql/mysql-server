@@ -168,8 +168,8 @@ SET @@sql_mode = @old_sql_mode;
 --replace_result #P# #p#  #SP# #sp#
 --error ER_NOT_ALLOWED_COMMAND
 ALTER TABLE t2 DISCARD TABLESPACE;
-call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation.");
-call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+call mtr.add_suppression("Operating system error number .* in a file operation.");
+call mtr.add_suppression("The error means the system cannot find the path specified.");
 call mtr.add_suppression("Cannot open datafile for read-only: .*");
 DROP TABLE t1;
 DROP TABLE t2;

@@ -1,6 +1,6 @@
 # Set the environmental variables
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-call mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("Warning: database page corruption or a failed");
 SET GLOBAL innodb_file_per_table=on;
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));

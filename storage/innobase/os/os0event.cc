@@ -295,9 +295,13 @@ bool os_event::timed_wait(
       break;
 
     default:
-      ib::error() << "pthread_cond_timedwait() returned: " << ret
-                  << ": abstime={" << abstime->tv_sec << "," << abstime->tv_nsec
-                  << "}";
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_742)
+#endif /* !UNIV_NO_ERR_MSGS */
+          << "pthread_cond_timedwait() returned: " << ret << ": abstime={"
+          << abstime->tv_sec << "," << abstime->tv_nsec << "}";
       ut_error;
   }
 

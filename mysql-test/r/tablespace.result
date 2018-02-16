@@ -731,7 +731,7 @@ SUBPARTITION BY KEY (b)
  PARTITION p3 VALUES LESS THAN (300) TABLESPACE = `innodb_file_per_table` ENGINE = InnoDB,
  PARTITION p4 VALUES LESS THAN (400) TABLESPACE = `innodb_system` ENGINE = InnoDB,
  PARTITION p5 VALUES LESS THAN (500) TABLESPACE = `ts2` ENGINE = InnoDB) */
-# failed: 1478: InnoDB: Tablespace `ts1` cannot contain a COMPRESSED table
+# failed: 1478:  Tablespace `ts1` cannot contain a COMPRESSED table
 SHOW CREATE TABLE tab;
 Table	Create Table
 tab	CREATE TABLE `tab` (

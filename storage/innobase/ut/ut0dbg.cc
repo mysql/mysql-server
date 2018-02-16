@@ -32,8 +32,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <stdlib.h>
 
+#include "univ.i"
+
+#ifndef UNIV_HOTBACKUP
 #include "ha_prototypes.h"
 #include "sql/log.h"
+#endif /* !UNIV_HOTBACKUP */
+
 #include "ut0dbg.h"
 
 /** Report a failed assertion. */
@@ -42,18 +47,24 @@ void ut_dbg_assertion_failed(
     const char *file, /*!< in: source file containing the assertion */
     ulint line)       /*!< in: line number of the assertion */
 {
-#ifndef UNIV_HOTBACKUP
+#if !defined(UNIV_HOTBACKUP) && !defined(UNIV_NO_ERR_MSGS)
   sql_print_error("InnoDB: Assertion failure: %s:" ULINTPF
                   "%s%s\n"
                   "InnoDB: thread " UINT64PF,
                   innobase_basename(file), line, expr != nullptr ? ":" : "",
                   expr != nullptr ? expr : "", os_thread_handle());
-#else  /* !UNIV_HOTBACKUP */
+#else  /* !UNIV_HOTBACKUP && !defined(UNIV_NO_ERR_MSGS) */
+  auto filename = base_name(file);
+
+  if (filename == nullptr) {
+    filename = "null";
+  }
+
   fprintf(stderr,
           "InnoDB: Assertion failure: %s:" ULINTPF
           "%s%s\n"
           "InnoDB: thread " UINT64PF,
-          innobase_basename(file), line, expr != nullptr ? ":" : "",
+          filename, line, expr != nullptr ? ":" : "",
           expr != nullptr ? expr : "", os_thread_handle());
 #endif /* !UNIV_HOTBACKUP */
 

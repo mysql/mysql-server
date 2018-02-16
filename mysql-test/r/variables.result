@@ -1486,7 +1486,7 @@ DELETE FROM t1 ORDER BY (@@GLOBAL.INIT_FILE) ASC LIMIT 10;
 SET @@sql_safe_updates= @bug42778;
 DROP TABLE t1;
 #
-# BUG#10206 - InnoDB: Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
+# BUG#10206 -  Transaction requiring Max_BinLog_Cache_size > 4GB always rollsback
 #
 SET @old_max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 # Set the max_binlog_cache_size to size more than 4GB. 

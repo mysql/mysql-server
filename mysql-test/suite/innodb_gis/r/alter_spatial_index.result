@@ -1,5 +1,5 @@
 CALL mtr.add_suppression("but MySQL is asking statistics for 2 columns. Have you mixed");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Tablespace for table .* is set as discarded");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table .* is set as discarded");
 CREATE TABLE tab(c1 int NOT NULL PRIMARY KEY,c2 POINT NOT NULL SRID 0,
 c3 LINESTRING NOT NULL SRID 0,c4 POLYGON NOT NULL SRID 0,c5 GEOMETRY NOT NULL SRID 0)
 ENGINE=InnoDB;

@@ -1,7 +1,7 @@
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Encryption can't find master key, please check the keyring plugin is loaded.");
 call mtr.add_suppression("Can't generate new master key for tablespace encryption, please check the keyring plugin is loaded.");
-call mtr.add_suppression("InnoDB: The error means that another program is using InnoDB's files");
-call mtr.add_suppression("InnoDB: Operating system error number .* in a file operation");
+call mtr.add_suppression("The error means that another program is using InnoDB's files");
+call mtr.add_suppression("Operating system error number .* in a file operation");
 # Create encrypt table before loading keyring plugin
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;

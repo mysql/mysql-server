@@ -1204,16 +1204,16 @@ SET GLOBAL innodb_file_per_table= DEFAULT;
 call mtr.add_suppression("\\[Warning\\].*Skip re-populating collations and character sets tables in InnoDB read-only mode");
 call mtr.add_suppression("\\[Warning\\].*Skip updating information_schema metadata in InnoDB read-only mode");
 call mtr.add_suppression("\\[Warning\\].*Skipped updating resource group metadata in InnoDB read only mode");
-call mtr.add_suppression("\\[Warning\\].*InnoDB: '.*tablespace.ibd' is a directory, can't delete!");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'delete' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .* 'stat' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: File .*\.ibd: 'create' returned OS error .*");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means the system cannot find the path specified");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Operating system error number .* in a file operation");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Error number .* means");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Cannot create file");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: Invalid use of ':' in");
-call mtr.add_suppression("\\[ERROR\\].*InnoDB: The file .* already exists though the corresponding table did not exist.");
+call mtr.add_suppression("\\[Warning\\].* '.*tablespace.ibd' is a directory, can't delete!");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'delete' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* File .* 'stat' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* File .*\.ibd: 'create' returned OS error .*");
+call mtr.add_suppression("\\[ERROR\\].* The error means the system cannot find the path specified");
+call mtr.add_suppression("\\[ERROR\\].* The error means mysqld does not have the access rights to the directory. It may also be you have created a subdirectory of the same name as a data file.");
+call mtr.add_suppression("\\[ERROR\\].* Operating system error number .* in a file operation");
+call mtr.add_suppression("\\[ERROR\\].* Error number .* means");
+call mtr.add_suppression("\\[ERROR\\].* Cannot create file");
+call mtr.add_suppression("\\[ERROR\\].* Invalid use of ':' in");
+call mtr.add_suppression("\\[ERROR\\].* The file .* already exists though the corresponding table did not exist.");
 --enable_query_log
 

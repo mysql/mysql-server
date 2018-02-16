@@ -219,8 +219,13 @@ dberr_t Compression::deserialize(bool dblwr_recover, byte *src, byte *dst,
       break;
 
     default:
-      ib::error() << "Compression algorithm support missing: "
-                  << Compression::to_string(compression.m_type);
+#ifdef UNIV_NO_ERR_MSGS
+      ib::error()
+#else
+      ib::error(ER_IB_MSG_741)
+#endif /* UNIV_NO_ERR_MSGS */
+          << "Compression algorithm support missing: "
+          << Compression::to_string(compression.m_type);
 
       if (allocated) {
         ut_free(dst);

@@ -122,9 +122,9 @@ ulint page_dir_find_owner_slot(const rec_t *rec) /*!< in: the physical record */
 
   while (UNIV_LIKELY(*(uint16 *)slot != rec_offs_bytes)) {
     if (UNIV_UNLIKELY(slot == first_slot)) {
-      ib::error() << "Probable data corruption on page "
-                  << page_get_page_no(page)
-                  << ". Original record on that page;";
+      ib::error(ER_IB_MSG_860)
+          << "Probable data corruption on page " << page_get_page_no(page)
+          << ". Original record on that page;";
 
       if (page_is_comp(page)) {
         fputs("(compact record)", stderr);
@@ -132,8 +132,8 @@ ulint page_dir_find_owner_slot(const rec_t *rec) /*!< in: the physical record */
         rec_print_old(stderr, rec);
       }
 
-      ib::error() << "Cannot find the dir slot for this"
-                     " record on that page;";
+      ib::error(ER_IB_MSG_861) << "Cannot find the dir slot for this"
+                                  " record on that page;";
 
       if (page_is_comp(page)) {
         fputs("(compact record)", stderr);
@@ -500,9 +500,10 @@ void page_copy_rec_list_end_no_locks(
     offsets = rec_get_offsets(cur1_rec, index, offsets, ULINT_UNDEFINED, &heap);
     ins_rec = page_cur_insert_rec_low(cur2, index, cur1_rec, offsets, mtr);
     if (UNIV_UNLIKELY(!ins_rec)) {
-      ib::fatal() << "Rec offset " << page_offset(rec) << ", cur1 offset "
-                  << page_offset(page_cur_get_rec(&cur1)) << ", cur2 offset "
-                  << page_offset(cur2);
+      ib::fatal(ER_IB_MSG_862)
+          << "Rec offset " << page_offset(rec) << ", cur1 offset "
+          << page_offset(page_cur_get_rec(&cur1)) << ", cur2 offset "
+          << page_offset(cur2);
     }
 
     page_cur_move_to_next(&cur1);
@@ -1525,13 +1526,13 @@ void page_rec_print(const rec_t *rec,     /*!< in: physical record */
   ut_a(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
   rec_print_new(stderr, rec, offsets);
   if (page_rec_is_comp(rec)) {
-    ib::info() << "n_owned: " << rec_get_n_owned_new(rec)
-               << "; heap_no: " << rec_get_heap_no_new(rec)
-               << "; next rec: " << rec_get_next_offs(rec, TRUE);
+    ib::info(ER_IB_MSG_863) << "n_owned: " << rec_get_n_owned_new(rec)
+                            << "; heap_no: " << rec_get_heap_no_new(rec)
+                            << "; next rec: " << rec_get_next_offs(rec, TRUE);
   } else {
-    ib::info() << "n_owned: " << rec_get_n_owned_old(rec)
-               << "; heap_no: " << rec_get_heap_no_old(rec)
-               << "; next rec: " << rec_get_next_offs(rec, FALSE);
+    ib::info(ER_IB_MSG_864) << "n_owned: " << rec_get_n_owned_old(rec)
+                            << "; heap_no: " << rec_get_heap_no_old(rec)
+                            << "; next rec: " << rec_get_next_offs(rec, FALSE);
   }
 
   page_rec_check(rec);
@@ -1709,14 +1710,15 @@ ibool page_rec_validate(
   }
 
   if (UNIV_UNLIKELY(!(n_owned <= PAGE_DIR_SLOT_MAX_N_OWNED))) {
-    ib::warn() << "Dir slot of rec " << page_offset(rec) << ", n owned too big "
-               << n_owned;
+    ib::warn(ER_IB_MSG_865) << "Dir slot of rec " << page_offset(rec)
+                            << ", n owned too big " << n_owned;
     return (FALSE);
   }
 
   if (UNIV_UNLIKELY(!(heap_no < page_dir_get_n_heap(page)))) {
-    ib::warn() << "Heap no of rec " << page_offset(rec) << " too big "
-               << heap_no << " " << page_dir_get_n_heap(page);
+    ib::warn(ER_IB_MSG_866)
+        << "Heap no of rec " << page_offset(rec) << " too big " << heap_no
+        << " " << page_dir_get_n_heap(page);
     return (FALSE);
   }
 
@@ -1739,13 +1741,13 @@ void page_check_dir(const page_t *page) /*!< in: index page */
   supremum_offs = mach_read_from_2(page_dir_get_nth_slot(page, n_slots - 1));
 
   if (UNIV_UNLIKELY(!page_rec_is_infimum_low(infimum_offs))) {
-    ib::fatal() << "Page directory corruption: infimum not"
-                   " pointed to";
+    ib::fatal(ER_IB_MSG_867) << "Page directory corruption: infimum not"
+                                " pointed to";
   }
 
   if (UNIV_UNLIKELY(!page_rec_is_supremum_low(supremum_offs))) {
-    ib::fatal() << "Page directory corruption: supremum not"
-                   " pointed to";
+    ib::fatal(ER_IB_MSG_868) << "Page directory corruption: supremum not"
+                                " pointed to";
   }
 }
 #endif /* UNIV_DEBUG */
@@ -1775,7 +1777,8 @@ ibool page_simple_validate_old(
   n_slots = page_dir_get_n_slots(page);
 
   if (UNIV_UNLIKELY(n_slots > UNIV_PAGE_SIZE / 4)) {
-    ib::error() << "Nonsensical number " << n_slots << " of page dir slots";
+    ib::error(ER_IB_MSG_869)
+        << "Nonsensical number " << n_slots << " of page dir slots";
 
     goto func_exit;
   }
@@ -1783,9 +1786,10 @@ ibool page_simple_validate_old(
   rec_heap_top = page_header_get_ptr(page, PAGE_HEAP_TOP);
 
   if (UNIV_UNLIKELY(rec_heap_top > page_dir_get_nth_slot(page, n_slots - 1))) {
-    ib::error() << "Record heap and dir overlap on a page, heap top "
-                << page_header_get_field(page, PAGE_HEAP_TOP) << ", dir "
-                << page_offset(page_dir_get_nth_slot(page, n_slots - 1));
+    ib::error(ER_IB_MSG_870)
+        << "Record heap and dir overlap on a page, heap top "
+        << page_header_get_field(page, PAGE_HEAP_TOP) << ", dir "
+        << page_offset(page_dir_get_nth_slot(page, n_slots - 1));
 
     goto func_exit;
   }
@@ -1802,8 +1806,9 @@ ibool page_simple_validate_old(
 
   for (;;) {
     if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-      ib::error() << "Record " << (rec - page) << " is above rec heap top "
-                  << (rec_heap_top - page);
+      ib::error(ER_IB_MSG_871)
+          << "Record " << (rec - page) << " is above rec heap top "
+          << (rec_heap_top - page);
 
       goto func_exit;
     }
@@ -1811,16 +1816,17 @@ ibool page_simple_validate_old(
     if (UNIV_UNLIKELY(rec_get_n_owned_old(rec))) {
       /* This is a record pointed to by a dir slot */
       if (UNIV_UNLIKELY(rec_get_n_owned_old(rec) != own_count)) {
-        ib::error() << "Wrong owned count " << rec_get_n_owned_old(rec) << ", "
-                    << own_count << ", rec " << (rec - page);
+        ib::error(ER_IB_MSG_872)
+            << "Wrong owned count " << rec_get_n_owned_old(rec) << ", "
+            << own_count << ", rec " << (rec - page);
 
         goto func_exit;
       }
 
       if (UNIV_UNLIKELY(page_dir_slot_get_rec(slot) != rec)) {
-        ib::error() << "Dir slot does not point"
-                       " to right rec "
-                    << (rec - page);
+        ib::error(ER_IB_MSG_873) << "Dir slot does not point"
+                                    " to right rec "
+                                 << (rec - page);
 
         goto func_exit;
       }
@@ -1839,9 +1845,9 @@ ibool page_simple_validate_old(
 
     if (UNIV_UNLIKELY(rec_get_next_offs(rec, FALSE) < FIL_PAGE_DATA ||
                       rec_get_next_offs(rec, FALSE) >= UNIV_PAGE_SIZE)) {
-      ib::error() << "Next record offset nonsensical "
-                  << rec_get_next_offs(rec, FALSE) << " for rec "
-                  << (rec - page);
+      ib::error(ER_IB_MSG_874)
+          << "Next record offset nonsensical " << rec_get_next_offs(rec, FALSE)
+          << " for rec " << (rec - page);
 
       goto func_exit;
     }
@@ -1849,9 +1855,9 @@ ibool page_simple_validate_old(
     count++;
 
     if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-      ib::error() << "Page record list appears"
-                     " to be circular "
-                  << count;
+      ib::error(ER_IB_MSG_875) << "Page record list appears"
+                                  " to be circular "
+                               << count;
       goto func_exit;
     }
 
@@ -1860,23 +1866,24 @@ ibool page_simple_validate_old(
   }
 
   if (UNIV_UNLIKELY(rec_get_n_owned_old(rec) == 0)) {
-    ib::error() << "n owned is zero in a supremum rec";
+    ib::error(ER_IB_MSG_876) << "n owned is zero in a supremum rec";
 
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-    ib::error() << "n slots wrong " << slot_no << ", " << (n_slots - 1);
+    ib::error(ER_IB_MSG_877)
+        << "n slots wrong " << slot_no << ", " << (n_slots - 1);
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS) +
                         PAGE_HEAP_NO_USER_LOW !=
                     count + 1)) {
-    ib::error() << "n recs wrong "
-                << page_header_get_field(page, PAGE_N_RECS) +
-                       PAGE_HEAP_NO_USER_LOW
-                << " " << (count + 1);
+    ib::error(ER_IB_MSG_878)
+        << "n recs wrong "
+        << page_header_get_field(page, PAGE_N_RECS) + PAGE_HEAP_NO_USER_LOW
+        << " " << (count + 1);
 
     goto func_exit;
   }
@@ -1887,16 +1894,17 @@ ibool page_simple_validate_old(
   while (rec != NULL) {
     if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA ||
                       rec >= page + UNIV_PAGE_SIZE)) {
-      ib::error() << "Free list record has"
-                     " a nonsensical offset "
-                  << (rec - page);
+      ib::error(ER_IB_MSG_879) << "Free list record has"
+                                  " a nonsensical offset "
+                               << (rec - page);
 
       goto func_exit;
     }
 
     if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-      ib::error() << "Free list record " << (rec - page)
-                  << " is above rec heap top " << (rec_heap_top - page);
+      ib::error(ER_IB_MSG_880)
+          << "Free list record " << (rec - page) << " is above rec heap top "
+          << (rec_heap_top - page);
 
       goto func_exit;
     }
@@ -1904,9 +1912,9 @@ ibool page_simple_validate_old(
     count++;
 
     if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-      ib::error() << "Page free list appears"
-                     " to be circular "
-                  << count;
+      ib::error(ER_IB_MSG_881) << "Page free list appears"
+                                  " to be circular "
+                               << count;
       goto func_exit;
     }
 
@@ -1914,8 +1922,8 @@ ibool page_simple_validate_old(
   }
 
   if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
-    ib::error() << "N heap is wrong " << page_dir_get_n_heap(page) << ", "
-                << (count + 1);
+    ib::error(ER_IB_MSG_882) << "N heap is wrong " << page_dir_get_n_heap(page)
+                             << ", " << (count + 1);
 
     goto func_exit;
   }
@@ -1950,7 +1958,8 @@ ibool page_simple_validate_new(
   n_slots = page_dir_get_n_slots(page);
 
   if (UNIV_UNLIKELY(n_slots > UNIV_PAGE_SIZE / 4)) {
-    ib::error() << "Nonsensical number " << n_slots << " of page dir slots";
+    ib::error(ER_IB_MSG_883)
+        << "Nonsensical number " << n_slots << " of page dir slots";
 
     goto func_exit;
   }
@@ -1958,10 +1967,11 @@ ibool page_simple_validate_new(
   rec_heap_top = page_header_get_ptr(page, PAGE_HEAP_TOP);
 
   if (UNIV_UNLIKELY(rec_heap_top > page_dir_get_nth_slot(page, n_slots - 1))) {
-    ib::error() << "Record heap and dir overlap on a page,"
-                   " heap top "
-                << page_header_get_field(page, PAGE_HEAP_TOP) << ", dir "
-                << page_offset(page_dir_get_nth_slot(page, n_slots - 1));
+    ib::error(ER_IB_MSG_884)
+        << "Record heap and dir overlap on a page,"
+           " heap top "
+        << page_header_get_field(page, PAGE_HEAP_TOP) << ", dir "
+        << page_offset(page_dir_get_nth_slot(page, n_slots - 1));
 
     goto func_exit;
   }
@@ -1978,8 +1988,9 @@ ibool page_simple_validate_new(
 
   for (;;) {
     if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-      ib::error() << "Record " << page_offset(rec) << " is above rec heap top "
-                  << page_offset(rec_heap_top);
+      ib::error(ER_IB_MSG_885)
+          << "Record " << page_offset(rec) << " is above rec heap top "
+          << page_offset(rec_heap_top);
 
       goto func_exit;
     }
@@ -1987,16 +1998,17 @@ ibool page_simple_validate_new(
     if (UNIV_UNLIKELY(rec_get_n_owned_new(rec))) {
       /* This is a record pointed to by a dir slot */
       if (UNIV_UNLIKELY(rec_get_n_owned_new(rec) != own_count)) {
-        ib::error() << "Wrong owned count " << rec_get_n_owned_new(rec) << ", "
-                    << own_count << ", rec " << page_offset(rec);
+        ib::error(ER_IB_MSG_886)
+            << "Wrong owned count " << rec_get_n_owned_new(rec) << ", "
+            << own_count << ", rec " << page_offset(rec);
 
         goto func_exit;
       }
 
       if (UNIV_UNLIKELY(page_dir_slot_get_rec(slot) != rec)) {
-        ib::error() << "Dir slot does not point"
-                       " to right rec "
-                    << page_offset(rec);
+        ib::error(ER_IB_MSG_887) << "Dir slot does not point"
+                                    " to right rec "
+                                 << page_offset(rec);
 
         goto func_exit;
       }
@@ -2015,9 +2027,9 @@ ibool page_simple_validate_new(
 
     if (UNIV_UNLIKELY(rec_get_next_offs(rec, TRUE) < FIL_PAGE_DATA ||
                       rec_get_next_offs(rec, TRUE) >= UNIV_PAGE_SIZE)) {
-      ib::error() << "Next record offset nonsensical "
-                  << rec_get_next_offs(rec, TRUE) << " for rec "
-                  << page_offset(rec);
+      ib::error(ER_IB_MSG_888)
+          << "Next record offset nonsensical " << rec_get_next_offs(rec, TRUE)
+          << " for rec " << page_offset(rec);
 
       goto func_exit;
     }
@@ -2025,9 +2037,9 @@ ibool page_simple_validate_new(
     count++;
 
     if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-      ib::error() << "Page record list appears to be"
-                     " circular "
-                  << count;
+      ib::error(ER_IB_MSG_889) << "Page record list appears to be"
+                                  " circular "
+                               << count;
       goto func_exit;
     }
 
@@ -2036,23 +2048,24 @@ ibool page_simple_validate_new(
   }
 
   if (UNIV_UNLIKELY(rec_get_n_owned_new(rec) == 0)) {
-    ib::error() << "n owned is zero in a supremum rec";
+    ib::error(ER_IB_MSG_890) << "n owned is zero in a supremum rec";
 
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-    ib::error() << "n slots wrong " << slot_no << ", " << (n_slots - 1);
+    ib::error(ER_IB_MSG_891)
+        << "n slots wrong " << slot_no << ", " << (n_slots - 1);
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS) +
                         PAGE_HEAP_NO_USER_LOW !=
                     count + 1)) {
-    ib::error() << "n recs wrong "
-                << page_header_get_field(page, PAGE_N_RECS) +
-                       PAGE_HEAP_NO_USER_LOW
-                << " " << (count + 1);
+    ib::error(ER_IB_MSG_892)
+        << "n recs wrong "
+        << page_header_get_field(page, PAGE_N_RECS) + PAGE_HEAP_NO_USER_LOW
+        << " " << (count + 1);
 
     goto func_exit;
   }
@@ -2063,16 +2076,17 @@ ibool page_simple_validate_new(
   while (rec != NULL) {
     if (UNIV_UNLIKELY(rec < page + FIL_PAGE_DATA ||
                       rec >= page + UNIV_PAGE_SIZE)) {
-      ib::error() << "Free list record has"
-                     " a nonsensical offset "
-                  << page_offset(rec);
+      ib::error(ER_IB_MSG_893) << "Free list record has"
+                                  " a nonsensical offset "
+                               << page_offset(rec);
 
       goto func_exit;
     }
 
     if (UNIV_UNLIKELY(rec > rec_heap_top)) {
-      ib::error() << "Free list record " << page_offset(rec)
-                  << " is above rec heap top " << page_offset(rec_heap_top);
+      ib::error(ER_IB_MSG_894)
+          << "Free list record " << page_offset(rec)
+          << " is above rec heap top " << page_offset(rec_heap_top);
 
       goto func_exit;
     }
@@ -2080,9 +2094,9 @@ ibool page_simple_validate_new(
     count++;
 
     if (UNIV_UNLIKELY(count > UNIV_PAGE_SIZE)) {
-      ib::error() << "Page free list appears to be"
-                     " circular "
-                  << count;
+      ib::error(ER_IB_MSG_895) << "Page free list appears to be"
+                                  " circular "
+                               << count;
       goto func_exit;
     }
 
@@ -2090,8 +2104,8 @@ ibool page_simple_validate_new(
   }
 
   if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
-    ib::error() << "N heap is wrong " << page_dir_get_n_heap(page) << ", "
-                << (count + 1);
+    ib::error(ER_IB_MSG_896) << "N heap is wrong " << page_dir_get_n_heap(page)
+                             << ", " << (count + 1);
 
     goto func_exit;
   }
@@ -2134,7 +2148,7 @@ ibool page_validate(
 
   if (UNIV_UNLIKELY((ibool) !!page_is_comp(page) !=
                     dict_table_is_comp(index->table))) {
-    ib::error() << "'compact format' flag mismatch";
+    ib::error(ER_IB_MSG_897) << "'compact format' flag mismatch";
     goto func_exit2;
   }
   if (page_is_comp(page)) {
@@ -2161,8 +2175,9 @@ ibool page_validate(
 
     if (max_trx_id == 0 ||
         (sys_max_trx_id != 0 && max_trx_id > sys_max_trx_id)) {
-      ib::error() << "PAGE_MAX_TRX_ID out of bounds: " << max_trx_id << ", "
-                  << sys_max_trx_id;
+      ib::error(ER_IB_MSG_898)
+          << "PAGE_MAX_TRX_ID out of bounds: " << max_trx_id << ", "
+          << sys_max_trx_id;
       goto func_exit2;
     }
   }
@@ -2182,11 +2197,11 @@ ibool page_validate(
 
   if (UNIV_UNLIKELY(!(page_header_get_ptr(page, PAGE_HEAP_TOP) <=
                       page_dir_get_nth_slot(page, n_slots - 1)))) {
-    ib::warn() << "Record heap and dir overlap on space "
-               << page_get_space_id(page) << " page " << page_get_page_no(page)
-               << " index " << index->name << ", "
-               << page_header_get_ptr(page, PAGE_HEAP_TOP) << ", "
-               << page_dir_get_nth_slot(page, n_slots - 1);
+    ib::warn(ER_IB_MSG_899)
+        << "Record heap and dir overlap on space " << page_get_space_id(page)
+        << " page " << page_get_page_no(page) << " index " << index->name
+        << ", " << page_header_get_ptr(page, PAGE_HEAP_TOP) << ", "
+        << page_dir_get_nth_slot(page, n_slots - 1);
 
     goto func_exit;
   }
@@ -2206,7 +2221,7 @@ ibool page_validate(
 
     if (page_is_comp(page) && page_rec_is_user_rec(rec) &&
         UNIV_UNLIKELY(rec_get_node_ptr_flag(rec) == page_is_leaf(page))) {
-      ib::error() << "'node_ptr' flag mismatch";
+      ib::error(ER_IB_MSG_900) << "'node_ptr' flag mismatch";
       goto func_exit;
     }
 
@@ -2225,10 +2240,11 @@ ibool page_validate(
           (ret == 0 && dict_index_is_spatial(index) && !page_is_leaf(page));
 
       if (ret <= 0 && !rtr_equal_nodeptrs) {
-        ib::error() << "Records in wrong order on"
-                       " space "
-                    << page_get_space_id(page) << " page "
-                    << page_get_page_no(page) << " index " << index->name;
+        ib::error(ER_IB_MSG_901)
+            << "Records in wrong order on"
+               " space "
+            << page_get_space_id(page) << " page " << page_get_page_no(page)
+            << " index " << index->name;
 
         fputs("\nInnoDB: previous record ", stderr);
         /* For spatial index, print the mbr info.*/
@@ -2270,14 +2286,14 @@ ibool page_validate(
     offs = page_offset(rec_get_start(rec, offsets));
     i = rec_offs_size(offsets);
     if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
-      ib::error() << "Record offset out of bounds";
+      ib::error(ER_IB_MSG_902) << "Record offset out of bounds";
       goto func_exit;
     }
 
     while (i--) {
       if (UNIV_UNLIKELY(buf[offs + i])) {
         /* No other record may overlap this */
-        ib::error() << "Record overlaps another";
+        ib::error(ER_IB_MSG_903) << "Record overlaps another";
         goto func_exit;
       }
 
@@ -2293,14 +2309,14 @@ ibool page_validate(
     if (UNIV_UNLIKELY(rec_own_count)) {
       /* This is a record pointed to by a dir slot */
       if (UNIV_UNLIKELY(rec_own_count != own_count)) {
-        ib::error() << "Wrong owned count " << rec_own_count << ", "
-                    << own_count;
+        ib::error(ER_IB_MSG_904)
+            << "Wrong owned count " << rec_own_count << ", " << own_count;
         goto func_exit;
       }
 
       if (page_dir_slot_get_rec(slot) != rec) {
-        ib::error() << "Dir slot does not"
-                       " point to right rec";
+        ib::error(ER_IB_MSG_905) << "Dir slot does not"
+                                    " point to right rec";
         goto func_exit;
       }
 
@@ -2336,28 +2352,30 @@ ibool page_validate(
     }
   } else if (UNIV_UNLIKELY(rec_get_n_owned_old(rec) == 0)) {
   n_owned_zero:
-    ib::error() << "n owned is zero";
+    ib::error(ER_IB_MSG_906) << "n owned is zero";
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(slot_no != n_slots - 1)) {
-    ib::error() << "n slots wrong " << slot_no << " " << (n_slots - 1);
+    ib::error(ER_IB_MSG_907)
+        << "n slots wrong " << slot_no << " " << (n_slots - 1);
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(page_header_get_field(page, PAGE_N_RECS) +
                         PAGE_HEAP_NO_USER_LOW !=
                     count + 1)) {
-    ib::error() << "n recs wrong "
-                << page_header_get_field(page, PAGE_N_RECS) +
-                       PAGE_HEAP_NO_USER_LOW
-                << " " << (count + 1);
+    ib::error(ER_IB_MSG_908)
+        << "n recs wrong "
+        << page_header_get_field(page, PAGE_N_RECS) + PAGE_HEAP_NO_USER_LOW
+        << " " << (count + 1);
     goto func_exit;
   }
 
   if (UNIV_UNLIKELY(data_size != page_get_data_size(page))) {
-    ib::error() << "Summed data size " << data_size << ", returned by func "
-                << page_get_data_size(page);
+    ib::error(ER_IB_MSG_909)
+        << "Summed data size " << data_size << ", returned by func "
+        << page_get_data_size(page);
     goto func_exit;
   }
 
@@ -2374,14 +2392,14 @@ ibool page_validate(
     offs = page_offset(rec_get_start(rec, offsets));
     i = rec_offs_size(offsets);
     if (UNIV_UNLIKELY(offs + i >= UNIV_PAGE_SIZE)) {
-      ib::error() << "Record offset out of bounds";
+      ib::error(ER_IB_MSG_910) << "Record offset out of bounds";
       goto func_exit;
     }
 
     while (i--) {
       if (UNIV_UNLIKELY(buf[offs + i])) {
-        ib::error() << "Record overlaps another"
-                       " in free list";
+        ib::error(ER_IB_MSG_911) << "Record overlaps another"
+                                    " in free list";
         goto func_exit;
       }
 
@@ -2392,8 +2410,8 @@ ibool page_validate(
   }
 
   if (UNIV_UNLIKELY(page_dir_get_n_heap(page) != count + 1)) {
-    ib::error() << "N heap is wrong " << page_dir_get_n_heap(page) << " "
-                << count + 1;
+    ib::error(ER_IB_MSG_912)
+        << "N heap is wrong " << page_dir_get_n_heap(page) << " " << count + 1;
     goto func_exit;
   }
 
@@ -2404,9 +2422,9 @@ func_exit:
 
   if (UNIV_UNLIKELY(ret == FALSE)) {
   func_exit2:
-    ib::error() << "Apparent corruption in space " << page_get_space_id(page)
-                << " page " << page_get_page_no(page) << " index "
-                << index->name;
+    ib::error(ER_IB_MSG_913)
+        << "Apparent corruption in space " << page_get_space_id(page)
+        << " page " << page_get_page_no(page) << " index " << index->name;
   }
 
   return (ret);
@@ -2556,15 +2574,15 @@ void page_warn_strict_checksum(srv_checksum_algorithm_t curr_algo,
       ut_error;
   }
 
-  ib::warn() << "innodb_checksum_algorithm is set to \""
-             << buf_checksum_algorithm_name(curr_algo) << "\""
-             << " but the page " << page_id << " contains a valid checksum \""
-             << buf_checksum_algorithm_name(page_checksum) << "\". "
-             << " Accepting the page as valid. Change"
-             << " innodb_checksum_algorithm to \""
-             << buf_checksum_algorithm_name(curr_algo_nonstrict)
-             << "\" to silently accept such pages or rewrite all pages"
-             << " so that they contain \""
-             << buf_checksum_algorithm_name(curr_algo_nonstrict)
-             << "\" checksum.";
+  ib::warn(ER_IB_MSG_914)
+      << "innodb_checksum_algorithm is set to \""
+      << buf_checksum_algorithm_name(curr_algo) << "\""
+      << " but the page " << page_id << " contains a valid checksum \""
+      << buf_checksum_algorithm_name(page_checksum) << "\". "
+      << " Accepting the page as valid. Change"
+      << " innodb_checksum_algorithm to \""
+      << buf_checksum_algorithm_name(curr_algo_nonstrict)
+      << "\" to silently accept such pages or rewrite all pages"
+      << " so that they contain \""
+      << buf_checksum_algorithm_name(curr_algo_nonstrict) << "\" checksum.";
 }

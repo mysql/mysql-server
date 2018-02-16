@@ -98,8 +98,8 @@ DROP TABLE t2;
 --source include/rpl_end.inc
 
 call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Error: tablespace id and flags in file '.*'.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
+call mtr.add_suppression("Error: tablespace id and flags in file '.*'.*");
+call mtr.add_suppression("The table .* doesn't have a corresponding tablespace, it was discarded");
 
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
 --remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg

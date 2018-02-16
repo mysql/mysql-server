@@ -358,12 +358,13 @@ void Clone_Sys::wait_clone_exit() {
     loop_count++;
 
     if (loop_count % 600 == 0) {
-      ib::info() << "DDL waiting for CLONE to abort : " << (loop_count / 600)
-                 << " minutes";
+      ib::info(ER_IB_MSG_149)
+          << "DDL waiting for CLONE to abort : " << (loop_count / 600)
+          << " minutes";
 
       if (loop_count > 600 * 5) {
-        ib::warn() << "Active CLONE didn't abort"
-                      " in 5 minutes; Continuing DDL.";
+        ib::warn(ER_IB_MSG_150) << "Active CLONE didn't abort"
+                                   " in 5 minutes; Continuing DDL.";
         break;
       }
     }

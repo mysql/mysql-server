@@ -303,11 +303,12 @@ void lock_report_trx_id_insanity(
     const ulint *offsets,      /*!< in: rec_get_offsets(rec, index) */
     trx_id_t max_trx_id)       /*!< in: trx_sys_get_max_trx_id() */
 {
-  ib::error() << "Transaction id " << trx_id << " associated with record"
-              << rec_offsets_print(rec, offsets) << " in index " << index->name
-              << " of table " << index->table->name
-              << " is greater than the global counter " << max_trx_id
-              << "! The table is corrupted.";
+  ib::error(ER_IB_MSG_634) << "Transaction id " << trx_id
+                           << " associated with record"
+                           << rec_offsets_print(rec, offsets) << " in index "
+                           << index->name << " of table " << index->table->name
+                           << " is greater than the global counter "
+                           << max_trx_id << "! The table is corrupted.";
 }
 
 /** Checks that a transaction id is sensible, i.e., not in the future.
@@ -1129,10 +1130,11 @@ void RecLock::prepare() const {
       break;
     case TRX_DICT_OP_TABLE:
     case TRX_DICT_OP_INDEX:
-      ib::error() << "A record lock wait happens in a dictionary"
-                     " operation. index "
-                  << m_index->name << " of table " << m_index->table->name
-                  << ". " << BUG_REPORT_MSG;
+      ib::error(ER_IB_MSG_635)
+          << "A record lock wait happens in a dictionary"
+             " operation. index "
+          << m_index->name << " of table " << m_index->table->name << ". "
+          << BUG_REPORT_MSG;
       ut_ad(0);
   }
 
@@ -1518,9 +1520,10 @@ void RecLock::mark_trx_for_rollback(trx_t *trx) {
 
   if (thd != NULL) {
     char buffer[1024];
-    ib::info() << "Blocking transaction: ID: " << trx->id << " - "
-               << " Blocked transaction ID: " << m_trx->id << " - "
-               << thd_security_context(thd, buffer, sizeof(buffer), 512);
+    ib::info(ER_IB_MSG_636)
+        << "Blocking transaction: ID: " << trx->id << " - "
+        << " Blocked transaction ID: " << m_trx->id << " - "
+        << thd_security_context(thd, buffer, sizeof(buffer), 512);
   }
 #endif /* UNIV_DEBUG */
 }
@@ -1962,8 +1965,8 @@ static void lock_grant(lock_t *lock) /*!< in/out: waiting lock request */
     dict_table_t *table = lock->tab_lock.table;
 
     if (table->autoinc_trx == lock->trx) {
-      ib::error() << "Transaction already had an"
-                  << " AUTO-INC lock!";
+      ib::error(ER_IB_MSG_637) << "Transaction already had an"
+                               << " AUTO-INC lock!";
     } else {
       table->autoinc_trx = lock->trx;
 
@@ -2022,9 +2025,10 @@ bool RecLock::jump_queue(lock_t *lock, const lock_t *conflict_lock) {
     ut_ad(conflict_lock->trx->lock.wait_lock == conflict_lock);
 
 #ifdef UNIV_DEBUG
-    ib::info() << "Granting High Priority Transaction (ID): " << lock->trx->id
-               << " the lock jumping over"
-               << " waiting Transaction (ID): " << conflict_lock->trx->id;
+    ib::info(ER_IB_MSG_638)
+        << "Granting High Priority Transaction (ID): " << lock->trx->id
+        << " the lock jumping over"
+        << " waiting Transaction (ID): " << conflict_lock->trx->id;
 #endif /* UNIV_DEBUG */
 
     lock_reset_lock_and_trx_wait(lock);
@@ -2184,9 +2188,10 @@ void RecLock::make_trx_hit_list(lock_t *lock, const lock_t *conflict_lock) {
       /* Assert that it is not waiting for current record. */
       ut_ad(trx->lock.wait_lock != next);
 #ifdef UNIV_DEBUG
-      ib::info() << "High Priority Transaction (ID): " << lock->trx->id
-                 << " waking up blocking"
-                 << " transaction (ID): " << trx->id;
+      ib::info(ER_IB_MSG_639)
+          << "High Priority Transaction (ID): " << lock->trx->id
+          << " waking up blocking"
+          << " transaction (ID): " << trx->id;
 #endif /* UNIV_DEBUG */
       trx->lock.was_chosen_as_deadlock_victim = true;
 
@@ -2935,8 +2940,8 @@ void lock_move_reorganize_page(
 
       /* Check that all locks were moved. */
       if (i != ULINT_UNDEFINED) {
-        ib::fatal() << "lock_move_reorganize_page(): " << i << " not moved in "
-                    << (void *)lock;
+        ib::fatal(ER_IB_MSG_640) << "lock_move_reorganize_page(): " << i
+                                 << " not moved in " << (void *)lock;
       }
     }
 #endif /* UNIV_DEBUG */
@@ -3127,8 +3132,8 @@ void lock_move_rec_list_start(
 
       for (i = PAGE_HEAP_NO_USER_LOW; i < lock_rec_get_n_bits(lock); i++) {
         if (lock_rec_get_nth_bit(lock, i)) {
-          ib::fatal() << "lock_move_rec_list_start():" << i << " not moved in "
-                      << (void *)lock;
+          ib::fatal(ER_IB_MSG_641) << "lock_move_rec_list_start():" << i
+                                   << " not moved in " << (void *)lock;
         }
       }
     }
@@ -3808,9 +3813,9 @@ static dberr_t lock_table_enqueue_waiting(
       break;
     case TRX_DICT_OP_TABLE:
     case TRX_DICT_OP_INDEX:
-      ib::error() << "A table lock wait happens in a dictionary"
-                     " operation. Table "
-                  << table->name << ". " << BUG_REPORT_MSG;
+      ib::error(ER_IB_MSG_642) << "A table lock wait happens in a dictionary"
+                                  " operation. Table "
+                               << table->name << ". " << BUG_REPORT_MSG;
       ut_ad(0);
   }
 
@@ -4173,7 +4178,7 @@ void lock_rec_unlock(
 
     auto stmt = innobase_get_stmt_unsafe(trx->mysql_thd, &stmt_len);
 
-    ib::error err;
+    ib::error err(ER_IB_MSG_1228);
 
     err << "Unlock row could not find a " << lock_mode
         << " mode lock on the record. Current statement: ";
@@ -6636,8 +6641,8 @@ void DeadlockChecker::start_print() {
   ut_print_timestamp(lock_latest_err_file);
 
   if (srv_print_all_deadlocks) {
-    ib::info() << "Transactions deadlock detected, dumping"
-               << " detailed information.";
+    ib::info(ER_IB_MSG_643) << "Transactions deadlock detected, dumping"
+                            << " detailed information.";
   }
 }
 
@@ -6647,7 +6652,7 @@ void DeadlockChecker::print(const char *msg) {
   fputs(msg, lock_latest_err_file);
 
   if (srv_print_all_deadlocks) {
-    ib::info() << msg;
+    ib::info(ER_IB_MSG_644) << msg;
   }
 }
 

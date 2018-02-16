@@ -4,7 +4,7 @@
 # Modify row_format= Comprssed to Dynamic to Redundant to Compact
 # The mysqld.err.1 log shows followig note when InnoDB does partial update
 # on the table
-# [Note] InnoDB: LOB partial update of field=(j1) on index=(GEN_CLUST_INDEX)
+# [Note] LOB partial update of field=(j1) on index=(GEN_CLUST_INDEX)
 # Check for TEXT datatype full update and JSON functions works normally
 # Check partial update with views and stored procedures
 # Negative case : check update and JSON functions on BLOB datatype

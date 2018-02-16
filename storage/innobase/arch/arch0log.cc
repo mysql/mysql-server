@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018 Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -63,7 +63,8 @@ dberr_t Log_Arch_Client_Ctx::start(byte *header, uint len) {
 
   m_state = ARCH_CLIENT_STATE_STARTED;
 
-  ib::info() << "Clone Start LOG ARCH : start LSN : " << m_begin_lsn;
+  ib::info(ER_IB_MSG_15) << "Clone Start LOG ARCH : start LSN : "
+                         << m_begin_lsn;
 
   return (err);
 }
@@ -101,7 +102,7 @@ dberr_t Log_Arch_Client_Ctx::stop(byte *trailer, uint32_t &len,
 
   m_state = ARCH_CLIENT_STATE_STOPPED;
 
-  ib::info() << "Clone Stop  LOG ARCH : end LSN : " << m_end_lsn;
+  ib::info(ER_IB_MSG_16) << "Clone Stop  LOG ARCH : end LSN : " << m_end_lsn;
 
   return (err);
 }
@@ -304,8 +305,8 @@ dberr_t Arch_Log_Sys::start(Arch_Group *&group, lsn_t &start_lsn, byte *header,
       if (!ret) {
         mutex_exit(&m_mutex);
 
-        ib::error() << "Could not start Archiver"
-                    << " background task";
+        ib::error(ER_IB_MSG_17) << "Could not start Archiver"
+                                << " background task";
 
         return (DB_ERROR);
       }
@@ -696,13 +697,14 @@ dberr_t Arch_Log_Sys::wait_archive_complete(lsn_t target_lsn) {
     ++count;
 
     if (count % 50 == 0) {
-      ib::info() << "Waiting for archiver to"
-                    " finish archiving log till LSN "
-                 << target_lsn << " Archived LSN: " << m_archived_lsn;
+      ib::info(ER_IB_MSG_18)
+          << "Waiting for archiver to"
+             " finish archiving log till LSN "
+          << target_lsn << " Archived LSN: " << m_archived_lsn;
 
       if (count > 600) {
         /* Wait too long - 1 minutes */
-        ib::error() << "Log Archive wait too long";
+        ib::error(ER_IB_MSG_19) << "Log Archive wait too long";
 
         my_error(ER_INTERNAL_ERROR, MYF(0), "Log Archiver wait too long");
         return (DB_ERROR);

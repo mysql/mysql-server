@@ -10,14 +10,14 @@ LET $INNODB_PAGE_SIZE = `select @@innodb_page_size`;
 
 --disable_query_log
 # This error is expected in the error log for this test.
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Error number 17 means 'File exists'");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number (17|80) in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The link file: .* already exists.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Cannot open datafile for read-only:");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: Operating system error number 2 in a file operation.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: The error means the system cannot find the path specified.");
-call mtr.add_suppression("\\[ERROR\\] InnoDB: If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
-call mtr.add_suppression("\\[Warning\\] InnoDB: Tablespace .*, name 'innodb_file_per_table.*', file '.*alt_dir/move_test/.*\.ibd' has been moved to '.*alt_dir_moved/move_test/.*\.ibd'");
+call mtr.add_suppression("\\[ERROR\\]  Error number 17 means 'File exists'");
+call mtr.add_suppression("\\[ERROR\\]  Operating system error number (17|80) in a file operation.");
+call mtr.add_suppression("\\[ERROR\\]  The link file: .* already exists.");
+call mtr.add_suppression("\\[ERROR\\]  Cannot open datafile for read-only:");
+call mtr.add_suppression("\\[ERROR\\]  Operating system error number 2 in a file operation.");
+call mtr.add_suppression("\\[ERROR\\]  The error means the system cannot find the path specified.");
+call mtr.add_suppression("\\[ERROR\\]  If you are installing InnoDB, remember that you must create directories yourself, InnoDB does not create them.");
+call mtr.add_suppression("\\[Warning\\]  Tablespace .*, name 'innodb_file_per_table.*', file '.*alt_dir/move_test/.*\.ibd' has been moved to '.*alt_dir_moved/move_test/.*\.ibd'");
 --enable_query_log
 
 --echo #

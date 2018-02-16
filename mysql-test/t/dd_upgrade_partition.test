@@ -27,7 +27,7 @@ call mtr.add_suppression("table is missing or has an incorrect definition");
 call mtr.add_suppression("ACL DDLs will not work unless mysql_upgrade is executed");
 call mtr.add_suppression(".* Native table .* has the wrong structure");
 call mtr.add_suppression("Column count of mysql.* is wrong");
-call mtr.add_suppression("InnoDB: Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
+call mtr.add_suppression("Cannot open table mysql/version from the internal data dictionary of InnoDB though the .frm file for the table exists");
 call mtr.add_suppression("Column count of performance_schema.events_statements_summary_by_digest is wrong.*");
 call mtr.add_suppression("The privilege system failed to initialize correctly.*");
 call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
@@ -35,7 +35,7 @@ call mtr.add_suppression(".*Missing system table mysql.global_grants.*");
 # statistics while persistent statistics table is altered during upgrade.
 # This issue doesn't seem to cause any further trouble (as there is no persistent
 # stats for persistent stats table anyway), so we ignore these warnings here.
-call mtr.add_suppression("InnoDB: Unable to delete statistics for table mysql.");
+call mtr.add_suppression("Unable to delete statistics for table mysql.");
 # new fields were added to these tables
 call mtr.add_suppression("Column count of performance_schema.replication_group_members is wrong. Expected 7, found 5.*");
 call mtr.add_suppression("Column count of performance_schema.replication_group_member_stats is wrong. Expected 13, found 9.*");

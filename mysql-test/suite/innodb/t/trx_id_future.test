@@ -56,7 +56,7 @@ EOF
 --source include/start_mysqld.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: A transaction id in a record of table `\.\.*`\.`\.\.*` is newer than the system-wide maximum.");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A transaction id in a record of table `\.\.*`\.`\.\.*` is newer than the system-wide maximum.");
 --enable_query_log
 
 SELECT * FROM t1;

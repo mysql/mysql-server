@@ -125,7 +125,13 @@ bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
         dfield_get_len(dfield2), 1));
   }
 
-  ib::fatal() << "Unable to find charset-collation " << cs_num;
+#ifdef UNIV_NO_ERR_MSGS
+  ib::fatal()
+#else
+  ib::fatal(ER_IB_MSG_627)
+#endif /* !UNIV_NO_ERR_MSGS */
+      << "Unable to find charset-collation " << cs_num;
+
   return (0);
 }
 #endif /* UNIV_HOTBACKUP */

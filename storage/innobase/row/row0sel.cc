@@ -1177,8 +1177,8 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
     if (dict_index_is_spatial(index)) {
       if (type == LOCK_GAP || type == LOCK_ORDINARY) {
         ut_ad(0);
-        ib::error() << "Incorrectly request GAP lock "
-                       "on RTree";
+        ib::error(ER_IB_MSG_1026) << "Incorrectly request GAP lock "
+                                     "on RTree";
         return (DB_SUCCESS);
       }
       err = sel_set_rtr_rec_lock(pcur, rec, index, offsets, sel_mode, mode,
@@ -2265,7 +2265,7 @@ que_thr_t *fetch_step(que_thr_t *thr) /*!< in: query thread */
   sel_node->common.parent = node;
 
   if (sel_node->state == SEL_NODE_CLOSED) {
-    ib::error() << "fetch called on a closed cursor";
+    ib::error(ER_IB_MSG_1027) << "fetch called on a closed cursor";
 
     thr_get_trx(thr)->error_state = DB_ERROR;
 
@@ -2456,14 +2456,14 @@ void row_sel_convert_mysql_key_to_innobase(
       trick to calculate LIKE 'abc%' type queries there
       should never be partial-field prefixes in searches. */
 
-      ib::warn() << "Using a partial-field key prefix in"
-                    " search, index "
-                 << index->name << " of table " << index->table->name
-                 << ". Last data field length " << data_field_len
-                 << " bytes, key ptr now"
-                    " exceeds key end by "
-                 << (key_ptr - key_end)
-                 << " bytes. Key value in the MySQL format:";
+      ib::warn(ER_IB_MSG_1028)
+          << "Using a partial-field key prefix in"
+             " search, index "
+          << index->name << " of table " << index->table->name
+          << ". Last data field length " << data_field_len
+          << " bytes, key ptr now"
+             " exceeds key end by "
+          << (key_ptr - key_end) << " bytes. Key value in the MySQL format:";
 
       ut_print_buf(stderr, original_key_ptr, key_len);
       putc('\n', stderr);
@@ -2505,12 +2505,13 @@ static void row_sel_store_row_id_to_prebuilt(
                            index->get_sys_col_pos(DATA_ROW_ID), &len);
 
   if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
-    ib::error() << "Row id field is wrong length " << len
-                << " in"
-                   " index "
-                << index->name << " of table " << index->table->name
-                << ", Field number " << index->get_sys_col_pos(DATA_ROW_ID)
-                << ", record:";
+    ib::error(ER_IB_MSG_1029)
+        << "Row id field is wrong length " << len
+        << " in"
+           " index "
+        << index->name << " of table " << index->table->name
+        << ", Field number " << index->get_sys_col_pos(DATA_ROW_ID)
+        << ", record:";
 
     rec_print_new(stderr, index_rec, offsets);
     putc('\n', stderr);
@@ -3233,9 +3234,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       earlier versions of the clustered index record.
       In that case we know that the clustered index
       record did not exist in the read view of trx. */
-      ib::error() << "Clustered record for sec rec not found"
-                     " index "
-                  << sec_index->name << " of table " << sec_index->table->name;
+      ib::error(ER_IB_MSG_1030)
+          << "Clustered record for sec rec not found"
+             " index "
+          << sec_index->name << " of table " << sec_index->table->name;
 
       fputs("InnoDB: sec index record ", stderr);
       rec_print(stderr, rec, sec_index);
@@ -4593,9 +4595,9 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
     if (!MVCC::is_view_active(trx->read_view) && !srv_read_only_mode &&
         prebuilt->select_lock_type == LOCK_NONE) {
-      ib::error() << "MySQL is trying to perform a"
-                     " consistent read but the read view is not"
-                     " assigned!";
+      ib::error(ER_IB_MSG_1031) << "MySQL is trying to perform a"
+                                   " consistent read but the read view is not"
+                                   " assigned!";
       trx_print(stderr, trx, 600);
       fputc('\n', stderr);
       ut_error;
@@ -4834,18 +4836,18 @@ rec_loop:
   if (UNIV_UNLIKELY(next_offs >= UNIV_PAGE_SIZE - PAGE_DIR)) {
   wrong_offs:
     if (srv_force_recovery == 0 || moves_up == FALSE) {
-      ib::error()
+      ib::error(ER_IB_MSG_1032)
           << "Rec address " << static_cast<const void *>(rec)
           << ", buf block fix count "
           << btr_cur_get_block(btr_pcur_get_btr_cur(pcur))->page.buf_fix_count;
 
-      ib::error() << "Index corruption: rec offs " << page_offset(rec)
-                  << " next offs " << next_offs << ", page no "
-                  << page_get_page_no(page_align(rec)) << ", index "
-                  << index->name << " of table " << index->table->name
-                  << ". Run CHECK TABLE. You may need to"
-                     " restore from a backup, or dump + drop +"
-                     " reimport the table.";
+      ib::error(ER_IB_MSG_1033)
+          << "Index corruption: rec offs " << page_offset(rec) << " next offs "
+          << next_offs << ", page no " << page_get_page_no(page_align(rec))
+          << ", index " << index->name << " of table " << index->table->name
+          << ". Run CHECK TABLE. You may need to"
+             " restore from a backup, or dump + drop +"
+             " reimport the table.";
       ut_ad(0);
       err = DB_CORRUPTION;
 
@@ -4854,11 +4856,11 @@ rec_loop:
       /* The user may be dumping a corrupt table. Jump
       over the corruption to recover as much as possible. */
 
-      ib::info() << "Index corruption: rec offs " << page_offset(rec)
-                 << " next offs " << next_offs << ", page no "
-                 << page_get_page_no(page_align(rec)) << ", index "
-                 << index->name << " of table " << index->table->name
-                 << ". We try to skip the rest of the page.";
+      ib::info(ER_IB_MSG_1034)
+          << "Index corruption: rec offs " << page_offset(rec) << " next offs "
+          << next_offs << ", page no " << page_get_page_no(page_align(rec))
+          << ", index " << index->name << " of table " << index->table->name
+          << ". We try to skip the rest of the page.";
 
       btr_pcur_move_to_last_on_page(pcur, &mtr);
 
@@ -4878,11 +4880,11 @@ rec_loop:
   if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
     if (!rec_validate(rec, offsets) ||
         !btr_index_rec_validate(rec, index, FALSE)) {
-      ib::info() << "Index corruption: rec offs " << page_offset(rec)
-                 << " next offs " << next_offs << ", page no "
-                 << page_get_page_no(page_align(rec)) << ", index "
-                 << index->name << " of table " << index->table->name
-                 << ". We try to skip the record.";
+      ib::info(ER_IB_MSG_1035)
+          << "Index corruption: rec offs " << page_offset(rec) << " next offs "
+          << next_offs << ", page no " << page_get_page_no(page_align(rec))
+          << ", index " << index->name << " of table " << index->table->name
+          << ". We try to skip the record.";
 
       prev_rec = NULL;
       goto next_rec;

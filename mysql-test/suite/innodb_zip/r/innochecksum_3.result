@@ -1,6 +1,6 @@
 # Set the environmental variables
-call mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-call mtr.add_suppression("InnoDB: innodb_checksum_algorithm is set to");
+call mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+call mtr.add_suppression("innodb_checksum_algorithm is set to");
 SET GLOBAL innodb_file_per_table=on;
 [1]: Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
 CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,

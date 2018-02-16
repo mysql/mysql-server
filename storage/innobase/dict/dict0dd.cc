@@ -83,8 +83,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   if (my_strcasecmp(system_charset_info, index->name(),
                     dd_index->name().c_str()) != 0 &&
       strcmp(dd_index->name().c_str(), "PRIMARY") != 0) {
-    ib::warn() << "Index name in InnoDB is " << index->name()
-               << " while index name in global DD is " << dd_index->name();
+    ib::warn(ER_IB_MSG_162)
+        << "Index name in InnoDB is " << index->name()
+        << " while index name in global DD is " << dd_index->name();
     match = false;
   }
 
@@ -95,17 +96,18 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ID]));
   p.get_uint64(dd_index_key_strings[DD_INDEX_ID], &id);
   if (id != index->id) {
-    ib::warn() << "Index id in InnoDB is " << index->id << " while index id in"
-               << " global DD is " << id;
+    ib::warn(ER_IB_MSG_163)
+        << "Index id in InnoDB is " << index->id << " while index id in"
+        << " global DD is " << id;
     match = false;
   }
 
   ut_ad(p.exists(dd_index_key_strings[DD_INDEX_ROOT]));
   p.get_uint32(dd_index_key_strings[DD_INDEX_ROOT], &root);
   if (root != index->page) {
-    ib::warn() << "Index root in InnoDB is " << index->page
-               << " while index root in"
-               << " global DD is " << root;
+    ib::warn(ER_IB_MSG_164)
+        << "Index root in InnoDB is " << index->page << " while index root in"
+        << " global DD is " << root;
     match = false;
   }
 
@@ -114,9 +116,9 @@ static bool dd_index_match(const dict_index_t *index, const Index *dd_index) {
   /* For DD tables, the trx_id=0 is got from get_se_private_id().
   TODO: index->trx_id is not expected to be 0 once Bug#25730513 is fixed*/
   if (trx_id != 0 && index->trx_id != 0 && trx_id != index->trx_id) {
-    ib::warn() << "Index transaction id in InnoDB is " << index->trx_id
-               << " while index transaction"
-               << " id in global DD is " << trx_id;
+    ib::warn(ER_IB_MSG_165) << "Index transaction id in InnoDB is "
+                            << index->trx_id << " while index transaction"
+                            << " id in global DD is " << trx_id;
     match = false;
   }
 
@@ -138,8 +140,9 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   bool match = true;
 
   if (dd_table->se_private_id() != table->id) {
-    ib::warn() << "Table id in InnoDB is " << table->id
-               << " while the id in global DD is " << dd_table->se_private_id();
+    ib::warn(ER_IB_MSG_166)
+        << "Table id in InnoDB is " << table->id
+        << " while the id in global DD is " << dd_table->se_private_id();
     match = false;
   }
 
@@ -151,9 +154,10 @@ bool dd_table_match(const dict_table_t *table, const Table *dd_table) {
   for (const auto dd_index : dd_table->indexes()) {
     if (dd_table->tablespace_id() == dict_sys_t::s_dd_sys_space_id &&
         dd_index->tablespace_id() != dd_table->tablespace_id()) {
-      ib::warn() << "Tablespace id in table is " << dd_table->tablespace_id()
-                 << ", while tablespace id in index " << dd_index->name()
-                 << " is " << dd_index->tablespace_id();
+      ib::warn(ER_IB_MSG_167)
+          << "Tablespace id in table is " << dd_table->tablespace_id()
+          << ", while tablespace id in index " << dd_index->name() << " is "
+          << dd_index->tablespace_id();
     }
 
     const dict_index_t *index = dd_find_index(table, dd_index);
@@ -487,7 +491,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
 #ifndef UNIV_HOTBACKUP
       my_error(ER_TABLE_CORRUPT, MYF(0), "", table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal() << "table is corrupt: " << table->name.m_name;
+      ib::fatal(ER_IB_MSG_168) << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     } else {
       char db_buf[MAX_DATABASE_NAME_LEN + 1];
@@ -498,7 +502,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
                         nullptr);
       my_error(ER_TABLE_CORRUPT, MYF(0), db_buf, tbl_buf);
 #else  /* !UNIV_HOTBACKUP */
-      ib::fatal() << "table is corrupt: " << table->name.m_name;
+      ib::fatal(ER_IB_MSG_169) << "table is corrupt: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     }
     table = nullptr;
@@ -510,7 +514,8 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_check_corrupted(
 #ifndef UNIV_HOTBACKUP
     my_error(ER_TABLESPACE_MISSING, MYF(0), table->name.m_name);
 #else  /* !UNIV_HOTBACKUP */
-    ib::fatal() << "table space is missing: " << table->name.m_name;
+    ib::fatal(ER_IB_MSG_170)
+        << "table space is missing: " << table->name.m_name;
 #endif /* !UNIV_HOTBACKUP */
     table = nullptr;
     return (HA_ERR_TABLESPACE_MISSING);
@@ -3105,8 +3110,8 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   if (table->flags2 & DICT_TF2_DISCARDED) {
-    ib::warn() << "Tablespace for table " << table->name
-               << " is set as discarded.";
+    ib::warn(ER_IB_MSG_171)
+        << "Tablespace for table " << table->name << " is set as discarded.";
     table->ibd_file_missing = TRUE;
     return;
   }
@@ -3154,10 +3159,11 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   if (!(ignore_err & DICT_ERR_IGNORE_RECOVER_LOCK)) {
-    ib::error() << "Failed to find tablespace for table " << table->name
-                << " in the cache. Attempting"
-                   " to load the tablespace with space id "
-                << table->space;
+    ib::error(ER_IB_MSG_172)
+        << "Failed to find tablespace for table " << table->name
+        << " in the cache. Attempting"
+           " to load the tablespace with space id "
+        << table->space;
   }
 
   /* Try to get the filepath if this space_id is already open.
@@ -3174,9 +3180,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     mutex_enter(&dict_sys->mutex);
 
     if (filepath == nullptr) {
-      ib::warn() << "Could not find the filepath"
-                 << " for table " << table->name << ", space ID "
-                 << table->space << " in the data dictionary.";
+      ib::warn(ER_IB_MSG_173) << "Could not find the filepath"
+                              << " for table " << table->name << ", space ID "
+                              << table->space << " in the data dictionary.";
     } else {
       alloc_from_heap = true;
     }
@@ -5224,9 +5230,10 @@ bool dd_tablespace_update_cache(THD *thd) {
         case DB_CANNOT_OPEN_FILE:
           break;
         default:
-          ib::info() << "Unable to open tablespace " << id
-                     << " (flags=" << flags << ", filename=" << filename << ")."
-                     << " Have you deleted/moved the .IBD";
+          ib::info(ER_IB_MSG_174)
+              << "Unable to open tablespace " << id << " (flags=" << flags
+              << ", filename=" << filename << ")."
+              << " Have you deleted/moved the .IBD";
           ut_strerr(err);
       }
     }

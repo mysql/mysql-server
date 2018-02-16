@@ -1004,9 +1004,10 @@ ibool page_zip_compress(page_zip_des_t *page_zip, /*!< in: size; out: data,
   n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
 #ifdef PAGE_ZIP_COMPRESS_DBG
   if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
-    ib::info() << "compress " << static_cast<void *>(page_zip) << " "
-               << static_cast<const void *>(page) << " " << page_is_leaf(page)
-               << " " << n_fields << " " << n_dense;
+    ib::info(ER_IB_MSG_915)
+        << "compress " << static_cast<void *>(page_zip) << " "
+        << static_cast<const void *>(page) << " " << page_is_leaf(page) << " "
+        << n_fields << " " << n_dense;
   }
 
   if (UNIV_UNLIKELY(page_zip_compress_log)) {

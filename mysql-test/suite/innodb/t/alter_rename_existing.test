@@ -155,6 +155,6 @@ DROP TABLE t1;
 DROP TABLESPACE s1;
 
 --disable_query_log
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Cannot rename '.*' to '.*' for space ID .* because the target file exists. Remove the target file and try again");
 SET GLOBAL innodb_file_per_table = @old_innodb_file_per_table;
 --enable_query_log

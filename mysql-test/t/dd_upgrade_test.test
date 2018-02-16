@@ -4,7 +4,7 @@
 --source include/not_valgrind.inc
 
 --disable_query_log
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Parent table of FTS auxiliary table.*");
+call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Parent table of FTS auxiliary table.*");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 --enable_query_log
 

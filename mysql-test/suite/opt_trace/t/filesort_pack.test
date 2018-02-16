@@ -2,7 +2,7 @@
 --source include/have_optimizer_trace.inc
 --source include/have_64bit.inc
 
-call mtr.add_suppression("InnoDB: Cannot add field");
+call mtr.add_suppression("Cannot add field");
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc

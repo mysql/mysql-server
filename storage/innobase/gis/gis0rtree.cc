@@ -1376,9 +1376,10 @@ void rtr_page_copy_rec_list_end_no_locks(
               (long)new_block->page.id.page_no(),
               (long)block->page.id.page_no());
 
-      ib::fatal() << "rec offset " << page_offset(rec) << ", cur1 offset "
-                  << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
-                  << page_offset(cur_rec);
+      ib::fatal(ER_IB_MSG_520)
+          << "rec offset " << page_offset(rec) << ", cur1 offset "
+          << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
+          << page_offset(cur_rec);
     }
 
     rec_move[moved].new_rec = ins_rec;
@@ -1486,9 +1487,10 @@ void rtr_page_copy_rec_list_start_no_locks(
               (long)new_block->page.id.page_no(),
               (long)block->page.id.page_no());
 
-      ib::fatal() << "rec offset " << page_offset(rec) << ", cur1 offset "
-                  << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
-                  << page_offset(cur_rec);
+      ib::fatal(ER_IB_MSG_521)
+          << "rec offset " << page_offset(rec) << ", cur1 offset "
+          << page_offset(page_cur_get_rec(&cur1)) << ", cur_rec offset "
+          << page_offset(cur_rec);
     }
 
     rec_move[moved].new_rec = ins_rec;

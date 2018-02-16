@@ -9,7 +9,7 @@
 
 if ($VALGRIND_TEST)
 {
-  call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: A long semaphore wait:");
+  call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* A long semaphore wait:");
 }
 
 SET foreign_key_checks=0;

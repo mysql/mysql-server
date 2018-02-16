@@ -225,8 +225,7 @@ static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
   dberr_t err = os_file_get_status(name, &stat, true, srv_read_only_mode);
 
   if (err == DB_FAIL) {
-    ib::error() << "os_file_get_status() failed on '" << name
-                << "'. Can't determine file permissions.";
+    ib::error(ER_IB_MSG_1058, name);
     return (false);
 
   } else if (err == DB_SUCCESS) {
@@ -237,12 +236,13 @@ static bool srv_file_check_mode(const char *name) /*!< in: filename to check */
       srv_read_only_mode mode. */
       if (!stat.rw_perm) {
         const char *mode = srv_read_only_mode ? "read" : "read-write";
-        ib::error() << name << " can't be opened in " << mode << " mode.";
+
+        ib::error(ER_IB_MSG_1059, name, mode);
         return (false);
       }
     } else {
       /* Not a regular file, bail out. */
-      ib::error() << "'" << name << "' not a regular file.";
+      ib::error(ER_IB_MSG_1060, name);
 
       return (false);
     }
@@ -278,19 +278,19 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                          OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 
   if (!ret) {
-    ib::error() << "Cannot create " << name;
+    ib::error(ER_IB_MSG_1061, name);
     return (DB_ERROR);
   }
 
-  ib::info() << "Setting log file " << name << " size to "
-             << (srv_log_file_size >> 20) << " MB";
+  auto size = srv_log_file_size >> (20 - UNIV_PAGE_SIZE_SHIFT);
+
+  ib::info(ER_IB_MSG_1062, name, size);
 
   ret = os_file_set_size(name, *file, 0, (os_offset_t)srv_log_file_size,
                          srv_read_only_mode, true);
 
   if (!ret) {
-    ib::error() << "Cannot set log file " << name << " to size "
-                << (srv_log_file_size >> 20) << " MB";
+    ib::error(ER_IB_MSG_1063, name, size);
 
     /* Delete incomplete file if OOM */
     if (os_has_said_disk_full) {
@@ -323,7 +323,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   dberr_t err;
 
   if (srv_read_only_mode) {
-    ib::error() << "Cannot create log files in read-only mode";
+    ib::error(ER_IB_MSG_1064);
     return (DB_READ_ONLY);
   }
 
@@ -380,8 +380,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
   initialize encryption information. */
   if (srv_redo_log_encrypt) {
     if (!Encryption::check_keyring()) {
-      ib::error() << "Redo log encryption is enabled,"
-                  << " but keyring plugin is not loaded.";
+      ib::error(ER_IB_MSG_1065);
 
       return (DB_ERROR);
     }
@@ -403,7 +402,7 @@ static dberr_t create_log_files(char *logfilename, size_t dirnamelen, lsn_t lsn,
 
     if (fil_node_create(logfilename, static_cast<page_no_t>(file_pages),
                         log_space, false, false) == nullptr) {
-      ib::error() << "Cannot create file for log file " << logfilename;
+      ib::error(ER_IB_MSG_1066, logfilename);
 
       return (DB_ERROR);
     }
@@ -481,7 +480,7 @@ static void create_log_files_rename(
 
   RECOVERY_CRASH(9);
 
-  ib::info() << "Renaming log file " << logfile0 << " to " << logfilename;
+  ib::info(ER_IB_MSG_1067, logfile0, logfilename);
 
   ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
   bool success = os_file_rename(innodb_log_file_key, logfile0, logfilename);
@@ -495,7 +494,7 @@ static void create_log_files_rename(
   fil_open_log_and_system_tablespace_files();
 
   /* For cloned database it is normal to resize redo logs. */
-  ib::info() << "New log files created, LSN=" << lsn;
+  ib::info(ER_IB_MSG_1068, lsn);
 }
 
 /** Opens a log file.
@@ -510,7 +509,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   *file = os_file_create(innodb_log_file_key, name, OS_FILE_OPEN, OS_FILE_AIO,
                          OS_LOG_FILE, srv_read_only_mode, &ret);
   if (!ret) {
-    ib::error() << "Unable to open '" << name << "'";
+    ib::error(ER_IB_MSG_1069, name);
     return (DB_ERROR);
   }
 
@@ -540,9 +539,7 @@ static dberr_t srv_undo_tablespace_create(space_id_t space_id) {
   file around so that if a cash happens it can be rebuilt at startup. */
   err = undo::start_logging(space_id);
   if (err != DB_SUCCESS) {
-    ib::error() << "Cannot create construction log file for"
-                   " undo tablespace ID="
-                << space_id;
+    ib::error(ER_IB_MSG_1070, (ulint)space_id);
   }
   ut_ad(err == DB_SUCCESS);
 
@@ -551,28 +548,30 @@ static dberr_t srv_undo_tablespace_create(space_id_t space_id) {
                       OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
   if (ret == FALSE) {
-    ib::error stmt;
-    stmt << "Can't create UNDO tablespace " << undo_space.space_name();
+    std::ostringstream stmt;
 
     if (os_file_get_last_error(false) == OS_FILE_ALREADY_EXISTS) {
       stmt << "since " << file_name << " already exists.";
     } else {
       stmt << ". os_file_create() returned " << ret << ".";
     }
+
+    ib::error(ER_IB_MSG_1214, undo_space.space_name(), stmt.str().c_str());
+
     err = DB_ERROR;
   } else {
     ut_a(!srv_read_only_mode);
 
     /* We created the data file and now write it full of zeros */
 
-    ib::info() << "Creating UNDO Tablespace " << file_name;
+    ib::info(ER_IB_MSG_1071, file_name);
 
     ulint size_mb =
         SRV_UNDO_TABLESPACE_SIZE_IN_PAGES << UNIV_PAGE_SIZE_SHIFT >> 20;
-    ib::info() << "Setting file " << file_name << " size to " << size_mb
-               << " MB";
 
-    ib::info() << "Physically writing the file full";
+    ib::info(ER_IB_MSG_1072, file_name, (ulint)size_mb);
+
+    ib::info(ER_IB_MSG_1073);
 
     ret = os_file_set_size(
         file_name, fh, 0,
@@ -580,8 +579,7 @@ static dberr_t srv_undo_tablespace_create(space_id_t space_id) {
         srv_read_only_mode, true);
 
     if (!ret) {
-      ib::info() << "Error in creating " << file_name
-                 << ": probably out of disk space";
+      ib::info(ER_IB_MSG_1074, file_name);
       err = DB_OUT_OF_FILE_SPACE;
     }
 
@@ -618,9 +616,7 @@ static dberr_t srv_undo_tablespace_enable_encryption(space_id_t space_id) {
     space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
     err = fil_set_encryption(space_id, Encryption::AES, NULL, NULL);
     if (err != DB_SUCCESS) {
-      ib::error() << "Can't set encryption"
-                     " metadata for space "
-                  << space->name << ".";
+      ib::error(ER_IB_MSG_1075, space->name);
       return (err);
     }
   }
@@ -652,8 +648,7 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
                                        &n_read);
 
   if (err != DB_SUCCESS) {
-    ib::info() << "Cannot read first page of '" << space->name << "' "
-               << ut_strerr(err);
+    ib::info(ER_IB_MSG_1076, space->name, ut_strerr(err));
     ut_free(first_page_buf);
     return (err);
   }
@@ -695,17 +690,14 @@ static dberr_t srv_undo_tablespace_fixup(space_id_t space_id) {
   undo::Tablespace undo_space(space_id);
 
   if (undo::is_active_truncate_log_present(space_id)) {
-    ib::info() << "Undo tablespace number " << undo_space.num()
-               << " was being truncated when mysqld quit.";
+    ib::info(ER_IB_MSG_1077, (ulint)undo_space.num());
 
     if (srv_read_only_mode) {
-      ib::error() << "Cannot recover a truncated"
-                     " undo tablespace in read-only mode";
+      ib::error(ER_IB_MSG_1078);
       return (DB_READ_ONLY);
     }
 
-    ib::info() << "Reconstructing undo tablespace number" << undo_space.num()
-               << ".";
+    ib::info(ER_IB_MSG_1079, (ulint)undo_space.num());
 
     /* Flush any changes recovered in REDO */
     fil_flush(space_id);
@@ -747,9 +739,7 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
   if (scanned_name.length() != 0 && !Fil_path::equal(file_name, scanned_name)) {
     /* Make sure that this space_id is used by the
     correctly named undo tablespace. */
-    ib::info() << "Cannot create " << file_name << " because " << scanned_name
-               << " already uses Space ID=" << space_id
-               << "!  Did you change innodb_undo_directory?";
+    ib::info(ER_IB_MSG_1080, file_name, scanned_name.c_str(), (ulint)space_id);
 
     return (DB_WRONG_FILE_NAME);
   }
@@ -771,8 +761,8 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
   }
 
   if (!srv_file_check_mode(file_name)) {
-    ib::error() << "UNDO tablespace " << file_name << " must be "
-                << (srv_read_only_mode ? "readable!" : "writable!");
+    ib::error(ER_IB_MSG_1081, file_name,
+              srv_read_only_mode ? "readable!" : "writable!");
 
     return (DB_READ_ONLY);
   }
@@ -814,7 +804,7 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
         nullptr) {
       os_file_close(fh);
 
-      ib::error() << "Error creating file for " << undo_name;
+      ib::error(ER_IB_MSG_1082, undo_name);
 
       return (DB_ERROR);
     }
@@ -835,7 +825,7 @@ static dberr_t srv_undo_tablespace_open(space_id_t space_id) {
   ut_ad(success);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Error reading encryption for " << undo_name;
+    ib::error(ER_IB_MSG_1083, undo_name);
     return (err);
   }
 
@@ -882,9 +872,7 @@ static dberr_t srv_undo_tablespaces_open(ulong target_undo_spaces) {
 
       err = srv_undo_tablespace_open(space_id);
       if (err != DB_SUCCESS) {
-        ib::error() << "Unable to open undo"
-                       " tablespace number "
-                    << space_id;
+        ib::error(ER_IB_MSG_1084, (ulint)space_id);
         return (err);
       }
     }
@@ -938,33 +926,34 @@ static dberr_t srv_undo_tablespaces_open(ulong target_undo_spaces) {
   undo::spaces->x_unlock();
 
   if (target_undo_spaces != n_found_new + n_found_old || n_found_old != 0) {
-    ib::info info;
+    std::ostringstream msg;
 
-    info << "Expected to open " << target_undo_spaces
-         << " undo tablespaces but found";
+    msg << "Expected to open " << target_undo_spaces
+        << " undo tablespaces but found";
     if (n_found_old) {
-      info << " " << n_found_old << " undo tablespaces that"
-           << " need to be upgraded";
+      msg << " " << n_found_old << " undo tablespaces that"
+          << " need to be upgraded";
     } else if (!n_found_new) {
-      info << " none";
+      msg << " none";
     }
 
     if (n_found_new) {
-      info << (n_found_old ? " and " : " ") << n_found_new
-           << (n_found_old ? " previously upgraded undo tablespaces." : ".");
+      msg << (n_found_old ? " and " : " ") << n_found_new
+          << (n_found_old ? " previously upgraded undo tablespaces." : ".");
     } else {
-      info << ".";
+      msg << ".";
     }
 
     if (target_undo_spaces > n_found_new) {
-      info << " Will create " << (target_undo_spaces - n_found_new)
-           << " new undo tablespaces.";
+      msg << " Will create " << (target_undo_spaces - n_found_new)
+          << " new undo tablespaces.";
     }
+
+    ib::info(ER_IB_MSG_1215) << msg.str();
   }
 
   if (n_found_new + n_found_old) {
-    ib::info() << "Opened " << (n_found_new + n_found_old)
-               << " existing undo tablespaces.";
+    ib::info(ER_IB_MSG_1085, n_found_new + n_found_old);
   }
 
   return (DB_SUCCESS);
@@ -988,17 +977,15 @@ static dberr_t srv_undo_tablespaces_create(ulong target_undo_spaces) {
   }
 
   if (srv_read_only_mode || srv_force_recovery > 0) {
-    ib::warn() << "Cannot create undo tablespaces"
-               << " since innodb_"
-               << (srv_read_only_mode ? "read_only" : "force_recovery")
-               << " has been set.  Using " << initial_undo_spaces
-               << " existing undo tablespaces.";
+    const char *mode;
+
+    mode = srv_read_only_mode ? "read_only" : "force_recovery",
+
+    ib::warn(ER_IB_MSG_1086, mode, initial_undo_spaces);
 
     if (initial_undo_spaces == 0) {
-      ib::error() << "Cannot continue InnoDB startup in "
-                  << (srv_read_only_mode ? "read_only" : "force_recovery")
-                  << " mode because there are no existing"
-                  << " undo tablespaces found.";
+      ib::error(ER_IB_MSG_1087, mode);
+
       undo::spaces->x_unlock();
       return (DB_ERROR);
     }
@@ -1021,19 +1008,15 @@ static dberr_t srv_undo_tablespaces_create(ulong target_undo_spaces) {
     /* Since it is not found, create it. */
     err = srv_undo_tablespace_create(space_id);
     if (err != DB_SUCCESS) {
-      ib::info() << "Could not create undo tablespace"
-                    " number "
-                 << num;
+      ib::info(ER_IB_MSG_1088, (ulint)num);
       break;
     }
 
     /* Open this new undo tablespace. */
     err = srv_undo_tablespace_open(space_id);
     if (err != DB_SUCCESS) {
-      ib::info() << "Error " << err
-                 << " opening"
-                    " newly created undo tablespace number "
-                 << num;
+      ib::info(ER_IB_MSG_1089, err, ut_strerr(err), (ulint)num);
+
       break;
     }
 
@@ -1051,7 +1034,7 @@ static dberr_t srv_undo_tablespaces_create(ulong target_undo_spaces) {
 
   ulint new_spaces = cur_undo_spaces - initial_undo_spaces;
 
-  ib::info() << "Created " << new_spaces << " undo tablespaces.";
+  ib::info(ER_IB_MSG_1090, new_spaces);
 
   return (err);
 }
@@ -1077,17 +1060,12 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
       err = srv_undo_tablespace_enable_encryption(space_id);
 
       if (err != DB_SUCCESS) {
-        ib::error() << "Unable to create encrypted"
-                       " undo tablespace number "
-                    << undo::id2num(space_id)
-                    << ". please check if the keyring"
-                       " plugin is initialized correctly";
+        ib::error(ER_IB_MSG_1091, (ulint)undo::id2num(space_id));
+
         return (err);
       }
 
-      ib::info() << "Encryption is enabled for"
-                    " undo tablespace number "
-                 << undo::id2num(space_id) << ".";
+      ib::info(ER_IB_MSG_1092, (ulint)undo::id2num(space_id));
     }
 
     mtr_start(&mtr);
@@ -1096,9 +1074,8 @@ static dberr_t srv_undo_tablespaces_construct(bool create_new_db) {
 
     if (!fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr,
                          create_new_db)) {
-      ib::error() << "Unable to initialize the header"
-                     " page in undo tablespace number "
-                  << undo::id2num(space_id) << ".";
+      ib::error(ER_IB_MSG_1093, (ulint)undo::id2num(space_id));
+
       mtr_commit(&mtr);
       return (DB_ERROR);
     }
@@ -1144,16 +1121,11 @@ dberr_t srv_undo_tablespaces_upgrade() {
   These transactions must be either committed or rolled back by
   the mysql server.*/
   if (trx_sys->n_prepared_trx > 0) {
-    ib::warn() << "Cannot delete old undo tablespaces"
-                  " because they contain undo logs for"
-                  " XA PREPARED transactions.";
+    ib::warn(ER_IB_MSG_1094);
     return (DB_SUCCESS);
   }
 
-  ib::info() << "Upgrading " << trx_sys_undo_spaces->size()
-             << " existing undo tablespaces that were tracked"
-             << " in the system tablespace to " << srv_undo_tablespaces
-             << " new independent undo tablespaces.";
+  ib::info(ER_IB_MSG_1095, trx_sys_undo_spaces->size(), srv_undo_tablespaces);
 
   /* All Undo Tablespaces found in the TRX_SYS page need to be
   deleted. The new independent undo tablespaces were created in
@@ -1185,8 +1157,7 @@ are not referenced by the TRX_SYS page.
 static void srv_undo_tablespaces_downgrade() {
   ut_ad(srv_downgrade_logs);
 
-  ib::info() << "Deleting " << undo::spaces->size()
-             << " new independent undo tablespaces that we just created.";
+  ib::info(ER_IB_MSG_1096, undo::spaces->size());
 
   /* All the new independent undo tablespaces that were created in
   in srv_undo_tablespaces_create() need to be deleted. */
@@ -1317,7 +1288,7 @@ static void srv_start_wait_for_purge_to_start() {
         break;
 
       case PURGE_STATE_INIT:
-        ib::info() << "Waiting for purge to start";
+        ib::info(ER_IB_MSG_1097);
 
         os_thread_sleep(50000);
         break;
@@ -1343,7 +1314,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
   tmp_space->delete_files();
   tmp_space->set_ignore_read_only(true);
 
-  ib::info() << "Creating shared tablespace for temporary tables";
+  ib::info(ER_IB_MSG_1098);
 
   bool create_new_temp_space = true;
 
@@ -1355,18 +1326,17 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
       tmp_space->check_file_spec(create_new_temp_space, 12 * 1024 * 1024);
 
   if (err == DB_FAIL) {
-    ib::error() << "The " << tmp_space->name()
-                << " data file must be writable!";
+    ib::error(ER_IB_MSG_1099, tmp_space->name());
 
     err = DB_ERROR;
 
   } else if (err != DB_SUCCESS) {
-    ib::error() << "Could not create the shared " << tmp_space->name() << ".";
+    ib::error(ER_IB_MSG_1100, tmp_space->name());
 
   } else if ((err = tmp_space->open_or_create(true, create_new_db,
                                               &sum_of_new_sizes, NULL)) !=
              DB_SUCCESS) {
-    ib::error() << "Unable to create the shared " << tmp_space->name();
+    ib::error(ER_IB_MSG_1101, tmp_space->name());
 
   } else {
     mtr_t mtr;
@@ -1384,9 +1354,7 @@ static dberr_t srv_open_tmp_tablespace(bool create_new_db,
       mtr_commit(&mtr);
     } else {
       /* This file was just opened in the code above! */
-      ib::error() << "The " << tmp_space->name()
-                  << " data file cannot be re-opened"
-                     " after check_file_spec() succeeded!";
+      ib::error(ER_IB_MSG_1102, tmp_space->name());
 
       err = DB_ERROR;
     }
@@ -1507,9 +1475,7 @@ void srv_shutdown_all_bg_threads() {
   }
 
   if (i == 1000) {
-    ib::warn() << os_thread_count.load()
-               << " threads created by InnoDB"
-                  " had not exited at shutdown!";
+    ib::warn(ER_IB_MSG_1103, os_thread_count.load());
 
 #ifdef UNIV_DEBUG
     os_aio_print_pending_io(stderr);
@@ -1539,27 +1505,16 @@ static dberr_t srv_init_abort_low(bool create_new_db,
                                   const char *file, ulint line,
 #endif /* UNIV_DEBUG */
                                   dberr_t err) {
+  std::ostringstream msg;
+
+#ifdef UNIV_DEBUG
+  msg << "at " << innobase_basename(file) << "[" << line << "] ";
+#endif /* UNIV_DEBUG */
+
   if (create_new_db) {
-    ib::error() << "InnoDB Database creation was aborted"
-#ifdef UNIV_DEBUG
-                   " at "
-                << innobase_basename(file) << "[" << line
-                << "]"
-#endif /* UNIV_DEBUG */
-                   " with error "
-                << ut_strerr(err)
-                << ". You may need"
-                   " to delete the ibdata1 file before trying to start"
-                   " up again.";
+    ib::error(ER_IB_MSG_1104, msg.str().c_str(), ut_strerr(err));
   } else {
-    ib::error() << "Plugin initialization aborted"
-#ifdef UNIV_DEBUG
-                   " at "
-                << innobase_basename(file) << "[" << line
-                << "]"
-#endif /* UNIV_DEBUG */
-                   " with error "
-                << ut_strerr(err);
+    ib::error(ER_IB_MSG_1105, msg.str().c_str(), ut_strerr(err));
   }
 
   undo_spaces_deinit();
@@ -1587,15 +1542,19 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
     flushed_lsn = log_get_lsn(*log_sys);
 
     {
-      ib::info info;
+      std::ostringstream info;
+
       if (srv_log_file_size == 0) {
         info << "Upgrading redo log: ";
       } else {
         info << "Resizing redo log from " << n_files << "*" << srv_log_file_size
              << " to ";
       }
+
       info << srv_n_log_files << "*" << srv_log_file_size_requested
            << " bytes, LSN=" << flushed_lsn;
+
+      ib::info(ER_IB_MSG_1216) << info.str();
     }
 
     /* Flush the old log files. */
@@ -1616,8 +1575,7 @@ static lsn_t srv_prepare_to_delete_redo_log_files(ulint n_files) {
       /* Print a message every 60 seconds if we
       are waiting to clean the buffer pools */
       if (count >= 600) {
-        ib::info() << "Waiting for " << pending_io << " buffer "
-                   << "page I/Os to complete";
+        ib::info(ER_IB_MSG_1106, pending_io);
         count = 0;
       }
     }
@@ -1659,80 +1617,74 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
 #ifdef UNIV_LINUX
 #ifdef HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE
-  ib::info() << "PUNCH HOLE support available";
+  ib::info(ER_IB_MSG_1107);
 #else
-  ib::info() << "PUNCH HOLE support not available";
+  ib::info(ER_IB_MSG_1108);
 #endif /* HAVE_FALLOC_PUNCH_HOLE_AND_KEEP_SIZE */
 #endif /* UNIV_LINUX */
 
   if (sizeof(ulint) != sizeof(void *)) {
-    ib::error() << "Size of InnoDB's ulint is " << sizeof(ulint)
-                << ", but size of void* is " << sizeof(void *)
-                << ". The sizes should be the same so that on"
-                   " a 64-bit platforms you can allocate more than 4 GB"
-                   " of memory.";
+    ib::error(ER_IB_MSG_1109, sizeof(ulint), sizeof(void *));
   }
 
   if (srv_is_upgrade_mode) {
     if (srv_read_only_mode) {
-      ib::error() << "Database upgrade cannot be"
-                     " accomplished in read-only mode.";
+      ib::error(ER_IB_MSG_1110);
       return (srv_init_abort(DB_ERROR));
     }
     if (srv_force_recovery != 0) {
-      ib::error() << "Database upgrade cannot be"
-                  << " accomplished with innodb_force_recovery > 0";
+      ib::error(ER_IB_MSG_1111);
       return (srv_init_abort(DB_ERROR));
     }
   }
 
 #ifdef UNIV_DEBUG
-  ib::info() << "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!";
+  ib::info(ER_IB_MSG_1112) << "!!!!!!!! UNIV_DEBUG switched on !!!!!!!!!";
 #endif
 
 #ifdef UNIV_IBUF_DEBUG
-  ib::info() << "!!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!";
+  ib::info(ER_IB_MSG_1113) << "!!!!!!!! UNIV_IBUF_DEBUG switched on !!!!!!!!!";
 #ifdef UNIV_IBUF_COUNT_DEBUG
-  ib::info() << "!!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!";
-  ib::error() << "Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG";
+  ib::info(ER_IB_MSG_1114)
+      << "!!!!!!!! UNIV_IBUF_COUNT_DEBUG switched on !!!!!!!!!";
+  ib::error(ER_IB_MSG_1115)
+      << "Crash recovery will fail with UNIV_IBUF_COUNT_DEBUG";
 #endif
 #endif
 
 #ifdef UNIV_LOG_LSN_DEBUG
-  ib::info() << "!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!";
+  ib::info(ER_IB_MSG_1116)
+      << "!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!";
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
-  ib::info() << "Compiler hints enabled.";
+  ib::info(ER_IB_MSG_1117) << "Compiler hints enabled.";
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-  ib::info() << IB_ATOMICS_STARTUP_MSG;
-  ib::info() << MUTEX_TYPE;
-  ib::info() << IB_MEMORY_BARRIER_STARTUP_MSG;
+  ib::info(ER_IB_MSG_1118) << IB_ATOMICS_STARTUP_MSG;
+  ib::info(ER_IB_MSG_1119) << MUTEX_TYPE;
+  ib::info(ER_IB_MSG_1120) << IB_MEMORY_BARRIER_STARTUP_MSG;
 
   if (srv_force_recovery > 0) {
-    ib::info() << "!!! innodb_force_recovery is set to " << srv_force_recovery
-               << " !!!";
+    ib::info(ER_IB_MSG_1121) << "!!! innodb_force_recovery is set to "
+                             << srv_force_recovery << " !!!";
   }
 
 #ifndef HAVE_MEMORY_BARRIER
 #if defined __i386__ || defined __x86_64__ || defined _M_IX86 || \
     defined _M_X64 || defined _WIN32
 #else
-  ib::warn() << "MySQL was built without a memory barrier capability on"
-                " this architecture, which might allow a mutex/rw_lock"
-                " violation under high thread concurrency. This may cause a"
-                " hang.";
+  ib::warn(ER_IB_MSG_1122);
 #endif /* IA32 or AMD64 */
 #endif /* HAVE_MEMORY_BARRIER */
 
-  ib::info() << "Compressed tables use zlib " ZLIB_VERSION
+  ib::info(ER_IB_MSG_1123, ZLIB_VERSION);
 #ifdef UNIV_ZIP_DEBUG
-                " with validation"
+  " with validation"
 #endif /* UNIV_ZIP_DEBUG */
       ;
 #ifdef UNIV_ZIP_COPY
-  ib::info() << "and extra copying";
+  ib::info(ER_IB_MSG_1124) << "and extra copying";
 #endif /* UNIV_ZIP_COPY */
 
   /* Since InnoDB does not currently clean up all its internal data
@@ -1741,11 +1693,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
   second time during the process lifetime. */
 
   if (srv_start_has_been_called) {
-    ib::error() << "Startup called second time"
-                   " during the process lifetime."
-                   " In the MySQL Embedded Server Library"
-                   " you cannot call server_init() more than"
-                   " once during the process lifetime.";
+    ib::error(ER_IB_MSG_1125);
   }
 
   srv_start_has_been_called = true;
@@ -1762,8 +1710,8 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
 
   srv_boot();
 
-  ib::info() << (ut_crc32_cpu_enabled ? "Using" : "Not using")
-             << " CPU crc32 instructions";
+  ib::info(ER_IB_MSG_1126) << (ut_crc32_cpu_enabled ? "Using" : "Not using")
+                           << " CPU crc32 instructions";
 
   os_create_block_cache();
 
@@ -1789,8 +1737,8 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
       srv_monitor_file = fopen(srv_monitor_file_name, "w+");
 
       if (!srv_monitor_file) {
-        ib::error() << "Unable to create " << srv_monitor_file_name << ": "
-                    << strerror(errno);
+        ib::error(ER_IB_MSG_1127, srv_monitor_file_name, strerror(errno));
+
         return (srv_init_abort(DB_ERROR));
       }
     } else {
@@ -1827,15 +1775,14 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     /* Add the log and ibuf IO threads. */
     srv_n_file_io_threads += 2;
   } else {
-    ib::info() << "Disabling background log and ibuf IO write"
-               << " threads.";
+    ib::info(ER_IB_MSG_1128);
   }
 
   ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
 
   if (!os_aio_init(srv_n_read_io_threads, srv_n_write_io_threads,
                    SRV_MAX_N_PENDING_SYNC_IOS)) {
-    ib::error() << "Cannot initialize AIO sub-system";
+    ib::error(ER_IB_MSG_1129);
 
     return (srv_init_abort(DB_ERROR));
   }
@@ -1862,28 +1809,25 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     chunk_unit = 'M';
   }
 
-  ib::info() << "Initializing buffer pool, total size = " << size << unit
-             << ", instances = " << srv_buf_pool_instances
-             << ", chunk size = " << chunk_size << chunk_unit;
+  ib::info(ER_IB_MSG_1130, size, unit, srv_buf_pool_instances, chunk_size,
+           chunk_unit);
 
   err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 
   if (err != DB_SUCCESS) {
-    ib::error() << "Cannot allocate memory for the buffer pool";
+    ib::error(ER_IB_MSG_1131);
 
     return (srv_init_abort(DB_ERROR));
   }
 
-  ib::info() << "Completed initialization of buffer pool";
+  ib::info(ER_IB_MSG_1132);
 
 #ifdef UNIV_DEBUG
   /* We have observed deadlocks with a 5MB buffer pool but
   the actual lower limit could very well be a little higher. */
 
   if (srv_buf_pool_size <= 5 * 1024 * 1024) {
-    ib::info() << "Small buffer pool size (" << srv_buf_pool_size / 1024 / 1024
-               << "M), the flst_validate() debug function can cause a"
-               << " deadlock if the buffer pool fills up.";
+    ib::info(ER_IB_MSG_1133, srv_buf_pool_size / 1024 / 1024);
   }
 #endif /* UNIV_DEBUG */
 
@@ -1949,15 +1893,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
     case DB_SUCCESS:
       break;
     case DB_CANNOT_OPEN_FILE:
-      ib::error() << "Could not open or create the system tablespace. If"
-                     " you tried to add new data files to the system"
-                     " tablespace, and it failed here, you should now"
-                     " edit innodb_data_file_path in my.cnf back to what"
-                     " it was, and remove the new ibdata files InnoDB"
-                     " created in this failed attempt. InnoDB only wrote"
-                     " those files full of zeros, but did not yet use"
-                     " them in any way. But be careful: do not remove"
-                     " old data files which contain your precious data!";
+      ib::error(ER_IB_MSG_1134);
       /* fall through */
     default:
 
@@ -2009,14 +1945,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
       if (err == DB_NOT_FOUND) {
         if (i == 0) {
           if (flushed_lsn < static_cast<lsn_t>(1000)) {
-            ib::error() << "Cannot create"
-                           " log files because"
-                           " data files are"
-                           " corrupt or the"
-                           " database was not"
-                           " shut down cleanly"
-                           " after creating"
-                           " the data files.";
+            ib::error(ER_IB_MSG_1135);
             return (srv_init_abort(DB_ERROR));
           }
 
@@ -2037,8 +1966,7 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
           goto files_checked;
         } else if (i < 2) {
           /* must have at least 2 log files */
-          ib::error() << "Only one log file"
-                         " found.";
+          ib::error(ER_IB_MSG_1136);
           return (srv_init_abort(err));
         }
 
@@ -2059,18 +1987,15 @@ dberr_t srv_start(bool create_new_db, const std::string &scan_directories) {
       ut_a(size != (os_offset_t)-1);
 
       if (size & ((1 << UNIV_PAGE_SIZE_SHIFT) - 1)) {
-        ib::error() << "Log file " << logfilename << " size " << size
-                    << " is not a"
-                       " multiple of innodb_page_size";
+        ib::error(ER_IB_MSG_1137, logfilename, size);
         return (srv_init_abort(DB_ERROR));
       }
 
       if (i == 0) {
         srv_log_file_size = size;
       } else if (size != srv_log_file_size) {
-        ib::error() << "Log file " << logfilename << " is of different size "
-                    << size << " bytes than other log files "
-                    << srv_log_file_size << " bytes!";
+        ib::error(ER_IB_MSG_1138, logfilename, size, srv_log_file_size);
+
         return (srv_init_abort(DB_ERROR));
       }
     }
@@ -2271,11 +2196,7 @@ files_checked:
     tablespaces were found and recovered. */
 
     if (srv_force_recovery == 0 && fil_check_missing_tablespaces()) {
-      ib::error() << "Use --innodb-directories to find the"
-                  << " tablespace files. If that fails then use"
-                  << " --innodb-force-recovery=1 to ignore"
-                  << " this and to permanently lose all changes"
-                  << " to the missing tablespace(s)";
+      ib::error(ER_IB_MSG_1139);
 
       /* Set the abort flag to true. */
       auto p = recv_recovery_from_checkpoint_finish(*log_sys, true);
@@ -2293,13 +2214,7 @@ files_checked:
     }
 
     if (recv_sys->found_corrupt_log) {
-      ib::warn() << "The log file may have been corrupt and it"
-                    " is possible that the log scan or parsing"
-                    " did not proceed far enough in recovery."
-                    " Please run CHECK TABLE on your InnoDB tables"
-                    " to check that they are ok!"
-                    " It may be safest to recover your"
-                    " InnoDB database from a backup!";
+      ib::warn(ER_IB_MSG_1140);
     }
 
     if (!srv_force_recovery && !srv_read_only_mode) {
@@ -2314,8 +2229,7 @@ files_checked:
       /* Prepare to replace the redo log files. */
 
       if (srv_read_only_mode) {
-        ib::error() << "Cannot resize log files"
-                       " in read-only mode.";
+        ib::error(ER_IB_MSG_1141);
         return (srv_init_abort(DB_READ_ONLY));
       }
 
@@ -2333,8 +2247,7 @@ files_checked:
                            dict_sys_t::s_dd_space_name,
                            dict_sys_t::s_dd_space_file_name, true, false);
           if (error != DB_SUCCESS) {
-            ib::error() << "Cannot open"
-                           " DD tablespace.";
+            ib::error(ER_IB_MSG_1142);
             return (srv_init_abort(DB_ERROR));
           }
         } else {
@@ -2377,8 +2290,7 @@ files_checked:
 
       log_sys_close();
 
-      ib::info() << "Starting to delete and rewrite log"
-                    " files.";
+      ib::info(ER_IB_MSG_1143);
 
       srv_log_file_size = srv_log_file_size_requested;
 
@@ -2451,8 +2363,7 @@ files_checked:
 
     if (srv_is_upgrade_mode) {
       if (!purge_queue->empty()) {
-        ib::info() << "Undo from 5.7 found."
-                      " It will be purged";
+        ib::info(ER_IB_MSG_1144);
         srv_upgrade_old_undo_found = true;
       }
       /* Either the old or new undo tablespaces will
@@ -2549,7 +2460,7 @@ files_checked:
   if (!srv_read_only_mode && !create_new_db &&
       srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
     if (!fil_encryption_rotate()) {
-      ib::info() << "fil_encryption_rotate() failed!";
+      ib::info(ER_IB_MSG_1146) << "fil_encryption_rotate() failed!";
     }
   }
 
@@ -2567,27 +2478,15 @@ files_checked:
 
   if (!srv_read_only_mode && !srv_sys_space.can_auto_extend_last_file() &&
       sum_of_data_file_sizes != tablespace_size_in_header) {
-    ib::error() << "Tablespace size stored in header is "
-                << tablespace_size_in_header
-                << " pages, but the sum"
-                   " of data file sizes is "
-                << sum_of_data_file_sizes << " pages";
+    ib::error(ER_IB_MSG_1147, (ulint)tablespace_size_in_header,
+              (ulint)sum_of_data_file_sizes);
 
     if (srv_force_recovery == 0 &&
         sum_of_data_file_sizes < tablespace_size_in_header) {
       /* This is a fatal error, the tail of a tablespace is
       missing */
 
-      ib::error() << "Cannot start InnoDB."
-                     " The tail of the system tablespace is"
-                     " missing. Have you edited"
-                     " innodb_data_file_path in my.cnf in an"
-                     " inappropriate way, removing"
-                     " ibdata files from there?"
-                     " You can set innodb_force_recovery=1"
-                     " in my.cnf to force"
-                     " a startup if you are trying"
-                     " to recover a badly corrupt database.";
+      ib::error(ER_IB_MSG_1148);
 
       return (srv_init_abort(DB_ERROR));
     }
@@ -2595,30 +2494,17 @@ files_checked:
 
   if (!srv_read_only_mode && srv_sys_space.can_auto_extend_last_file() &&
       sum_of_data_file_sizes < tablespace_size_in_header) {
-    ib::error() << "Tablespace size stored in header is "
-                << tablespace_size_in_header
-                << " pages, but the sum"
-                   " of data file sizes is only "
-                << sum_of_data_file_sizes << " pages";
+    ib::error(ER_IB_MSG_1149, (ulint)tablespace_size_in_header,
+              (ulint)sum_of_data_file_sizes);
 
     if (srv_force_recovery == 0) {
-      ib::error() << "Cannot start InnoDB. The tail of"
-                     " the system tablespace is"
-                     " missing. Have you edited"
-                     " innodb_data_file_path in my.cnf in an"
-                     " InnoDB: inappropriate way, removing"
-                     " ibdata files from there?"
-                     " You can set innodb_force_recovery=1"
-                     " in my.cnf to force"
-                     " InnoDB: a startup if you are trying to"
-                     " recover a badly corrupt database.";
+      ib::error(ER_IB_MSG_1150);
 
       return (srv_init_abort(DB_ERROR));
     }
   }
 
-  ib::info() << INNODB_VERSION_STR << " started; log sequence number "
-             << log_get_lsn(*log_sys);
+  ib::info(ER_IB_MSG_1151, INNODB_VERSION_STR, log_get_lsn(*log_sys));
 
   return (DB_SUCCESS);
 }
@@ -2848,7 +2734,7 @@ void srv_pre_dd_shutdown() {
     if (wait) {
       srv_purge_wakeup();
       if (count % 600 == 0) {
-        ib::info() << "Waiting for purge to complete";
+        ib::info(ER_IB_MSG_1152) << "Waiting for purge to complete";
       }
     } else {
       switch (trx_purge_state()) {
@@ -2869,8 +2755,7 @@ void srv_pre_dd_shutdown() {
       os_event_set(dict_stats_event);
 
       if (count % 600 == 0) {
-        ib::info() << "Waiting for dict_stats_thread"
-                      " to exit";
+        ib::info(ER_IB_MSG_1153);
       }
     }
 
@@ -2899,8 +2784,8 @@ static void srv_shutdown_arch() {
     os_thread_sleep(100000);
 
     if (count > 600) {
-      ib::info() << "Waiting for archiver to"
-                    " finish archiving page and log";
+      ib::info(ER_IB_MSG_1246) << "Waiting for archiver to"
+                                  " finish archiving page and log";
       count = 0;
     }
   }
@@ -2909,7 +2794,7 @@ static void srv_shutdown_arch() {
 static lsn_t srv_shutdown_log() {
   std::atomic_thread_fence(std::memory_order_seq_cst);
 
-  ib::info() << "Starting shutdown...";
+  ib::info(ER_IB_MSG_1247) << "Starting shutdown...";
 
   srv_shutdown_state = SRV_SHUTDOWN_CLEANUP;
 
@@ -2936,7 +2821,7 @@ static lsn_t srv_shutdown_log() {
     will be checked later. */
 
     if (count >= 600) {
-      ib::info() << "Waiting for " << thread_name << " to exit.";
+      ib::info(ER_IB_MSG_1248) << "Waiting for " << thread_name << " to exit.";
       count = 0;
     }
     os_thread_sleep(100 * 1000);
@@ -2958,8 +2843,8 @@ static lsn_t srv_shutdown_log() {
     }
 
     if (count >= 600) {
-      ib::info() << "Waiting for " << total_trx << " active"
-                 << " transactions to finish.";
+      ib::info(ER_IB_MSG_1249) << "Waiting for " << total_trx << " active"
+                               << " transactions to finish.";
 
       count = 0;
     }
@@ -2979,8 +2864,8 @@ static lsn_t srv_shutdown_log() {
     will be checked later. */
 
     if (count >= 600) {
-      ib::info() << "Waiting for master thread"
-                 << " to be suspended.";
+      ib::info(ER_IB_MSG_1250) << "Waiting for master thread"
+                               << " to be suspended.";
       count = 0;
     }
     os_thread_sleep(100 * 1000);
@@ -2996,8 +2881,8 @@ static lsn_t srv_shutdown_log() {
 
   for (uint32_t count = 0; buf_page_cleaner_is_active; ++count) {
     if (count >= 600) {
-      ib::info() << "Waiting for page_cleaner to"
-                 << " finish flushing of buffer pool.";
+      ib::info(ER_IB_MSG_1251) << "Waiting for page_cleaner to"
+                               << " finish flushing of buffer pool.";
       count = 0;
     }
     os_thread_sleep(100000);
@@ -3013,8 +2898,8 @@ static lsn_t srv_shutdown_log() {
     }
 
     if (count >= 600) {
-      ib::info() << "Waiting for " << pending_io << " buffer"
-                 << " page I/Os to complete.";
+      ib::info(ER_IB_MSG_1252) << "Waiting for " << pending_io << " buffer"
+                               << " page I/Os to complete.";
       count = 0;
     }
     os_thread_sleep(100 * 1000);
@@ -3024,10 +2909,10 @@ static lsn_t srv_shutdown_log() {
 
   if (srv_fast_shutdown == 2) {
     if (!srv_read_only_mode) {
-      ib::info() << "MySQL has requested a very fast"
-                    " shutdown without flushing the InnoDB buffer"
-                    " pool to data files. At the next mysqld"
-                    " startup InnoDB will do a crash recovery!";
+      ib::info(ER_IB_MSG_1253) << "MySQL has requested a very fast"
+                                  " shutdown without flushing the InnoDB buffer"
+                                  " pool to data files. At the next mysqld"
+                                  " startup InnoDB will do a crash recovery!";
 
       /* In this fastest shutdown we do not flush the
       buffer pool:
@@ -3151,9 +3036,7 @@ void srv_shutdown() {
   shutdown_lsn = srv_shutdown_log();
 
   if (srv_conc_get_active_threads() != 0) {
-    ib::warn() << "Query counter shows " << srv_conc_get_active_threads()
-               << " queries still"
-                  " inside InnoDB at shutdown";
+    ib::warn(ER_IB_MSG_1154, srv_conc_get_active_threads());
   }
 
   /* 2. Make all threads created by InnoDB to exit */
@@ -3222,7 +3105,7 @@ void srv_shutdown() {
   /* 7. Free the synchronisation infrastructure. */
   sync_check_close();
 
-  ib::info() << "Shutdown completed; log sequence number " << shutdown_lsn;
+  ib::info(ER_IB_MSG_1155, shutdown_lsn);
 
   srv_start_has_been_called = false;
   srv_is_being_shutdown = false;
@@ -3332,7 +3215,7 @@ void srv_get_encryption_data_filename(dict_table_t *table, char *filename,
 
 /** Call exit(3) */
 void srv_fatal_error() {
-  ib::error() << "Cannot continue operation.";
+  ib::error(ER_IB_MSG_1156);
 
   fflush(stderr);
 

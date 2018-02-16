@@ -1,5 +1,5 @@
 #
-# WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
+# WL#6560: InnoDB: Separate tablespace for innodb-temp-tables.
 #
 
 --source include/have_debug.inc
@@ -13,7 +13,7 @@
 
 # In the test scenario, there can be orphaned .frm files.
 # These are expected.  So suppressing the associated warnings.
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: table .* does not exist "
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* table .* does not exist "
 			 "in the InnoDB internal");
 
 ################################################################################
@@ -56,7 +56,7 @@ let crash = $args --innodb-force-recovery-crash;
 --echo "Next stmt will crash server"
 --error 137,3
 --exec $MYSQLD_CMD $crash=100
-let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
+let SEARCH_PATTERN =  Creating shared tablespace for temporary tables;
 --source include/search_pattern.inc
 #
 --source include/start_mysqld.inc

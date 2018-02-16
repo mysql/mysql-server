@@ -96,9 +96,10 @@ void upd_field_set_field_no(
   upd_field->orig_len = 0;
 
   if (field_no >= dict_index_get_n_fields(index)) {
-    ib::error() << " trying to access field " << field_no << " in "
-                << index->name << " of table " << index->table->name
-                << " which contains only " << index->n_fields << " fields";
+    ib::error(ER_IB_MSG_628)
+        << " trying to access field " << field_no << " in " << index->name
+        << " of table " << index->table->name << " which contains only "
+        << index->n_fields << " fields";
     ut_ad(0);
   }
 
@@ -116,10 +117,10 @@ void upd_field_set_v_field_no(upd_field_t *upd_field, ulint field_no,
   upd_field->orig_len = 0;
 
   if (field_no >= dict_table_get_n_v_cols(index->table)) {
-    ib::error() << " trying to access virtual field " << field_no << " in "
-                << index->name << " of table " << index->table->name
-                << " which contains only " << index->table->n_v_cols
-                << " virutal columns";
+    ib::error(ER_IB_MSG_629) << " trying to access virtual field " << field_no
+                             << " in " << index->name << " of table "
+                             << index->table->name << " which contains only "
+                             << index->table->n_v_cols << " virutal columns";
     ut_ad(0);
   }
 

@@ -16,7 +16,7 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 truncate table t1;
-call mtr.add_suppression("InnoDB: page [0-9]+ in the doublewrite buffer is not within space bounds.*");
+call mtr.add_suppression("page [0-9]+ in the doublewrite buffer is not within space bounds.*");
 START TRANSACTION;
 CALL insert_t1(5000);
 COMMIT;

@@ -230,8 +230,8 @@ void btr_search_sys_resize(ulint hash_size) {
   if (btr_search_enabled) {
     btr_search_x_unlock_all();
 
-    ib::error() << "btr_search_sys_resize failed because"
-                   " hash index hash table is not empty.";
+    ib::error(ER_IB_MSG_45) << "btr_search_sys_resize failed because"
+                               " hash index hash table is not empty.";
     ut_ad(0);
     return;
   }
@@ -2053,14 +2053,14 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
 
         ok = FALSE;
 
-        ib::error() << "Error in an adaptive hash"
-                    << " index pointer to page "
-                    << page_id_t(page_get_space_id(page),
-                                 page_get_page_no(page))
-                    << ", ptr mem address "
-                    << reinterpret_cast<const void *>(node->data)
-                    << ", index id " << page_index_id << ", node fold "
-                    << node->fold << ", rec fold " << fold;
+        ib::error(ER_IB_MSG_46)
+            << "Error in an adaptive hash"
+            << " index pointer to page "
+            << page_id_t(page_get_space_id(page), page_get_page_no(page))
+            << ", ptr mem address "
+            << reinterpret_cast<const void *>(node->data) << ", index id "
+            << page_index_id << ", node fold " << node->fold << ", rec fold "
+            << fold;
 
         fputs("InnoDB: Record ", stderr);
         rec_print_new(stderr, node->data, offsets);

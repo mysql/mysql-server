@@ -301,7 +301,12 @@ mem_block_t *mem_heap_create_block_func(
   }
 
   if (block == NULL) {
-    ib::fatal() << "Unable to allocate memory of size " << len << ".";
+#ifdef UNIV_NO_ERR_MSGS
+    ib::fatal()
+#else
+    ib::fatal(ER_IB_MSG_739)
+#endif /* !UNIV_NO_ERR_MSGS */
+        << "Unable to allocate memory of size " << len << ".";
   }
 
   /* Make only the header part of the block accessible. If it is a block

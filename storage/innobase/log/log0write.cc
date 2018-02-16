@@ -1506,13 +1506,13 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
     }
 
     if (count >= 10) {
-      ib::error() << "Log writer overwriting data after"
-                     " checkpoint - waited too long (1 second),"
-                     " lag: "
-                  << lsn_diff
-                  << " bytes,"
-                     " checkpoint LSN: "
-                  << checkpoint_lsn;
+      ib::error(ER_IB_MSG_1234) << "Log writer overwriting data after"
+                                   " checkpoint - waited too long (1 second),"
+                                   " lag: "
+                                << lsn_diff
+                                << " bytes,"
+                                   " checkpoint LSN: "
+                                << checkpoint_lsn;
 
       checkpoint_limited_lsn = min_next_lsn;
       break;
@@ -1530,12 +1530,12 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
     checkpoint, and wait for some time. */
     log_request_checkpoint(log, false);
 
-    ib::warn() << "Log writer is waiting for checkpointer to"
-                  " to catch up lag: "
-               << lsn_diff
-               << " bytes,"
-                  " checkpoint LSN: "
-               << checkpoint_lsn;
+    ib::warn(ER_IB_MSG_1235) << "Log writer is waiting for checkpointer to"
+                                " to catch up lag: "
+                             << lsn_diff
+                             << " bytes,"
+                                " checkpoint LSN: "
+                             << checkpoint_lsn;
 
     count++;
     os_thread_sleep(100000); /* 100ms */
@@ -1571,13 +1571,13 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
     }
 
     if (count >= 10) {
-      ib::error() << "Log writer overwriting data to"
-                     " archive - waited too long (1 second),"
-                     " lag: "
-                  << lsn_diff
-                  << " bytes,"
-                     " archiver LSN: "
-                  << archiver_lsn;
+      ib::error(ER_IB_MSG_1236) << "Log writer overwriting data to"
+                                   " archive - waited too long (1 second),"
+                                   " lag: "
+                                << lsn_diff
+                                << " bytes,"
+                                   " archiver LSN: "
+                                << archiver_lsn;
 
       archiver_limited_lsn = min_next_lsn;
       break;
@@ -1587,12 +1587,12 @@ static void log_writer_write_buffer(log_t &log, lsn_t next_write_lsn) {
 
     log_writer_mutex_exit(log);
 
-    ib::warn() << "Log writer is waiting for archiver to"
-                  " to catch up lag: "
-               << lsn_diff
-               << " bytes,"
-                  " archiver LSN: "
-               << archiver_lsn;
+    ib::warn(ER_IB_MSG_1237) << "Log writer is waiting for archiver to"
+                                " to catch up lag: "
+                             << lsn_diff
+                             << " bytes,"
+                                " archiver LSN: "
+                             << archiver_lsn;
 
     count++;
     os_thread_sleep(100000); /* 100ms */
@@ -2325,8 +2325,8 @@ bool log_read_encryption() {
     /* Make sure the keyring is loaded. */
     if (!Encryption::check_keyring()) {
       ut_free(log_block_buf_ptr);
-      ib::error() << "Redo log was encrypted,"
-                  << " but keyring plugin is not loaded.";
+      ib::error(ER_IB_MSG_1238) << "Redo log was encrypted,"
+                                << " but keyring plugin is not loaded.";
       return (false);
     }
 
@@ -2341,21 +2341,21 @@ bool log_read_encryption() {
 
       if (err == DB_SUCCESS) {
         ut_free(log_block_buf_ptr);
-        ib::info() << "Read redo log encryption"
-                   << " metadata successful.";
+        ib::info(ER_IB_MSG_1239) << "Read redo log encryption"
+                                 << " metadata successful.";
         return (true);
       } else {
         ut_free(log_block_buf_ptr);
-        ib::error() << "Can't set redo log tablespace"
-                    << " encryption metadata.";
+        ib::error(ER_IB_MSG_1240) << "Can't set redo log tablespace"
+                                  << " encryption metadata.";
         return (false);
       }
     } else {
       ut_free(log_block_buf_ptr);
-      ib::error() << "Cannot read the encryption"
-                     " information in log file header, please"
-                     " check if keyring plugin loaded and"
-                     " the key file exists.";
+      ib::error(ER_IB_MSG_1241) << "Cannot read the encryption"
+                                   " information in log file header, please"
+                                   " check if keyring plugin loaded and"
+                                   " the key file exists.";
       return (false);
     }
   }
@@ -2442,8 +2442,8 @@ void log_enable_encryption_if_set() {
 
     if (srv_read_only_mode) {
       srv_redo_log_encrypt = false;
-      ib::error() << "Can't set redo log tablespace to be"
-                  << " encrypted in read-only mode.";
+      ib::error(ER_IB_MSG_1242) << "Can't set redo log tablespace to be"
+                                << " encrypted in read-only mode.";
       return;
     }
 
@@ -2451,20 +2451,20 @@ void log_enable_encryption_if_set() {
     Encryption::random_value(iv);
     if (!log_write_encryption(key, iv, false)) {
       srv_redo_log_encrypt = false;
-      ib::error() << "Can't set redo log"
-                  << " tablespace to be"
-                  << " encrypted.";
+      ib::error(ER_IB_MSG_1243) << "Can't set redo log"
+                                << " tablespace to be"
+                                << " encrypted.";
     } else {
       space->flags |= FSP_FLAGS_MASK_ENCRYPTION;
       err = fil_set_encryption(space->id, Encryption::AES, key, iv);
       if (err != DB_SUCCESS) {
         srv_redo_log_encrypt = false;
-        ib::warn() << "Can't set redo log"
-                   << " tablespace to be"
-                   << " encrypted.";
+        ib::warn(ER_IB_MSG_1244) << "Can't set redo log"
+                                 << " tablespace to be"
+                                 << " encrypted.";
       } else {
-        ib::info() << "Redo log encryption is"
-                   << " enabled.";
+        ib::info(ER_IB_MSG_1245) << "Redo log encryption is"
+                                 << " enabled.";
       }
     }
   }

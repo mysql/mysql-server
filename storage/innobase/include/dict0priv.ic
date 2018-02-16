@@ -48,7 +48,7 @@ dict_table_t *dict_table_get_low(const char *table_name) /*!< in: table name */
   table = dict_table_check_if_in_cache_low(table_name);
 
   if (table && table->is_corrupted()) {
-    ib::error error;
+    ib::error error(ER_IB_MSG_1229);
     error << "Table " << table->name << "is corrupted";
     if (srv_load_corrupted) {
       error << ", but innodb_force_load_corrupted is set";

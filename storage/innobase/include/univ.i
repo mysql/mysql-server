@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -91,10 +91,9 @@ made in SQL code cause a complete InnoDB rebuild.  These headers are
 used throughout InnoDB but do not include too much themselves.  They
 support cross-platform development and expose comonly used SQL names. */
 
-#include <m_string.h>
+#include "m_string.h"
 #ifndef UNIV_HOTBACKUP
-#include <my_thread.h>
-#include <mysqld_error.h>
+#include "my_thread.h"
 #endif /* !UNIV_HOTBACKUP  */
 
 /* Include <sys/stat.h> to get S_I... macros defined for os0file.cc */
@@ -715,5 +714,13 @@ constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#sp#";
 constexpr char PART_SEPARATOR[PART_SEPARATOR_LEN + 1] = "#P#";
 constexpr char SUB_PART_SEPARATOR[SUB_PART_SEPARATOR_LEN + 1] = "#SP#";
 #endif /* _WIN32 */
+
+#if defined(UNIV_LIBRARY) && !defined(UNIV_NO_ERR_MSGS)
+
+/** Don't use the server logging infrastructure if building
+as a standalone library. */
+#define UNIV_NO_ERR_MSGS
+
+#endif /* UNIV_LIBRARY && !UNIV_NO_ERR_MSGS */
 
 #endif

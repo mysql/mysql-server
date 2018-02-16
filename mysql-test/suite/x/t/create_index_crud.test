@@ -54,7 +54,7 @@
 --source include/xplugin_create_user.inc
 call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
-call mtr.add_suppression("InnoDB: Compute virtual column values failed");
+call mtr.add_suppression("Compute virtual column values failed");
 
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/mysqlx-in.tmp

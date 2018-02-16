@@ -291,7 +291,7 @@ select match(a)against(0xf3) from t1;
 match(a)against(0xf3)
 0
 drop table t1;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Doc ID 20030101000000 is too big. Its difference with largest used Doc ID 0 cannot exceed or equal to 65535");
 CREATE TABLE t1 (FTS_DOC_ID BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200), FULLTEXT(title)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (NULL, NULL), (20030101000000, 20030102000000);

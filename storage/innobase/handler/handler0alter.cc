@@ -3172,9 +3172,9 @@ static dberr_t innobase_check_gis_columns(Alter_inplace_info *ha_alter_info,
     const char *col_name = table->get_col_name(col_nr);
     col->mtype = DATA_GEOMETRY;
 
-    ib::info() << "Updated mtype of column" << col_name << " in table "
-               << table->name << ", whose id is " << table->id
-               << " to DATA_GEOMETRY";
+    ib::info(ER_IB_MSG_598)
+        << "Updated mtype of column" << col_name << " in table " << table->name
+        << ", whose id is " << table->id << " to DATA_GEOMETRY";
   }
 
   DBUG_RETURN(DB_SUCCESS);

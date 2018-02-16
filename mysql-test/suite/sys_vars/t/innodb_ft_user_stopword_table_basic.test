@@ -20,7 +20,7 @@ select * from performance_schema.global_variables where variable_name='innodb_ft
 select * from performance_schema.session_variables where variable_name='innodb_ft_user_stopword_table';
 --enable_warnings
 
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: user stopword table Salmon does not exist.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* user stopword table Salmon does not exist.");
 
 --error ER_WRONG_VALUE_FOR_VAR
 set session innodb_ft_user_stopword_table='Salmon';

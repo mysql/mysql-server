@@ -210,7 +210,7 @@ CREATE TABLE t2(database_name VARCHAR(200), table_name VARCHAR(200));
 INSERT INTO t2 SELECT database_name, table_name FROM mysql.innodb_table_stats;
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave_sql.inc
-CALL mtr.add_suppression(".*InnoDB: Cannot save table statistics for table.*");
+CALL mtr.add_suppression(".* Cannot save table statistics for table.*");
 LOCK TABLE t1 WRITE;
 
 --source include/rpl_connection_master.inc

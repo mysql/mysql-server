@@ -89,25 +89,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 struct set_numa_interleave_t {
   set_numa_interleave_t() {
     if (srv_numa_interleave) {
-      ib::info() << "Setting NUMA memory policy to"
-                    " MPOL_INTERLEAVE";
+      ib::info(ER_IB_MSG_47) << "Setting NUMA memory policy to"
+                                " MPOL_INTERLEAVE";
       if (set_mempolicy(MPOL_INTERLEAVE, numa_all_nodes_ptr->maskp,
                         numa_all_nodes_ptr->size) != 0) {
-        ib::warn() << "Failed to set NUMA memory"
-                      " policy to MPOL_INTERLEAVE: "
-                   << strerror(errno);
+        ib::warn(ER_IB_MSG_48) << "Failed to set NUMA memory"
+                                  " policy to MPOL_INTERLEAVE: "
+                               << strerror(errno);
       }
     }
   }
 
   ~set_numa_interleave_t() {
     if (srv_numa_interleave) {
-      ib::info() << "Setting NUMA memory policy to"
-                    " MPOL_DEFAULT";
+      ib::info(ER_IB_MSG_49) << "Setting NUMA memory policy to"
+                                " MPOL_DEFAULT";
       if (set_mempolicy(MPOL_DEFAULT, NULL, 0) != 0) {
-        ib::warn() << "Failed to set NUMA memory"
-                      " policy to MPOL_DEFAULT: "
-                   << strerror(errno);
+        ib::warn(ER_IB_MSG_50) << "Failed to set NUMA memory"
+                                  " policy to MPOL_DEFAULT: "
+                               << strerror(errno);
       }
     }
   }
@@ -529,8 +529,8 @@ BUF_PAGE_PRINT_NO_FULL */
 void buf_page_print(const byte *read_buf, const page_size_t &page_size,
                     ulint flags) {
   if (!(flags & BUF_PAGE_PRINT_NO_FULL)) {
-    ib::info() << "Page dump in ascii and hex (" << page_size.physical()
-               << " bytes):";
+    ib::info(ER_IB_MSG_51) << "Page dump in ascii and hex ("
+                           << page_size.physical() << " bytes):";
 
     ut_print_buf(stderr, read_buf, page_size.physical());
     fputs("\nInnoDB: End of page dump\n", stderr);
@@ -540,7 +540,7 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
     BlockReporter compressed = BlockReporter(false, read_buf, page_size, false);
 
     /* Print compressed page. */
-    ib::info()
+    ib::info(ER_IB_MSG_52)
         << "Compressed page type (" << fil_page_get_type(read_buf)
         << "); stored checksum in field1 "
         << mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
@@ -563,34 +563,35 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
 
     const uint32_t crc32_legacy = buf_calc_page_crc32(read_buf, true);
 
-    ib::info() << "Uncompressed page, stored checksum in field1 "
-               << mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
-               << ", calculated checksums for field1: "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32)
-               << " " << crc32 << "/" << crc32_legacy << ", "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB)
-               << " " << buf_calc_page_new_checksum(read_buf) << ", "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE)
-               << " " << BUF_NO_CHECKSUM_MAGIC << ", stored checksum in field2 "
-               << mach_read_from_4(read_buf + page_size.logical() -
-                                   FIL_PAGE_END_LSN_OLD_CHKSUM)
-               << ", calculated checksums for field2: "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32)
-               << " " << crc32 << "/" << crc32_legacy << ", "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB)
-               << " " << buf_calc_page_old_checksum(read_buf) << ", "
-               << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE)
-               << " " << BUF_NO_CHECKSUM_MAGIC << ",  page LSN "
-               << mach_read_from_4(read_buf + FIL_PAGE_LSN) << " "
-               << mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
-               << ", low 4 bytes of LSN at page end "
-               << mach_read_from_4(read_buf + page_size.logical() -
-                                   FIL_PAGE_END_LSN_OLD_CHKSUM + 4)
-               << ", page number (if stored to page already) "
-               << mach_read_from_4(read_buf + FIL_PAGE_OFFSET)
-               << ", space id (if created with >= MySQL-4.1.1"
-                  " and stored already) "
-               << mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+    ib::info(ER_IB_MSG_53)
+        << "Uncompressed page, stored checksum in field1 "
+        << mach_read_from_4(read_buf + FIL_PAGE_SPACE_OR_CHKSUM)
+        << ", calculated checksums for field1: "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32) << " "
+        << crc32 << "/" << crc32_legacy << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB) << " "
+        << buf_calc_page_new_checksum(read_buf) << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE) << " "
+        << BUF_NO_CHECKSUM_MAGIC << ", stored checksum in field2 "
+        << mach_read_from_4(read_buf + page_size.logical() -
+                            FIL_PAGE_END_LSN_OLD_CHKSUM)
+        << ", calculated checksums for field2: "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_CRC32) << " "
+        << crc32 << "/" << crc32_legacy << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_INNODB) << " "
+        << buf_calc_page_old_checksum(read_buf) << ", "
+        << buf_checksum_algorithm_name(SRV_CHECKSUM_ALGORITHM_NONE) << " "
+        << BUF_NO_CHECKSUM_MAGIC << ",  page LSN "
+        << mach_read_from_4(read_buf + FIL_PAGE_LSN) << " "
+        << mach_read_from_4(read_buf + FIL_PAGE_LSN + 4)
+        << ", low 4 bytes of LSN at page end "
+        << mach_read_from_4(read_buf + page_size.logical() -
+                            FIL_PAGE_END_LSN_OLD_CHKSUM + 4)
+        << ", page number (if stored to page already) "
+        << mach_read_from_4(read_buf + FIL_PAGE_OFFSET)
+        << ", space id (if created with >= MySQL-4.1.1"
+           " and stored already) "
+        << mach_read_from_4(read_buf + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
   }
 
 #ifndef UNIV_HOTBACKUP
@@ -824,10 +825,10 @@ static buf_chunk_t *buf_chunk_init(
                    numa_all_nodes_ptr->maskp, numa_all_nodes_ptr->size,
                    MPOL_MF_MOVE);
     if (st != 0) {
-      ib::warn() << "Failed to set NUMA memory policy of"
-                    " buffer pool page frames to MPOL_INTERLEAVE"
-                    " (error: "
-                 << strerror(errno) << ").";
+      ib::warn(ER_IB_MSG_54) << "Failed to set NUMA memory policy of"
+                                " buffer pool page frames to MPOL_INTERLEAVE"
+                                " (error: "
+                             << strerror(errno) << ").";
     }
   }
 #endif /* HAVE_LIBNUMA */
@@ -1410,7 +1411,7 @@ static void buf_resize_status(const char *fmt, ...) {
 
   va_end(ap);
 
-  ib::info() << export_vars.innodb_buffer_pool_resize_status;
+  ib::info(ER_IB_MSG_55) << export_vars.innodb_buffer_pool_resize_status;
 }
 
 /** Determines if a block is intended to be withdrawn. The caller must ensure
@@ -1466,8 +1467,9 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   ulint i = buf_pool_index(buf_pool);
   ulint lru_len;
 
-  ib::info() << "buffer pool " << i << " : start to withdraw the last "
-             << buf_pool->withdraw_target << " blocks.";
+  ib::info(ER_IB_MSG_56) << "buffer pool " << i
+                         << " : start to withdraw the last "
+                         << buf_pool->withdraw_target << " blocks.";
 
   /* Minimize buf_pool->zip_free[i] lists */
   buf_buddy_condense_free(buf_pool);
@@ -1591,11 +1593,11 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
                       UT_LIST_GET_LEN(buf_pool->withdraw),
                       buf_pool->withdraw_target);
 
-    ib::info() << "buffer pool " << i << " : withdrew " << count1
-               << " blocks from free list."
-               << " Tried to relocate " << count2 << " pages ("
-               << UT_LIST_GET_LEN(buf_pool->withdraw) << "/"
-               << buf_pool->withdraw_target << ").";
+    ib::info(ER_IB_MSG_57) << "buffer pool " << i << " : withdrew " << count1
+                           << " blocks from free list."
+                           << " Tried to relocate " << count2 << " pages ("
+                           << UT_LIST_GET_LEN(buf_pool->withdraw) << "/"
+                           << buf_pool->withdraw_target << ").";
 
     if (++loop_count >= 10) {
       /* give up for now.
@@ -1603,7 +1605,8 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 
       mutex_exit(&buf_pool->free_list_mutex);
 
-      ib::info() << "buffer pool " << i << " : will retry to withdraw later.";
+      ib::info(ER_IB_MSG_58)
+          << "buffer pool " << i << " : will retry to withdraw later.";
 
       /* need retry later */
       return (true);
@@ -1628,8 +1631,8 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   }
 
   mutex_enter(&buf_pool->free_list_mutex);
-  ib::info() << "buffer pool " << i << " : withdrawn target "
-             << UT_LIST_GET_LEN(buf_pool->withdraw) << " blocks.";
+  ib::info(ER_IB_MSG_59) << "buffer pool " << i << " : withdrawn target "
+                         << UT_LIST_GET_LEN(buf_pool->withdraw) << " blocks.";
   mutex_exit(&buf_pool->free_list_mutex);
 
   /* retry is not needed */
@@ -1776,7 +1779,7 @@ static void buf_pool_resize() {
   btr_search_disable(true);
 
   if (btr_search_disabled) {
-    ib::info() << "disabled adaptive hash index.";
+    ib::info(ER_IB_MSG_60) << "disabled adaptive hash index.";
   }
 
   /* set withdraw target */
@@ -1841,12 +1844,12 @@ withdraw_retry:
       if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != NULL &&
           ut_difftime(withdraw_started, trx->start_time) > 0) {
         if (!found) {
-          ib::warn() << "The following trx might hold"
-                        " the blocks in buffer pool to"
-                        " be withdrawn. Buffer pool"
-                        " resizing can complete only"
-                        " after all the transactions"
-                        " below release the blocks.";
+          ib::warn(ER_IB_MSG_61) << "The following trx might hold"
+                                    " the blocks in buffer pool to"
+                                    " be withdrawn. Buffer pool"
+                                    " resizing can complete only"
+                                    " after all the transactions"
+                                    " below release the blocks.";
           found = true;
         }
 
@@ -1860,8 +1863,8 @@ withdraw_retry:
   }
 
   if (should_retry_withdraw) {
-    ib::info() << "Will retry to withdraw " << retry_interval
-               << " seconds later.";
+    ib::info(ER_IB_MSG_62) << "Will retry to withdraw " << retry_interval
+                           << " seconds later.";
     os_thread_sleep(retry_interval * 1000000);
 
     if (retry_interval > 5) {
@@ -1969,9 +1972,10 @@ withdraw_retry:
       UT_LIST_INIT(buf_pool->withdraw, &buf_page_t::list);
       buf_pool->withdraw_target = 0;
 
-      ib::info() << "buffer pool " << i << " : "
-                 << buf_pool->n_chunks - buf_pool->n_chunks_new << " chunks ("
-                 << sum_freed << " blocks) were freed.";
+      ib::info(ER_IB_MSG_63)
+          << "buffer pool " << i << " : "
+          << buf_pool->n_chunks - buf_pool->n_chunks_new << " chunks ("
+          << sum_freed << " blocks) were freed.";
 
       buf_pool->n_chunks = buf_pool->n_chunks_new;
     }
@@ -1987,9 +1991,9 @@ withdraw_retry:
                       buf_pool_resize_chunk_make_null(&new_chunks););
 
       if (new_chunks == NULL) {
-        ib::error() << "buffer pool " << i
-                    << " : failed to allocate"
-                       " the chunk array.";
+        ib::error(ER_IB_MSG_64) << "buffer pool " << i
+                                << " : failed to allocate"
+                                   " the chunk array.";
         buf_pool->n_chunks_new = buf_pool->n_chunks;
         warning = true;
         buf_pool->chunks_old = NULL;
@@ -2023,9 +2027,9 @@ withdraw_retry:
         ulong unit = srv_buf_pool_chunk_unit;
 
         if (!buf_chunk_init(buf_pool, chunk, unit)) {
-          ib::error() << "buffer pool " << i
-                      << " : failed to allocate"
-                         " new memory.";
+          ib::error(ER_IB_MSG_65) << "buffer pool " << i
+                                  << " : failed to allocate"
+                                     " new memory.";
 
           warning = true;
 
@@ -2040,9 +2044,10 @@ withdraw_retry:
         ++chunk;
       }
 
-      ib::info() << "buffer pool " << i << " : "
-                 << buf_pool->n_chunks_new - buf_pool->n_chunks << " chunks ("
-                 << sum_added << " blocks) were added.";
+      ib::info(ER_IB_MSG_66)
+          << "buffer pool " << i << " : "
+          << buf_pool->n_chunks_new - buf_pool->n_chunks << " chunks ("
+          << sum_added << " blocks) were added.";
 
       buf_pool->n_chunks = n_chunks;
     }
@@ -2099,7 +2104,8 @@ withdraw_retry:
 
       buf_pool_resize_hash(buf_pool);
 
-      ib::info() << "buffer pool " << i << " : hash tables were resized.";
+      ib::info(ER_IB_MSG_67)
+          << "buffer pool " << i << " : hash tables were resized.";
     }
   }
 
@@ -2138,16 +2144,17 @@ withdraw_retry:
     /* normalize dict_sys */
     dict_resize();
 
-    ib::info() << "Resized hash tables at lock_sys,"
-                  " adaptive hash index, dictionary.";
+    ib::info(ER_IB_MSG_68) << "Resized hash tables at lock_sys,"
+                              " adaptive hash index, dictionary.";
   }
 
   /* normalize ibuf->max_size */
   ibuf_max_size_update(srv_change_buffer_max_size);
 
   if (srv_buf_pool_old_size != srv_buf_pool_size) {
-    ib::info() << "Completed to resize buffer pool from "
-               << srv_buf_pool_old_size << " to " << srv_buf_pool_size << ".";
+    ib::info(ER_IB_MSG_69) << "Completed to resize buffer pool from "
+                           << srv_buf_pool_old_size << " to "
+                           << srv_buf_pool_size << ".";
     srv_buf_pool_old_size = srv_buf_pool_size;
     os_wmb;
   }
@@ -2155,7 +2162,7 @@ withdraw_retry:
   /* enable AHI if needed */
   if (btr_search_disabled) {
     btr_search_enable();
-    ib::info() << "Re-enabled adaptive hash index.";
+    ib::info(ER_IB_MSG_70) << "Re-enabled adaptive hash index.";
   }
 
   char now[32];
@@ -2909,18 +2916,16 @@ ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
       BlockReporter(false, frame, block->page.size, false);
 
   if (check && !compressed.verify_zip_checksum()) {
-    ib::error() << "Compressed page checksum mismatch " << block->page.id
-                << "): stored: "
-                << mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
-                << ", crc32: "
-                << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32)
-                << "/"
-                << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32,
-                                                true)
-                << " innodb: "
-                << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_INNODB)
-                << ", none: "
-                << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_NONE);
+    ib::error(ER_IB_MSG_71)
+        << "Compressed page checksum mismatch " << block->page.id
+        << "): stored: " << mach_read_from_4(frame + FIL_PAGE_SPACE_OR_CHKSUM)
+        << ", crc32: "
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32) << "/"
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_CRC32, true)
+        << " innodb: "
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_INNODB)
+        << ", none: "
+        << compressed.calc_zip_checksum(SRV_CHECKSUM_ALGORITHM_NONE);
 
     return (FALSE);
   }
@@ -2933,8 +2938,9 @@ ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
         return (TRUE);
       }
 
-      ib::error() << "Unable to decompress space " << block->page.id.space()
-                  << " page " << block->page.id.page_no();
+      ib::error(ER_IB_MSG_72)
+          << "Unable to decompress space " << block->page.id.space() << " page "
+          << block->page.id.page_no();
 
       return (FALSE);
 
@@ -2956,7 +2962,8 @@ ibool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
       return (TRUE);
   }
 
-  ib::error() << "Unknown compressed page type " << fil_page_get_type(frame);
+  ib::error(ER_IB_MSG_73) << "Unknown compressed page type "
+                          << fil_page_get_type(frame);
 
   return (FALSE);
 }
@@ -3236,19 +3243,20 @@ loop:
       DBUG_EXECUTE_IF("innodb_page_corruption_retries",
                       retries = BUF_PAGE_READ_MAX_RETRIES;);
     } else {
-      ib::fatal() << "Unable to read page " << page_id
-                  << " into the buffer pool after " << BUF_PAGE_READ_MAX_RETRIES
-                  << " attempts."
-                     " The most probable cause of this error may"
-                     " be that the table has been corrupted. Or,"
-                     " the table was compressed with with an"
-                     " algorithm that is not supported by this"
-                     " instance. If it is not a decompress failure,"
-                     " you can try to fix this problem by using"
-                     " innodb_force_recovery."
-                     " Please see " REFMAN
-                     " for more"
-                     " details. Aborting...";
+      ib::fatal(ER_IB_MSG_74)
+          << "Unable to read page " << page_id << " into the buffer pool after "
+          << BUF_PAGE_READ_MAX_RETRIES
+          << " attempts."
+             " The most probable cause of this error may"
+             " be that the table has been corrupted. Or,"
+             " the table was compressed with with an"
+             " algorithm that is not supported by this"
+             " instance. If it is not a decompress failure,"
+             " you can try to fix this problem by using"
+             " innodb_force_recovery."
+             " Please see " REFMAN
+             " for more"
+             " details. Aborting...";
     }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -3544,13 +3552,15 @@ got_block:
         goto loop;
       }
 
-      ib::info() << "innodb_change_buffering_debug evict " << page_id;
+      ib::info(ER_IB_MSG_75)
+          << "innodb_change_buffering_debug evict " << page_id;
 
       return (NULL);
     }
 
     if (buf_flush_page_try(buf_pool, fix_block)) {
-      ib::info() << "innodb_change_buffering_debug flush " << page_id;
+      ib::info(ER_IB_MSG_76)
+          << "innodb_change_buffering_debug flush " << page_id;
 
       guess = fix_block;
 
@@ -4034,9 +4044,9 @@ static void buf_page_init(buf_pool_t *buf_pool, const page_id_t &page_id,
 
     buf_pool_watch_remove(buf_pool, hash_page);
   } else {
-    ib::error() << "Page " << page_id
-                << " already found in the hash table: " << hash_page << ", "
-                << block;
+    ib::error(ER_IB_MSG_77)
+        << "Page " << page_id
+        << " already found in the hash table: " << hash_page << ", " << block;
 
     ut_d(buf_print());
     ut_d(buf_LRU_print());
@@ -4613,8 +4623,8 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
     if (bpage->id.space() == TRX_SYS_SPACE &&
         buf_dblwr_page_inside(bpage->id.page_no())) {
-      ib::error() << "Reading page " << bpage->id
-                  << ", which is in the doublewrite buffer!";
+      ib::error(ER_IB_MSG_78) << "Reading page " << bpage->id
+                              << ", which is in the doublewrite buffer!";
 
     } else if (read_space_id == 0 && read_page_no == 0) {
       /* This is likely an uninitialized page. */
@@ -4625,10 +4635,10 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       page may contain garbage in MySQL < 4.1.1,
       which only supported bpage->space == 0. */
 
-      ib::error() << "Space id and page no stored in "
-                     "the page, read in are "
-                  << page_id_t(read_space_id, read_page_no) << ", should be "
-                  << bpage->id;
+      ib::error(ER_IB_MSG_79) << "Space id and page no stored in "
+                                 "the page, read in are "
+                              << page_id_t(read_space_id, read_page_no)
+                              << ", should be " << bpage->id;
     }
 
     compressed_page = Compression::is_compressed_page(frame);
@@ -4641,9 +4651,10 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
       Compression::deserialize_header(frame, &meta);
 
-      ib::error() << "Page " << bpage->id << " "
-                  << "compressed with " << Compression::to_string(meta) << " "
-                  << "that is not supported by this instance";
+      ib::error(ER_IB_MSG_80)
+          << "Page " << bpage->id << " "
+          << "compressed with " << Compression::to_string(meta) << " "
+          << "that is not supported by this instance";
     }
 
     /* From version 3.23.38 up we store the page checksum
@@ -4666,24 +4677,25 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
       /* Compressed pages are basically gibberish avoid
       printing the contents. */
       if (!compressed_page) {
-        ib::error() << "Database page corruption on disk"
-                       " or a failed file read of page "
-                    << bpage->id << ". You may have to recover from "
-                    << "a backup.";
+        ib::error(ER_IB_MSG_81)
+            << "Database page corruption on disk"
+               " or a failed file read of page "
+            << bpage->id << ". You may have to recover from "
+            << "a backup.";
 
         buf_page_print(frame, bpage->size, BUF_PAGE_PRINT_NO_CRASH);
 
-        ib::info() << "It is also possible that your"
-                      " operating system has corrupted"
-                      " its own file cache and rebooting"
-                      " your computer removes the error."
-                      " If the corrupt page is an index page."
-                      " You can also try to fix the"
-                      " corruption by dumping, dropping,"
-                      " and reimporting the corrupt table."
-                      " You can use CHECK TABLE to scan"
-                      " your table for corruption. "
-                   << FORCE_RECOVERY_MSG;
+        ib::info(ER_IB_MSG_82) << "It is also possible that your"
+                                  " operating system has corrupted"
+                                  " its own file cache and rebooting"
+                                  " your computer removes the error."
+                                  " If the corrupt page is an index page."
+                                  " You can also try to fix the"
+                                  " corruption by dumping, dropping,"
+                                  " and reimporting the corrupt table."
+                                  " You can use CHECK TABLE to scan"
+                                  " your table for corruption. "
+                               << FORCE_RECOVERY_MSG;
       }
 
       if (srv_force_recovery < SRV_FORCE_IGNORE_CORRUPT) {
@@ -4838,7 +4850,8 @@ static void buf_must_be_all_freed_instance(buf_pool_t *buf_pool) {
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     if (block) {
-      ib::fatal() << "Page " << block->page.id << " still fixed or dirty";
+      ib::fatal(ER_IB_MSG_83)
+          << "Page " << block->page.id << " still fixed or dirty";
     }
   }
 }
@@ -5091,8 +5104,9 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   if (buf_pool->curr_size == buf_pool->old_size &&
       n_lru + n_free > buf_pool->curr_size + n_zip) {
-    ib::fatal() << "n_LRU " << n_lru << ", n_free " << n_free << ", pool "
-                << buf_pool->curr_size << " zip " << n_zip << ". Aborting...";
+    ib::fatal(ER_IB_MSG_84)
+        << "n_LRU " << n_lru << ", n_free " << n_free << ", pool "
+        << buf_pool->curr_size << " zip " << n_zip << ". Aborting...";
   }
 
   ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
@@ -5101,8 +5115,9 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
 
   if (buf_pool->curr_size == buf_pool->old_size &&
       UT_LIST_GET_LEN(buf_pool->free) > n_free) {
-    ib::fatal() << "Free list len " << UT_LIST_GET_LEN(buf_pool->free)
-                << ", free blocks " << n_free << ". Aborting...";
+    ib::fatal(ER_IB_MSG_85)
+        << "Free list len " << UT_LIST_GET_LEN(buf_pool->free)
+        << ", free blocks " << n_free << ". Aborting...";
   }
 
   mutex_exit(&buf_pool->free_list_mutex);
@@ -5162,7 +5177,7 @@ static void buf_print_instance(buf_pool_t *buf_pool) {
   mutex_enter(&buf_pool->flush_state_mutex);
   buf_flush_list_mutex_enter(buf_pool);
 
-  ib::info() << *buf_pool;
+  ib::info(ER_IB_MSG_86) << *buf_pool;
 
   buf_flush_list_mutex_exit(buf_pool);
   mutex_exit(&buf_pool->flush_state_mutex);
@@ -5208,7 +5223,7 @@ static void buf_print_instance(buf_pool_t *buf_pool) {
   mutex_exit(&buf_pool->LRU_list_mutex);
 
   for (i = 0; i < n_found; i++) {
-    ib::info info;
+    ib::info info(ER_IB_MSG_1217);
 
     info << "Block count for index " << index_ids[i] << " in buffer is about "
          << counts[i];
@@ -5766,9 +5781,9 @@ void meb_page_init(const page_id_t &page_id, const page_size_t &page_size,
     page_zip_set_size(&block->page.zip, 0);
   }
 
-  ib::trace() << "meb_page_init: block  Space: " << block->page.id.space()
-              << " , zip_size: " << block->page.size.physical()
-              << " unzip_size: " << block->page.size.logical() << " }\n";
+  ib::trace_1() << "meb_page_init: block  Space: " << block->page.id.space()
+                << " , zip_size: " << block->page.size.physical()
+                << " unzip_size: " << block->page.size.logical() << " }\n";
 }
 
 #endif /* !UNIV_HOTBACKUP */

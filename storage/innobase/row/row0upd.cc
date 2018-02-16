@@ -1927,8 +1927,8 @@ static void srv_mbr_print(const byte *data) {
   data += sizeof(double);
   d = mach_double_read(data);
 
-  ib::info() << "GIS MBR INFO: " << a << " and " << b << ", " << c << ", " << d
-             << "\n";
+  ib::info(ER_IB_MSG_1043) << "GIS MBR INFO: " << a << " and " << b << ", " << c
+                           << ", " << d << "\n";
 }
 
 /** Updates a secondary index entry of a row.
@@ -2093,10 +2093,10 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         break;
       }
 
-      ib::error() << "Record in index " << index->name << " of table "
-                  << index->table->name
-                  << " was not found on update: " << *entry
-                  << " at: " << rec_index_print(rec, index);
+      ib::error(ER_IB_MSG_1044)
+          << "Record in index " << index->name << " of table "
+          << index->table->name << " was not found on update: " << *entry
+          << " at: " << rec_index_print(rec, index);
       srv_mbr_print((unsigned char *)entry->fields[0].data);
 #ifdef UNIV_DEBUG
       mtr_commit(&mtr);

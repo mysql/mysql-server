@@ -1409,16 +1409,16 @@ byte *trx_undo_update_rec_get_update(
                                 &field_no);
       first_v_col = false;
     } else if (field_no >= dict_index_get_n_fields(index)) {
-      ib::error() << "Trying to access update undo rec"
-                     " field "
-                  << field_no << " in index " << index->name << " of table "
-                  << index->table->name << " but index has only "
-                  << dict_index_get_n_fields(index) << " fields "
-                  << BUG_REPORT_MSG << ". Run also CHECK TABLE "
-                  << index->table->name
-                  << "."
-                     " n_fields = "
-                  << n_fields << ", i = " << i << ", ptr " << ptr;
+      ib::error(ER_IB_MSG_1184)
+          << "Trying to access update undo rec"
+             " field "
+          << field_no << " in index " << index->name << " of table "
+          << index->table->name << " but index has only "
+          << dict_index_get_n_fields(index) << " fields " << BUG_REPORT_MSG
+          << ". Run also CHECK TABLE " << index->table->name
+          << "."
+             " n_fields = "
+          << n_fields << ", i = " << i << ", ptr " << ptr;
 
       ut_ad(0);
       *upd = NULL;

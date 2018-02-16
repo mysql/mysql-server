@@ -2,7 +2,7 @@
 --source include/have_innodb_max_16k.inc
 
 --echo #
---echo # WL#9263 InnoDB: Independent compress/decompress of BLOB pages
+--echo # WL#9263  Independent compress/decompress of BLOB pages
 --echo #
 
 set global innodb_compression_level = 0;
