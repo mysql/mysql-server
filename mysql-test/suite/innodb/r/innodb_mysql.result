@@ -1567,9 +1567,9 @@ explain
 select b from t1 where a not in (select b from t1,t2 group by a) group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Not optimized, outer query is empty
 Warnings:
-Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where (not(<in_optimizer>(NULL,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = NULL) or isnull(NULL)) having <is_not_null_test>(NULL))))) group by NULL
+Note	1003	/* select#1 */ select NULL AS `b` from `test`.`t1` where (not(<in_optimizer>(NULL,<exists>(/* select#2 */ select `test`.`t1`.`b` from `test`.`t1` join `test`.`t2` where ((<cache>(NULL) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)) having <is_not_null_test>(`test`.`t1`.`b`))))) group by NULL
 DROP TABLE t1,t2;
 SET sql_mode=default;
 End of 5.0 tests
