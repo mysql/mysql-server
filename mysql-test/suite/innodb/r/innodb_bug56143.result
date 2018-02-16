@@ -553,7 +553,7 @@ bug56143_2	CREATE TABLE `bug56143_2` (
   CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa97` FOREIGN KEY (`a`) REFERENCES `bug56143_1` (`a`) ON UPDATE SET NULL,
   CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa98` FOREIGN KEY (`a`) REFERENCES `bug56143_1` (`a`) ON UPDATE SET NULL,
   CONSTRAINT `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa99` FOREIGN KEY (`a`) REFERENCES `bug56143_1` (`a`) ON UPDATE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 count_alloc WHERE event_name like 'memory/innodb/other'
 count_alloc
 0
