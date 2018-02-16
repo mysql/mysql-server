@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -907,6 +907,8 @@ enum btr_cur_method {
 /** The tree cursor: the definition appears here only for the compiler
 to know struct size! */
 struct btr_cur_t {
+	btr_cur_t() { memset(this, 0, sizeof(*this)); }
+
 	dict_index_t*	index;		/*!< index where positioned */
 	page_cur_t	page_cur;	/*!< page cursor */
 	purge_node_t*	purge_node;	/*!< purge node, for BTR_DELETE */
@@ -972,7 +974,6 @@ struct btr_cur_t {
 					information of the path through
 					the tree */
 	rtr_info_t*	rtr_info;	/*!< rtree search info */
-	btr_cur_t():thr(NULL), rtr_info(NULL) {}
 					/* default values */
 };
 

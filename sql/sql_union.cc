@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -631,7 +631,7 @@ bool st_select_lex_unit::prepare(THD *thd_arg, Query_result *sel_result,
                                           create_options, "", false,
                                           instantiate_tmp_table))
       goto err;
-    memset(&result_table_list, 0, sizeof(result_table_list));
+    new (&result_table_list) TABLE_LIST;
     result_table_list.db= (char*) "";
     result_table_list.table_name= result_table_list.alias= (char*) "union";
     result_table_list.table= table= union_result->table;

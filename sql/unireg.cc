@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1287,8 +1287,6 @@ static bool make_empty_rec(THD *thd, File file,
   DBUG_ENTER("make_empty_rec");
 
   /* We need a table to generate columns for default values */
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
   table.s= &share;
 
   if (!(buff=(uchar*) my_malloc(key_memory_frm,

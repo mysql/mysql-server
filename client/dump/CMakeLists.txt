@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,16 +42,16 @@ SET(BOOST_LIB_SOURCES
   ${BOOST_SOURCES_DIR}/libs/system/src/error_code.cpp
 )
 
+INCLUDE_DIRECTORIES(SYSTEM
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
+  )
+
 IF(USING_LOCAL_BOOST)
   ADD_CONVENIENCE_LIBRARY(boost_lib ${BOOST_LIB_SOURCES})
 
   # Do not build library unless it is needed by some other target.
   SET_PROPERTY(TARGET boost_lib PROPERTY EXCLUDE_FROM_ALL TRUE)
-
-  ADD_COMPILE_FLAGS(
-    ${BOOST_LIB_SOURCES}
-    COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-    )
 
   IF(HAVE_clock_gettime_IN_rt)
     TARGET_LINK_LIBRARIES(boost_lib ${LIBRT})
@@ -143,11 +143,6 @@ ADD_CONVENIENCE_LIBRARY(mysqlpump_lib ${MYSQLPUMP_LIB_SOURCES})
 TARGET_LINK_LIBRARIES(mysqlpump_lib
    client_base ${LZ4_LIBRARY})
 
-ADD_COMPILE_FLAGS(
-  ${MYSQLPUMP_LIB_SOURCES}
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-  )
-
 # Files that use Boost sources that trigger compilation warnings
 SET(MYSQLPUMP_BOOST_SOURCES
   abstract_crawler.cc
@@ -178,9 +173,6 @@ ADD_COMPILE_FLAGS(
   COMPILE_FLAGS -I${LZ4_INCLUDE_DIR}
 )
 MYSQL_ADD_EXECUTABLE(mysqlpump  program.cc)
-ADD_COMPILE_FLAGS(
-  program.cc COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR}
-)
 
 TARGET_LINK_LIBRARIES(mysqlpump mysqlpump_lib ${LOCAL_BOOST_LIB})
 IF(USING_SYSTEM_BOOST)

@@ -285,8 +285,11 @@ public:
   binlog_cache_data(bool trx_cache_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
-  : m_pending(0), saved_max_binlog_cache_size(max_binlog_cache_size_arg),
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &cache_log_arg)
+  : cache_log(cache_log_arg),
+    m_pending(0),
+    saved_max_binlog_cache_size(max_binlog_cache_size_arg),
     ptr_binlog_cache_use(ptr_binlog_cache_use_arg),
     ptr_binlog_cache_disk_use(ptr_binlog_cache_disk_use_arg)
   {
@@ -713,11 +716,13 @@ public:
   binlog_stmt_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
     : binlog_cache_data(trx_cache_arg,
                         max_binlog_cache_size_arg,
                         ptr_binlog_cache_use_arg,
-                        ptr_binlog_cache_disk_use_arg)
+                        ptr_binlog_cache_disk_use_arg,
+                        cache_log)
   {
   }
 
@@ -752,11 +757,13 @@ public:
   binlog_trx_cache_data(bool trx_cache_arg,
                         my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
-                        ulong *ptr_binlog_cache_disk_use_arg)
+                        ulong *ptr_binlog_cache_disk_use_arg,
+                        const IO_CACHE &cache_log)
   : binlog_cache_data(trx_cache_arg,
                       max_binlog_cache_size_arg,
                       ptr_binlog_cache_use_arg,
-                      ptr_binlog_cache_disk_use_arg),
+                      ptr_binlog_cache_disk_use_arg,
+                      cache_log),
     m_cannot_rollback(FALSE), before_stmt_pos(MY_OFF_T_UNDEF)
   {   }
 
@@ -846,13 +853,17 @@ public:
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
                     my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
-                    ulong *ptr_binlog_cache_disk_use_arg)
+                    ulong *ptr_binlog_cache_disk_use_arg,
+                    const IO_CACHE &stmt_cache_log,
+                    const IO_CACHE &trx_cache_log)
   : stmt_cache(FALSE, max_binlog_stmt_cache_size_arg,
                ptr_binlog_stmt_cache_use_arg,
-               ptr_binlog_stmt_cache_disk_use_arg),
+               ptr_binlog_stmt_cache_disk_use_arg,
+               stmt_cache_log),
     trx_cache(TRUE, max_binlog_cache_size_arg,
               ptr_binlog_cache_use_arg,
-              ptr_binlog_cache_disk_use_arg),
+              ptr_binlog_cache_disk_use_arg,
+              trx_cache_log),
     has_logged_xid(NULL)
   {  }
 
@@ -9176,7 +9187,7 @@ void MYSQL_BIN_LOG::handle_binlog_flush_or_sync_error(THD *thd,
           binlog_error_action == ABORT_SERVER ? "ABORT_SERVER" : "IGNORE_ERROR");
   if (binlog_error_action == ABORT_SERVER)
   {
-    char err_buff[MYSQL_ERRMSG_SIZE];
+    char err_buff[MYSQL_ERRMSG_SIZE + 27];
     sprintf(err_buff, "%s Hence aborting the server.", errmsg);
     exec_binlog_error_action_abort(err_buff);
   }
@@ -9721,16 +9732,28 @@ int THD::binlog_setup_trx_data()
   if (cache_mngr)
     DBUG_RETURN(0);                             // Already set up
 
+  IO_CACHE stmt_cache_log, trx_cache_log;
+  memset(&stmt_cache_log, 0, sizeof(stmt_cache_log));
+  memset(&trx_cache_log, 0, sizeof(trx_cache_log));
+
   cache_mngr= (binlog_cache_mngr*) my_malloc(key_memory_binlog_cache_mngr,
                                              sizeof(binlog_cache_mngr), MYF(MY_ZEROFILL));
-  if (!cache_mngr ||
-      open_cached_file(&cache_mngr->stmt_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)) ||
-      open_cached_file(&cache_mngr->trx_cache.cache_log, mysql_tmpdir,
-                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  if (!cache_mngr)
+  {
+    DBUG_RETURN(1);
+  }
+  if (open_cached_file(&stmt_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_stmt_cache_size, MYF(MY_WME)))
   {
     my_free(cache_mngr);
     DBUG_RETURN(1);                      // Didn't manage to set it up
+  }
+  if (open_cached_file(&trx_cache_log, mysql_tmpdir,
+                       LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
+  {
+    close_cached_file(&stmt_cache_log);
+    my_free(cache_mngr);
+    DBUG_RETURN(1);
   }
   DBUG_PRINT("debug", ("Set ha_data slot %d to 0x%llx", binlog_hton->slot, (ulonglong) cache_mngr));
   thd_set_ha_data(this, binlog_hton, cache_mngr);
@@ -9741,7 +9764,9 @@ int THD::binlog_setup_trx_data()
                                 &binlog_stmt_cache_disk_use,
                                 max_binlog_cache_size,
                                 &binlog_cache_use,
-                                &binlog_cache_disk_use);
+                                &binlog_cache_disk_use,
+                                stmt_cache_log,
+                                trx_cache_log);
   DBUG_RETURN(0);
 }
 

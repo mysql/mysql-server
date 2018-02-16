@@ -1,6 +1,6 @@
 #ifndef SQL_ALLOC_INCLUDED
 #define SQL_ALLOC_INCLUDED
-/* Copyright (c) 2012, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,15 +37,14 @@ public:
   { return alloc_root(mem_root, size); }
   static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
   { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
+  static void operator delete(void *ptr, size_t size)
+  { if (ptr != NULL) TRASH(ptr, size); }
   static void operator delete(void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
   static void operator delete[](void *ptr, MEM_ROOT *mem_root)
   { /* never called */ }
-  static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
-
-  inline Sql_alloc() {}
-  inline ~Sql_alloc() {}
+  static void operator delete[](void *ptr, size_t size)
+  { if (ptr != NULL) TRASH(ptr, size); }
 };
 
 #endif // SQL_ALLOC_INCLUDED
