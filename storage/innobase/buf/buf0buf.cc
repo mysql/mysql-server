@@ -1288,7 +1288,7 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
     }
 
     for (ulint id = i; id < n; ++id) {
-      threads[id].join();
+      threads[id - i].join();
 
       if (errs[id] != DB_SUCCESS) {
         err = errs[id];
