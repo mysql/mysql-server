@@ -236,13 +236,14 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     return TYPE_OK;
   }
 
+  // Conversion of NULL to empty string does not apply to geometry columns.
+  if (field->type() == MYSQL_TYPE_GEOMETRY) {
+    my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  }
+
   switch (field->table->in_use->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
-      // There's no valid conversion for geometry values.
-      if (field->type() == MYSQL_TYPE_GEOMETRY) {
-        my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
-        return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
-      }
       field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
       /* fall through */
     case CHECK_FIELD_IGNORE:
