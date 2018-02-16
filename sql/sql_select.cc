@@ -2523,7 +2523,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
         break;
       case JT_ALL:
         join->thd->set_status_no_index_used();
-        /* Fall through */
+      /* Fall through */
       case JT_INDEX_SCAN:
         if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST &&
             !tab->sj_mat_exec()) {
@@ -4254,10 +4254,10 @@ bool JOIN::make_tmp_tables_info() {
       if (m_windows[wno]->make_special_rows_cache(thd, tab->table()))
         DBUG_RETURN(true);
 
-      ORDER_with_src w_partition(m_windows[wno]->sorting_order(thd),
+      ORDER_with_src w_partition(m_windows[wno]->sorting_order(),
                                  ESC_WINDOWING);
 
-      if (w_partition.order != nullptr && !m_windows[wno]->sort_redundant()) {
+      if (w_partition.order != nullptr) {
         Opt_trace_object trace_pre_sort(trace, "adding_sort_to_previous_table");
         if (add_sorting_to_table(curr_tmp_table - 1, &w_partition, true))
           DBUG_RETURN(true);

@@ -1912,7 +1912,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "3.29"
+      "query_cost": "10.29"
     },
     "windowing": {
       "windows": [
@@ -1927,6 +1927,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "7.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -1965,7 +1968,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "0.95"
+              "query_cost": "28.95"
             },
             "windowing": {
               "windows": [
@@ -2108,6 +2111,9 @@ EXPLAIN
                   ]
                 }
               ],
+              "cost_info": {
+                "sort_cost": "28.00"
+              },
               "table": {
                 "table_name": "t1",
                 "access_type": "ALL",
@@ -5636,7 +5642,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "10.75"
     },
     "windowing": {
       "windows": [
@@ -5681,6 +5687,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "10.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5841,7 +5850,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "6.85"
     },
     "windowing": {
       "windows": [
@@ -5866,6 +5875,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "6.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -5907,7 +5919,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.85"
+      "query_cost": "12.85"
     },
     "windowing": {
       "windows": [
@@ -5936,6 +5948,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "12.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",

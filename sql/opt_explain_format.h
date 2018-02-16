@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -441,8 +441,7 @@ enum Explain_sort_property {
   ESP_IS_SIMPLE = 1 << 1,  ///< Clause is effective for single JOIN_TAB only
   ESP_USING_FILESORT = 1 << 2,  ///< Clause causes a filesort
   ESP_USING_TMPTABLE = 1 << 3,  ///< Clause creates an intermediate table
-  ESP_DUPS_REMOVAL = 1 << 4,    ///< Duplicate removal for DISTINCT
-  ESP_CHECKED = 1 << 5          ///< Properties were already checked
+  ESP_DUPS_REMOVAL = 1 << 4     ///< Duplicate removal for DISTINCT
 };
 
 class Explain_format_flags {
@@ -476,15 +475,21 @@ class Explain_format_flags {
     Return true if property is set for the clause
   */
   bool get(Explain_sort_clause clause, Explain_sort_property property) const {
-    return (sorts[clause] & property) || (sorts[clause] & ESP_CHECKED);
+    return sorts[clause] & property;
   }
 
   /**
     Return true if any of clauses has this property set
+
+    @param property Check if this property is present in any of the sorts
+           except clause's sort if specified
+    @param clause Optional. Do not check for the property for this clause. The
+           default is to check all clauses.
   */
-  bool any(Explain_sort_property property) const {
+  bool any(Explain_sort_property property,
+           Explain_sort_clause clause = ESC_none) const {
     for (size_t i = ESC_none + 1; i <= ESC_MAX - 1; i++) {
-      if (sorts[i] & property || sorts[i] & ESP_CHECKED) return true;
+      if (i != clause && (sorts[i] & property)) return true;
     }
     return false;
   }
