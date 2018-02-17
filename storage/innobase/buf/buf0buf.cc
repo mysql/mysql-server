@@ -1296,7 +1296,7 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
     }
 
     if (err != DB_SUCCESS) {
-      for (size_t id = 0; i < n; ++id) {
+      for (size_t id = 0; id < n; ++id) {
         if (buf_pool_ptr[id].chunks != nullptr) {
           buf_pool_free_instance(&buf_pool_ptr[id]);
         }
