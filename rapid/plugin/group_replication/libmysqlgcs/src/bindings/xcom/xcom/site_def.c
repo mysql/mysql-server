@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -460,7 +460,7 @@ void import_config(gcs_snapshot *gcs_snap)
 			    cp->nodes.node_list_val, site);
 			site->start = cp->start;
 			site->boot_key = cp->boot_key;
-			site_install_action(site);
+			site_install_action(site, app_type);
 		}
 	}
 }

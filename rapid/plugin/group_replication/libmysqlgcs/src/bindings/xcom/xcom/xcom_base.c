@@ -1449,7 +1449,7 @@ static synode_no getstart(app_data_ptr a)
 	return retval;
 }
 
-void site_install_action(site_def *site)
+void site_install_action(site_def *site, cargo_type operation)
 {
 	DBGOUT(FN; NDBG(get_nodeno(get_site_def()), u));
 	if (synode_gt(site->start, max_synode))
@@ -1459,7 +1459,7 @@ void site_install_action(site_def *site)
 	DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_site_def(site)));
 	set_group(get_group_id(site));
 	if(get_maxnodes(get_site_def())){
-		update_servers(site);
+		update_servers(site, operation);
 	}
 	site->install_time = task_now();
 	DBGOUT(FN; SYCEXP(site->start); SYCEXP(site->boot_key));
@@ -1484,7 +1484,7 @@ static site_def * install_ng_with_start(app_data_ptr a, synode_no start)
 {
 	if (a) {
 		site_def *site = create_site_def_with_start(a, start);
-		site_install_action(site);
+		site_install_action(site, a->body.c_t);
 		return site;
 	}
 	return 0;
@@ -2220,7 +2220,7 @@ site_def *handle_add_node(app_data_ptr a)
 	    a->body.app_u_u.nodes.node_list_val, site);
 	site->start = getstart(a);
 	site->boot_key = a->app_key;
-	site_install_action(site);
+	site_install_action(site, a->body.c_t);
 	return site;
 }
 
@@ -2265,11 +2265,12 @@ site_def *handle_remove_node(app_data_ptr a)
 	    add_event(string_arg("nodeno"));
 	    add_event(uint_arg(get_nodeno(site)));
 	);
+
 	remove_site_def(a->body.app_u_u.nodes.node_list_len,
 	    a->body.app_u_u.nodes.node_list_val, site);
 	site->start = getstart(a);
 	site->boot_key = a->app_key;
-	site_install_action(site);
+	site_install_action(site, a->body.c_t);
 	return site;
 }
 
@@ -3354,9 +3355,26 @@ static void	handle_client_msg(pax_msg *p)
 static double	sent_alive = 0.0;
 static inline void	handle_alive(site_def const * site, linkage *reply_queue, pax_msg *pm)
 {
+	int not_to_oneself = (pm->from != get_nodeno(site) && pm->from != pm->to);
 	DBGOUT(FN; SYCEXP(pm->synode); NDBG(pm->from,u); NDBG(pm->to,u); );
-	if (pm->from != pm->to && !client_boot_done && /* Already done? */
-	!is_dead_site(pm->group_id)) { /* Avoid dealing with zombies */
+
+	/*
+	  This code will check if the ping is intended to us.
+	  If the encoded node does not exist in the current configuration,
+	  we avoid sending need_boot_op, since it must be from a different
+	  reincarnation of this node.
+	*/
+	if(site && pm->a && pm->a->body.c_t == xcom_boot_type)
+	{
+		DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&pm->a->body.app_u_u.nodes)););
+		not_to_oneself &=
+			node_exists_with_uid(&pm->a->body.app_u_u.nodes.node_list_val[0], &get_site_def()->nodes);
+	}
+
+
+	if (!client_boot_done && /* Already done? */
+	    not_to_oneself && /* Not to oneself */
+	    !is_dead_site(pm->group_id)) { /* Avoid dealing with zombies */
 		double	t = task_now();
 		if (t - sent_alive > 1.0) {
 			CREATE_REPLY(pm);
@@ -3424,13 +3442,103 @@ void	add_to_cache(app_data_ptr a, synode_no synode)
 
 static int clicnt = 0;
 
+static u_int is_reincarnation_adding(app_data_ptr a)
+{
+	/* Get information on the current site definition */
+	const site_def* new_site_def= get_site_def();
+	const site_def* valid_site_def= find_site_def(executed_msg);
+
+	/* Get information on the nodes to be added */
+	u_int nodes_len  = a->body.app_u_u.nodes.node_list_len;
+	node_address* nodes_to_change= a->body.app_u_u.nodes.node_list_val;
+
+	u_int i = 0;
+	for(; i < nodes_len; i++)
+	{
+		if (node_exists(&nodes_to_change[i], &new_site_def->nodes) ||
+			node_exists(&nodes_to_change[i], &valid_site_def->nodes))
+		{
+			/*
+			We are simply ignoring the attempt to add a node to the
+			group when there is an old incarnation of it, meaning
+			that the node has crashed and restarted so fastly that
+			nobody has noticed that it has gone.
+
+			In XCOM, the group is not automatically reconfigured
+			and it is possible to start reusing a node that has
+			crashed and restarted without reconfiguring the group
+			by adding the node back to it.
+
+			However, this operation may be unsafe because XCOM
+			does not implement a crash-recovery model and nodes
+			suffer from amnesia after restarting the service. In
+			other words this may lead to inconsistency issues in
+			the paxos protocol.
+
+			Unfortunately, preventing that a node is added back
+			to the system where there is an old incarnation will
+			not fix this problem since other changes are required.
+			*/
+			G_MESSAGE("Old incarnation found while trying to add node %s %.*s.",
+				  nodes_to_change[i].address,
+				  nodes_to_change[i].uuid.data.data_len,
+				  nodes_to_change[i].uuid.data.data_val
+			);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static u_int is_reincarnation_removing(app_data_ptr a)
+{
+	/* Get information on the current site definition */
+	const site_def* new_site_def= get_site_def();
+
+	/* Get information on the nodes to be added */
+	u_int nodes_len  = a->body.app_u_u.nodes.node_list_len;
+	node_address* nodes_to_change= a->body.app_u_u.nodes.node_list_val;
+
+	u_int i = 0;
+	for(; i < nodes_len; i++)
+	{
+		if (!node_exists_with_uid(&nodes_to_change[i], &new_site_def->nodes))
+		{
+			/*
+			We cannot allow an upper-layer to remove a new incarnation
+			of a node, when it tries to remove an old one.
+			*/
+			G_MESSAGE("Old incarnation found while trying to "
+				  "remove node %s %.*s.",
+				  nodes_to_change[i].address,
+				  nodes_to_change[i].uuid.data.data_len,
+				  nodes_to_change[i].uuid.data.data_val
+			);
+
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 static client_reply_code can_execute_cfgchange(pax_msg *p)
 {
 	app_data_ptr a = p->a;
+
 	if (executed_msg.msgno <= 2)
 		return REQUEST_RETRY;
+
 	if (a && a->group_id != 0 && a->group_id != executed_msg.group_id)
 		return REQUEST_FAIL;
+
+        if (a && a->body.c_t == add_node_type && is_reincarnation_adding(a))
+		return REQUEST_FAIL;
+
+        if (a && a->body.c_t == remove_node_type && is_reincarnation_removing(a))
+		return REQUEST_FAIL;
+
 	return REQUEST_OK;
 }
 
@@ -3561,6 +3669,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 	case read_op:
 		pm = get_cache(p->synode);
 		assert(pm);
+		if(client_boot_done)
+			handle_alive(site, reply_queue, p);
 		handle_read(site, pm, reply_queue, p);
 		break;
 	case prepare_op:
@@ -3569,7 +3679,8 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue)
 		if(p->force_delivery)
 			pm->force_delivery = 1;
 		pm->last_modified = task_now();
-		handle_alive(site, reply_queue, p);
+		if(client_boot_done)
+			handle_alive(site, reply_queue, p);
 		handle_prepare(site, pm, reply_queue, p);
 		break;
 	case ack_prepare_op:
@@ -3674,7 +3785,7 @@ learnop:
 		handle_skip(site, pm, p);
 		break;
 	case i_am_alive_op:
-		/* handle_alive(site, reply_queue, p); */
+		handle_alive(site, reply_queue, p);
 		break;
 	case are_you_alive_op:
 		handle_alive(site, reply_queue, p);
@@ -4033,7 +4144,9 @@ int	reply_handler_task(task_arg arg)
 			pax_msg * p = ep->reply;
 			server_handle_need_snapshot(ep->s, get_site_def(), p->from);
 		}else{
-			dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
+			//We only handle messages from this connection is the server is valid.
+			if(ep->s->invalid == 0)
+				dispatch_op(find_site_def(ep->reply->synode), ep->reply, NULL);
 		}
 		TASK_YIELD;
 	}
@@ -4419,6 +4532,7 @@ run:
 				app_data * a = get_void_arg(fsmargs);
 				site_def *s = create_site_def_with_start(a, executed_msg);
 				s->boot_key = executed_msg;
+				invalidate_servers(get_site_def(), s);
 				start_force_config(s);
 			}
 			CO_RETURN(x_run);
