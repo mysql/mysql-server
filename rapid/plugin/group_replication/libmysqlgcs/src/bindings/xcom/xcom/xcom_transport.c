@@ -34,6 +34,7 @@
 #include "xcom_detector.h"
 #include "site_struct.h"
 #include "node_connection.h"
+#include "node_list.h"
 #include "xcom_transport.h"
 #include "xcom_statistics.h"
 #include "xcom_base.h"
@@ -737,6 +738,7 @@ mksrv(char *srv, xcom_port port)
 		abort();
 	}
 	s->garbage = 0;
+	s->invalid = 0;
 	s->refcnt = 0;
 	s->srv = srv;
 	s->port = port;
@@ -1054,7 +1056,7 @@ static inline int	_send_server_msg(site_def const *s, node_no to, pax_msg *p)
 {
 	assert(s);
 	assert(s->servers[to]);
-	if (s->servers[to] && p) {
+	if (s->servers[to] && s->servers[to]->invalid == 0 && p) {
 		send_msg(s->servers[to], s->nodeno, to, get_group_id(s), p);
 	}
 	return 0;
@@ -1793,7 +1795,7 @@ static xcom_port get_port(char *a)
 
 xcom_port xcom_get_port(char *a)
 {
-	return get_port(a);
+	return a ? get_port(a): 0;
 }
 
 
@@ -1809,7 +1811,7 @@ static server *find_server(server *table[], int n, char *name, xcom_port port)
 }
 
 
-void update_servers(site_def *s)
+void update_servers(site_def *s, cargo_type operation)
 {
 	u_int	n;
 
@@ -1829,6 +1831,8 @@ void update_servers(site_def *s)
 				DBGOUT(FN; STRLIT("re-using server "); NDBG(i, d); STREXP(name));
 				free(name);
 				s->servers[i] = sp;
+				if(sp->invalid)
+					sp->invalid= 0;
 			} else { /* No server? Create one */
 				DBGOUT(FN; STRLIT("creating new server "); NDBG(i, d); STREXP(name));
 				if (port > 0)
@@ -1840,6 +1844,40 @@ void update_servers(site_def *s)
 		/* Zero the rest */
 		for (i = n; i < NSERVERS; i++) {
 			s->servers[i] = 0;
+		}
+		/*
+		If we have a force config, mark the servers that do not belong to this
+		configuration as invalid
+		*/
+
+		if(operation == force_config_type) {
+			const site_def* old_site_def= get_prev_site_def();
+			invalidate_servers(old_site_def, s);
+		}
+
+	}
+}
+
+
+/*
+ Make a diff between 2 site_defs and mark as invalid servers
+ that do not belong to the new site_def.
+ This is only to be used if we are forcing a configuration.
+*/
+void invalidate_servers(const site_def* old_site_def,
+			const site_def* new_site_def) {
+	u_int node= 0;
+	for(; node < get_maxnodes(old_site_def); node++){
+		node_address* node_addr_from_old_site_def= &old_site_def->nodes.node_list_val[node];
+		if(!node_exists(node_addr_from_old_site_def, &new_site_def->nodes))
+		{
+			char *addr = node_addr_from_old_site_def->address;
+			char *name = get_name(addr);
+			xcom_port port = get_port(addr);
+			server *sp = find_server(all_servers, maxservers, name, port);
+			if (sp) {
+				sp->invalid= 1;
+			}
 		}
 	}
 }

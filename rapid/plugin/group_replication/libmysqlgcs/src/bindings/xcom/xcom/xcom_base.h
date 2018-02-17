@@ -157,7 +157,7 @@ void xcom_add_node(char *addr, xcom_port port, node_list *nl);
 xcom_state xcom_fsm(xcom_actions action, task_arg fsmargs);
 void site_post_install_action(site_def *site);
 
-void site_install_action(site_def *site);
+void site_install_action(site_def *site, cargo_type operation);
 void send_client_add_node(char *srv, xcom_port port, node_list *nl);
 void send_client_remove_node(char *srv, xcom_port port, node_list *nl);
 
@@ -186,6 +186,9 @@ typedef void (*xcom_state_change_cb)(int status);
 void set_xcom_run_cb(xcom_state_change_cb x);
 void set_xcom_terminate_cb(xcom_state_change_cb x);
 void set_xcom_exit_cb(xcom_state_change_cb x);
+
+app_data_ptr init_config_with_group(app_data *a, node_list *nl, cargo_type type,
+                                    uint32_t group_id);
 
 /*
  Registers a callback that is called right after
@@ -229,6 +232,7 @@ static inline char *strerr_msg(char *buf, size_t len, int nr)
 }
 
 #define XCOM_COMMS_ERROR 1
+#define XCOM_COMMS_OTHER 2
 #define XCOM_COMMS_OK 0
 void set_xcom_comms_cb(xcom_state_change_cb x);
 

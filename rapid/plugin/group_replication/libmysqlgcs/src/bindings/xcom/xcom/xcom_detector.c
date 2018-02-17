@@ -63,8 +63,8 @@ static void reset_id_changed(){
 /* See if node has been suspiciously still for some time */
 int	may_be_dead(detector_state const ds, node_no i, double seconds)
 {
-  /* DBGOUT(FN; NDBG(i,u); NDBG(ds[i] < seconds - 2.0, d)); */
-  return ds[i] < seconds - 2.0;
+  /* DBGOUT(FN; NDBG(i,u); NDBG(ds[i] < seconds - 4.0, d)); */
+  return ds[i] < seconds - 4.0;
 }
 
 void init_detector(detector_state ds)
@@ -410,6 +410,11 @@ int	alive_task(task_arg arg MY_ATTRIBUTE((unused)))
 					if (i != get_nodeno(site) && may_be_dead(site->detected, i, sec)) {
 						replace_pax_msg(&ep->you_p, pax_msg_new(alive_synode, site));
 						ep->you_p->op = are_you_alive_op;
+						ep->you_p->a = new_app_data();
+						ep->you_p->a->app_key.group_id = ep->you_p->a->group_id = get_group_id(site);
+						ep->you_p->a->body.c_t = xcom_boot_type;
+						init_node_list(1, &site->nodes.node_list_val[i], &ep->you_p->a->body.app_u_u.nodes);
+						DBGOUT(FN; COPY_AND_FREE_GOUT(dbg_list(&ep->you_p->a->body.app_u_u.nodes)););
 						send_server_msg(site, i, ep->you_p);
 					}
 				}

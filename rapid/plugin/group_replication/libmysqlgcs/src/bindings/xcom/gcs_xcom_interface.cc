@@ -313,6 +313,10 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
     validated_params.get_parameter("bootstrap_group");
   const std::string *poll_spin_loops_str=
     validated_params.get_parameter("poll_spin_loops");
+  const std::string *join_attempts_str=
+    validated_params.get_parameter("join_attempts");
+  const std::string *join_sleep_time_str=
+    validated_params.get_parameter("join_sleep_time");
 
   // Mandatory
   if (group_name_str == NULL)
@@ -411,6 +415,10 @@ Gcs_xcom_interface::configure(const Gcs_interface_parameters &interface_params)
 
     reconfigured |= true;
   }
+
+  xcom_control->set_join_behavior(
+    static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
+    static_cast<unsigned int>(atoi(join_sleep_time_str->c_str())));
 
 end:
   if (error == GCS_NOK || !reconfigured)
@@ -573,6 +581,14 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
   if (registered_group == m_group_interfaces.end())
   {
     /*
+      Retrieve some initialization parameters.
+    */
+    const std::string *join_attempts_str=
+      m_initialization_parameters.get_parameter("join_attempts");
+    const std::string *join_sleep_time_str=
+      m_initialization_parameters.get_parameter("join_sleep_time");
+
+    /*
       If the group interfaces do not exist, create and add them to
       the dictionary.
     */
@@ -593,7 +609,12 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
 
     Gcs_xcom_state_exchange_interface *se=
       new Gcs_xcom_state_exchange(group_interface->communication_interface);
-    group_interface->control_interface=
+
+    Gcs_xcom_group_management *xcom_management=
+      new Gcs_xcom_group_management(xcom_proxy, vce, group_identifier);
+    group_interface->management_interface= xcom_management;
+
+    Gcs_xcom_control *xcom_control=
       new Gcs_xcom_control(m_local_node_information,
                            m_xcom_peers,
                            group_identifier,
@@ -602,11 +623,15 @@ get_group_interfaces(const Gcs_group_identifier &group_identifier)
                            se,
                            vce,
                            m_boot,
-                           m_socket_util);
+                           m_socket_util,
+                           xcom_management);
+    group_interface->control_interface= xcom_control;
 
-    group_interface->management_interface=
-                                      new Gcs_xcom_group_management(xcom_proxy,
-                                                                    group_identifier);
+    xcom_control->set_join_behavior(
+      static_cast<unsigned int>(atoi(join_attempts_str->c_str())),
+      static_cast<unsigned int>(atoi(join_sleep_time_str->c_str()))
+    );
+
 
     // Store the created objects for later deletion
     group_interface->vce= vce;

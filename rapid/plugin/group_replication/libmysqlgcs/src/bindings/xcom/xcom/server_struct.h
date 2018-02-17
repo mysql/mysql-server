@@ -44,6 +44,7 @@ struct server {
 	task_env * sender;  /* The sender task */
 	task_env * reply_handler;  /* The reply task */
 	srv_buf out_buf;
+        int invalid;
 };
 
 typedef struct server server;
