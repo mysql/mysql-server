@@ -1070,24 +1070,24 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int(11) DEFAULT NULL,
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t4	CREATE TABLE `t4` (
   `c1` int(11) NOT NULL,
   `c2` blob,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t4` (`c1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
@@ -1095,7 +1095,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 2. Test with alter table
 ALTER TABLE t1 ADD COLUMN c11 INT;
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -2116,7 +2116,7 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int(11) DEFAULT NULL,
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t7 MODIFY c2 BIGINT NOT NULL;
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
@@ -2125,7 +2125,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t3 ADD FOREIGN KEY(c3) REFERENCES t2(c1);
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -2136,7 +2136,7 @@ t3	CREATE TABLE `t3` (
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
@@ -2144,14 +2144,14 @@ Get rec(type:id) is t3	CREATE TABLE `t3` (
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t5 DROP FOREIGN KEY t5_ibfk_1;
 Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t7 ADD INDEX idx3(c2,c3(50));
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
@@ -2161,7 +2161,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c1, ADD c1 BIGINT PRIMARY
 KEY;
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -2226,7 +2226,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
-) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `innodb_system` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t3, t2, t4, t5, t7;
 UNINSTALL PLUGIN daemon_memcached;
 SET GLOBAL innodb_file_per_table=ON;
@@ -3283,24 +3283,24 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int(11) DEFAULT NULL,
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t4	CREATE TABLE `t4` (
   `c1` int(11) NOT NULL,
   `c2` blob,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
   CONSTRAINT `t5_ibfk_1` FOREIGN KEY (`c2`) REFERENCES `t4` (`c1`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
@@ -3308,7 +3308,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # 2. Test with alter table
 ALTER TABLE t1 ADD COLUMN c11 INT;
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -4329,7 +4329,7 @@ Get rec(type:id) is t2	CREATE TABLE `t2` (
   `c998` int(11) DEFAULT NULL,
   `c999` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t7 MODIFY c2 BIGINT NOT NULL;
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
@@ -4338,7 +4338,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c4` geometry NOT NULL /*!80003 SRID 0 */,
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t3 ADD FOREIGN KEY(c3) REFERENCES t2(c1);
 SHOW CREATE TABLE t3;
 Table	Create Table
@@ -4349,7 +4349,7 @@ t3	CREATE TABLE `t3` (
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Get rec(type:id) is t3	CREATE TABLE `t3` (
   `c1` varchar(32) NOT NULL,
   `c2` varchar(1024) DEFAULT NULL,
@@ -4357,14 +4357,14 @@ Get rec(type:id) is t3	CREATE TABLE `t3` (
   PRIMARY KEY (`c1`),
   KEY `c3` (`c3`),
   CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`c3`) REFERENCES `t2` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t5 DROP FOREIGN KEY t5_ibfk_1;
 Get rec(type:id) is t5	CREATE TABLE `t5` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t7 ADD INDEX idx3(c2,c3(50));
 Get rec(type:id) is t7	CREATE TABLE `t7` (
   `c1` int(11) NOT NULL,
@@ -4374,7 +4374,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 DROP PRIMARY KEY, DROP COLUMN c1, ADD c1 BIGINT PRIMARY
 KEY;
 Get rec(type:id) is t1	CREATE TABLE `t1` (
@@ -4439,7 +4439,7 @@ Get rec(type:id) is t7	CREATE TABLE `t7` (
   PRIMARY KEY (`c1`),
   SPATIAL KEY `c4` (`c4`),
   KEY `idx3` (`c2`,`c3`(50))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t3, t2, t4, t5, t7;
 UNINSTALL PLUGIN daemon_memcached;
 # Create compressed table
@@ -4457,7 +4457,7 @@ Get rec(type:id) is t6	CREATE TABLE `t6` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4
 DROP TABLE t6;
 # Create SDI in General tablespace
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
@@ -4474,7 +4474,7 @@ Get rec(type:id) is t6	CREATE TABLE `t6` (
   PRIMARY KEY (`c1`),
   KEY `idx1` (`c3`),
   KEY `idx2` (`c2`(20))
-) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `ts1` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t6;
 DROP TABLESPACE ts1;
 DROP DATABASE innodb_memcache;

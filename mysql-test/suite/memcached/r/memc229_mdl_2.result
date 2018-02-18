@@ -63,7 +63,7 @@ t1	CREATE TABLE `t1` (
   `c4` bigint(20) unsigned DEFAULT NULL,
   `c5` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT c1,c2,c21 FROM t1;
 ERROR 42S22: Unknown column 'c21' in 'field list'
 DROP TABLE t1;
