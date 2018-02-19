@@ -1221,7 +1221,7 @@ fi
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
 %attr(755, root, root) %{_bindir}/mcc_config.py
-%{_datadir}/mysql/mcc/
+%{_datadir}/mysql-*/mcc/
 %exclude %{_datadir}/mysql/mcc/tst/
 
 %files memcached
@@ -1230,7 +1230,7 @@ fi
 %attr(755, root, root) %{_bindir}/memclient
 %attr(755, root, root) %{_sbindir}/memcached
 %attr(755, root, root) %{_libdir}/mysql/ndb_engine.so
-%{_datadir}/mysql/memcache-api/
+%{_datadir}/mysql-*/memcache-api/
 
 %files ndbclient
 %defattr(-, root, root, -)
@@ -1247,13 +1247,13 @@ fi
 %files nodejs
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql/nodejs/
+%{_datadir}/mysql-*/nodejs/
 %endif
 
 %files java
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql/java/
+%{_datadir}/mysql-*/java/
 %endif # cluster
 
 %if 0%{?commercial}
