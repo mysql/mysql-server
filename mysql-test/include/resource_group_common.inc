@@ -146,7 +146,7 @@ DROP USER u1;
 
 --echo # 10. Length of resource group name is greater than maximum allowed limit of identifier names.
 --error ER_TOO_LONG_IDENT
-ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff TYPE=USER;
+ALTER RESOURCE GROUP user_resource_1234567890aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaafffffffff DISABLE;
 
 --echo # 11. Default resource groups can't be altered.
 --error ER_DISALLOWED_OPERATION

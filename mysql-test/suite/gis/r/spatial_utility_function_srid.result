@@ -523,8 +523,8 @@ UPDATE gis_polygon_srid SET g=ST_SRID();
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_SRID'
 UPDATE gis_polygon_srid SET g=ST_SRID(g, 4145, 0);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_SRID'
-UPDATE gis_multi_point_srid SET g=ST_SRID()
---error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
+UPDATE gis_multi_point_srid SET g=ST_SRID();
+ERROR 42000: Incorrect parameter count in the call to native function 'ST_SRID'
 UPDATE gis_multi_point_srid SET g=ST_SRID(g, 4145, 0);
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_SRID'
 UPDATE gis_multi_linestring_srid SET g=ST_SRID();

@@ -310,7 +310,7 @@ GEOMETRYCOLLECTION(POINT(5 5),POLYGON((0 0,0 10,10 10,10 0,0 0)))
 SELECT ST_ASTEXT(ST_SWAPXY(NULL));
 ST_ASTEXT(ST_SWAPXY(NULL))
 NULL
-SELECT ST_ASTEXT(ST_SWAPXY()));
+SELECT ST_ASTEXT(ST_SWAPXY());
 ERROR 42000: Incorrect parameter count in the call to native function 'ST_SWAPXY'
 SELECT ST_SWAPXY('foobar');
 ERROR 22023: Invalid GIS data provided to function st_swapxy.

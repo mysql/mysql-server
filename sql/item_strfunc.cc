@@ -104,8 +104,6 @@
 using std::max;
 using std::min;
 
-extern int MYSQLparse(class THD *thd);  ///< Defined in sql_yacc.cc.
-
 /*
   For the Items which have only val_str_ascii() method
   and don't have their own "native" val_str(),
@@ -828,13 +826,13 @@ class Parse_error_anonymizer : public Internal_error_handler {
 /**
   Parses a string and fills the token buffer.
 
-  The parser symbol MYSQLparse() is called directly instead of parse_sql(), as
-  the latter assumes that it is called with the intent to record the statement
-  in performance_schema and later execute it, neither of which is called for
-  here. In fact we hardly need the parser to calculate a digest, since it is
-  calculated from the token stream. There are only some corner cases where
-  `NULL` is sometimes a literal and sometimes an operator, as in `IS NULL`,
-  `IS NOT NULL`.
+  The parser function THD::sql_parser() is called directly instead of
+  parse_sql(), as the latter assumes that it is called with the intent to record
+  the statement in performance_schema and later execute it, neither of which is
+  called for here. In fact we hardly need the parser to calculate a digest,
+  since it is calculated from the token stream. There are only some corner cases
+  where `NULL` is sometimes a literal and sometimes an operator, as in
+  `IS NULL`, `IS NOT NULL`.
 
   @param thd Session object used by the parser.
 
@@ -871,7 +869,9 @@ bool parse(THD *thd, Item *statement_expr, String *statement_string) {
 
   {
     Parse_error_anonymizer pea(thd, statement_expr);
-    if (MYSQLparse(thd) != 0) return true;
+    if (thd->sql_parser()) {
+      return true;
+    }
   }
 
   return false;

@@ -5229,8 +5229,6 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
   DBUG_VOID_RETURN;
 }
 
-extern int MYSQLparse(class THD *thd);  // from sql_yacc.cc
-
 /**
   Produces a PT_subquery object from a subquery's text.
   @param thd      Thread handler
@@ -5274,11 +5272,11 @@ static bool reparse_common_table_expr(THD *thd, const LEX_STRING &text,
   /*
     As this function is called during parsing only, it can and should use the
     current Query_arena, character_set_client, etc.
-    It intentionally uses MYSQLparse() directly without the parse_sql()
+    It intentionally uses THD::sql_parser() directly without the parse_sql()
     wrapper: because it's building a node of the statement currently being
     parsed at the upper call site.
   */
-  bool mysql_parse_status = MYSQLparse(thd) != 0;
+  bool mysql_parse_status = thd->sql_parser();
   thd->m_parser_state = old;
   if (mysql_parse_status) return true; /* purecov: inspected */
 
@@ -6631,11 +6629,15 @@ class Parser_oom_handler : public Internal_error_handler {
 };
 
 /**
-  This is a wrapper of MYSQLparse(). All the code should call parse_sql()
-  instead of MYSQLparse().
+  Transform an SQL statement into an AST that is ready for resolving, using the
+  supplied parser state and object creation context.
 
-  As a by product of parsing, the parser can also generate a query digest.
-  To compute a digest, invoke this function as follows.
+  This is a wrapper() for THD::sql_parser() and should generally be used for AST
+  construction.
+
+  The function may optionally generate a query digest, invoke this function as
+  follows:
+
 
   @verbatim
     THD *thd = ...;
@@ -6733,7 +6735,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
   thd->push_diagnostics_area(parser_da, false);
 
-  bool mysql_parse_status = MYSQLparse(thd) != 0;
+  bool mysql_parse_status = thd->sql_parser();
 
   thd->pop_internal_handler();
   set_memroot_max_capacity(thd->mem_root, 0);
@@ -6789,7 +6791,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
   thd->pop_diagnostics_area();
 
   /*
-    Check that if MYSQLparse() failed either thd->is_error() is set, or an
+    Check that if THD::sql_parser() failed either thd->is_error() is set, or an
     internal error handler is set.
 
     The assert will not catch a situation where parsing fails without an
