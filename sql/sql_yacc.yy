@@ -438,7 +438,9 @@ void warn_about_deprecated_national(THD *thd)
 
 %start start_entry
 
-%parse-param { class THD *YYTHD } { class Parse_tree_root **parse_tree }
+%parse-param { class THD *YYTHD }
+%parse-param { class Parse_tree_root **parse_tree }
+
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
