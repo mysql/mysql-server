@@ -61,10 +61,6 @@ Restart=on-failure
 
 RestartPreventExitStatus=1
 
-# Always restart when mysqld exits with exit code of 16. This special exit code
-# is used by mysqld for RESTART SQL.
-RestartForceExitStatus=16
-
 # Set enviroment variable MYSQLD_PARENT_PID. This is required for restart.
 Environment=MYSQLD_PARENT_PID=1
 
