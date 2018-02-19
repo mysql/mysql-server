@@ -885,3 +885,5 @@ TRUNCATE TABLE t1;
 SHOW CREATE TABLE t1;
 
 DROP TABLE t1;
+# Remove directory left behind by the above
+--rmdir $MYSQL_TMP_DIR/test
