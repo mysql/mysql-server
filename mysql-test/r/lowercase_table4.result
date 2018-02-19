@@ -27,7 +27,7 @@ Create Table	CREATE TABLE `Table2` (
   PRIMARY KEY (`c1`),
   KEY `fk1` (`c2`),
   CONSTRAINT `fk1` FOREIGN KEY (`c2`) REFERENCES `table1` (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
 CONSTRAINT_CATALOG	def
@@ -73,7 +73,7 @@ Create Table	CREATE TABLE `Product_Order` (
   KEY `Customer_Id` (`Customer_Id`),
   CONSTRAINT `product_order_ibfk_1` FOREIGN KEY (`Product_Category`, `Product_Id`) REFERENCES `product` (`category`, `id`) ON UPDATE CASCADE,
   CONSTRAINT `product_order_ibfk_2` FOREIGN KEY (`Customer_Id`) REFERENCES `customer` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Product;
 Table	Product
 Create Table	CREATE TABLE `Product` (
@@ -81,13 +81,13 @@ Create Table	CREATE TABLE `Product` (
   `Id` int(11) NOT NULL,
   `Price` decimal(10,0) DEFAULT NULL,
   PRIMARY KEY (`Category`,`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE Customer;
 Table	Customer
 Create Table	CREATE TABLE `Customer` (
   `Id` int(11) NOT NULL,
   PRIMARY KEY (`Id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE CONSTRAINT_SCHEMA != 'PERFORMANCE_SCHEMA';
 CONSTRAINT_CATALOG	def

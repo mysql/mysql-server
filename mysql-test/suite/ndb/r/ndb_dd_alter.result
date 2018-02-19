@@ -36,7 +36,7 @@ t1	CREATE TABLE `t1` (
   `a9` varchar(255) DEFAULT NULL,
   `a10` blob,
   PRIMARY KEY (`a1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1 ORDER BY a1;
 a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
 1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data
@@ -138,7 +138,7 @@ t1	CREATE TABLE `t1` (
   `a9` varchar(255) DEFAULT NULL,
   `a10` blob,
   PRIMARY KEY (`a1`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1 ORDER BY a1;
 a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
 1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data

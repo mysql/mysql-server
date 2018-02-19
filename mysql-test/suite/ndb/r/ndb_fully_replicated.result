@@ -26,7 +26,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -123,7 +123,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -172,7 +172,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,FULLY_REPLICATED=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -219,7 +219,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -302,7 +302,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `a` (`a`,`b`),
   KEY `b` (`b`,`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=FULLY_REPLICATED=1 comment text'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=FULLY_REPLICATED=1 comment text'
 drop table t1;
 create table t1 (
 x int primary key,

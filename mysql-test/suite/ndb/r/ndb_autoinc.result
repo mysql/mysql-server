@@ -24,7 +24,7 @@ Table	Create Table
 t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t3
 ADD PRIMARY KEY (id);
 SHOW CREATE TABLE t3;
@@ -33,7 +33,7 @@ t3	CREATE TABLE `t3` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   PRIMARY KEY (`id`),
   KEY `id` (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1, t3;
 End of 5.1 tests
 set @@auto_increment_increment=4;

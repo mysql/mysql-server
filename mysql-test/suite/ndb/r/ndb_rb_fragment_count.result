@@ -468,7 +468,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_NODE'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_NODE";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -492,7 +492,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_NODE'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RA_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -520,7 +520,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RA_BY_LDM'
 alter table t1 algorithm=inplace,
 comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
@@ -556,7 +556,7 @@ t1	CREATE TABLE `t1` (
   `c` bigint(20) NOT NULL,
   `d` bigint(20) NOT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1,READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
 -- t1 --
 Version: Any
 Fragment type: HashMapPartition
@@ -656,7 +656,7 @@ t1	CREATE TABLE `t1` (
   `b` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1'
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance
@@ -704,7 +704,7 @@ t1	CREATE TABLE `t1` (
   `b` bigint(20) DEFAULT NULL,
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=READ_BACKUP=1,PARTITION_BALANCE=FOR_RP_BY_LDM'
 select node_id, fragment_num, block_instance from ndbinfo.memory_per_fragment
 where fq_name = 'test/def/t1' order by node_id, fragment_num, block_instance;
 node_id	fragment_num	block_instance

@@ -136,7 +136,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`b`),
   UNIQUE KEY `a` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY RANGE (`b`)
 (PARTITION x1 VALUES LESS THAN (5) ENGINE = ndbcluster,
  PARTITION x2 VALUES LESS THAN (10) ENGINE = ndbcluster,

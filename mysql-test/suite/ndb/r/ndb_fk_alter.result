@@ -25,7 +25,7 @@ child	CREATE TABLE `child` (
   CONSTRAINT `fk1` FOREIGN KEY (`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk1;
 show create table child;
 Table	Create Table
@@ -38,7 +38,7 @@ child	CREATE TABLE `child` (
   KEY `c` (`c`),
   CONSTRAINT `fk2` FOREIGN KEY (`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk2;
 show create table child;
 Table	Create Table
@@ -50,7 +50,7 @@ child	CREATE TABLE `child` (
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`),
   CONSTRAINT `fk3` FOREIGN KEY (`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 alter table child algorithm=inplace, drop foreign key fk3;
 show create table child;
 Table	Create Table
@@ -61,7 +61,7 @@ child	CREATE TABLE `child` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `b` (`b`) USING HASH,
   KEY `c` (`c`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table parent, child;
 CREATE TABLE bug46599a (
 b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
@@ -179,7 +179,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -189,7 +189,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t1 PARTITION BY KEY ();
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -200,7 +200,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY () */
 ALTER TABLE t1 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t1;
@@ -212,7 +212,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1) */
 ALTER TABLE t1 REMOVE PARTITIONING;
 SHOW CREATE TABLE t1;
@@ -224,7 +224,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`col1`),
   UNIQUE KEY `name0` (`col2`),
   UNIQUE KEY `name1` (`col3`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE t2 PARTITION BY KEY ();
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -235,7 +235,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY () */
 ALTER TABLE t2 PARTITION BY KEY (col1);
 SHOW CREATE TABLE t2;
@@ -247,7 +247,7 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 /*!50100 PARTITION BY KEY (col1) */
 ALTER TABLE t2 REMOVE PARTITIONING;
 SHOW CREATE TABLE t2;
@@ -259,5 +259,5 @@ t2	CREATE TABLE `t2` (
   UNIQUE KEY `col1` (`col1`),
   KEY `fk1` (`col3`),
   CONSTRAINT `fk1` FOREIGN KEY (`col3`) REFERENCES `t1` (`col3`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t2, t1;
