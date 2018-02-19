@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,6 +40,7 @@ protected:
     uint port= 4444;
     uint plugin_version= 0x000400;
     uint write_set_algorithm= 1;
+    uint lower_case_table_names= 0;
     string executed_gtid("aaaa:1-10");
     string retrieved_gtid("bbbb:1-10");
     ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
@@ -61,7 +62,7 @@ protected:
                                       Group_member_info::MEMBER_ROLE_PRIMARY,
                                       in_primary_mode,
                                       has_enforces_update_everywhere_checks,
-                                      member_weight);
+                                      member_weight, lower_case_table_names);
     local_node->update_gtid_sets(executed_gtid,retrieved_gtid);
   }
 
@@ -122,6 +123,7 @@ protected:
     string uuid("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
     uint port= 4444;
     uint write_set_algorithm= 1;
+    uint lower_case_table_names= 0;
     uint plugin_version= 0x000400;
     gcs_member_id= new Gcs_member_identifier("stuff");
     ulonglong gtid_assignment_block_size= 9223372036854775807ULL;
@@ -141,7 +143,7 @@ protected:
                                       Group_member_info::MEMBER_ROLE_SECONDARY,
                                       in_primary_mode,
                                       has_enforces_update_everywhere_checks,
-                                      member_weight);
+                                      member_weight, lower_case_table_names);
 
     cluster_member_mgr= new Group_member_info_manager(local_node);
   }
@@ -165,6 +167,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
   string uuid("781f947c-db4a-22e3-99d4-f01faf1a1c44");
   uint port= 4444;
   uint write_set_algorithm= 1;
+  uint lower_case_table_names= 0;
   uint plugin_version= 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11");
@@ -189,7 +192,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest)
                                                        Group_member_info::MEMBER_ROLE_PRIMARY,
                                                        in_primary_mode,
                                                        has_enforces_update_everywhere_checks,
-                                                       member_weight);
+                                                       member_weight,
+                                                       lower_case_table_names);
   new_member->update_gtid_sets(executed_gtid,retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -329,6 +333,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
   string uuid("781f947c-db4a-22e3-99d4-f01faf1a1c44");
   uint port= 4444;
   uint write_set_algorithm= 1;
+  uint lower_case_table_names= 0;
   uint plugin_version= 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11:12-14:16-20:22-30");
@@ -354,7 +359,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
                                                        Group_member_info::MEMBER_ROLE_PRIMARY,
                                                        in_primary_mode,
                                                        has_enforces_update_everywhere_checks,
-                                                       member_weight);
+                                                       member_weight,
+                                                       lower_case_table_names);
   new_member->update_gtid_sets(executed_gtid,retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -427,6 +433,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets)
             retrieved_local_info->get_role());
   ASSERT_EQ(local_node->get_member_weight(),
             retrieved_local_info->get_member_weight());
+  ASSERT_EQ(local_node->get_lower_case_table_names(),
+            retrieved_local_info->get_lower_case_table_names());
 
   delete retrieved_local_info;
 }
