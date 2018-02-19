@@ -23,4 +23,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *thd_alloc_service= (void*)VERSION_thd_alloc;
+SERVICE_VERSION *thd_alloc_service = (void **)VERSION_thd_alloc;

@@ -30,18 +30,15 @@
 
 namespace into_syntax_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class IntoSyntaxTest : public ParserTest
-{
-};
+class IntoSyntaxTest : public ParserTest {};
 
-TEST_F(IntoSyntaxTest, Outer)
-{
-  SELECT_LEX *term= parse("SELECT 1 INTO @v");
-  SELECT_LEX_UNIT *top_union= term->master_unit();
+TEST_F(IntoSyntaxTest, Outer) {
+  SELECT_LEX *term = parse("SELECT 1 INTO @v");
+  SELECT_LEX_UNIT *top_union = term->master_unit();
   EXPECT_EQ(nullptr, top_union->outer_select());
 }
 
-}
+}  // namespace into_syntax_unittest

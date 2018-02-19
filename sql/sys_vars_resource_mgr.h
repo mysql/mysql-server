@@ -23,7 +23,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   Session_sysvar_resource_manager
   -------------------------------
@@ -63,18 +62,16 @@
 #include <memory>
 
 #include "map_helpers.h"
-#include "my_inttypes.h"
 #include "sql/psi_memory_key.h"
 
 class Session_sysvar_resource_manager {
-
-private:
+ private:
   // The value always contains the string that the key points to.
   malloc_unordered_map<char **, unique_ptr_my_free<char>>
-    m_sysvar_string_alloc_hash{key_memory_THD_Session_sysvar_resource_manager};
+      m_sysvar_string_alloc_hash{
+          key_memory_THD_Session_sysvar_resource_manager};
 
-public:
-
+ public:
   /**
     Allocates memory for Sys_var_charptr session variable during session
     initialization.
@@ -96,5 +93,3 @@ public:
 };
 
 #endif /* SYS_VARS_RESOURCE_MGR_INCLUDED */
-
-

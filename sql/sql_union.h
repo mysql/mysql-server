@@ -26,26 +26,26 @@
 #include "my_base.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
-#include "sql/query_result.h"   // Query_result_interceptor
+#include "sql/query_result.h"  // Query_result_interceptor
 #include "sql/table.h"
-#include "sql/temp_table_param.h" // Temp_table_param
+#include "sql/temp_table_param.h"  // Temp_table_param
 
 class Item;
 class SELECT_LEX_UNIT;
 class THD;
-template <class T> class List;
+template <class T>
+class List;
 
-class Query_result_union : public Query_result_interceptor
-{
+class Query_result_union : public Query_result_interceptor {
   Temp_table_param tmp_table_param;
   /// Count of rows successfully stored in tmp table
   ha_rows m_rows_in_table;
-public:
+
+ public:
   TABLE *table;
 
   Query_result_union(THD *thd)
-    : Query_result_interceptor(thd), m_rows_in_table(0), table(0)
-    {}
+      : Query_result_interceptor(thd), m_rows_in_table(0), table(0) {}
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   /**
     Do prepare() if preparation has been postponed until column type
@@ -55,16 +55,16 @@ public:
 
     @return false on success, true on failure
   */
-  virtual bool postponed_prepare(List<Item> &types MY_ATTRIBUTE((unused)))
-  { return false; }
+  virtual bool postponed_prepare(List<Item> &types MY_ATTRIBUTE((unused))) {
+    return false;
+  }
   bool send_data(List<Item> &items) override;
   bool send_eof() override;
   virtual bool flush();
   void cleanup() override;
-  bool create_result_table(THD *thd, List<Item> *column_types,
-                           bool is_distinct, ulonglong options,
-                           const char *alias, bool bit_fields_as_long,
-                           bool create_table);
+  bool create_result_table(THD *thd, List<Item> *column_types, bool is_distinct,
+                           ulonglong options, const char *alias,
+                           bool bit_fields_as_long, bool create_table);
   friend bool TABLE_LIST::create_materialized_table(THD *thd);
   virtual const ha_rows *row_count() const override { return &m_rows_in_table; }
 };

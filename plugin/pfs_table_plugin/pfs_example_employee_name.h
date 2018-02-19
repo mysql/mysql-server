@@ -23,9 +23,9 @@
 #ifndef PLUGIN_PFS_TABLE_PLUGIN_pfs_example_employee_name_H_
 #define PLUGIN_PFS_TABLE_PLUGIN_pfs_example_employee_name_H_
 
-#include <mysql/plugin.h>
 #include <mysql/components/service_implementation.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
+#include <mysql/plugin.h>
 
 /* Service handle */
 extern SERVICE_TYPE(pfs_plugin_table) * table_svc;
@@ -44,9 +44,8 @@ extern PFS_engine_table_share_proxy ename_st_share;
 extern mysql_mutex_t LOCK_ename_records_array;
 
 /* A structure to denote a single row of the table. */
-struct
-{
-public:
+struct {
+ public:
   PSI_int e_number;
   char f_name[20];
   unsigned int f_name_length;
@@ -65,100 +64,62 @@ public:
 extern Ename_Record ename_records_array[EMPLOYEEE_NAME_MAX_ROWS];
 
 /* A class to define position of cursor in table. */
-class Ename_POS
-{
-private:
+class Ename_POS {
+ private:
   unsigned int m_index;
 
-public:
+ public:
   ~Ename_POS(){};
-  Ename_POS()
-  {
-    m_index = 0;
-  }
+  Ename_POS() { m_index = 0; }
 
-  bool
-  has_more()
-  {
-    if (m_index < EMPLOYEEE_NAME_MAX_ROWS)
-      return true;
+  bool has_more() {
+    if (m_index < EMPLOYEEE_NAME_MAX_ROWS) return true;
     return false;
   }
-  void
-  next()
-  {
-    m_index++;
-  }
+  void next() { m_index++; }
 
-  void
-  reset()
-  {
-    m_index = 0;
-  }
+  void reset() { m_index = 0; }
 
-  unsigned int
-  get_index()
-  {
-    return m_index;
-  }
+  unsigned int get_index() { return m_index; }
 
-  void
-  set_at(unsigned int index)
-  {
-    m_index = index;
-  }
+  void set_at(unsigned int index) { m_index = index; }
 
-  void
-  set_at(Ename_POS *pos)
-  {
-    m_index = pos->m_index;
-  }
+  void set_at(Ename_POS *pos) { m_index = pos->m_index; }
 
-  void
-  set_after(Ename_POS *pos)
-  {
-    m_index = pos->m_index + 1;
-  }
+  void set_after(Ename_POS *pos) { m_index = pos->m_index + 1; }
 };
 
-class Ename_index
-{
-public:
+class Ename_index {
+ public:
   virtual ~Ename_index(){};
   virtual bool match(Ename_Record *record) = 0;
 };
 
 /* And index on Employee Number */
-class Ename_index_by_emp_num : public Ename_index
-{
-public:
+class Ename_index_by_emp_num : public Ename_index {
+ public:
   PSI_plugin_key_integer m_emp_num;
 
-  bool
-  match(Ename_Record *record)
-  {
-    return table_svc->match_key_integer(false, record->e_number.val, &m_emp_num);
+  bool match(Ename_Record *record) {
+    return table_svc->match_key_integer(false, record->e_number.val,
+                                        &m_emp_num);
   }
 };
 
 /* An index on Employee First Name */
-class Ename_index_by_emp_fname : public Ename_index
-{
-public:
+class Ename_index_by_emp_fname : public Ename_index {
+ public:
   PSI_plugin_key_string m_emp_fname;
   char m_emp_fname_buffer[20];
 
-  bool
-  match(Ename_Record *record)
-  {
-    return table_svc->match_key_string(
-      false, record->f_name, record->f_name_length, &m_emp_fname);
+  bool match(Ename_Record *record) {
+    return table_svc->match_key_string(false, record->f_name,
+                                       record->f_name_length, &m_emp_fname);
   }
 };
 
 /* A structure to define a handle for table in plugin/component code. */
-typedef struct
-{
+typedef struct {
   /* Current position instance */
   Ename_POS m_pos;
   /* Next position instance */
@@ -180,26 +141,19 @@ void ename_close_table(PSI_table_handle *handle);
 int ename_rnd_next(PSI_table_handle *handle);
 int ename_rnd_init(PSI_table_handle *h, bool scan);
 int ename_rnd_pos(PSI_table_handle *handle);
-int ename_index_init(PSI_table_handle *handle,
-                     uint idx,
-                     bool sorted,
+int ename_index_init(PSI_table_handle *handle, uint idx, bool sorted,
                      PSI_index_handle **index);
-int ename_index_read(PSI_index_handle *index,
-                     PSI_key_reader *reader,
-                     unsigned int idx,
-                     int find_flag);
+int ename_index_read(PSI_index_handle *index, PSI_key_reader *reader,
+                     unsigned int idx, int find_flag);
 int ename_index_next(PSI_table_handle *handle);
 void ename_reset_position(PSI_table_handle *handle);
-int ename_read_column_value(PSI_table_handle *handle,
-                            PSI_field *field,
+int ename_read_column_value(PSI_table_handle *handle, PSI_field *field,
                             uint index);
 int ename_write_row_values(PSI_table_handle *handle);
-int ename_write_column_value(PSI_table_handle *handle,
-                             PSI_field *field,
+int ename_write_column_value(PSI_table_handle *handle, PSI_field *field,
                              unsigned int index);
 int ename_update_row_values(PSI_table_handle *handle);
-int ename_update_column_value(PSI_table_handle *handle,
-                              PSI_field *field,
+int ename_update_column_value(PSI_table_handle *handle, PSI_field *field,
                               unsigned int index);
 int ename_delete_row_values(PSI_table_handle *handle);
 int ename_delete_all_rows(void);

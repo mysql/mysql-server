@@ -62,16 +62,16 @@ ERROR HY000: Lost connection to MySQL server during query
 include/gtid_step_assert.inc [count=1, only_count=0]
 include/gtid_step_reset.inc
 FLUSH LOGS;
-*** Crash right after 'SET PASSWORD FOR user1=PASSWORD('abcdef')'  has been prepared in the engine before being logged ***
+*** Crash right after 'SET PASSWORD FOR user1='abcdef''  has been prepared in the engine before being logged ***
 SET @@SESSION.debug="+d,crash_commit_before_log";
-SET PASSWORD FOR user1=PASSWORD('abcdef');
+SET PASSWORD FOR user1='abcdef';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=0, only_count=0]
 FLUSH LOGS;
-*** Crash right after 'SET PASSWORD FOR user1=PASSWORD('abcdef')' has been binary-logged before committed in the engine ***
+*** Crash right after 'SET PASSWORD FOR user1='abcdef'' has been binary-logged before committed in the engine ***
 SET @@SESSION.debug="+d,crash_commit_after_log";
-SET PASSWORD FOR user1=PASSWORD('abcdef');
+SET PASSWORD FOR user1='abcdef';
 ERROR HY000: Lost connection to MySQL server during query
 # restart
 include/gtid_step_assert.inc [count=1, only_count=0]

@@ -32,7 +32,7 @@ namespace lob {
 
 /** Insert or write the compressed BLOB as a single zlib stream. */
 class zInserter : private BaseInserter {
-public:
+ public:
   /** Constructor.
   @param[in]	ctx	blob operation context. */
   zInserter(InsertContext *ctx) : BaseInserter(ctx), m_heap(NULL) {}
@@ -49,22 +49,21 @@ public:
   @return DB_SUCCESS on success, error code on failure. */
   dberr_t write();
 
-	/** Cleanup after completing the write of compressed BLOB.
-	@param[in]	validate	if true, validate all the
-					lob references. if false,
-					skip this validation.
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t finish(bool validate = true)
-	{
-		int ret = deflateEnd(&m_stream);
-		ut_ad(ret == Z_OK);
-		ut_ad(!validate || validate_blobrefs());
+  /** Cleanup after completing the write of compressed BLOB.
+  @param[in]	validate	if true, validate all the
+                                  lob references. if false,
+                                  skip this validation.
+  @return DB_SUCCESS on success, error code on failure. */
+  dberr_t finish(bool validate = true) {
+    int ret = deflateEnd(&m_stream);
+    ut_ad(ret == Z_OK);
+    ut_ad(!validate || validate_blobrefs());
 
-		if (ret != Z_OK) {
-			m_err = DB_FAIL;
-		}
-		return (m_err);
-	}
+    if (ret != Z_OK) {
+      m_err = DB_FAIL;
+    }
+    return (m_err);
+  }
 
   /** Write the page type of the BLOB page and also generate the
   redo log record.
@@ -166,13 +165,13 @@ public:
   @return DB_SUCCESS on success, or error code on failure. */
   dberr_t set_page_next();
 
-	/** Write one small blob field data. Refer to ref_t to determine
-	the definition of small blob.
-	@param[in]	blob_j	the blob field number
-	@return DB_SUCCESS on success, error code on failure. */
-	dberr_t write_one_small_blob(size_t blob_j);
+  /** Write one small blob field data. Refer to ref_t to determine
+  the definition of small blob.
+  @param[in]	blob_j	the blob field number
+  @return DB_SUCCESS on success, error code on failure. */
+  dberr_t write_one_small_blob(size_t blob_j);
 
-private:
+ private:
   /** Add the BLOB page information to the directory
   @param[in]	page_info	BLOB page information. */
   void add_to_blob_dir(const blob_page_info_t &page_info) {
@@ -197,6 +196,6 @@ inline zInserter::~zInserter() {
   }
 }
 
-} // namespace lob
+}  // namespace lob
 
-#endif // lob0zip_h
+#endif  // lob0zip_h

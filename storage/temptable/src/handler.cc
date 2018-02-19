@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,6 +34,7 @@ TempTable public handler API implementation. */
 #include "my_dbug.h"
 #include "sql/handler.h"
 #include "sql/mysqld.h" /* temptable_max_ram */
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/handler.h"
 #include "storage/temptable/include/temptable/row.h"
@@ -45,19 +46,19 @@ namespace temptable {
 
 #if defined(HAVE_WINNUMA)
 /** Page size used in memory allocation. */
-DWORD	win_page_size;
+DWORD win_page_size;
 #endif /* HAVE_WINNUMA */
 
 #define DBUG_RET(result) DBUG_RETURN(static_cast<int>(result))
 
-Handler::Handler(handlerton* hton, TABLE_SHARE* table_share)
+Handler::Handler(handlerton *hton, TABLE_SHARE *table_share)
     : ::handler(hton, table_share),
       m_opened_table(),
       m_rnd_iterator(),
       m_rnd_iterator_is_positioned(),
       m_index_cursor(),
       m_deleted_rows() {
-  handler::ref_length = sizeof(Storage::Element*);
+  handler::ref_length = sizeof(Storage::Element *);
 
 #if defined(HAVE_WINNUMA)
   SYSTEM_INFO systemInfo;
@@ -73,8 +74,8 @@ Handler::Handler(handlerton* hton, TABLE_SHARE* table_share)
 
 Handler::~Handler() {}
 
-int Handler::create(const char* table_name, TABLE* mysql_table, HA_CREATE_INFO*,
-                    dd::Table*) {
+int Handler::create(const char *table_name, TABLE *mysql_table,
+                    HA_CREATE_INFO *, dd::Table *) {
   DBUG_ENTER("temptable::Handler::create");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -98,7 +99,7 @@ int Handler::create(const char* table_name, TABLE* mysql_table, HA_CREATE_INFO*,
 
   bool all_columns_are_fixed_size = true;
   for (uint i = 0; i < mysql_table->s->fields; ++i) {
-    Field* mysql_field = mysql_table->field[i];
+    Field *mysql_field = mysql_table->field[i];
     DBUG_ASSERT(mysql_field != nullptr);
     if (mysql_field->type() == MYSQL_TYPE_VARCHAR) {
       all_columns_are_fixed_size = false;
@@ -127,14 +128,15 @@ int Handler::create(const char* table_name, TABLE* mysql_table, HA_CREATE_INFO*,
     /* ret is already set above. */
   }
 
-  DBUG_PRINT("temptable_api", ("this=%p %s; return=%s", this,
-                            table_definition(table_name, mysql_table).c_str(),
-                            result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p %s; return=%s", this,
+              table_definition(table_name, mysql_table).c_str(),
+              result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::delete_table(const char* table_name, const dd::Table*) {
+int Handler::delete_table(const char *table_name, const dd::Table *) {
   DBUG_ENTER("temptable::Handler::delete_table");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -158,17 +160,17 @@ int Handler::delete_table(const char* table_name, const dd::Table*) {
     }
   } catch (Result ex) {
     ret = ex;
-  } catch (std::bad_alloc&) {
+  } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
 
   DBUG_PRINT("temptable_api", ("this=%p %s; return=%s", this, table_name,
-                            result_to_string(ret)));
+                               result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::open(const char* table_name, int, uint, const dd::Table*) {
+int Handler::open(const char *table_name, int, uint, const dd::Table *) {
   DBUG_ENTER("temptable::Handler::open");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -189,12 +191,12 @@ int Handler::open(const char* table_name, int, uint, const dd::Table*) {
       assign_table();
       ret = Result::OK;
     }
-  } catch (std::bad_alloc&) {
+  } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
 
   DBUG_PRINT("temptable_api", ("this=%p %s; return=%s", this, table_name,
-                            result_to_string(ret)));
+                               result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -212,9 +214,10 @@ int Handler::close() {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -226,14 +229,15 @@ int Handler::rnd_init(bool) {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::rnd_next(uchar* mysql_row) {
+int Handler::rnd_next(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::rnd_next");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -242,7 +246,7 @@ int Handler::rnd_next(uchar* mysql_row) {
 
   assign_table();
 
-  const Storage& rows = m_opened_table->rows();
+  const Storage &rows = m_opened_table->rows();
 
   Result ret;
 
@@ -258,7 +262,7 @@ int Handler::rnd_next(uchar* mysql_row) {
     }
   } else {
     DBUG_ASSERT(m_rnd_iterator != rows.end());
-    Storage::Element* previous = *m_rnd_iterator;
+    Storage::Element *previous = *m_rnd_iterator;
     ++m_rnd_iterator;
     if (m_rnd_iterator != rows.end()) {
       m_opened_table->row(m_rnd_iterator, mysql_row);
@@ -297,14 +301,14 @@ int Handler::rnd_next(uchar* mysql_row) {
   DBUG_RET(ret);
 }
 
-int Handler::rnd_pos(uchar* mysql_row, uchar* position) {
+int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
   DBUG_ENTER("temptable::Handler::rnd_pos");
 
   DBUG_ASSERT(current_thread_is_creator());
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_count);
 
-  Storage::Element* row = *reinterpret_cast<Storage::Element**>(position);
+  Storage::Element *row = *reinterpret_cast<Storage::Element **>(position);
 
   m_rnd_iterator = Storage::Iterator(&m_opened_table->rows(), row);
 
@@ -314,7 +318,7 @@ int Handler::rnd_pos(uchar* mysql_row, uchar* position) {
 
   m_opened_table->row(m_rnd_iterator, mysql_row);
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
   DBUG_PRINT("temptable_api",
              ("this=%p position=%p out=(%s); return=%s", this, position,
@@ -331,9 +335,10 @@ int Handler::rnd_end() {
 
   m_rnd_iterator_is_positioned = false;
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -354,12 +359,12 @@ int Handler::index_init(uint index_no, bool) {
   }
 
   DBUG_PRINT("temptable_api", ("this=%p index=%d; return=%s", this, index_no,
-                            result_to_string(ret)));
+                               result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::index_read(uchar* mysql_row, const uchar* mysql_search_cells,
+int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
                         uint mysql_search_cells_len_bytes,
                         ha_rkey_function find_flag) {
   DBUG_ENTER("temptable::Handler::index_read");
@@ -375,7 +380,7 @@ int Handler::index_read(uchar* mysql_row, const uchar* mysql_search_cells,
   Result ret = Result::UNSUPPORTED;
 
   try {
-    const Index& index = m_opened_table->index(handler::active_index);
+    const Index &index = m_opened_table->index(handler::active_index);
 
     Indexed_cells search_cells(mysql_search_cells, mysql_search_cells_len_bytes,
                                index);
@@ -464,7 +469,7 @@ int Handler::index_read(uchar* mysql_row, const uchar* mysql_search_cells,
     }
   } catch (Result ex) {
     ret = ex;
-  } catch (std::bad_alloc&) {
+  } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
 
@@ -482,7 +487,7 @@ int Handler::index_read(uchar* mysql_row, const uchar* mysql_search_cells,
   DBUG_RET(ret);
 }
 
-int Handler::index_next(uchar* mysql_row) {
+int Handler::index_next(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::index_next");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -501,7 +506,7 @@ int Handler::index_next(uchar* mysql_row) {
   DBUG_RET(ret);
 }
 
-int Handler::index_next_same(uchar* mysql_row, const uchar*, uint) {
+int Handler::index_next_same(uchar *mysql_row, const uchar *, uint) {
   DBUG_ENTER("temptable::Handler::index_next_same");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -521,7 +526,7 @@ int Handler::index_next_same(uchar* mysql_row, const uchar*, uint) {
   DBUG_RET(ret);
 }
 
-Result Handler::index_next_conditional(uchar* mysql_row,
+Result Handler::index_next_conditional(uchar *mysql_row,
                                        NextCondition condition) {
   DBUG_ENTER("temptable::Handler::index_next_conditional");
 
@@ -532,9 +537,9 @@ Result Handler::index_next_conditional(uchar* mysql_row,
   try {
     assign_table();
 
-    const Index& index = m_opened_table->index(handler::active_index);
+    const Index &index = m_opened_table->index(handler::active_index);
 
-    const Cursor& end = index.end();
+    const Cursor &end = index.end();
 
     if (m_index_cursor == end) {
       ret = Result::END_OF_FILE;
@@ -556,7 +561,7 @@ Result Handler::index_next_conditional(uchar* mysql_row,
             ok = true;
             break;
           case NextCondition::ONLY_IF_SAME: {
-            const Indexed_cells& indexed_cells_current =
+            const Indexed_cells &indexed_cells_current =
                 m_index_cursor.indexed_cells();
 
             const Indexed_cells_equal_to comparator{index};
@@ -584,7 +589,7 @@ Result Handler::index_next_conditional(uchar* mysql_row,
     }
   } catch (Result ex) {
     ret = ex;
-  } catch (std::bad_alloc&) {
+  } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
 
@@ -598,7 +603,7 @@ Result Handler::index_next_conditional(uchar* mysql_row,
   DBUG_RETURN(ret);
 }
 
-int Handler::index_read_last(uchar* mysql_row, const uchar* mysql_search_cells,
+int Handler::index_read_last(uchar *mysql_row, const uchar *mysql_search_cells,
                              uint mysql_search_cells_len_bytes) {
   DBUG_ENTER("temptable::Handler::index_read_last");
 
@@ -622,7 +627,7 @@ int Handler::index_read_last(uchar* mysql_row, const uchar* mysql_search_cells,
   DBUG_RET(ret);
 }
 
-int Handler::index_prev(uchar* mysql_row) {
+int Handler::index_prev(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::index_prev");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -635,7 +640,7 @@ int Handler::index_prev(uchar* mysql_row) {
   try {
     assign_table();
 
-    const Cursor& begin = m_opened_table->index(handler::active_index).begin();
+    const Cursor &begin = m_opened_table->index(handler::active_index).begin();
 
     if (handler::table->s->key_info[handler::active_index].algorithm !=
         HA_KEY_ALG_BTREE) {
@@ -650,7 +655,7 @@ int Handler::index_prev(uchar* mysql_row) {
     }
   } catch (Result ex) {
     ret = ex;
-  } catch (std::bad_alloc&) {
+  } catch (std::bad_alloc &) {
     ret = Result::OUT_OF_MEM;
   }
 
@@ -673,19 +678,20 @@ int Handler::index_end() {
 
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-void Handler::position(const uchar*) {
+void Handler::position(const uchar *) {
   DBUG_ENTER("temptable::Handler::position");
 
   DBUG_ASSERT(current_thread_is_creator());
 
-  Storage::Element* row;
+  Storage::Element *row;
 
   if (m_rnd_iterator_is_positioned) {
     DBUG_ASSERT(!m_index_cursor.is_positioned());
@@ -695,14 +701,14 @@ void Handler::position(const uchar*) {
     row = m_index_cursor.row();
   }
 
-  *reinterpret_cast<Storage::Element**>(handler::ref) = row;
+  *reinterpret_cast<Storage::Element **>(handler::ref) = row;
 
   DBUG_PRINT("temptable_api", ("this=%p; saved position=%p", this, row));
 
   DBUG_VOID_RETURN;
 }
 
-int Handler::write_row(uchar* mysql_row) {
+int Handler::write_row(uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::write_row");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -714,20 +720,20 @@ int Handler::write_row(uchar* mysql_row) {
   const Result ret = m_opened_table->insert(mysql_row);
 
   DBUG_PRINT("temptable_api", ("this=%p row=(%s); return=%s", this,
-                            row_to_string(mysql_row, handler::table).c_str(),
-                            result_to_string(ret)));
+                               row_to_string(mysql_row, handler::table).c_str(),
+                               result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::update_row(const uchar* mysql_row_old, uchar* mysql_row_new) {
+int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
   DBUG_ENTER("temptable::Handler::update_row");
 
   DBUG_ASSERT(current_thread_is_creator());
 
   handler::ha_statistic_increment(&System_status_var::ha_update_count);
 
-  Storage::Element* target_row;
+  Storage::Element *target_row;
 
   if (m_rnd_iterator_is_positioned) {
     DBUG_ASSERT(!m_index_cursor.is_positioned());
@@ -751,7 +757,7 @@ int Handler::update_row(const uchar* mysql_row_old, uchar* mysql_row_new) {
   DBUG_RET(ret);
 }
 
-int Handler::delete_row(const uchar* mysql_row) {
+int Handler::delete_row(const uchar *mysql_row) {
   DBUG_ENTER("temptable::Handler::delete_row");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -778,13 +784,13 @@ int Handler::delete_row(const uchar* mysql_row) {
   }
 
   DBUG_PRINT("temptable_api", ("this=%p row=(%s); return=%s", this,
-                            row_to_string(mysql_row, handler::table).c_str(),
-                            result_to_string(ret)));
+                               row_to_string(mysql_row, handler::table).c_str(),
+                               result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
-int Handler::truncate(dd::Table*) {
+int Handler::truncate(dd::Table *) {
   DBUG_ENTER("temptable::Handler::truncate");
 
   DBUG_ASSERT(current_thread_is_creator());
@@ -796,9 +802,10 @@ int Handler::truncate(dd::Table*) {
   m_rnd_iterator_is_positioned = false;
   m_index_cursor.unposition();
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -818,15 +825,15 @@ int Handler::info(uint) {
   stats.table_in_mem_estimate = 1.0;
 
   for (uint i = 0; i < table->s->keys; ++i) {
-    KEY* key = &table->key_info[i];
+    KEY *key = &table->key_info[i];
 
     key->set_in_memory_estimate(1.0);
   }
 
-  const Result ret = Result::OK;
+  const Result ret MY_ATTRIBUTE((unused)) = Result::OK;
 
-  DBUG_PRINT("temptable_api", ("this=%p out=(stats.records=%llu); return=%s", this,
-                            stats.records, result_to_string(ret)));
+  DBUG_PRINT("temptable_api", ("this=%p out=(stats.records=%llu); return=%s",
+                               this, stats.records, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -834,12 +841,13 @@ int Handler::info(uint) {
 longlong Handler::get_memory_buffer_size() const {
   DBUG_ENTER("temptable::Handler::get_memory_buffer_size");
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%lld", this, temptable_max_ram));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%lld", this, temptable_max_ram));
 
   DBUG_RETURN(temptable_max_ram);
 }
 
-const char* Handler::table_type() const {
+const char *Handler::table_type() const {
   DBUG_ENTER("temptable::Handler::table_type");
   DBUG_RETURN("TempTable");
 }
@@ -854,7 +862,6 @@ const char* Handler::table_type() const {
       HA_NO_BLOBS |
       HA_NO_TRANSACTIONS |
       HA_NULL_IN_KEY |
-      HA_REC_NOT_IN_SEQ |
       HA_STATS_RECORDS_IS_EXACT;
   // clang-format on
 
@@ -944,7 +951,7 @@ ha_rows Handler::estimate_rows_upper_bound() {
 }
 #endif
 
-THR_LOCK_DATA** Handler::store_lock(THD*, THR_LOCK_DATA**, thr_lock_type) {
+THR_LOCK_DATA **Handler::store_lock(THD *, THR_LOCK_DATA **, thr_lock_type) {
   DBUG_ENTER("temptable::Handler::store_lock");
   DBUG_RETURN(nullptr);
 }
@@ -985,7 +992,8 @@ int Handler::disable_indexes(uint mode) {
     ret = Result::WRONG_COMMAND;
   }
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
@@ -1003,26 +1011,27 @@ int Handler::enable_indexes(uint mode) {
     ret = Result::WRONG_COMMAND;
   }
 
-  DBUG_PRINT("temptable_api", ("this=%p; return=%s", this, result_to_string(ret)));
+  DBUG_PRINT("temptable_api",
+             ("this=%p; return=%s", this, result_to_string(ret)));
 
   DBUG_RET(ret);
 }
 
 /* Not implemented methods. */
 
-char* Handler::get_foreign_key_create_info() {
+char *Handler::get_foreign_key_create_info() {
   DBUG_ENTER("temptable::Handler::get_foreign_key_create_info");
   DBUG_ABORT();
   DBUG_RETURN(nullptr);
 }
 
-void Handler::free_foreign_key_create_info(char*) {
+void Handler::free_foreign_key_create_info(char *) {
   DBUG_ENTER("temptable::Handler::free_foreign_key_create_info");
   DBUG_ABORT();
   DBUG_VOID_RETURN;
 }
 
-int Handler::external_lock(THD*, int) {
+int Handler::external_lock(THD *, int) {
   DBUG_ENTER("temptable::Handler::external_lock");
   DBUG_ABORT();
   DBUG_RETURN(0);
@@ -1033,7 +1042,7 @@ void Handler::unlock_row() {
   DBUG_VOID_RETURN;
 }
 
-handler* Handler::clone(const char*, MEM_ROOT*) {
+handler *Handler::clone(const char *, MEM_ROOT *) {
   DBUG_ENTER("temptable::Handler::clone");
   DBUG_ABORT();
   DBUG_RETURN(nullptr);
@@ -1051,37 +1060,37 @@ void Handler::try_semi_consistent_read(bool) {
   DBUG_VOID_RETURN;
 }
 
-int Handler::index_first(uchar*) {
+int Handler::index_first(uchar *) {
   DBUG_ENTER("temptable::Handler::index_first");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-int Handler::index_last(uchar*) {
+int Handler::index_last(uchar *) {
   DBUG_ENTER("temptable::Handler::index_last");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-int Handler::analyze(THD*, HA_CHECK_OPT*) {
+int Handler::analyze(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("temptable::Handler::analyze");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-int Handler::optimize(THD*, HA_CHECK_OPT*) {
+int Handler::optimize(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("temptable::Handler::optimize");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-int Handler::check(THD*, HA_CHECK_OPT*) {
+int Handler::check(THD *, HA_CHECK_OPT *) {
   DBUG_ENTER("temptable::Handler::check");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-int Handler::start_stmt(THD*, thr_lock_type) {
+int Handler::start_stmt(THD *, thr_lock_type) {
   DBUG_ENTER("temptable::Handler::start_stmt");
   DBUG_ABORT();
   DBUG_RETURN(0);
@@ -1093,20 +1102,20 @@ int Handler::reset() {
   DBUG_RETURN(0);
 }
 
-int Handler::records(ha_rows*) {
+int Handler::records(ha_rows *) {
   DBUG_ENTER("temptable::Handler::records");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-void Handler::update_create_info(HA_CREATE_INFO*) {
+void Handler::update_create_info(HA_CREATE_INFO *) {
   DBUG_ENTER("temptable::Handler::update_create_info");
   DBUG_ABORT();
   DBUG_VOID_RETURN;
 }
 
-int Handler::rename_table(const char*, const char*, const dd::Table*,
-                          dd::Table*) {
+int Handler::rename_table(const char *, const char *, const dd::Table *,
+                          dd::Table *) {
   DBUG_ENTER("temptable::Handler::rename_table");
   DBUG_ABORT();
   DBUG_RETURN(0);
@@ -1118,7 +1127,7 @@ void Handler::init_table_handle_for_HANDLER() {
   DBUG_VOID_RETURN;
 }
 
-bool Handler::get_error_message(int, String*) {
+bool Handler::get_error_message(int, String *) {
   DBUG_ENTER("temptable::Handler::get_error_message");
   DBUG_ABORT();
   DBUG_RETURN(false);
@@ -1130,26 +1139,26 @@ bool Handler::primary_key_is_clustered() const {
   DBUG_RETURN(false);
 }
 
-int Handler::cmp_ref(const uchar*, const uchar*) const {
+int Handler::cmp_ref(const uchar *, const uchar *) const {
   DBUG_ENTER("temptable::Handler::cmp_ref");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
-bool Handler::check_if_incompatible_data(HA_CREATE_INFO*, uint) {
+bool Handler::check_if_incompatible_data(HA_CREATE_INFO *, uint) {
   DBUG_ENTER("temptable::Handler::check_if_incompatible_data");
   DBUG_ABORT();
   DBUG_RETURN(false);
 }
 
-ha_rows Handler::records_in_range(uint, key_range*, key_range*) {
+ha_rows Handler::records_in_range(uint, key_range *, key_range *) {
   DBUG_ENTER("temptable::Handler::records_in_range");
   DBUG_ABORT();
   DBUG_RETURN(0);
 }
 
 #ifdef TEMPTABLE_CPP_HOOKED_TESTS
-void Handler::test(TABLE* mysql_table) {
+void Handler::test(TABLE *mysql_table) {
   /* The test will call Handler::create() itself, avoid infinite recursion. */
   static bool should_run = true;
   if (should_run) {
@@ -1163,7 +1172,6 @@ void Handler::test(TABLE* mysql_table) {
     t.performance();
 
     free_root(&handler::table->mem_root, 0);
-    handler::table->mem_root.min_malloc = 0;
 
     should_run = true;
   }

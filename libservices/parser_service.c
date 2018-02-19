@@ -22,4 +22,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_parser_service= (void*)VERSION_parser;
+SERVICE_VERSION *mysql_parser_service = (void **)VERSION_parser;

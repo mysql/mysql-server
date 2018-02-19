@@ -24,9 +24,11 @@
 #include "sql/sql_component.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <vector>
 
-#include "../components/mysql_server/server_component.h" // imp_*
+#include "../components/mysql_server/server_component.h"  // imp_*
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
@@ -34,70 +36,62 @@
 #include "mysql/components/services/persistent_dynamic_loader.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
-#include "sql/dd/cache/dictionary_client.h" // dd::cache::Dictionary_client
-#include "sql/resourcegroups/resource_group_mgr.h" // Resource_group_mgr
-#include "sql/sql_class.h"     // THD
-#include "sql/sql_plugin.h"    // end_transaction
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
+#include "sql/sql_class.h"                          // THD
+#include "sql/sql_plugin.h"                         // end_transaction
+#include "sql/thd_raii.h"
 
-bool Sql_cmd_install_component::execute(THD *thd)
-{
+bool Sql_cmd_install_component::execute(THD *thd) {
   my_service<SERVICE_TYPE(persistent_dynamic_loader)> service_dynamic_loader(
-    "persistent_dynamic_loader", &imp_mysql_server_registry);
-  if (service_dynamic_loader)
-  {
+      "persistent_dynamic_loader", &imp_mysql_server_registry);
+  if (service_dynamic_loader) {
     my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
-      "persistent_dynamic_loader");
+             "persistent_dynamic_loader");
     return true;
   }
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  DBUG_EXECUTE_IF("disable_rg_pfs_notifications",
-                  {
-                    auto name= "file://component_test_pfs_notification";
-                    if (m_urns.size() == 1 && strcmp(name, m_urns[0].str) == 0)
-                      resourcegroups::Resource_group_mgr::instance()->
-                        disable_pfs_notification();
-                  });
+  DBUG_EXECUTE_IF("disable_rg_pfs_notifications", {
+    auto name = "file://component_test_pfs_notification";
+    if (m_urns.size() == 1 && strcmp(name, m_urns[0].str) == 0)
+      resourcegroups::Resource_group_mgr::instance()
+          ->disable_pfs_notification();
+  });
 
-  std::vector<const char*> urns(m_urns.size());
-  for (size_t i= 0; i < m_urns.size();  ++i)
-  {
+  std::vector<const char *> urns(m_urns.size());
+  for (size_t i = 0; i < m_urns.size(); ++i) {
     urns[i] = m_urns[i].str;
   }
-  if (service_dynamic_loader->load(thd, urns.data(), m_urns.size()))
-  {
-    return(end_transaction(thd, true));
+  if (service_dynamic_loader->load(thd, urns.data(), m_urns.size())) {
+    return (end_transaction(thd, true));
   }
 
   my_ok(thd);
-  return(end_transaction(thd, false));
+  return (end_transaction(thd, false));
 }
 
-bool Sql_cmd_uninstall_component::execute(THD *thd)
-{
+bool Sql_cmd_uninstall_component::execute(THD *thd) {
   my_service<SERVICE_TYPE(persistent_dynamic_loader)> service_dynamic_loader(
-    "persistent_dynamic_loader", &imp_mysql_server_registry);
-  if (service_dynamic_loader)
-  {
+      "persistent_dynamic_loader", &imp_mysql_server_registry);
+  if (service_dynamic_loader) {
     my_error(ER_COMPONENTS_CANT_ACQUIRE_SERVICE_IMPLEMENTATION, MYF(0),
-      "persistent_dynamic_loader");
+             "persistent_dynamic_loader");
     return true;
   }
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
-  std::vector<const char*> urns(m_urns.size());
-  for (size_t i= 0; i < m_urns.size(); ++i)
-  {
+  std::vector<const char *> urns(m_urns.size());
+  for (size_t i = 0; i < m_urns.size(); ++i) {
     urns[i] = m_urns[i].str;
   }
-  if (service_dynamic_loader->unload(thd, urns.data(), m_urns.size()))
-  {
-    return(end_transaction(thd, true));
+  if (service_dynamic_loader->unload(thd, urns.data(), m_urns.size())) {
+    return (end_transaction(thd, true));
   }
   my_ok(thd);
-  return(end_transaction(thd, false));
+  return (end_transaction(thd, false));
 }

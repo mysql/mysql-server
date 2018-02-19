@@ -23,7 +23,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @file
 
@@ -35,21 +34,21 @@
   updated.
 */
 
+#include <stddef.h>
 #include <algorithm>
-#include <memory>                               // std::unique_ptr
+#include <memory>  // std::unique_ptr
 #include <vector>
 
-#include "sql/json_dom.h"
 #include "sql/json_path.h"
 #include "sql/memroot_allocator.h"
 
 class Field_json;
 class Json_dom;
 class Json_wrapper;
+class String;
 
 /// Enum that describes what kind of operation a Json_diff object represents.
-enum class enum_json_diff_operation
-{
+enum class enum_json_diff_operation {
   /**
     The JSON value in the given path is replaced with a new value.
     It has the same effect as `JSON_REPLACE(col, path, value)`.
@@ -74,15 +73,14 @@ enum class enum_json_diff_operation
   REMOVE,
 };
 /// The number of elements of the enumeration above.
-static const int JSON_DIFF_OPERATION_COUNT= 3;
+static const int JSON_DIFF_OPERATION_COUNT = 3;
 
 /**
   A class that represents a logical change to a JSON document. It is used by
   row-based replication to send information about changes in JSON documents
   without sending the whole updated document.
 */
-class Json_diff final
-{
+class Json_diff final {
   /// The path that is changed.
   Json_path m_path;
   /// The operation to perform on the changed path.
@@ -91,8 +89,9 @@ class Json_diff final
   std::unique_ptr<Json_dom> m_value;
 
   /// The length of the operation when encoded in binary format.
-  static const size_t ENCODED_OPERATION_BYTES= 1;
-public:
+  static const size_t ENCODED_OPERATION_BYTES = 1;
+
+ public:
   /**
     Construct a Json_diff object.
 
@@ -101,31 +100,10 @@ public:
     @param value      the new value in the path (the Json_diff object
                       takes over the ownership of the value)
   */
-  Json_diff(const Json_seekable_path &path,
-            enum_json_diff_operation operation,
-            Json_dom_ptr &value)
-    : m_path(), m_operation(operation), m_value(std::move(value))
-  {
-    for (const Json_path_leg *leg : path)
-      m_path.append(*leg);
-  }
-
-  /**
-    Construct a Json_diff object.
-
-    @param path       the path that is changed
-    @param operation  the operation to perform on the path
-    @param value      the new value in the path (the Json_diff object
-                      takes over the ownership of the value)
-  */
-  Json_diff(const Json_seekable_path &path,
-            enum_json_diff_operation operation,
-            Json_dom *value)
-    : m_path(), m_operation(operation)
-  {
-    m_value.reset(value);
-    for (const Json_path_leg *leg : path)
-      m_path.append(*leg);
+  Json_diff(const Json_seekable_path &path, enum_json_diff_operation operation,
+            std::unique_ptr<Json_dom> value)
+      : m_path(), m_operation(operation), m_value(std::move(value)) {
+    for (const Json_path_leg *leg : path) m_path.append(*leg);
   }
 
   /// Get the path that is changed by this diff.
@@ -156,9 +134,8 @@ public:
 /**
   Vector of logical diffs describing changes to a JSON column.
 */
-class Json_diff_vector
-{
-public:
+class Json_diff_vector {
+ public:
   /// Type of the allocator for the underlying invector.
   typedef Memroot_allocator<Json_diff> allocator_type;
   /// Type of the underlying vector
@@ -180,7 +157,7 @@ public:
   */
   void add_diff(const Json_seekable_path &path,
                 enum_json_diff_operation operation,
-                Json_dom_ptr &dom);
+                std::unique_ptr<Json_dom> dom);
   /**
     Append a new diff at the end of this vector when operation == REMOVE.
     @param path Path to update
@@ -191,24 +168,20 @@ public:
   /// Clear the vector.
   void clear();
   /// Return the number of elements in the vector.
-  inline size_t size() const
-  { return m_vector.size(); }
+  inline size_t size() const { return m_vector.size(); }
 
   /**
     Return the element at the given position
     @param pos Position
     @return the pos'th element
   */
-  inline Json_diff &at(size_t pos)
-  { return m_vector.at(pos); }
+  inline Json_diff &at(size_t pos) { return m_vector.at(pos); }
 
   // Return forward iterator to the beginning
-  inline const_iterator begin() const
-  { return m_vector.begin(); }
+  inline const_iterator begin() const { return m_vector.begin(); }
 
   // Return forward iterator to the end
-  const_iterator end() const
-  { return m_vector.end(); }
+  const_iterator end() const { return m_vector.end(); }
 
   /**
     Return the length of the binary representation of this
@@ -231,7 +204,7 @@ public:
 
     @return The computed length
   */
-  size_t binary_length(bool include_metadata= true) const;
+  size_t binary_length(bool include_metadata = true) const;
 
   /**
     Serialize this Json_diff_vector into the given String.
@@ -258,28 +231,28 @@ public:
     @retval false Success
     @retval true Failure (bad format or out of memory)
   */
-  bool read_binary(const char **from,
-                   const struct TABLE *table, const char *field_name);
+  bool read_binary(const char **from, const struct TABLE *table,
+                   const char *field_name);
 
   /// An empty diff vector (having no diffs).
   static const Json_diff_vector EMPTY_JSON_DIFF_VECTOR;
 
-private:
+ private:
   // The underlying vector
   vector m_vector;
 
-  /// Length in bytes of the binary representation, not counting the 4 bytes length
+  /// Length in bytes of the binary representation, not counting the 4 bytes
+  /// length
   size_t m_binary_length;
 
   /// The length of the field where the total length is encoded.
-  static const size_t ENCODED_LENGTH_BYTES= 4;
+  static const size_t ENCODED_LENGTH_BYTES = 4;
 };
 
 /**
   The result of applying JSON diffs on a JSON value using apply_json_diffs().
 */
-enum class enum_json_diff_status
-{
+enum class enum_json_diff_status {
   /**
      The JSON diffs were applied and the JSON value in the column was updated
      successfully.
@@ -316,6 +289,5 @@ enum class enum_json_diff_status
 */
 enum_json_diff_status apply_json_diffs(Field_json *field,
                                        const Json_diff_vector *diffs);
-
 
 #endif /* JSON_DIFF_INCLUDED */

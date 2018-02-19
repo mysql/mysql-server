@@ -2083,3 +2083,16 @@ LOAD INDEX INTO CACHE ``;
 
 
 SET @@sql_mode=@save_sql_mode;
+
+--echo #
+--echo # Bug#24756971: REMOVE OBSOLETE LEXER HACK AROUND SELECT LIST
+--echo #
+
+--error ER_PARSE_ERROR
+SELECT 1,,2;
+
+--error ER_PARSE_ERROR
+SELECT ,,1;
+
+--error ER_PARSE_ERROR
+SELECT ,,,;

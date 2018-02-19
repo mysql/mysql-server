@@ -29,9 +29,7 @@
 
 const char * ndb_basename(const char *path);
 
-extern "C" {
-  extern const char * my_progname;
-}
+extern const char * my_progname;
 
 /* Static storage; constructor called at process startup by C++ runtime. */
 ProcessInfo singletonInfo;

@@ -2632,3 +2632,241 @@ LOCK TABLES t0 WRITE;
 UPDATE t1 SET pk = 10;
 UNLOCK TABLES;
 DROP TABLES t2, t1, t0;
+
+
+--echo #
+--echo # Additional coverage for bug #25915132 "INPLACE ALTER TABLE WITH
+--echo # FOREIGN KEYS CAUSES TABLE DEFINITION MISMATCH".
+--echo #
+
+--echo #
+--echo # Handling of foreign key names during various RENAME variants.
+--echo # We check that table definition is updated correctly and that
+--echo # asserts about MDL on foreign key names do not fail.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE t2 (fk1 INT, fk2 INT, fk3 INT,
+                 CONSTRAINT a FOREIGN KEY (fk1) REFERENCES t1 (pk),
+                 CONSTRAINT t2_ibfk_1 FOREIGN KEY (fk2) REFERENCES t1 (pk));
+ALTER TABLE t2 ADD FOREIGN KEY (fk3) REFERENCES t1 (pk);
+CREATE SCHEMA mysqltest;
+SHOW CREATE TABLE t2;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # Simple RENAME TABLE
+RENAME TABLE t2 TO t3;
+SHOW CREATE TABLE t3;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # Two cross database RENAME TABLE variants
+RENAME TABLE t3 TO mysqltest.t3;
+SHOW CREATE TABLE mysqltest.t3;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+RENAME TABLE mysqltest.t3 TO t4;
+SHOW CREATE TABLE t4;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # Simple ALTER TABLE RENAME variants.
+ALTER TABLE t4 RENAME TO t5;
+SHOW CREATE TABLE t5;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+ALTER TABLE t5 RENAME TO mysqltest.t5;
+SHOW CREATE TABLE mysqltest.t5;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+ALTER TABLE mysqltest.t5 RENAME TO t6;
+SHOW CREATE TABLE t6;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # ALTER TABLE INPLACE with RENAME clause.
+ALTER TABLE t6 ADD COLUMN i INT, RENAME TO t7, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t7;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+ALTER TABLE t7 ADD COLUMN j INT, RENAME TO mysqltest.t7, ALGORITHM=INPLACE;
+SHOW CREATE TABLE mysqltest.t7;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+ALTER TABLE mysqltest.t7 ADD COLUMN k INT, RENAME TO t8, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t8;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # ALTER TABLE COPY with RENAME clause.
+ALTER TABLE t8 ADD COLUMN l INT, RENAME TO t9, ALGORITHM=COPY;
+SHOW CREATE TABLE t9;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+ALTER TABLE t9 ADD COLUMN m INT, RENAME TO mysqltest.t9, ALGORITHM=COPY;
+SHOW CREATE TABLE mysqltest.t9;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+ALTER TABLE mysqltest.t9 ADD COLUMN n INT, RENAME TO t10, ALGORITHM=COPY;
+SHOW CREATE TABLE t10;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+--echo # ALTER TABLE INPLACE + ADD FOREIGN KEY with RENAME clause.
+SET FOREIGN_KEY_CHECKS=0;
+ALTER TABLE t10 ADD FOREIGN KEY (i) REFERENCES t1 (pk),
+                ADD CONSTRAINT t10_ibfk_4 FOREIGN KEY (j) REFERENCES t1 (pk),
+                RENAME TO t11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t11;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+ALTER TABLE t11 ADD FOREIGN KEY (k) REFERENCES test.t1 (pk),
+                ADD CONSTRAINT t11_ibfk_6 FOREIGN KEY (l) REFERENCES test.t1 (pk),
+                RENAME TO mysqltest.t11, ALGORITHM=INPLACE;
+SHOW CREATE TABLE mysqltest.t11;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+ALTER TABLE mysqltest.t11 ADD FOREIGN KEY (m) REFERENCES test.t1 (pk),
+                ADD CONSTRAINT t12_ibfk_8 FOREIGN KEY (n) REFERENCES test.t1 (pk),
+                RENAME TO t12, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t12;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # ALTER TABLE COPY + ADD FOREIGN KEY with RENAME clause.
+ALTER TABLE t12 ADD COLUMN o INT, ADD COLUMN p INT,
+                ADD FOREIGN KEY (o) REFERENCES t1 (pk),
+                ADD CONSTRAINT t12_ibfk_10 FOREIGN KEY (p) REFERENCES t1 (pk),
+                RENAME TO t13, ALGORITHM=COPY;
+SHOW CREATE TABLE t13;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+ALTER TABLE t13 ADD COLUMN q INT, ADD COLUMN r INT,
+                ADD FOREIGN KEY (q) REFERENCES test.t1 (pk),
+                ADD CONSTRAINT t13_ibfk_12 FOREIGN KEY (r) REFERENCES test.t1 (pk),
+                RENAME TO mysqltest.t13, ALGORITHM=COPY;
+SHOW CREATE TABLE mysqltest.t13;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='mysqltest';
+
+
+ALTER TABLE mysqltest.t13 ADD COLUMN s INT, ADD COLUMN t INT,
+                ADD FOREIGN KEY (s) REFERENCES test.t1 (pk),
+                ADD CONSTRAINT t13_ibfk_14 FOREIGN KEY (t) REFERENCES test.t1 (pk),
+                RENAME TO t14, ALGORITHM=COPY;
+SHOW CREATE TABLE t14;
+SELECT * FROM information_schema.referential_constraints WHERE constraint_schema='test';
+
+DROP TABLE t14;
+
+--echo #
+--echo # Detection of duplicate foreign key names by various forms of ALTER
+--echo # TABLE.
+--echo #
+CREATE TABLE t2 (fk INT, CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk));
+CREATE TABLE t3 (pk INT PRIMARY KEY, fk INT, u INT);
+INSERT INTO t3 VALUES (1, 1, 1), (2, 1, 1);
+
+--echo #
+--echo # ALTER TABLE INPLACE
+--echo #
+SET FOREIGN_KEY_CHECKS=0;
+--echo # Duplicate FK name should be detected before we start addition
+--echo # of unique key and report its violation.
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), ALGORITHM=INPLACE;
+--echo # Even for generated names.
+CREATE TABLE t4 (fk INT, CONSTRAINT t3_ibfk_1 FOREIGN KEY (fk) REFERENCES t1 (pk));
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), ALGORITHM=INPLACE;
+
+--echo # There should not be conflicting foreign keys before main phase
+--echo # of ALTER INPLACE even if at the end RENAME clause will remove
+--echo # conflict.
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+               ALGORITHM=INPLACE;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO t5,
+               ALGORITHM=INPLACE;
+
+--echo # Now let us check that we detect potential conflicts resulting
+--echo # from application of RENAME clause, before ALTER INPLACE main
+--echo # phase as well.
+CREATE TABLE mysqltest.t5 (fk INT,
+                           CONSTRAINT d FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+CREATE TABLE t6 (fk INT, CONSTRAINT t8_ibfk_1 FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+CREATE TABLE mysqltest.t6 (fk INT,
+                           CONSTRAINT t8_ibfk_1 FOREIGN KEY (fk) REFERENCES test.t1 (pk));
+DROP TABLE t4;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+               ALGORITHM=INPLACE;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO t8,
+               ALGORITHM=INPLACE;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
+               ALGORITHM=INPLACE;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo #
+--echo # ALTER TABLE COPY
+--echo #
+--echo # Duplicate FK name should be detected before we start copying
+--echo # of rows and report unique/FK constraint violation.
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), ALGORITHM=COPY;
+--echo # Even for generated names.
+CREATE TABLE t4 (fk INT, CONSTRAINT t3_ibfk_1 FOREIGN KEY (fk) REFERENCES t1 (pk));
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), ALGORITHM=COPY;
+
+--echo # Unlike in INPLACE case, COPY algorithm creates FKs right
+--echo # away in schema targeted by RENAME clause. So it doesn't
+--echo # matter if constraint with the same name exists in the
+--echo # table's original schema.
+SET FOREIGN_KEY_CHECKS=0;
+--error ER_DUP_ENTRY
+ALTER TABLE t3 ADD CONSTRAINT c FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+               ALGORITHM=COPY;
+SET FOREIGN_KEY_CHECKS=1;
+
+--echo # Updating of generated names still happens at the end of ALTER,
+--echo # so there should not be conflicting foreign keys for generated
+--echo # names for both old and new table name.
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO t5,
+               ALGORITHM=COPY;
+
+--echo # Check that we detect potential conflicts resulting from
+--echo # application of RENAME clause early.
+DROP TABLE t4;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD CONSTRAINT d FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t3,
+               ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO t8,
+               ALGORITHM=COPY;
+--error ER_FK_DUP_NAME
+ALTER TABLE t3 ADD FOREIGN KEY (fk) REFERENCES t1 (pk),
+               ADD UNIQUE KEY (u), RENAME TO mysqltest.t8,
+               ALGORITHM=COPY;
+
+DROP SCHEMA mysqltest;
+DROP TABLES t6, t3, t2, t1;
+
+--echo #
+--echo # Initial version of the fix triggered asserts in the below statements.
+--echo #
+CREATE TABLE t1 (pk INT PRIMARY KEY);
+CREATE TABLE T2 (fk INT);
+ALTER TABLE T2 ADD FOREIGN KEY (fk) REFERENCES t1 (pk);
+RENAME TABLE T2 TO T3;
+DROP TABLES T3, t1;

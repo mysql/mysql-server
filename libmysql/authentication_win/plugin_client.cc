@@ -27,7 +27,7 @@
 
 /*
   The following MS C++ specific pragma embeds a comment in the resulting
-  object file. A "lib" comment tells the linker to use the specified 
+  object file. A "lib" comment tells the linker to use the specified
   library, thus the dependency is handled automagically.
 */
 
@@ -35,39 +35,29 @@
 #pragma comment(lib, "Secur32")
 #endif
 
-static int win_auth_client_plugin_init(char*, size_t, int, va_list)
-{
+static int win_auth_client_plugin_init(char *, size_t, int, va_list) {
   return 0;
 }
 
-
-static int win_auth_client_plugin_deinit()
-{
-  return 0;
-}
-
+static int win_auth_client_plugin_deinit() { return 0; }
 
 int win_auth_handshake_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql);
-
 
 /*
   Client plugin declaration. This is added to mysql_client_builtins[]
   in sql-common/client.c
 */
 
-extern "C"
-st_mysql_client_plugin_AUTHENTICATION win_auth_client_plugin=
-{
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
-  "authentication_windows_client",
-  "Rafal Somla",
-  "Windows Authentication Plugin - client side",
-  {0,1,0},
-  "GPL",
-  NULL,
-  win_auth_client_plugin_init,
-  win_auth_client_plugin_deinit,
-  NULL,                            // option handling
-  win_auth_handshake_client
-};
+extern "C" auth_plugin_t win_auth_client_plugin = {
+    MYSQL_CLIENT_AUTHENTICATION_PLUGIN,
+    MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+    "authentication_windows_client",
+    "Rafal Somla",
+    "Windows Authentication Plugin - client side",
+    {0, 1, 0},
+    "GPL",
+    NULL,
+    win_auth_client_plugin_init,
+    win_auth_client_plugin_deinit,
+    NULL,  // option handling
+    win_auth_handshake_client};

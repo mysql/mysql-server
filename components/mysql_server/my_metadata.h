@@ -23,27 +23,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_REGISTRY_METADATA_H
 #define MYSQL_REGISTRY_METADATA_H
 
-#include <string>
 #include <memory>
+#include <string>
 #include <unordered_map>
 
 typedef std::string my_string;
 
 typedef std::unordered_map<my_string, my_string>
-  my_unordered_string_to_string_map;
-
+    my_unordered_string_to_string_map;
 
 /**
   The metadata class used by both the registry and the dynamic loader services
   to store and manage metadata information related to specified objects.
 */
-class my_metadata
-{
-protected:
+class my_metadata {
+ protected:
   my_unordered_string_to_string_map data;
 
-public:
-
+ public:
   my_metadata();
   my_metadata(my_metadata &other);
 
@@ -52,29 +49,28 @@ public:
     Keep consistent with the type of the underlying data structure
   */
   class const_iterator
-    : public my_unordered_string_to_string_map::const_iterator
-  {
-    my_unordered_string_to_string_map* data;
+      : public my_unordered_string_to_string_map::const_iterator {
+    my_unordered_string_to_string_map *data;
 
-  public:
+   public:
     const_iterator(my_unordered_string_to_string_map::const_iterator iter,
-      my_unordered_string_to_string_map* data_arg);
+                   my_unordered_string_to_string_map *data_arg);
 
-    my_unordered_string_to_string_map* get_data();
+    my_unordered_string_to_string_map *get_data();
     bool is_at_end();
   };
 
   /* update service */
-  bool set_value(const char* name, const char* value);
+  bool set_value(const char *name, const char *value);
 
   /* query service */
-  bool get_value(const char* name, const char** value);
+  bool get_value(const char *name, const char **value);
 
   /* enumeration service */
 
   const_iterator create_iterator();
 
-  static bool release_iterator(const_iterator* iter);
+  static bool release_iterator(const_iterator *iter);
 };
 
 #endif /* MYSQL_REGISTRY_METADATA_H */

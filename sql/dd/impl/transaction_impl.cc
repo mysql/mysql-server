@@ -28,9 +28,9 @@
 
 #include "my_base.h"
 #include "my_dbug.h"
-#include "sql/dd/impl/raw/raw_table.h"       // dd::Raw_table
+#include "sql/dd/impl/raw/raw_table.h"  // dd::Raw_table
 #include "sql/query_options.h"
-#include "sql/sql_base.h"                    // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "sql/sql_base.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
 #include "sql/sql_lex.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -39,44 +39,37 @@ namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
-Open_dictionary_tables_ctx::~Open_dictionary_tables_ctx()
-{
+Open_dictionary_tables_ctx::~Open_dictionary_tables_ctx() {
   // Delete Raw_table instances.
-  for (Object_table_map::iterator it= m_tables.begin();
-       it != m_tables.end(); ++it)
-  {
+  for (Object_table_map::iterator it = m_tables.begin(); it != m_tables.end();
+       ++it) {
     delete it->second;
   }
 }
 
-
-void Open_dictionary_tables_ctx::add_table(const String_type &name)
-{
+void Open_dictionary_tables_ctx::add_table(const String_type &name) {
   if (!m_tables[name])
-    m_tables[name]= new (std::nothrow) Raw_table(m_lock_type, name);
+    m_tables[name] = new (std::nothrow) Raw_table(m_lock_type, name);
 }
 
-
-bool Open_dictionary_tables_ctx::open_tables()
-{
+bool Open_dictionary_tables_ctx::open_tables() {
   DBUG_ENTER("Open_dictionary_tables_ctx::open_tables");
 
   DBUG_ASSERT(!m_tables.empty());
 
-  Object_table_map::iterator it= m_tables.begin();
-  Object_table_map::iterator it_next= m_tables.begin();
+  Object_table_map::iterator it = m_tables.begin();
+  Object_table_map::iterator it_next = m_tables.begin();
 
-  TABLE_LIST *table_list= it_next->second->get_table_list();
+  TABLE_LIST *table_list = it_next->second->get_table_list();
 
   ++it_next;
 
-  //fprintf(stderr, "--> open_tables():\n");
-  while (it_next != m_tables.end())
-  {
-    //fprintf(stderr, "  - '%s'\n", it->first.c_str());
+  // fprintf(stderr, "--> open_tables():\n");
+  while (it_next != m_tables.end()) {
+    // fprintf(stderr, "  - '%s'\n", it->first.c_str());
 
-    it->second->get_table_list()->next_global=
-      it_next->second->get_table_list();
+    it->second->get_table_list()->next_global =
+        it_next->second->get_table_list();
 
     ++it;
     ++it_next;
@@ -105,15 +98,13 @@ bool Open_dictionary_tables_ctx::open_tables()
   // FLUSH TABLES is ignored for the DD tables. Hence the setting
   // the MYSQL_OPEN_IGNORE_FLUSH flag.
 
-  const uint flags= (MYSQL_LOCK_IGNORE_TIMEOUT |
-                     MYSQL_OPEN_IGNORE_KILLED |
-                     MYSQL_OPEN_IGNORE_FLUSH |
-                     (m_ignore_global_read_lock ?
-                      MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0));
+  const uint flags =
+      (MYSQL_LOCK_IGNORE_TIMEOUT | MYSQL_OPEN_IGNORE_KILLED |
+       MYSQL_OPEN_IGNORE_FLUSH |
+       (m_ignore_global_read_lock ? MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0));
   uint counter;
 
-  if (::open_tables(m_thd, &table_list, &counter, flags))
-    DBUG_RETURN(true);
+  if (::open_tables(m_thd, &table_list, &counter, flags)) DBUG_RETURN(true);
 
   /*
     Data-dictionary tables must use storage engine supporting attachable
@@ -124,24 +115,21 @@ bool Open_dictionary_tables_ctx::open_tables()
     is not really necessary for replicating data-dictionary changes
     (as we do not aim to replicate exact IDs in the data-dictionary).
   */
-  for (TABLE_LIST *t= table_list; t; t= t->next_global)
-  {
-    DBUG_ASSERT(t->table->file->ha_table_flags() & HA_ATTACHABLE_TRX_COMPATIBLE);
-    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING))
-      DBUG_RETURN(true);
+  for (TABLE_LIST *t = table_list; t; t = t->next_global) {
+    DBUG_ASSERT(t->table->file->ha_table_flags() &
+                HA_ATTACHABLE_TRX_COMPATIBLE);
+    if (t->table->file->extra(HA_EXTRA_NO_AUTOINC_LOCKING)) DBUG_RETURN(true);
   }
 
   // Lock the tables.
-  if (lock_tables(m_thd, table_list, counter, flags))
-    DBUG_RETURN(true);
+  if (lock_tables(m_thd, table_list, counter, flags)) DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
 
-
-Raw_table *Open_dictionary_tables_ctx::get_table(const String_type &name) const
-{
-  Object_table_map::const_iterator it= m_tables.find(name);
+Raw_table *Open_dictionary_tables_ctx::get_table(
+    const String_type &name) const {
+  Object_table_map::const_iterator it = m_tables.find(name);
 
   return it == m_tables.end() ? NULL : it->second;
 }
@@ -149,37 +137,36 @@ Raw_table *Open_dictionary_tables_ctx::get_table(const String_type &name) const
 ///////////////////////////////////////////////////////////////////////////
 
 Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
- :otx(thd, TL_WRITE),
-  m_thd(thd),
-  m_kill_immunizer(thd),
-  m_lex_saved(NULL),
-  m_saved_in_sub_stmt(thd->in_sub_stmt),
-  m_saved_time_zone_used(thd->time_zone_used),
-  m_saved_auto_increment_increment(
-    thd->variables.auto_increment_increment)
-{
-  m_saved_check_for_truncated_fields= m_thd->check_for_truncated_fields;
+    : otx(thd, TL_WRITE),
+      m_thd(thd),
+      m_kill_immunizer(thd),
+      m_lex_saved(NULL),
+      m_saved_in_sub_stmt(thd->in_sub_stmt),
+      m_saved_time_zone_used(thd->time_zone_used),
+      m_saved_auto_increment_increment(
+          thd->variables.auto_increment_increment) {
+  m_saved_check_for_truncated_fields = m_thd->check_for_truncated_fields;
 
-  m_saved_mode= m_thd->variables.sql_mode;
-  m_thd->variables.sql_mode= 0; // Reset during DD operations
+  m_saved_mode = m_thd->variables.sql_mode;
+  m_thd->variables.sql_mode = 0;  // Reset during DD operations
 
   // Save old lex
-  m_lex_saved= m_thd->lex;
-  m_thd->lex= new (m_thd->mem_root) st_lex_local;
+  m_lex_saved = m_thd->lex;
+  m_thd->lex = new (m_thd->mem_root) st_lex_local;
   lex_start(m_thd);
 
   m_thd->reset_n_backup_open_tables_state(&m_open_tables_state_backup,
                                           Open_tables_state::SYSTEM_TABLES);
 
-  if ((m_saved_binlog_row_based= m_thd->is_current_stmt_binlog_format_row()))
+  if ((m_saved_binlog_row_based = m_thd->is_current_stmt_binlog_format_row()))
     m_thd->clear_current_stmt_binlog_format_row();
 
   // Disable bin logging
-  m_saved_options= m_thd->variables.option_bits;
-  m_thd->variables.option_bits&= ~OPTION_BIN_LOG;
+  m_saved_options = m_thd->variables.option_bits;
+  m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
 
   // Set bit to indicate that the thread is updating the data dictionary tables.
-  m_thd->variables.option_bits|= OPTION_DD_UPDATE_CONTEXT;
+  m_thd->variables.option_bits |= OPTION_DD_UPDATE_CONTEXT;
 
   /*
     In @@autocommit=1 mode InnoDB automatically commits its transaction when
@@ -197,56 +184,50 @@ Update_dictionary_tables_ctx::Update_dictionary_tables_ctx(THD *thd)
 
   // Store current intervals.
   m_thd->auto_inc_intervals_in_cur_stmt_for_binlog.swap(
-    &m_auto_inc_intervals_in_cur_stmt_for_binlog_saved);
+      &m_auto_inc_intervals_in_cur_stmt_for_binlog_saved);
 
   // Store current interval.
-  m_thd->auto_inc_intervals_forced.swap(
-    &m_auto_inc_intervals_forced_saved);
+  m_thd->auto_inc_intervals_forced.swap(&m_auto_inc_intervals_forced_saved);
 
-  m_thd->variables.auto_increment_increment= 1;
+  m_thd->variables.auto_increment_increment = 1;
 
-  m_thd->in_sub_stmt= 0;
+  m_thd->in_sub_stmt = 0;
 
-  m_thd->time_zone_used= false;
+  m_thd->time_zone_used = false;
 }
 
-
-Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx()
-{
+Update_dictionary_tables_ctx::~Update_dictionary_tables_ctx() {
   // Close all the tables that are open till now.
   close_thread_tables(m_thd);
 
-  m_thd->check_for_truncated_fields= m_saved_check_for_truncated_fields;
-  m_thd->variables.sql_mode= m_saved_mode;
+  m_thd->check_for_truncated_fields = m_saved_check_for_truncated_fields;
+  m_thd->variables.sql_mode = m_saved_mode;
 
-  m_thd->variables.option_bits= m_saved_options;
+  m_thd->variables.option_bits = m_saved_options;
 
-  if (m_saved_binlog_row_based)
-    m_thd->set_current_stmt_binlog_format_row();
-  m_saved_binlog_row_based= 0;
+  if (m_saved_binlog_row_based) m_thd->set_current_stmt_binlog_format_row();
+  m_saved_binlog_row_based = 0;
 
   m_thd->restore_backup_open_tables_state(&m_open_tables_state_backup);
 
   // Restore the lex
   lex_end(m_thd->lex);
-  delete (st_lex_local *) m_thd->lex;
-  m_thd->lex= m_lex_saved;
+  delete (st_lex_local *)m_thd->lex;
+  m_thd->lex = m_lex_saved;
 
   // Restore auto_inc_intervals_in_cur_stmt_for_binlog
-  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.empty(); // XXX: remove?
+  m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.empty();  // XXX: remove?
   m_auto_inc_intervals_in_cur_stmt_for_binlog_saved.swap(
-    &m_thd->auto_inc_intervals_in_cur_stmt_for_binlog);
+      &m_thd->auto_inc_intervals_in_cur_stmt_for_binlog);
 
   // Restore forced auto-inc interva.
-  m_auto_inc_intervals_forced_saved.swap(
-    &m_thd->auto_inc_intervals_forced);
+  m_auto_inc_intervals_forced_saved.swap(&m_thd->auto_inc_intervals_forced);
 
-  m_thd->variables.auto_increment_increment=
-    m_saved_auto_increment_increment;
+  m_thd->variables.auto_increment_increment = m_saved_auto_increment_increment;
 
-  m_thd->in_sub_stmt= m_saved_in_sub_stmt;
+  m_thd->in_sub_stmt = m_saved_in_sub_stmt;
 
-  m_thd->time_zone_used= m_saved_time_zone_used;
+  m_thd->time_zone_used = m_saved_time_zone_used;
 }
 
-} // namespace dd
+}  // namespace dd

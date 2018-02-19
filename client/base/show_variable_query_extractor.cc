@@ -32,27 +32,24 @@ using std::string;
 using std::vector;
 
 Show_variable_query_extractor::Show_variable_query_extractor()
-  : m_exists(false)
-{}
+    : m_exists(false) {}
 
 int64 Show_variable_query_extractor::extract_variable(
-  const Mysql_query_runner::Row& result_row)
-{
-  this->m_extracted_variable= result_row[0];
-  this->m_exists= true;
+    const Mysql_query_runner::Row &result_row) {
+  this->m_extracted_variable = result_row[0];
+  this->m_exists = true;
   Mysql_query_runner::cleanup_result(result_row);
   return 0;
 }
 
 int64 Show_variable_query_extractor::get_variable_value(
-  Mysql_query_runner* query_runner_to_copy,
-  string variable, string& value, bool& exists)
-{
+    Mysql_query_runner *query_runner_to_copy, string variable, string &value,
+    bool &exists) {
   Show_variable_query_extractor extractor;
   Mysql_query_runner query_runner_to_use(*query_runner_to_copy);
 
-  std::function<int64(const Mysql_query_runner::Row&)> result_cb=
-    std::bind(&Show_variable_query_extractor::extract_variable, &extractor, _1);
+  std::function<int64(const Mysql_query_runner::Row &)> result_cb = std::bind(
+      &Show_variable_query_extractor::extract_variable, &extractor, _1);
 
   query_runner_to_use.add_result_callback(&result_cb);
 
@@ -67,22 +64,19 @@ int64 Show_variable_query_extractor::get_variable_value(
     Example: "t\1" = > "t\\\\1"
   */
   string quoted_variable;
-  for (size_t i= 0; i < variable.size(); i++)
-  {
-    if (variable[i] == '\\')
-    {
+  for (size_t i = 0; i < variable.size(); i++) {
+    if (variable[i] == '\\') {
       quoted_variable.append(3, '\\');
+    } else if (variable[i] == '\'' || variable[i] == '_' ||
+               variable[i] == '%') {
+      quoted_variable += '\\';
     }
-    else if (variable[i] == '\'' || variable[i] == '_' || variable[i] == '%')
-    {
-      quoted_variable+= '\\';
-    }
-    quoted_variable+= variable[i];
+    quoted_variable += variable[i];
   }
 
   query_runner_to_use.run_query("SELECT @@global." + quoted_variable);
 
-  value= extractor.m_extracted_variable;
-  exists= extractor.m_exists;
+  value = extractor.m_extracted_variable;
+  exists = extractor.m_exists;
   return 0;
 }

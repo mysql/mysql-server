@@ -22,13 +22,9 @@ a
 include/sync_slave_io_with_master.inc
 ==== Verify results on slave ====
 include/stop_slave.inc
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Slave_IO_State = ''
 Last_SQL_Error = ''
 Last_IO_Error = ''
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/assert.inc [Assert that the slave table has no rows]
 ==== Clean up ====
 [on master]

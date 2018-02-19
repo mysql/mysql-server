@@ -22,10 +22,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "../../components/mysql_server/component_status_var_service.h"
 
-#include <string>
-
 #include "../../components/mysql_server/server_component.h"
-#include "sql/log.h"
+#include "mysql/components/service_implementation.h"
+
+struct SHOW_VAR;
 
 /**
   Its a dummy initialization function. And it will be called from
@@ -33,10 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   optimization) the status variable service code because libsql code
   is not calling any functions of it.
 */
-void mysql_comp_status_var_services_init()
-{
-  return;
-}
+void mysql_comp_status_var_services_init() { return; }
 
 /**
   Register status variable.
@@ -50,17 +47,12 @@ void mysql_comp_status_var_services_init()
   to know how to construct status varables for different variable types.
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
-  (STATUS_VAR *status_var))
-{
-  try
-  {
-    if (add_status_vars(status_var))
-      return true;
+                   (SHOW_VAR * status_var)) {
+  try {
+    if (add_status_vars(status_var)) return true;
 
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
@@ -68,22 +60,18 @@ DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::register_variable,
 
 /**
   Unregister's status variable.
-  @param  status_var STATUS_VAR object with only the name of the variable,
+  @param  status_var SHOW_VAR object with only the name of the variable,
                      which has to be removed from the global list.
   @return Status of performed operation
   @retval false success
   @retval true failure
 */
 DEFINE_BOOL_METHOD(mysql_status_variable_registration_imp::unregister_variable,
-  (STATUS_VAR *status_var))
-{
-  try
-  {
+                   (SHOW_VAR * status_var)) {
+  try {
     remove_status_vars(status_var);
     return false;
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;

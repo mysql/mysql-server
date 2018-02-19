@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -49,67 +49,56 @@ Page_pool::Page_pool(const int32_t page_size)
 */
 
 Page_pool::Page_pool(const Pool_config &pool_config)
-: m_pages_max(pool_config.pages_max),
-  m_pages_cache_max(pool_config.pages_cache_max),
-  m_pages_cached(0),
-  m_page_size(pool_config.page_size),
-  m_pages_allocated(0)
-{
-}
+    : m_pages_max(pool_config.pages_max),
+      m_pages_cache_max(pool_config.pages_cache_max),
+      m_pages_cached(0),
+      m_page_size(pool_config.page_size),
+      m_pages_allocated(0) {}
 
-Page_pool::~Page_pool()
-{
+Page_pool::~Page_pool() {
   MUTEX_LOCK(lock, m_mutex);
-  std::for_each(m_pages_list.begin(), m_pages_list.end(), ngs::free_array<char>);
+  std::for_each(m_pages_list.begin(), m_pages_list.end(),
+                ngs::free_array<char>);
   m_pages_list.clear();
 }
 
-
-Resource<Page> Page_pool::allocate()
-{
-  // The code is valid only in case when the method is called only by one thread at a time
-  if (m_pages_max != 0 && (++m_pages_allocated > m_pages_max - 1))
-  {
+Resource<Page> Page_pool::allocate() {
+  // The code is valid only in case when the method is called only by one thread
+  // at a time
+  if (m_pages_max != 0 && (++m_pages_allocated > m_pages_max - 1)) {
     --m_pages_allocated;
     throw No_more_pages_exception();
   }
 
   char *object_data = pop_page();
 
-  if (NULL == object_data)
-  {
+  if (NULL == object_data) {
     size_t memory_to_allocate = m_page_size + sizeof(Page_memory_managed);
 
-    ngs::allocate_array(object_data, memory_to_allocate, KEY_memory_x_send_buffer);
+    ngs::allocate_array(object_data, memory_to_allocate,
+                        KEY_memory_x_send_buffer);
   }
 
-  return Resource<Page>(new (object_data) Page_memory_managed(*this, m_page_size, object_data + sizeof(Page_memory_managed)));
+  return Resource<Page>(new (object_data) Page_memory_managed(
+      *this, m_page_size, object_data + sizeof(Page_memory_managed)));
 }
 
-
-void Page_pool::deallocate(Page *page)
-{
+void Page_pool::deallocate(Page *page) {
   // multiple threads
-  if (m_pages_max != 0)
-    --m_pages_allocated;
+  if (m_pages_max != 0) --m_pages_allocated;
 
   page->~Page();
 
-  if (!push_page((char*)page))
-  {
-    ngs::free_array((char*)page);
+  if (!push_page((char *)page)) {
+    ngs::free_array((char *)page);
   }
 }
 
-
-bool Page_pool::push_page(char *page_data)
-{
-  if (m_pages_cache_max != 0)
-  {
+bool Page_pool::push_page(char *page_data) {
+  if (m_pages_cache_max != 0) {
     MUTEX_LOCK(lock, m_mutex);
 
-    if (m_pages_cached >= m_pages_cache_max)
-      return false;
+    if (m_pages_cached >= m_pages_cache_max) return false;
 
     ++m_pages_cached;
     m_pages_list.push_back(page_data);
@@ -120,15 +109,11 @@ bool Page_pool::push_page(char *page_data)
   return false;
 }
 
-
-char *Page_pool::pop_page()
-{
-  if (m_pages_cache_max != 0)
-  {
+char *Page_pool::pop_page() {
+  if (m_pages_cache_max != 0) {
     MUTEX_LOCK(lock, m_mutex);
 
-    if (!m_pages_list.empty())
-    {
+    if (!m_pages_list.empty()) {
       --m_pages_cached;
       char *result = m_pages_list.front();
 

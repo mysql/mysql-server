@@ -24,6 +24,7 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "mysql/plugin_audit.h"
@@ -31,49 +32,41 @@
 #include "mysql/service_rules_table.h"
 #include "mysql/service_ssl_wrapper.h"
 #include "mysqld_error.h"
-#include "sql/key.h"
 #include "sql/sql_audit.h"
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 
-static void raise_query_rewritten_note(THD *thd,
-                                       const char *original_query,
-                                       const char *rewritten_query)
-{
-  Sql_condition::enum_severity_level sl= Sql_condition::SL_NOTE;
-  const char *message= "Query '%s' rewritten to '%s' by a query rewrite plugin";
-  push_warning_printf(thd, sl, ER_UNKNOWN_ERROR, message,
-                      original_query, rewritten_query);
+static void raise_query_rewritten_note(THD *thd, const char *original_query,
+                                       const char *rewritten_query) {
+  Sql_condition::enum_severity_level sl = Sql_condition::SL_NOTE;
+  const char *message =
+      "Query '%s' rewritten to '%s' by a query rewrite plugin";
+  push_warning_printf(thd, sl, ER_UNKNOWN_ERROR, message, original_query,
+                      rewritten_query);
 }
 
-
-void invoke_pre_parse_rewrite_plugins(THD *thd)
-{
-  Diagnostics_area *plugin_da= thd->get_query_rewrite_plugin_da();
-  if (plugin_da == NULL)
-    return;
+void invoke_pre_parse_rewrite_plugins(THD *thd) {
+  Diagnostics_area *plugin_da = thd->get_query_rewrite_plugin_da();
+  if (plugin_da == NULL) return;
   plugin_da->reset_diagnostics_area();
   plugin_da->reset_condition_info(thd);
 
-  Diagnostics_area *da= thd->get_parser_da();
+  Diagnostics_area *da = thd->get_parser_da();
   thd->push_diagnostics_area(plugin_da, false);
-  mysql_event_parse_rewrite_plugin_flag flags=
-                                        MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
-  LEX_CSTRING rewritten_query = { NULL, 0 };
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_PREPARSE),
-                     &flags,
+  mysql_event_parse_rewrite_plugin_flag flags =
+      MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+  LEX_CSTRING rewritten_query = {NULL, 0};
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_PREPARSE), &flags,
                      &rewritten_query);
 
   /* Do not continue when the plugin set the error state. */
   if (!plugin_da->is_error() &&
-      flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN)
-  {
+      flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN) {
     // It is a rewrite fulltext plugin and we need a rewrite we must have
     // generated a new query then.
-    DBUG_ASSERT(rewritten_query.str != NULL &&
-                rewritten_query.length > 0);
+    DBUG_ASSERT(rewritten_query.str != NULL && rewritten_query.length > 0);
     raise_query_rewritten_note(thd, thd->query().str, rewritten_query.str);
     alloc_query(thd, rewritten_query.str, rewritten_query.length);
     thd->m_parser_state->init(thd, thd->query().str, thd->query().length);
@@ -83,8 +76,7 @@ void invoke_pre_parse_rewrite_plugins(THD *thd)
   da->copy_non_errors_from_da(thd, plugin_da);
   thd->pop_diagnostics_area();
 
-  if (plugin_da->is_error())
-  {
+  if (plugin_da->is_error()) {
     thd->get_stmt_da()->set_error_status(plugin_da->mysql_errno(),
                                          plugin_da->message_text(),
                                          plugin_da->returned_sqlstate());
@@ -92,66 +84,61 @@ void invoke_pre_parse_rewrite_plugins(THD *thd)
   }
 }
 
-void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps)
-{
-  if (is_audit_plugin_class_active(thd,
-                         static_cast<unsigned long>(MYSQL_AUDIT_PARSE_CLASS)))
-    ps->m_input.m_compute_digest= true;
+void enable_digest_if_any_plugin_needs_it(THD *thd, Parser_state *ps) {
+  if (is_audit_plugin_class_active(
+          thd, static_cast<unsigned long>(MYSQL_AUDIT_PARSE_CLASS)))
+    ps->m_input.m_compute_digest = true;
 }
 
-
-bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared)
-{
-  Diagnostics_area *plugin_da= thd->get_query_rewrite_plugin_da();
+bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared) {
+  Diagnostics_area *plugin_da = thd->get_query_rewrite_plugin_da();
   plugin_da->reset_diagnostics_area();
   plugin_da->reset_condition_info(thd);
 
-  Diagnostics_area *stmt_da= thd->get_stmt_da();
+  Diagnostics_area *stmt_da = thd->get_stmt_da();
 
   /*
     We save the value of keep_diagnostics here as it gets reset by
     push_diagnostics_area(), see below for use.
   */
-  bool keeping_diagnostics= thd->lex->keep_diagnostics == DA_KEEP_PARSE_ERROR;
+  bool keeping_diagnostics = thd->lex->keep_diagnostics == DA_KEEP_PARSE_ERROR;
 
   thd->push_diagnostics_area(plugin_da, false);
 
   {
-    /*
-       We have to call a function in rules_table_service.cc, or the service
-       won't be visible to plugins.
-    */
+  /*
+     We have to call a function in rules_table_service.cc, or the service
+     won't be visible to plugins.
+  */
 #ifndef DBUG_OFF
-    int dummy= 
+    int dummy =
 #endif
-      rules_table_service::
-      dummy_function_to_ensure_we_are_linked_into_the_server();
+        rules_table_service::
+            dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
 
 #ifndef DBUG_OFF
-    dummy=
+    dummy =
 #endif
-      ssl_wrappe_service::
-      dummy_function_to_ensure_we_are_linked_into_the_server();
+        ssl_wrappe_service::
+            dummy_function_to_ensure_we_are_linked_into_the_server();
     DBUG_ASSERT(dummy == 1);
   }
 
-  mysql_event_parse_rewrite_plugin_flag flags=
-       is_prepared ?  MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT :
-                      MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
-  bool err= false;
-  const char *original_query= thd->query().str;
-  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_POSTPARSE),
-                     &flags, NULL);
+  mysql_event_parse_rewrite_plugin_flag flags =
+      is_prepared ? MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_IS_PREPARED_STATEMENT
+                  : MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_NONE;
+  bool err = false;
+  const char *original_query = thd->query().str;
+  mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_PARSE_POSTPARSE), &flags,
+                     NULL);
 
-  if (flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN)
-  {
+  if (flags & MYSQL_AUDIT_PARSE_REWRITE_PLUGIN_QUERY_REWRITTEN) {
     raise_query_rewritten_note(thd, original_query, thd->query().str);
-    thd->lex->safe_to_cache_query= false;
+    thd->lex->safe_to_cache_query = false;
   }
 
-  if (plugin_da->current_statement_cond_count() != 0)
-  {
+  if (plugin_da->current_statement_cond_count() != 0) {
     /*
       A plugin raised at least one condition. At this point these are in the
       plugin DA, and we should copy them to the statement DA. But before we do
@@ -180,7 +167,7 @@ bool invoke_post_parse_rewrite_plugins(THD *thd, bool is_prepared)
       contains not the results of the previous executions, but a non-zero
       number of errors/warnings thrown during parsing or plugin execution.
     */
-    thd->lex->keep_diagnostics= DA_KEEP_PARSE_ERROR;
+    thd->lex->keep_diagnostics = DA_KEEP_PARSE_ERROR;
   }
 
   thd->pop_diagnostics_area();

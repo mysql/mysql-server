@@ -3,22 +3,22 @@ Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SELECT @start_value;
 @start_value
-30
+0
 SET @@global.expire_logs_days = 0;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SET @start_value_sec = @@global.binlog_expire_logs_seconds;
 SELECT @start_value_sec;
 @start_value_sec
-0
+2592000
 SET @@global.binlog_expire_logs_seconds = 8734635;
 SET @@global.binlog_expire_logs_seconds = DEFAULT;
 SELECT @@global.binlog_expire_logs_seconds;
 @@global.binlog_expire_logs_seconds
-0
+2592000
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
-SELECT @@global.binlog_expire_logs_seconds = 0;
-@@global.binlog_expire_logs_seconds = 0
+SELECT @@global.binlog_expire_logs_seconds = 2592000;
+@@global.binlog_expire_logs_seconds = 2592000
 1
 SET @@global.binlog_expire_logs_seconds = 0;
 SELECT @@global.binlog_expire_logs_seconds;
@@ -114,12 +114,12 @@ ERROR 42S22: Unknown column 'binlog_expire_logs_seconds' in 'field list'
 SET @@global.binlog_expire_logs_seconds = @start_value_sec;
 SELECT @@global.binlog_expire_logs_seconds;
 @@global.binlog_expire_logs_seconds
-0
+2592000
 SET @@global.expire_logs_days = @start_value;
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead
 SELECT @@global.expire_logs_days;
 @@global.expire_logs_days
-30
+0
 Warnings:
 Warning	1287	'@@expire_logs_days' is deprecated and will be removed in a future release. Please use binlog_expire_logs_seconds instead

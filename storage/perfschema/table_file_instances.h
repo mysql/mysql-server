@@ -30,9 +30,15 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_file;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -40,8 +46,7 @@
 */
 
 /** A row of PERFORMANCE_SCHEMA.FILE_INSTANCES. */
-struct row_file_instances
-{
+struct row_file_instances {
   /** Column FILE_NAME. */
   const char *m_filename;
   /** Length in bytes of @c m_filename. */
@@ -54,60 +59,44 @@ struct row_file_instances
   uint m_open_count;
 };
 
-class PFS_index_file_instances : public PFS_engine_index
-{
-public:
-  PFS_index_file_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_file_instances : public PFS_engine_index {
+ public:
+  PFS_index_file_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_file_instances()
-  {
-  }
+  ~PFS_index_file_instances() {}
 
   virtual bool match(const PFS_file *pfs) = 0;
 };
 
-class PFS_index_file_instances_by_file_name : public PFS_index_file_instances
-{
-public:
+class PFS_index_file_instances_by_file_name : public PFS_index_file_instances {
+ public:
   PFS_index_file_instances_by_file_name()
-    : PFS_index_file_instances(&m_key), m_key("FILE_NAME")
-  {
-  }
+      : PFS_index_file_instances(&m_key), m_key("FILE_NAME") {}
 
-  ~PFS_index_file_instances_by_file_name()
-  {
-  }
+  ~PFS_index_file_instances_by_file_name() {}
 
   bool match(const PFS_file *pfs);
 
-private:
+ private:
   PFS_key_file_name m_key;
 };
 
-class PFS_index_file_instances_by_event_name : public PFS_index_file_instances
-{
-public:
+class PFS_index_file_instances_by_event_name : public PFS_index_file_instances {
+ public:
   PFS_index_file_instances_by_event_name()
-    : PFS_index_file_instances(&m_key), m_key("EVENT_NAME")
-  {
-  }
+      : PFS_index_file_instances(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_file_instances_by_event_name()
-  {
-  }
+  ~PFS_index_file_instances_by_event_name() {}
 
   bool match(const PFS_file *pfs);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.FILE_INSTANCES. */
-class table_file_instances : public PFS_engine_table
-{
-public:
+class table_file_instances : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -121,19 +110,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_file_instances();
 
-public:
-  ~table_file_instances()
-  {
-  }
+ public:
+  ~table_file_instances() {}
 
-private:
+ private:
   int make_row(PFS_file *pfs);
 
   /** Table share lock. */

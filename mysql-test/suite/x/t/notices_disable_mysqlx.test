@@ -11,10 +11,6 @@
 -->stmtadmin disable_notices	{"notice": "warnings"}
 -->recvresult
 
--->echo check with password function which is deprecated
--->stmtsql select 1/0,1/0,password('test'),password('')
--->recvresult
-
 -->echo check with dropping db which doesn't exists
 -->stmtsql drop database if exists mysqltest;
 -->recvresult
@@ -379,7 +375,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 
 -->echo setting back to default of sql_mode
--->stmtsql SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+-->stmtsql SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 -->recvresult
 
 -->echo checking with group by where both error and warnings expected with default sql_mode
@@ -466,7 +462,7 @@ c timestamp generated always as ((a not in (b,b))) stored not null
 
 -->sql
 drop table t1;
-SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION';
 -->endsql
 
 -->echo checking warnings while creating index which is more than row size

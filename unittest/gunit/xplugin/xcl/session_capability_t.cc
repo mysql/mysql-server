@@ -12,7 +12,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,7 +28,6 @@
 
 #include "unittest/gunit/xplugin/xcl/session_t.h"
 
-
 namespace xcl {
 namespace test {
 
@@ -36,8 +35,7 @@ TEST_F(Xcl_session_impl_tests, xsession_set_capability_successful) {
   const bool value_bool = true;
 
   ASSERT_FALSE(m_sut->set_capability(
-      XSession::Capability_can_handle_expired_password,
-      value_bool));
+      XSession::Capability_can_handle_expired_password, value_bool));
 }
 
 TEST_F(Xcl_session_impl_tests, xsession_set_capability_unsuccessful) {
@@ -46,18 +44,14 @@ TEST_F(Xcl_session_impl_tests, xsession_set_capability_unsuccessful) {
   const int64_t value_int = 10;
 
   ASSERT_TRUE(m_sut->set_capability(
-      XSession::Capability_can_handle_expired_password,
-      value_pchar));
+      XSession::Capability_can_handle_expired_password, value_pchar));
 
   ASSERT_TRUE(m_sut->set_capability(
-      XSession::Capability_can_handle_expired_password,
-      value_string));
+      XSession::Capability_can_handle_expired_password, value_string));
 
   ASSERT_TRUE(m_sut->set_capability(
-      XSession::Capability_can_handle_expired_password,
-      value_int));
+      XSession::Capability_can_handle_expired_password, value_int));
 }
-
 
 }  // namespace test
 }  // namespace xcl

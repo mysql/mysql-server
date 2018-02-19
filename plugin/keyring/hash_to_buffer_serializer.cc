@@ -25,56 +25,48 @@
 #include <stddef.h>
 #include <sys/types.h>
 
-namespace keyring
-{
-  bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey* key,
-                                                      Buffer *buffer)
-  {
-    if (buffer->size < buffer->position + key->get_key_pod_size())
-      return TRUE;
-    key->store_in_buffer(buffer->data, &(buffer->position));
-    return FALSE;
+namespace keyring {
+bool Hash_to_buffer_serializer::store_key_in_buffer(const IKey *key,
+                                                    Buffer *buffer) {
+  if (buffer->size < buffer->position + key->get_key_pod_size()) return true;
+  key->store_in_buffer(buffer->data, &(buffer->position));
+  return false;
+}
+
+bool Hash_to_buffer_serializer::store_keys_in_buffer(
+    const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+        &keys_hash,
+    Buffer *buffer) {
+  for (const auto &key_and_value : keys_hash) {
+    if (store_key_in_buffer(key_and_value.second.get(), buffer)) return true;
+  }
+  return false;
+}
+
+ISerialized_object *Hash_to_buffer_serializer::serialize(
+    const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+        &keys_hash,
+    IKey *key, const Key_operation operation) {
+  size_t memory_needed_for_buffer_after_operation = memory_needed_for_buffer;
+
+  switch (operation) {
+    case STORE_KEY:
+      memory_needed_for_buffer_after_operation += key->get_key_pod_size();
+      break;
+    case REMOVE_KEY:
+      memory_needed_for_buffer_after_operation -= key->get_key_pod_size();
+      break;
+    case NONE:
+    case ROTATE:
+      break;
   }
 
-  bool Hash_to_buffer_serializer::store_keys_in_buffer
-    (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-       &keys_hash,
-     Buffer *buffer)
-  {
-    for (const auto &key_and_value : keys_hash)
-    {
-      if (store_key_in_buffer(key_and_value.second.get(), buffer))
-        return TRUE;
-    }
-    return FALSE;
+  Buffer *buffer = new Buffer(memory_needed_for_buffer_after_operation);
+  buffer->set_key_operation(operation);
+  if (store_keys_in_buffer(keys_hash, buffer)) {
+    delete buffer;
+    return NULL;
   }
-
-  ISerialized_object* Hash_to_buffer_serializer::serialize
-    (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-       &keys_hash,
-     IKey *key,
-     const Key_operation operation)
-  {
-    size_t memory_needed_for_buffer_after_operation= memory_needed_for_buffer;
-
-    switch(operation)
-    {
-      case STORE_KEY: memory_needed_for_buffer_after_operation += key->get_key_pod_size();
-                      break;
-      case REMOVE_KEY: memory_needed_for_buffer_after_operation -= key->get_key_pod_size();
-                       break;
-      case NONE:
-      case ROTATE:
-        break;
-    }
-
-    Buffer *buffer= new Buffer(memory_needed_for_buffer_after_operation);
-    buffer->set_key_operation(operation);
-    if (store_keys_in_buffer(keys_hash, buffer))
-    {
-      delete buffer;
-      return NULL;
-    }
-    return buffer;
-  }
-} //namespace keyring
+  return buffer;
+}
+}  // namespace keyring

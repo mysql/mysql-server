@@ -37,8 +37,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_socket_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_SOCKET_VERSION_1
   Performance Schema Socket Interface number for version 1.
@@ -47,8 +45,7 @@ C_MODE_START
 #define PSI_SOCKET_VERSION_1 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_socket_bootstrap
-{
+struct PSI_socket_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -67,8 +64,7 @@ typedef struct PSI_socket_bootstrap PSI_socket_bootstrap;
   Performance Schema Socket Interface, version 1.
   @since PSI_SOCKET_VERSION_1
 */
-struct PSI_socket_service_v1
-{
+struct PSI_socket_service_v1 {
   /** @sa register_socket_v1_t. */
   register_socket_v1_t register_socket;
   /** @sa init_socket_v1_t. */
@@ -94,7 +90,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_socket_service_t *psi_socket_service;
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
 /** @} (end of group psi_abi_socket) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_SOCKET_H */

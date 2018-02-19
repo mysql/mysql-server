@@ -225,8 +225,6 @@ c1
 Warnings:
 Note	1105	Query 'SELECT c.c1 FROM ( SELECT c1 FROM test.t1 WHERE c1=3 ) c' rewritten to 'SELECT c1 FROM test.t1 WHERE c1=3' by a query rewrite plugin
 SET sql_mode = 'PIPES_AS_CONCAT';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement )
 VALUES ( 'SELECT c1,c2,c3 FROM test.t1 WHERE c1=? ' ||
 'UNION ' ||

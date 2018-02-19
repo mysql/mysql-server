@@ -24,11 +24,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
+#include "btr0btr.h"
 #include "buf0buf.h"
 #include "dict0dict.h"
-#include "btr0btr.h"
-#include "trx0trx.h"
 #include "lock0lock.h"
+#include "trx0trx.h"
 
 namespace lob {
 
@@ -37,48 +37,41 @@ namespace lob {
 @param[in]	lob_mtr	the mini-transaction context.
 @param[in]	hint	the hint page number for allocation.
 @param[in]	bulk	true if operation is OPCODE_INSERT_BULK,
-			false otherwise.
+                        false otherwise.
 @return the allocated block of the BLOB page. */
-buf_block_t*
-alloc_lob_page(
-	dict_index_t*	index,
-	mtr_t*		lob_mtr,
-	page_no_t	hint,
-	bool		bulk)
-{
-	ulint r_extents;
-	mtr_t mtr_bulk;
-	mtr_t* alloc_mtr;
-	buf_block_t* block = nullptr;
+buf_block_t *alloc_lob_page(dict_index_t *index, mtr_t *lob_mtr, page_no_t hint,
+                            bool bulk) {
+  ulint r_extents;
+  mtr_t mtr_bulk;
+  mtr_t *alloc_mtr;
+  buf_block_t *block = nullptr;
 
-	space_id_t space_id = dict_index_get_space(index);
+  space_id_t space_id = dict_index_get_space(index);
 
-	ut_ad(fsp_check_tablespace_size(space_id));
+  ut_ad(fsp_check_tablespace_size(space_id));
 
-	if (bulk) {
-		mtr_start(&mtr_bulk);
-		alloc_mtr = &mtr_bulk;
-	} else {
-		alloc_mtr = lob_mtr;
-	}
+  if (bulk) {
+    mtr_start(&mtr_bulk);
+    alloc_mtr = &mtr_bulk;
+  } else {
+    alloc_mtr = lob_mtr;
+  }
 
-	if (!fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB,
-				      alloc_mtr, 1)) {
+  if (!fsp_reserve_free_extents(&r_extents, space_id, 1, FSP_BLOB, alloc_mtr,
+                                1)) {
+    alloc_mtr->commit();
+    return (nullptr);
+  }
 
-		alloc_mtr->commit();
-		return(nullptr);
-	}
+  block = btr_page_alloc(index, hint, FSP_NO_DIR, 0, alloc_mtr, lob_mtr);
 
-	block = btr_page_alloc(index, hint, FSP_NO_DIR, 0, alloc_mtr, lob_mtr);
+  fil_space_release_free_extents(space_id, r_extents);
 
-	fil_space_release_free_extents(space_id, r_extents);
+  if (bulk) {
+    alloc_mtr->commit();
+  }
 
-	if (bulk) {
-		alloc_mtr->commit();
-	}
-
-	return(block);
+  return (block);
 }
 
 }; /* namespace lob */
-

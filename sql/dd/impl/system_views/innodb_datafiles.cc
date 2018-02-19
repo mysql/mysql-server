@@ -25,23 +25,23 @@
 namespace dd {
 namespace system_views {
 
-const Innodb_datafiles &Innodb_datafiles::instance()
-{
-  static Innodb_datafiles *s_instance= new Innodb_datafiles();
+const Innodb_datafiles &Innodb_datafiles::instance() {
+  static Innodb_datafiles *s_instance = new Innodb_datafiles();
   return *s_instance;
 }
 
-Innodb_datafiles::Innodb_datafiles()
-{
+Innodb_datafiles::Innodb_datafiles() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_SPACE, "SPACE",
-                 "GET_DD_TABLESPACE_PRIVATE_DATA(ts.se_private_data, 'id')");
+  m_target_def.add_field(
+      FIELD_SPACE, "SPACE",
+      "GET_DD_TABLESPACE_PRIVATE_DATA(ts.se_private_data, 'id')");
   m_target_def.add_field(FIELD_PATH, "PATH", "ts_files.file_name");
 
   m_target_def.add_from("mysql.tablespace_files ts_files");
-  m_target_def.add_from("JOIN mysql.tablespaces ts ON "
-                        "ts.id=ts_files.tablespace_id");
+  m_target_def.add_from(
+      "JOIN mysql.tablespaces ts ON "
+      "ts.id=ts_files.tablespace_id");
 
   m_target_def.add_where("ts.se_private_data IS NOT NULL");
   m_target_def.add_where("AND ts.engine='InnoDB'");
@@ -49,5 +49,5 @@ Innodb_datafiles::Innodb_datafiles()
   m_target_def.add_where("AND ts.name<>'innodb_temporary'");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

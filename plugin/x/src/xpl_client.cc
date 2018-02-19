@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -49,7 +49,7 @@ Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
     : ngs::Client(connection, server, client_id, *pmon, timeouts),
       m_protocol_monitor(pmon) {
   if (m_protocol_monitor)
-    static_cast<Protocol_monitor*>(m_protocol_monitor)->init(this);
+    static_cast<Protocol_monitor *>(m_protocol_monitor)->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
@@ -78,32 +78,24 @@ ngs::Capabilities_configurator *Client::capabilities_configurator() {
   return caps;
 }
 
-void Client::set_is_interactive(const bool flag)  {
+void Client::set_is_interactive(const bool flag) {
   m_is_interactive = flag;
 
-  if (nullptr == m_session.get())
-    return;
+  if (nullptr == m_session.get()) return;
 
   auto thd = m_session->get_thd();
 
-  if (nullptr == thd)
-    return;
+  if (nullptr == thd) return;
 
   if (!m_session->data_context().attach()) {
     auto global_timeouts = get_global_timeouts();
 
-    m_wait_timeout = m_is_interactive ?
-        global_timeouts.interactive_timeout :
-        global_timeouts.wait_timeout;
+    m_wait_timeout = m_is_interactive ? global_timeouts.interactive_timeout
+                                      : global_timeouts.wait_timeout;
     set_session_wait_timeout(thd, m_wait_timeout);
 
     m_session->data_context().detach();
   }
-}
-
-
-ngs::shared_ptr<xpl::Session> Client::get_session() {
-  return ngs::static_pointer_cast<xpl::Session>(session());
 }
 
 /** Close the client from another thread
@@ -141,13 +133,21 @@ void Client::on_auth_timeout() {
   ++Global_status_variables::instance().m_connection_errors_count;
 }
 
+/* Check is a session assigned to this client has following thread data
+
+   The method can be called from different thread/xpl_client.
+ */
 bool Client::is_handler_thd(THD *thd) {
-  ngs::shared_ptr<ngs::Session_interface> session = this->session();
+  // When accessing the session we need to hold it in
+  // shared_pointer to be sure that the session is
+  // not reseted (by Mysqlx::Session::Reset) in middle
+  // of this operations.
+  auto session = this->session_smart_ptr();
 
   return thd && session && (session->get_thd() == thd);
 }
 
-void Client::get_status_ssl_cipher_list(st_mysql_show_var *var) {
+void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
   std::vector<std::string> ciphers = connection().options()->ssl_cipher_list();
 
   mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
@@ -162,8 +162,7 @@ std::string Client::resolve_hostname() {
       m_connection->peer_address(socket_ip_string, socket_port);
 
   if (NULL == addr) {
-    log_error("%s: get peer address failed, can't resolve IP to hostname",
-              m_id);
+    log_error(ER_XPLUGIN_GET_PEER_ADDRESS_FAILED, m_id);
     return "";
   }
 
@@ -192,34 +191,34 @@ bool Client::is_localhost(const char *hostname) {
 void Protocol_monitor::init(Client *client) { m_client = client; }
 
 namespace {
-template <xpl::Common_status_variables::Variable xpl::Common_status_variables::*
-              variable>
-inline void update_status(ngs::shared_ptr<xpl::Session> session) {
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
+              *variable>
+inline void update_status(ngs::Session_interface *session) {
   if (session) ++(session->get_status_variables().*variable);
   ++(Global_status_variables::instance().*variable);
 }
 
-template <xpl::Common_status_variables::Variable xpl::Common_status_variables::*
-              variable>
-inline void update_status(ngs::shared_ptr<xpl::Session> session, long param) {
+template <ngs::Common_status_variables::Variable ngs::Common_status_variables::
+              *variable>
+inline void update_status(ngs::Session_interface *session, long param) {
   if (session) (session->get_status_variables().*variable) += param;
   (Global_status_variables::instance().*variable) += param;
 }
 }  // namespace
 
 void Protocol_monitor::on_notice_warning_send() {
-  update_status<&Common_status_variables::m_notice_warning_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_notice_warning_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_notice_other_send() {
-  update_status<&Common_status_variables::m_notice_other_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_notice_other_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_error_send() {
-  update_status<&Common_status_variables::m_errors_sent>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_errors_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_fatal_error_send() {
@@ -231,22 +230,23 @@ void Protocol_monitor::on_init_error_send() {
 }
 
 void Protocol_monitor::on_row_send() {
-  update_status<&Common_status_variables::m_rows_sent>(m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_rows_sent>(
+      m_client->session());
 }
 
 void Protocol_monitor::on_send(long bytes_transferred) {
-  update_status<&Common_status_variables::m_bytes_sent>(m_client->get_session(),
-                                                        bytes_transferred);
+  update_status<&ngs::Common_status_variables::m_bytes_sent>(
+      m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_receive(long bytes_transferred) {
-  update_status<&Common_status_variables::m_bytes_received>(
-      m_client->get_session(), bytes_transferred);
+  update_status<&ngs::Common_status_variables::m_bytes_received>(
+      m_client->session(), bytes_transferred);
 }
 
 void Protocol_monitor::on_error_unknown_msg_type() {
-  update_status<&Common_status_variables::m_errors_unknown_message_type>(
-      m_client->get_session());
+  update_status<&ngs::Common_status_variables::m_errors_unknown_message_type>(
+      m_client->session());
 }
 
 }  // namespace xpl

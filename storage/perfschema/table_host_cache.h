@@ -30,12 +30,17 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
 class Host_entry;
+class Plugin_table;
+class THD;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -43,8 +48,7 @@ class Host_entry;
 */
 
 /** A row of PERFORMANCE_SCHEMA.HOST_CACHE. */
-struct row_host_cache
-{
+struct row_host_cache {
   /** Column IP. */
   char m_ip[64];
   uint m_ip_length;
@@ -107,58 +111,43 @@ struct row_host_cache
   ulonglong m_last_error_seen;
 };
 
-class PFS_index_host_cache : public PFS_engine_index
-{
-public:
-  PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_host_cache : public PFS_engine_index {
+ public:
+  PFS_index_host_cache(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
-  ~PFS_index_host_cache()
-  {
-  }
+  ~PFS_index_host_cache() {}
 
   virtual bool match(const row_host_cache *row) = 0;
 };
 
-class PFS_index_host_cache_by_ip : public PFS_index_host_cache
-{
-public:
-  PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP")
-  {
-  }
+class PFS_index_host_cache_by_ip : public PFS_index_host_cache {
+ public:
+  PFS_index_host_cache_by_ip() : PFS_index_host_cache(&m_key), m_key("IP") {}
 
-  ~PFS_index_host_cache_by_ip()
-  {
-  }
+  ~PFS_index_host_cache_by_ip() {}
 
   bool match(const row_host_cache *row);
 
-private:
+ private:
   PFS_key_ip m_key;
 };
 
-class PFS_index_host_cache_by_host : public PFS_index_host_cache
-{
-public:
-  PFS_index_host_cache_by_host() : PFS_index_host_cache(&m_key), m_key("HOST")
-  {
-  }
+class PFS_index_host_cache_by_host : public PFS_index_host_cache {
+ public:
+  PFS_index_host_cache_by_host()
+      : PFS_index_host_cache(&m_key), m_key("HOST") {}
 
-  ~PFS_index_host_cache_by_host()
-  {
-  }
+  ~PFS_index_host_cache_by_host() {}
 
   bool match(const row_host_cache *row);
 
-private:
+ private:
   PFS_key_host m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.HOST_CACHE. */
-class table_host_cache : public PFS_engine_table
-{
-public:
+class table_host_cache : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -173,19 +162,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_host_cache();
 
-public:
-  ~table_host_cache()
-  {
-  }
+ public:
+  ~table_host_cache() {}
 
-private:
+ private:
   void materialize(THD *thd);
   static int make_row(Host_entry *entry, row_host_cache *row);
 

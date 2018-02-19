@@ -34,12 +34,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.ST_GEOMETRY_COLUMNS system view
   definition.
 */
-class St_geometry_columns :
-        public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class St_geometry_columns
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_TABLE_CATALOG,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
@@ -53,17 +51,17 @@ public:
 
   static const St_geometry_columns &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("ST_GEOMETRY_COLUMNS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return St_geometry_columns::view_name(); }
+  virtual const String_type &name() const {
+    return St_geometry_columns::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__ST_GEOMETRY_COLUMNS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__ST_GEOMETRY_COLUMNS_INCLUDED

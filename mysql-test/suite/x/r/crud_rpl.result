@@ -152,7 +152,7 @@ RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
@@ -216,7 +216,7 @@ RUN SHOW CREATE TABLE xplugintest.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))
@@ -348,7 +348,7 @@ SHOW CREATE TABLE xplugintest.table2;
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7` text GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$.name'))) VIRTUAL NOT NULL,
   PRIMARY KEY (`_id`),
   UNIQUE KEY `name_index` (`$ix_t50_r_2BAA686C5604372BA51E965E6346198F5072C3D7`(50))

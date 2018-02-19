@@ -35,8 +35,6 @@ drop table t1;
 ==== Bug22504 Initialize ====
 [on master]
 SET sql_mode='ignore_space';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a int);
 insert into t1 values (1), (2), (3), (4);
 select * into outfile 'MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
@@ -82,9 +80,7 @@ LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql'/*!10000 INTO*/TAB
 LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql'/* empty */INTO TABLE t1;
 LOAD DATA/*!10000 LOCAL */INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO/* empty */TABLE t1;
 LOAD/*!99999 special comments that do not expand */DATA/*!99999 code from the future */LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql'/*!99999 have flux capacitor */INTO/*!99999 will travel */TABLE t1;
-SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,NO_KEY_OPTIONS,NO_TABLE_OPTIONS,NO_FIELD_OPTIONS,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL,NO_AUTO_CREATE_USER';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+SET sql_mode='PIPES_AS_CONCAT,ANSI_QUOTES,STRICT_TRANS_TABLES,STRICT_ALL_TABLES,TRADITIONAL';
 LOAD DATA LOCAL INFILE 'MYSQLD_DATADIR/bug43746.sql' INTO TABLE t1;
 [slave]
 include/sync_slave_sql_with_master.inc
@@ -107,8 +103,6 @@ Slave	44
 [master]
 DROP TABLE t1;
 SET SESSION sql_mode=@old_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 [slave]
 include/sync_slave_sql_with_master.inc
 

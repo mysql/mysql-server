@@ -7962,6 +7962,12 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 INSERT INTO t VALUES ('1', '1', '1');
 UPDATE t SET jarray  = JSON_ARRAY(jarray),
 jobject = JSON_OBJECT('a', jobject),
+jmix    = CASE WHEN MOD(0, 2) = 0
+THEN JSON_ARRAY(jmix)
+ELSE JSON_OBJECT('a', jmix)
+END;
+UPDATE t SET jarray  = JSON_ARRAY(jarray),
+jobject = JSON_OBJECT('a', jobject),
 jmix    = CASE WHEN MOD(1, 2) = 0
 THEN JSON_ARRAY(jmix)
 ELSE JSON_OBJECT('a', jmix)
@@ -8556,12 +8562,12 @@ ELSE JSON_OBJECT('a', jmix)
 END;
 SELECT JSON_DEPTH(jarray), JSON_DEPTH(jobject), JSON_DEPTH(jmix) FROM t;
 JSON_DEPTH(jarray)	JSON_DEPTH(jobject)	JSON_DEPTH(jmix)
-100	100	100
+101	101	101
 SELECT JSON_DEPTH(CAST(jarray AS CHAR)),
 JSON_DEPTH(CAST(jobject AS CHAR)),
 JSON_DEPTH(CAST(jmix AS CHAR)) FROM t;
 JSON_DEPTH(CAST(jarray AS CHAR))	JSON_DEPTH(CAST(jobject AS CHAR))	JSON_DEPTH(CAST(jmix AS CHAR))
-100	100	100
+101	101	101
 SELECT JSON_VALID(jarray), JSON_VALID(jobject), JSON_VALID(jmix) FROM t;
 JSON_VALID(jarray)	JSON_VALID(jobject)	JSON_VALID(jmix)
 1	1	1
@@ -8700,8 +8706,6 @@ Warning	1478	Table storage engine 'ndbcluster' does not support the create optio
 INSERT INTO t(j) VALUES (DEFAULT);
 ERROR HY000: Field 'j' doesn't have a default value
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO t(j) VALUES (DEFAULT);
 Warnings:
 Warning	1364	Field 'j' doesn't have a default value

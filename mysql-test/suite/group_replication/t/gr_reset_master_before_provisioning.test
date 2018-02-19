@@ -1,0 +1,189 @@
+################################################################################
+# This test intends to prove that members can survive reset master commands.
+# These commands end up causing the members to purge their relay logs even when
+# the member has some provisioned data.
+# This test has 3 phases:
+#  1) Insert some data and sync both members
+#  2) Reset both members, insert some data on member one
+#     Provision member two and start replication
+#     Check that all data from phase 1 disappeared and the members are in sync.
+#  3) Restart group replication on member 2, testing that no data remains
+#     from phase 1
+#
+# Test:
+# 0. The test requires two servers: M1 and M2.
+#
+# Phase 1: Insert some data and sync both members.
+# 1. Bootstrap start a group on M1 and insert some data. Start GR on M2.
+#    Validate both members have the same GTID set.
+#
+# Phase 2: Reset the group and provision a server.
+# 2. Stop GR and reset master on both members.
+# 3. On M1, add some data and bootstrap start group replication.
+# 4. On M2, fake the member being provisioned. Start group replication.
+# 5. Test that the group works by adding some data.
+# 6. Validate both members have the same data.
+#
+# Phase 3: Restart group replication on M3.
+# 7. Stop and start GR on M2.
+# 8. Add some data on M2.
+# 9. Validate both members have the same data.
+#
+# 10. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/have_group_replication_gtid_assignment_block_size_1.inc
+--let $group_replication_group_name= c7ce5980-0851-11e4-9191-0800200c9a66
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+#
+# Phase 1: Start the group and insert data
+#
+
+--connection server1
+--source include/start_and_bootstrap_group_replication.inc
+
+#Create a table and insert some data
+--connection server1
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--connection server2
+--source include/start_group_replication.inc
+
+--connection server1
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+#Both members must have the same GTID set
+--let $server_count=2
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On member $server_count, all executed GTID should belong to the group
+  --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "c7ce5980-0851-11e4-9191-0800200c9a66:1-7";
+  --source include/assert.inc
+  --dec $server_count
+}
+
+DROP TABLE t1;
+
+--let $sync_slave_connection= server2
+--source include/sync_slave_sql_with_master.inc
+
+#
+# Phase 2: Reset the group and provision a server
+#
+
+#Stop and reset both members
+
+--connection server1
+--source include/stop_group_replication.inc
+RESET MASTER;
+
+--connection server2
+--source include/stop_group_replication.inc
+RESET MASTER;
+
+--connection server1
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--connection server2
+
+#Fake the member being provisioned.
+
+--disable_result_log
+--disable_query_log
+eval SET @@SESSION.GTID_NEXT= '$server_uuid:1';
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+eval SET @@SESSION.GTID_NEXT= '$server_uuid:2';
+INSERT INTO t1 VALUES (1);
+--enable_result_log
+--enable_query_log
+
+SET GTID_NEXT = 'AUTOMATIC';
+
+#Start the member
+--source include/start_group_replication.inc
+
+#Test that the group works
+
+--connection server1
+
+INSERT INTO t1 VALUES (2);
+
+--connection server2
+
+INSERT INTO t1 VALUES (3);
+
+--source include/rpl_sync.inc
+
+#Both members should possess the same data
+
+--let $server_count=2
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On member $server_count, the table should exist and have 3 elements
+  --let $assert_cond= [select count(*) from t1] = 3;
+  --source include/assert.inc
+  --dec $server_count
+}
+
+if(`SELECT "$server_uuid" < "$group_replication_group_name"`)
+{
+--let $wait_condition= SELECT transactions_committed_all_members like "$server_uuid:1-2,%$group_replication_group_name:1-4" from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+}
+if(`SELECT "$server_uuid" > "$group_replication_group_name"`)
+{
+--let $wait_condition= SELECT transactions_committed_all_members like "$group_replication_group_name:1-4,%$server_uuid:1-2" from performance_schema.replication_group_member_stats where member_id in (SELECT @@server_uuid);
+}
+--let $wait_timeout= 150
+--source include/wait_condition.inc
+--echo [ The value of stable_set should contain both provisioned and group GIIDs ]
+
+
+#
+# Phase 3: Restart group replication on member 2
+#
+
+--connection server2
+
+--source include/stop_group_replication.inc
+--source include/start_group_replication.inc
+
+INSERT INTO t1 VALUES (4);
+--source include/rpl_sync.inc
+
+#Both members should possess the same data
+
+--let $server_count=2
+while ($server_count)
+{
+  --connection server$server_count
+  --let $assert_text= On member $server_count, the table should exist and have 4 elements
+  --let $assert_cond= [select count(*) from t1] = 4;
+  --source include/assert.inc
+  --dec $server_count
+}
+
+#
+#Cleanup
+#
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

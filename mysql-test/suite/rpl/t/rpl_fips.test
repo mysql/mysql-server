@@ -1,0 +1,70 @@
+# ==== Requirements ====
+# #
+# # R1. When @@global.ssl_fips=1, and replication does not use ssl, replication shall work
+# # R2. When @@global.ssl_fips=1, and replication uses ssl with a weak cipher, replication shall fail to connect
+# # R3. When @@global.ssl_fips=1, and replication uses ssl with a strong cipher, replication shall work
+# #
+# # ==== References ====
+# #
+# # WL#8102: Make sure MySQL compiles and runs with the OpenSSL FIPS Object Module
+
+
+--source include/not_windows.inc
+--source include/have_fips.inc
+--source include/not_group_replication_plugin.inc
+--source include/master-slave.inc
+
+CALL mtr.add_suppression("Failed to set up SSL because of the following *");
+CALL mtr.add_suppression("Slave SQL for channel '': Request to stop slave SQL Thread received while *");
+
+--echo [on master]
+connection master;
+SET GLOBAL ssl_fips_mode=on;
+
+--echo [on slave]
+connection slave;
+source include/stop_slave.inc;
+--echo # R1: Set the ssl connection OFF
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 0;
+source include/start_slave.inc;
+--source include/check_slave_no_error.inc
+
+--echo [on slave]
+connection slave;
+source include/stop_slave.inc;
+--echo # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'CAMELLIA256-SHA', master_retry_count = 1;
+START SLAVE;
+--let $slave_io_errno= 2026
+--source include/wait_for_slave_io_error.inc
+connection slave;
+select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_connection_status;
+
+--echo # R3: Set the ssl connection ON and strong cipher
+connection slave;
+--source include/stop_slave.inc
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'AES128-SHA';
+source include/start_slave.inc;
+--source include/check_slave_no_error.inc
+
+--source include/stop_slave.inc
+
+--echo ==== Cleanup (Note that slave IO thread is not running) ====
+# cleanup: slave io thread has stopped so we reset replication
+--replace_column 2 ####
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
+
+# clear Slave_IO_Errno
+--let $rpl_only_running_threads= 1
+--source include/rpl_reset.inc
+
+
+--echo [on master]
+connection master;
+SET GLOBAL ssl_fips_mode=off;
+
+--source include/rpl_end.inc
+--source include/force_restart.inc

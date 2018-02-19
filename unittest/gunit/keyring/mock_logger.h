@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,25 @@
 
 #include <gmock/gmock.h>
 
+#include <sql/derror.h>
 #include "plugin/keyring/common/logger.h"
 
-namespace keyring
-{
-  class Mock_logger : public ILogger
-  {
-  public:
-    MOCK_METHOD2(log, void(plugin_log_level level, const char *message));
-  };
-} //namespace keyring
-#endif //MOCKLOGGER_H
+namespace keyring {
+class Mock_logger : public ILogger {
+ public:
+  MOCK_METHOD2(log, void(longlong level, const char *msg));
+
+  void log(longlong level, longlong errcode, ...) {
+    char buf[LOG_BUFF_MAX];
+    const char *fmt = error_message_for_error_log(errcode);
+
+    va_list vl;
+    va_start(vl, errcode);
+    vsnprintf(buf, LOG_BUFF_MAX - 1, fmt, vl);
+    va_end(vl);
+
+    log(level, buf);
+  }
+};
+}  // namespace keyring
+#endif  // MOCKLOGGER_H

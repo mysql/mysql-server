@@ -23,4 +23,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *srv_session_service= (void*)VERSION_srv_session_service;
+SERVICE_VERSION *srv_session_service = (void **)VERSION_srv_session_service;

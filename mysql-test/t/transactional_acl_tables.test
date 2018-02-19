@@ -235,7 +235,7 @@ ROLLBACK;
 --connection default
 
 # Check the SET PASSWORD was successful.
-SELECT user, host, authentication_string = password('xxx') FROM mysql.user WHERE host = 'h';
+SELECT user, host, authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548' FROM mysql.user WHERE host = 'h';
 
 # Drop the created users (cleanup).
 DROP USER u1@h;
@@ -1365,11 +1365,10 @@ DROP USER u2@l;
 call mtr.add_suppression("Did not write failed .*");
 call mtr.add_suppression("REVOKE/GRANT failed .* An incident event has been written to the binary log which will stop the slaves.");
 
-# NO_AUTO_CREATE_USER defines if the GRANT statement creates non-existing users
-# automatically or not. Unless NO_AUTO_CREATE_USER is set, it is not possible
-# to execute a GRANT statement only for some users (unlike 'DROP USER' which
-# drops only existing users from the lists). It is possible however, to make
-# the GRANT statement fail by specifying non-existing table or column.
+# It is not possible to execute a GRANT statement only for some users
+# (unlike 'DROP USER' which drops only existing users from the lists).
+# It is possible however, to make the GRANT statement fail by specifying
+# non-existing table or column.
 #
 # This is no the case for the REVOKE statement -- it will report an error for
 # every non-existing user from the list and skip it.
@@ -1394,7 +1393,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo
 --echo # GRANT for non existing user.
 --echo # (only non-existing user components fail).
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT(b) ON t1 TO u1@h, u2@h, u3@h;
 SHOW WARNINGS;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
@@ -1408,7 +1407,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 --echo
 --echo # REVOKE with existing and non existing user (REVOKE removed privileges
 --echo # for existing accounts despite an error).
---error ER_NONEXISTING_GRANT
+--error ER_NONEXISTING_TABLE_GRANT
 REVOKE SELECT(a) ON t1 FROM u0@h, u1@h, u2@h, u3@h;
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 
@@ -1481,9 +1480,8 @@ DROP USER u1@h, u2@h;
 --echo # D. Simulate the SE failure and check the ACL statement behavior.
 --echo ####################################################################
 
-SET sql_mode = ''; # No need for NO_AUTO_CREATE_USER any more.
-
 CREATE TABLE t1(a INT);
+CREATE USER user1@;
 GRANT UPDATE (a) ON t1 TO user1@;
 
 SET debug='+d,wl7158_grant_table_1';
@@ -1579,37 +1577,34 @@ SHOW WARNINGS;
 SET debug="-d,wl7158_replace_user_table_2";
 DROP USER u1@h;
 
+CREATE USER u1@h;
 SET debug="+d,wl7158_replace_user_table_1";
 --error ER_ACL_OPERATION_FAILED
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
 SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_replace_user_table_1";
 
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SET debug="+d,wl7158_replace_user_table_2";
 --error ER_ACL_OPERATION_FAILED
-GRANT USAGE ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
   AND SUBJECT "testsubject" ISSUER "MySQL";
 SHOW WARNINGS;
 SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_replace_user_table_2";
 DROP USER u1@h;
 
-CREATE USER u1@h;
-CREATE TABLE t1(a INT);
 SET debug="+d,wl7158_replace_user_table_1";
 --error ER_ACL_OPERATION_FAILED
-GRANT SELECT ON t1 TO u1@h;
+CREATE USER u1@h;
 SET debug="-d,wl7158_replace_user_table_1";
-DROP TABLE t1;
-DROP USER u1@h;
 
 CREATE USER u1@h;
 CREATE TABLE t1(a INT);
 SET debug="+d,mysql_table_grant_out_of_memory";
---error ER_OUT_OF_RESOURCES
+CALL mtr.add_suppression(".*Out of memory *");
+--error ER_OUT_OF_RESOURCES, 5
 GRANT SELECT ON t1 TO u1@h;
 SET debug="-d,mysql_table_grant_out_of_memory";
 DROP TABLE t1;
@@ -1626,14 +1621,14 @@ SET debug="-d,wl7158_replace_user_table_3";
 CREATE USER u1@h;
 SET debug="+d,wl7158_replace_db_table_1";
 --error ER_ACL_OPERATION_FAILED
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SHOW WARNINGS;
 SET debug="-d,wl7158_replace_db_table_1";
 
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SET debug="+d,wl7158_replace_db_table_2";
 --error ER_ACL_OPERATION_FAILED
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SHOW WARNINGS;
 SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_replace_db_table_2";
@@ -1646,13 +1641,13 @@ SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_replace_db_table_3";
 DROP USER u1@h;
 
+CREATE USER u1@h;
 SET debug="+d,wl7158_replace_db_table_4";
 --error ER_ACL_OPERATION_FAILED
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
 SET debug="-d,wl7158_replace_db_table_4";
+DROP USER u1@h;
 
 SET debug="+d,mysql_handle_grant_data_fail_on_routine_table";
 --error ER_ACL_OPERATION_FAILED
@@ -1859,7 +1854,7 @@ SHOW GRANTS FOR u1@h;
 
 GRANT UPDATE (a) ON t1 TO u1@h;
 SET debug='+d,mysql_grant_table_init_out_of_memory';
---error ER_OUT_OF_RESOURCES
+--error ER_OUT_OF_RESOURCES, 5
 FLUSH PRIVILEGES;
 SET debug='-d,mysql_grant_table_init_out_of_memory';
 
@@ -1869,23 +1864,22 @@ DROP USER u1@h;
 
 --echo # Test case that checks the whole transaction was rolled back
 --echo # in the case of system error and that in-memory cache was reloaded after that
+CREATE USER u1@h;
 CREATE TABLE t1 (a INT);
 SET debug="+d,wl7158_replace_column_table_5";
 
 --error ER_ACL_OPERATION_FAILED
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 SHOW WARNINGS;
---error ER_NONEXISTING_GRANT
-SHOW GRANTS FOR u1@h;
 
 --echo # Check that changes of the whole statement have been rolled back.
 SELECT * FROM mysql.columns_priv WHERE host = 'h' AND user = 'u1';
 SELECT * FROM mysql.tables_priv WHERE host = 'h' AND user = 'u1';
-SELECT * FROM mysql.user WHERE host = 'h' AND user = 'u1';
 
 SET debug="-d,wl7158_replace_column_table_5";
 
 DROP TABLE t1;
+DROP USER u1@h;
 #
 # Tests for table priv
 #

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,13 +35,11 @@
 #include "plugin/x/client/xcontext.h"
 #include "plugin/x/client/xquery_instances.h"
 
-
 namespace xcl {
 
 class Protocol_factory {
  public:
-  virtual ~Protocol_factory() {
-  }
+  virtual ~Protocol_factory() {}
 
   virtual std::shared_ptr<XProtocol> create_protocol(
       std::shared_ptr<Context> context) = 0;
@@ -50,8 +48,7 @@ class Protocol_factory {
       std::shared_ptr<Context> context) = 0;
 
   virtual std::unique_ptr<XQuery_result> create_result(
-      std::shared_ptr<XProtocol> protocol,
-      Query_instances *query_instances,
+      std::shared_ptr<XProtocol> protocol, Query_instances *query_instances,
       std::shared_ptr<Context> context) = 0;
 };
 

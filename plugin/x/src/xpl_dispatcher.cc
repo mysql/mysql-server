@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -43,12 +43,12 @@ namespace {
 
 class Stmt {
  public:
-  ngs::Error_code execute(ngs::Sql_session_interface &da,
-                          ngs::Protocol_encoder_interface &proto,
-                          const bool show_warnings, const bool compact_metadata,
-                          const std::string &query,
-                          const ::google::protobuf::RepeatedPtrField<
-                              ::Mysqlx::Datatypes::Any> &args) {
+  ngs::Error_code execute(
+      ngs::Sql_session_interface &da, ngs::Protocol_encoder_interface &proto,
+      const bool show_warnings, const bool compact_metadata,
+      const std::string &query,
+      const ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>
+          &args) {
     const int args_size = args.size();
 
     if (0 == args_size)
@@ -62,8 +62,7 @@ class Stmt {
       for (int i = 0; i < args_size; ++i) {
         ngs::Getter_any::put_scalar_value_to_functor(args.Get(i), *this);
       }
-    }
-    catch (const ngs::Error_code &error) {
+    } catch (const ngs::Error_code &error) {
       return error;
     }
 
@@ -114,7 +113,7 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
   log_debug("%s: %s", session.client().client_id(), msg.stmt().c_str());
 
   if (msg.namespace_() == "sql" || !msg.has_namespace_()) {
-    session.update_status<&xpl::Common_status_variables::m_stmt_execute_sql>();
+    session.update_status<&ngs::Common_status_variables::m_stmt_execute_sql>();
     return Stmt().execute(session.data_context(), session.proto(),
                           session.options().get_send_warnings(),
                           msg.compact_metadata(), msg.stmt(), msg.args());
@@ -122,7 +121,7 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
 
   if (msg.namespace_() == "xplugin") {
     session
-        .update_status<&xpl::Common_status_variables::m_stmt_execute_xplugin>();
+        .update_status<&ngs::Common_status_variables::m_stmt_execute_xplugin>();
     if (session.options().get_send_xplugin_deprecation()) {
       xpl::notices::send_message(
           session.proto(),
@@ -130,16 +129,16 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
       session.options().set_send_xplugin_deprecation(false);
     }
     xpl::Admin_command_arguments_list args(msg.args());
-    return xpl::Admin_command_handler(&session)
-        .execute(msg.namespace_(), msg.stmt(), &args);
+    return xpl::Admin_command_handler(&session).execute(msg.namespace_(),
+                                                        msg.stmt(), &args);
   }
 
   if (msg.namespace_() == xpl::Admin_command_handler::MYSQLX_NAMESPACE) {
     session
-        .update_status<&xpl::Common_status_variables::m_stmt_execute_mysqlx>();
+        .update_status<&ngs::Common_status_variables::m_stmt_execute_mysqlx>();
     xpl::Admin_command_arguments_object args(msg.args());
-    return xpl::Admin_command_handler(&session)
-        .execute(msg.namespace_(), msg.stmt(), &args);
+    return xpl::Admin_command_handler(&session).execute(msg.namespace_(),
+                                                        msg.stmt(), &args);
   }
 
   return ngs::Error(ER_X_INVALID_NAMESPACE, "Unknown namespace %s",
@@ -149,7 +148,7 @@ ngs::Error_code on_stmt_execute(xpl::Session &session,
 ngs::Error_code on_expect_open(xpl::Session &session,
                                xpl::Expectation_stack &expect,
                                const Mysqlx::Expect::Open &msg) {
-  session.update_status<&xpl::Common_status_variables::m_expect_open>();
+  session.update_status<&ngs::Common_status_variables::m_expect_open>();
 
   ngs::Error_code error = expect.open(msg);
   if (!error) session.proto().send_ok();
@@ -158,8 +157,8 @@ ngs::Error_code on_expect_open(xpl::Session &session,
 
 ngs::Error_code on_expect_close(xpl::Session &session,
                                 xpl::Expectation_stack &expect,
-                                const Mysqlx::Expect::Close&) {
-  session.update_status<&xpl::Common_status_variables::m_expect_close>();
+                                const Mysqlx::Expect::Close &) {
+  session.update_status<&ngs::Common_status_variables::m_expect_close>();
 
   ngs::Error_code error = expect.close();
   if (!error) session.proto().send_ok();

@@ -44,94 +44,60 @@
 // boost::geometry::empty_input_exception
 // boost::geometry::exception
 #include <boost/geometry/core/exception.hpp>
-#include <new> // std::bad_alloc
-#include <stdexcept> // Other std exceptions
+#include <new>        // std::bad_alloc
+#include <stdexcept>  // Other std exceptions
 #include <string>
 
-#include "my_inttypes.h"  // MYF
-#include "my_sys.h"       // my_error
-#include "mysqld_error.h" // Error codes
-#include "sql/gis/functor.h" // gis::not_implemented_exception
-#include "sql/gis/gc_utils.h" // gis::invalid_geometry_exception
+#include "my_inttypes.h"       // MYF
+#include "my_sys.h"            // my_error
+#include "mysqld_error.h"      // Error codes
+#include "sql/gis/functor.h"   // gis::not_implemented_exception
+#include "sql/gis/gc_utils.h"  // gis::invalid_geometry_exception
 
-void handle_std_exception(const char *funcname)
-{
-  try
-  {
+void handle_std_exception(const char *funcname) {
+  try {
     throw;
-  }
-  catch (const std::bad_alloc &e)
-  {
+  } catch (const std::bad_alloc &e) {
     my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::domain_error &e)
-  {
+  } catch (const std::domain_error &e) {
     my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::length_error &e)
-  {
+  } catch (const std::length_error &e) {
     my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::invalid_argument &e)
-  {
+  } catch (const std::invalid_argument &e) {
     my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), funcname);
-  }
-  catch (const std::out_of_range &e)
-  {
+  } catch (const std::out_of_range &e) {
     my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::overflow_error &e)
-  {
+  } catch (const std::overflow_error &e) {
     my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::range_error &e)
-  {
+  } catch (const std::range_error &e) {
     my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::underflow_error &e)
-  {
+  } catch (const std::underflow_error &e) {
     my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::logic_error &e)
-  {
+  } catch (const std::logic_error &e) {
     my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::runtime_error &e)
-  {
+  } catch (const std::runtime_error &e) {
     my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), funcname);
-  }
-  catch (const std::exception &e)
-  {
+  } catch (const std::exception &e) {
     my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), funcname);
-  }
-  catch (...)
-  {
+  } catch (...) {
     my_error(ER_UNKNOWN_ERROR, MYF(0));
   }
 }
 
-
-void handle_gis_exception(const char *funcname)
-{
-  try
-  {
+void handle_gis_exception(const char *funcname) {
+  try {
     throw;
-  }
-  catch (const gis::longitude_out_of_range_exception &e)
-  {
-    my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0),
-        e.value, funcname, e.range_min, e.range_max);
-  }
-  catch (const gis::latitude_out_of_range_exception &e)
-  {
-    my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0),
-        e.value, funcname, e.range_min, e.range_max);
-  }
-  catch (const gis::not_implemented_exception &e)
-  {
+  } catch (const gis::longitude_out_of_range_exception &e) {
+    my_error(ER_LONGITUDE_OUT_OF_RANGE, MYF(0), e.value, funcname, e.range_min,
+             e.range_max);
+  } catch (const gis::latitude_out_of_range_exception &e) {
+    my_error(ER_LATITUDE_OUT_OF_RANGE, MYF(0), e.value, funcname, e.range_min,
+             e.range_max);
+  } catch (const gis::not_implemented_exception &e) {
     int er_variant;
     switch (e.srs_type()) {
-      default: DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
+      default:
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case gis::not_implemented_exception::kCartesian:
         er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
         break;
@@ -143,42 +109,24 @@ void handle_gis_exception(const char *funcname)
         break;
     }
     my_error(er_variant, MYF(0), funcname, e.typenames());
-  }
-  catch (const gis::invalid_geometry_exception &e)
-  {
+  } catch (const gis::invalid_geometry_exception &e) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
-  }
-  catch (const boost::geometry::centroid_exception &)
-  {
+  } catch (const boost::geometry::centroid_exception &) {
     my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::overlay_invalid_input_exception &)
-  {
+  } catch (const boost::geometry::overlay_invalid_input_exception &) {
     my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),
              funcname);
-  }
-  catch (const boost::geometry::turn_info_exception &)
-  {
+  } catch (const boost::geometry::turn_info_exception &) {
     my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::empty_input_exception &)
-  {
+  } catch (const boost::geometry::empty_input_exception &) {
     my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const boost::geometry::inconsistent_turns_exception &)
-  {
+  } catch (const boost::geometry::inconsistent_turns_exception &) {
     my_error(ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION, MYF(0));
-  }
-  catch (const boost::geometry::exception &)
-  {
+  } catch (const boost::geometry::exception &) {
     my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), funcname);
-  }
-  catch (const std::exception &)
-  {
+  } catch (const std::exception &) {
     handle_std_exception(funcname);
-  }
-  catch (...)
-  {
+  } catch (...) {
     my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), funcname);
   }
 }

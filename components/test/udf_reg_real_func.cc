@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
    udf_unreg_int_func.cc, doing it in init (install). */
 
 #include <ctype.h>
+#include <mysql/components/component_implementation.h>
+#include <mysql/components/service_implementation.h>
+#include <mysql/components/services/udf_registration.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <mysql/components/component_implementation.h>
-#include <mysql/components/service_implementation.h>
-#include <mysql/components/services/udf_registration.h>
 #include <string>
 
 REQUIRES_SERVICE_PLACEHOLDER(udf_registration);
@@ -52,94 +52,73 @@ REQUIRES_SERVICE_PLACEHOLDER(udf_registration_aggregate);
 ** This function should return the result.
 ***************************************************************************/
 
-bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
-{
+bool myfunc_double_init(UDF_INIT *initid, UDF_ARGS *args, char *message) {
   unsigned i;
 
-  if (!args->arg_count)
-  {
-    strcpy(message,"myfunc_double must have at least one argument");
+  if (!args->arg_count) {
+    strcpy(message, "myfunc_double must have at least one argument");
     return 1;
   }
   /*
   ** As this function wants to have everything as strings, force all arguments
   ** to strings.
   */
-  for (i=0 ; i < args->arg_count; i++)
-    args->arg_type[i]=STRING_RESULT;
-  initid->maybe_null=1;         /* The result may be null */
-  initid->decimals=2;           /* We want 2 decimals in the result */
-  initid->max_length=6;         /* 3 digits + . + 2 decimals */
+  for (i = 0; i < args->arg_count; i++) args->arg_type[i] = STRING_RESULT;
+  initid->maybe_null = 1; /* The result may be null */
+  initid->decimals = 2;   /* We want 2 decimals in the result */
+  initid->max_length = 6; /* 3 digits + . + 2 decimals */
   return 0;
 }
 
-
-double myfunc_double(UDF_INIT *, UDF_ARGS *args,
-                     char *is_null, char *)
-{
+double myfunc_double(UDF_INIT *, UDF_ARGS *args, char *is_null, char *) {
   unsigned long val = 0;
   unsigned long v = 0;
   unsigned i, j;
 
-  for (i = 0; i < args->arg_count; i++)
-  {
-    if (args->args[i] == NULL)
-      continue;
+  for (i = 0; i < args->arg_count; i++) {
+    if (args->args[i] == NULL) continue;
     val += args->lengths[i];
-    for (j=args->lengths[i] ; j-- > 0 ;)
-      v += args->args[i][j];
+    for (j = args->lengths[i]; j-- > 0;) v += args->args[i][j];
   }
-  if (val)
-    return (double) v/ (double) val;
-  *is_null=1;
+  if (val) return (double)v / (double)val;
+  *is_null = 1;
   return 0.0;
 }
 
 /**************************************************************************************/
 
-static mysql_service_status_t init()
-{
-  bool ret_double= false;
-  ret_double= mysql_service_udf_registration->udf_register("myfunc_double",
-                                                    REAL_RESULT,
-                                                    (Udf_func_any)myfunc_double,
-                                                    (Udf_func_init)myfunc_double_init,
-                                                    NULL);
+static mysql_service_status_t init() {
+  bool ret_double = false;
+  ret_double = mysql_service_udf_registration->udf_register(
+      "myfunc_double", REAL_RESULT, (Udf_func_any)myfunc_double,
+      (Udf_func_init)myfunc_double_init, NULL);
   return ret_double;
 }
 
-static mysql_service_status_t deinit()
-{
-  int was_present= 0;
-  for (int i=0; i<10; i++)
-  {  
+static mysql_service_status_t deinit() {
+  int was_present = 0;
+  for (int i = 0; i < 10; i++) {
     mysql_service_udf_registration->udf_unregister("myfunc_double",
-                                                 &was_present);
+                                                   &was_present);
     if (was_present != 0) break;
   }
   return false;
 }
 
 BEGIN_COMPONENT_PROVIDES(test_udf_registration)
-END_COMPONENT_PROVIDES()
-
+END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_REQUIRES(test_udf_registration)
-  REQUIRES_SERVICE(udf_registration)
-  REQUIRES_SERVICE(udf_registration_aggregate)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(udf_registration),
+    REQUIRES_SERVICE(udf_registration_aggregate), END_COMPONENT_REQUIRES();
 
 BEGIN_COMPONENT_METADATA(test_udf_registration)
-  METADATA("mysql.author", "Oracle Corporation")
-  METADATA("mysql.license", "GPL")
-  METADATA("test_property", "1")
-END_COMPONENT_METADATA()
+METADATA("mysql.author", "Oracle Corporation"),
+    METADATA("mysql.license", "GPL"), METADATA("test_property", "1"),
+    END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(test_udf_registration, "mysql:test_udf_registration")
-  init,
-  deinit
-END_DECLARE_COMPONENT()
+init, deinit END_DECLARE_COMPONENT();
 
-DECLARE_LIBRARY_COMPONENTS
-  &COMPONENT_REF(test_udf_registration)
-END_DECLARE_LIBRARY_COMPONENTS
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_udf_registration)
+    END_DECLARE_LIBRARY_COMPONENTS

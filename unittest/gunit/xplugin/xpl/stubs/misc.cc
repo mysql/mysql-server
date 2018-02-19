@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,11 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "plugin/x/src/xpl_performance_schema.h"
 #include "mysql/service_plugin_registry.h"
+#include "plugin/x/src/xpl_performance_schema.h"
 #include "sql/replication.h"
+#include "violite.h"
+
 #ifdef HAVE_ARPA_INET_H
 #include <arpa/inet.h>
 #endif
@@ -41,112 +43,53 @@
 
 #include <atomic>
 
-typedef struct st_vio Vio;
-
-const char  *my_localhost;
+const char *my_localhost;
 std::atomic<int32> connection_events_loop_aborted_flag;
 
-int ip_to_hostname(struct sockaddr_storage*,
-                   const char*,
-                   char**,
-                   uint*)
-{
+int ip_to_hostname(struct sockaddr_storage *, const char *, char **, uint *) {
   DBUG_ASSERT(0);
   return 1;
 }
 
-int register_server_state_observer(Server_state_observer*, void*)
-{
+int register_server_state_observer(Server_state_observer *, void *) {
   return 0;
 }
 
-int unregister_server_state_observer(Server_state_observer*, void*)
-{
+int unregister_server_state_observer(Server_state_observer *, void *) {
   return 0;
 }
 
-extern "C"
-void ssl_wrapper_version(Vio*, char*, const size_t)
-{
-}
+void ssl_wrapper_version(Vio *, char *, const size_t) {}
 
-extern "C"
-void ssl_wrapper_cipher(Vio*, char*, const size_t)
-{
-}
+void ssl_wrapper_cipher(Vio *, char *, const size_t) {}
 
-extern "C"
-long ssl_wrapper_cipher_list(Vio*, const char**, const size_t)
-{
-  return 0;
-}
+long ssl_wrapper_cipher_list(Vio *, const char **, const long) { return 0; }
 
-extern "C"
-long ssl_wrapper_verify_depth(Vio*)
-{
-  return 0;
-}
+long ssl_wrapper_verify_depth(Vio *) { return 0; }
 
-extern "C"
-long ssl_wrapper_verify_mode(Vio*)
-{
-  return 0;
-}
+long ssl_wrapper_verify_mode(Vio *) { return 0; }
 
-extern "C"
-void ssl_wrapper_get_peer_certificate_issuer(Vio*, char*, const size_t)
-{
-}
+void ssl_wrapper_get_peer_certificate_issuer(Vio *, char *, const size_t) {}
 
-extern "C"
-void ssl_wrapper_get_peer_certificate_subject(Vio*, char*, const size_t)
-{
-}
+void ssl_wrapper_get_peer_certificate_subject(Vio *, char *, const size_t) {}
 
-extern "C"
-long ssl_wrapper_get_verify_result_and_cert(Vio*)
-{
-  return 0;
-}
+long ssl_wrapper_get_verify_result_and_cert(Vio *) { return 0; }
 
-extern "C"
-long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd*)
-{
-  return 0;
-}
+long ssl_wrapper_ctx_verify_depth(struct st_VioSSLFd *) { return 0; }
 
-extern "C"
-long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd*)
-{
-  return 0;
-}
+long ssl_wrapper_ctx_verify_mode(struct st_VioSSLFd *) { return 0; }
 
-extern "C"
-void  ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd*, char*, const size_t)
-{
-}
+void ssl_wrapper_ctx_server_not_after(struct st_VioSSLFd *, char *,
+                                      const size_t) {}
 
-extern "C"
-void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd*, char*, const size_t)
-{
-}
+void ssl_wrapper_ctx_server_not_before(struct st_VioSSLFd *, char *,
+                                       const size_t) {}
 
-extern "C"
-void ssl_wrapper_thread_cleanup()
-{
-}
+void ssl_wrapper_thread_cleanup() {}
 
-extern "C"
-long ssl_wrapper_sess_accept(struct st_VioSSLFd*)
-{
-  return 0;
-}
+long ssl_wrapper_sess_accept(struct st_VioSSLFd *) { return 0; }
 
-extern "C"
-long ssl_wrapper_sess_accept_good(struct st_VioSSLFd*)
-{
-  return 0;
-}
+long ssl_wrapper_sess_accept_good(struct st_VioSSLFd *) { return 0; }
 
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
 

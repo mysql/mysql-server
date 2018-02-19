@@ -39,6 +39,7 @@
 #include <unistd.h>
 #include <mysql.h>
 #include "my_getopt.h"
+#include "mysql/service_mysql_alloc.h"
 #include <signal.h>
 #include "../../../client/client_priv.h"
 #include "welcome_copyright_notice.h" /* ORACLE_WELCOME_COPYRIGHT_NOTICE */

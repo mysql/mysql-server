@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,44 +22,35 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_CAPABILITIE_READONLY_H_
 #define _NGS_CAPABILITIE_READONLY_H_
-
 
 #include "plugin/x/ngs/include/ngs/capabilities/handler.h"
 #include "plugin/x/ngs/include/ngs/mysqlx/setter_any.h"
 
+namespace ngs {
 
-namespace ngs
-{
+class Capability_readonly_value : public Capability_handler {
+ public:
+  template <typename ValueType>
+  Capability_readonly_value(const std::string &cap_name, const ValueType &value)
+      : m_name(cap_name) {
+    Setter_any::set_scalar(m_value, value);
+  }
 
+  virtual const std::string name() const { return m_name; }
+  virtual bool is_supported() const { return true; }
 
-  class Capability_readonly_value : public Capability_handler
-  {
-  public:
-    template<typename ValueType>
-    Capability_readonly_value(const std::string &cap_name, const ValueType& value)
-    : m_name(cap_name)
-    {
-      Setter_any::set_scalar(m_value, value);
-    }
+  virtual void get(::Mysqlx::Datatypes::Any &any) { any.CopyFrom(m_value); }
+  virtual bool set(const ::Mysqlx::Datatypes::Any &) { return false; };
 
-    virtual const std::string name() const { return m_name; }
-    virtual bool is_supported() const { return true; }
+  virtual void commit() {}
 
-    virtual void get(::Mysqlx::Datatypes::Any &any) {any.CopyFrom(m_value); }
-    virtual bool set(const ::Mysqlx::Datatypes::Any&) { return false; };
+ private:
+  const std::string m_name;
+  ::Mysqlx::Datatypes::Any m_value;
+};
 
-    virtual void commit() {}
+}  // namespace ngs
 
-  private:
-    const std::string        m_name;
-    ::Mysqlx::Datatypes::Any m_value;
-  };
-
-
-} // namespace ngs
-
-
-#endif // _NGS_CAPABILITIE_READONLY_H_
+#endif  // _NGS_CAPABILITIE_READONLY_H_

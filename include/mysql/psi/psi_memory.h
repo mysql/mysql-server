@@ -31,9 +31,9 @@
   MAINTAINER:
   Note that this file is part of the public API,
   because mysql.h exports
-    struct st_mem_root
+    struct MEM_ROOT
   See
-    - PSI_memory_key st_mem_root::m_psi_key
+    - PSI_memory_key MEM_ROOT::m_psi_key
     - include/mysql.h.pp
 */
 
@@ -55,10 +55,6 @@
 */
 typedef unsigned int PSI_memory_key;
 
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
-
 /**
   @def PSI_MEMORY_VERSION_1
   Performance Schema Memory Interface number for version 1.
@@ -76,8 +72,7 @@ extern "C" {
 struct PSI_thread;
 
 /** Entry point for the performance schema interface. */
-struct PSI_memory_bootstrap
-{
+struct PSI_memory_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -96,8 +91,7 @@ typedef struct PSI_memory_bootstrap PSI_memory_bootstrap;
   Performance Schema Memory Interface, version 1.
   @since PSI_MEMORY_VERSION_1
 */
-struct PSI_memory_service_v1
-{
+struct PSI_memory_service_v1 {
   /** @sa register_memory_v1_t. */
   register_memory_v1_t register_memory;
   /** @sa memory_alloc_v1_t. */
@@ -115,10 +109,6 @@ typedef struct PSI_memory_service_v1 PSI_memory_service_t;
 extern MYSQL_PLUGIN_IMPORT PSI_memory_service_t *psi_memory_service;
 
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
-
-#ifdef __cplusplus
-}
-#endif /* __cplusplus */
 
 /** @} (end of group psi_abi_memory) */
 

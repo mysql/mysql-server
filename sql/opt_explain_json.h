@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef OPT_EXPLAIN_FORMAT_JSON_INCLUDED
 #define OPT_EXPLAIN_FORMAT_JSON_INCLUDED
 
@@ -32,22 +31,20 @@
 class Query_result;
 class SELECT_LEX_UNIT;
 
-namespace opt_explain_json_namespace
-{
-  class context;
+namespace opt_explain_json_namespace {
+class context;
 }
 
 /**
   Formatter class for EXPLAIN FORMAT=JSON output
 */
 
-class Explain_format_JSON : public Explain_format
-{
-private:
-  opt_explain_json_namespace::context *current_context; ///< current tree node
+class Explain_format_JSON : public Explain_format {
+ private:
+  opt_explain_json_namespace::context *current_context;  ///< current tree node
   Query_result *output;
 
-public:
+ public:
   Explain_format_JSON() : current_context(NULL), output(NULL) {}
 
   virtual bool is_hierarchical() const { return true; }
@@ -60,4 +57,4 @@ public:
   virtual qep_row *entry();
 };
 
-#endif//OPT_EXPLAIN_FORMAT_JSON_INCLUDED
+#endif  // OPT_EXPLAIN_FORMAT_JSON_INCLUDED

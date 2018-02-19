@@ -30,10 +30,17 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
+#include "mysql_com.h"
+#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
+class Plugin_table;
 struct PFS_setup_object;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -41,8 +48,7 @@ struct PFS_setup_object;
 */
 
 /** A row of PERFORMANCE_SCHEMA.SETUP_OBJECTS. */
-struct row_setup_objects
-{
+struct row_setup_objects {
   /** Column OBJECT_TYPE. */
   enum_object_type m_object_type;
   /** Column SCHEMA_NAME. */
@@ -59,42 +65,34 @@ struct row_setup_objects
   bool *m_timed_ptr;
 };
 
-class PFS_index_setup_objects : public PFS_engine_index
-{
-public:
+class PFS_index_setup_objects : public PFS_engine_index {
+ public:
   PFS_index_setup_objects()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OBJECT_TYPE"),
-      m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("OBJECT_TYPE"),
+        m_key_2("OBJECT_SCHEMA"),
+        m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_setup_objects()
-  {
-  }
+  ~PFS_index_setup_objects() {}
 
   virtual bool match(PFS_setup_object *pfs);
   virtual bool match(row_setup_objects *row);
 
-private:
+ private:
   PFS_key_object_type_enum m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_OBJECTS. */
-class table_setup_objects : public PFS_engine_table
-{
-public:
+class table_setup_objects : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   /** Table builder. */
   static PFS_engine_table *create(PFS_engine_table_share *);
-  static int write_row(PFS_engine_table *pfs_table,
-                       TABLE *table,
-                       unsigned char *buf,
-                       Field **fields);
+  static int write_row(PFS_engine_table *pfs_table, TABLE *table,
+                       unsigned char *buf, Field **fields);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -106,29 +104,22 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
 
-  virtual int delete_row_values(TABLE *table,
-                                const unsigned char *buf,
+  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
                                 Field **fields);
 
   table_setup_objects();
 
-public:
-  ~table_setup_objects()
-  {
-  }
+ public:
+  ~table_setup_objects() {}
 
-private:
+ private:
   int make_row(PFS_setup_object *pfs);
 
   /** Table share lock. */

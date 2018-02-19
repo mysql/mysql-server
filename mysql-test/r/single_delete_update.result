@@ -71,8 +71,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -88,8 +88,8 @@ Sort_rows	8
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -123,8 +123,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -140,8 +140,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -183,7 +183,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	11
 Handler_read_prev	0
@@ -195,17 +195,17 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	677
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	13
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	11
 Handler_read_prev	0
-Handler_read_rnd	12
-Handler_read_rnd_next	17603
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 ## should be 12 (previous LIMIT)
 SELECT 677 - COUNT(*) FROM t2 WHERE b = 10;
 677 - COUNT(*)
@@ -228,8 +228,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -245,8 +245,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -302,7 +302,8 @@ DROP TABLE t2;
 #
 # quick select is Index Merge, should use filesort
 #
-CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
+ENGINE= MyISAM;
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 FLUSH STATUS;
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -320,7 +321,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	6
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	7
 Handler_read_prev	0
@@ -342,7 +343,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	10
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	7
 Handler_read_prev	0
@@ -428,8 +429,8 @@ Sort_rows	5
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -445,8 +446,8 @@ Sort_rows	26
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	6
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -494,17 +495,17 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 FLUSH STATUS;
 SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 a	b	c
@@ -517,34 +518,34 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
-Handler_read_last	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	1
 Handler_read_next	0
-Handler_read_prev	0
+Handler_read_prev	4
 Handler_read_rnd	0
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 FLUSH STATUS;
 DELETE FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
-Sort_merge_passes	3
+Sort_merge_passes	0
 Sort_range	0
-Sort_rows	17602
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	6
-Handler_read_last	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	1
 Handler_read_next	0
-Handler_read_prev	0
-Handler_read_rnd	5
-Handler_read_rnd_next	17603
+Handler_read_prev	4
+Handler_read_rnd	0
+Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE c = 10 ORDER BY a DESC, b DESC;
 a	b	c
 DROP TABLE t1, t2;
@@ -588,7 +589,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -626,8 +627,8 @@ Sort_rows	5
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -643,8 +644,8 @@ Sort_rows	5
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	6
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -679,8 +680,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -696,8 +697,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -739,7 +740,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	11
 Handler_read_prev	0
@@ -751,17 +752,17 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	12
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	13
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	11
 Handler_read_prev	0
 Handler_read_rnd	12
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 ## should be 12 (previous LIMIT)
 SELECT COUNT(*) FROM t2 WHERE b = 10 AND d = 10 ORDER BY a, c;
 COUNT(*)
@@ -784,8 +785,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -801,8 +802,8 @@ Sort_rows	1
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	2
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -860,7 +861,8 @@ DROP TABLE t2;
 #
 # quick select is Index Merge, should use filesort
 #
-CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2));
+CREATE TABLE t2 (i INT, key1 INT, key2 INT, INDEX (key1), INDEX (key2))
+ENGINE= MyISAM;
 INSERT INTO t2 (key1, key2) SELECT i, i FROM t1;
 FLUSH STATUS;
 SELECT * FROM t2 WHERE key1 < 13 or key2 < 14 ORDER BY key1;
@@ -878,7 +880,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	6
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	7
 Handler_read_prev	0
@@ -900,7 +902,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	10
+Handler_read_key	2
 Handler_read_last	0
 Handler_read_next	7
 Handler_read_prev	0
@@ -953,7 +955,7 @@ Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	0
-Handler_read_key	2
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -991,8 +993,8 @@ Sort_rows	5
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1008,8 +1010,8 @@ Sort_rows	5
 Sort_scan	1
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	6
+Handler_read_first	0
+Handler_read_key	0
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1041,17 +1043,17 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	0
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	4
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 FLUSH STATUS;
 SELECT * FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 a	b	c
@@ -1064,34 +1066,34 @@ SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	1
-Handler_read_last	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	1
 Handler_read_next	0
-Handler_read_prev	0
+Handler_read_prev	4
 Handler_read_rnd	0
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 FLUSH STATUS;
 UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 SHOW SESSION STATUS LIKE 'Sort%';
 Variable_name	Value
 Sort_merge_passes	0
 Sort_range	0
-Sort_rows	5
-Sort_scan	1
+Sort_rows	0
+Sort_scan	0
 SHOW STATUS LIKE 'Handler_read_%';
 Variable_name	Value
-Handler_read_first	1
-Handler_read_key	6
-Handler_read_last	0
+Handler_read_first	0
+Handler_read_key	0
+Handler_read_last	1
 Handler_read_next	0
-Handler_read_prev	0
+Handler_read_prev	4
 Handler_read_rnd	5
-Handler_read_rnd_next	17603
+Handler_read_rnd_next	0
 SELECT * FROM t2 WHERE c = 10 ORDER BY a DESC, b DESC;
 a	b	c
 35	35	10

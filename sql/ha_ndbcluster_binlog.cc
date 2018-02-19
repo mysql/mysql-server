@@ -27,6 +27,8 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
+#include "my_thread.h"
+#include "mysql/plugin.h"
 #include "sql/binlog.h"
 #include "sql/dd/types/abstract_table.h" // dd::enum_table_type
 #include "sql/derror.h"     // ER_THD
@@ -53,7 +55,9 @@
 #include "sql/ndb_thd.h"
 #include "sql/rpl_injector.h"
 #include "sql/rpl_slave.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_table.h"  // build_table_filename,
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
@@ -1082,7 +1086,7 @@ class Ndb_binlog_setup {
               /* create missing database */
               ndb_log_info("Discovered missing database '%s'", db);
               const int no_print_error[1]= {0};
-              name_len= (unsigned)my_snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
+              name_len= (unsigned)snprintf(name, sizeof(name), "CREATE DATABASE %s", db);
               run_query(thd, name, name + name_len,
                         no_print_error);
               run_query(thd, query, query + query_length,
@@ -2966,7 +2970,7 @@ class Ndb_schema_event_handler {
       if (ndb_log_get_verbose_level() > 19)
       {
         /* Format 'before slock' into temp string */
-        my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
+        snprintf(before_slock, sizeof(before_slock), "%x%08x",
                     slock.bitmap[1], slock.bitmap[0]);
       }
 
@@ -3214,7 +3218,7 @@ class Ndb_schema_event_handler {
     if (ndb_log_get_verbose_level() > 19)
     {
       /* Format 'before slock' into temp string */
-      my_snprintf(before_slock, sizeof(before_slock), "%x%08x",
+      snprintf(before_slock, sizeof(before_slock), "%x%08x",
                   ndb_schema_object->slock[1],
                   ndb_schema_object->slock[0]);
     }
@@ -4486,11 +4490,10 @@ class Ndb_binlog_index_table_util
     const char *save_proc_info=
       thd_proc_info(thd, "Opening " NDB_REP_DB "." NDB_REP_TABLE);
 
-    TABLE_LIST tables;
-    tables.init_one_table(STRING_WITH_LEN(NDB_REP_DB),    // db
-                          STRING_WITH_LEN(NDB_REP_TABLE), // name
-                          NDB_REP_TABLE,                  // alias
-                          TL_WRITE);                      // for write
+    TABLE_LIST tables(STRING_WITH_LEN(NDB_REP_DB),    // db
+                      STRING_WITH_LEN(NDB_REP_TABLE), // name
+                      NDB_REP_TABLE,                  // alias
+                      TL_WRITE);                      // for write
 
     /* Only allow real table to be opened */
     tables.required_type= dd::enum_table_type::BASE_TABLE;
@@ -4656,14 +4659,14 @@ class Ndb_binlog_index_table_util
         {
           char tmp[128];
           if (ndb_binlog_index->s->fields > NBICOL_ORIG_SERVERID)
-            my_snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
+            snprintf(tmp, sizeof(tmp), "%u/%u,%u,%u/%u",
                         uint(epoch >> 32), uint(epoch),
                         uint(cursor->orig_server_id),
                         uint(cursor->orig_epoch >> 32),
                         uint(cursor->orig_epoch));
 
           else
-            my_snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
+            snprintf(tmp, sizeof(tmp), "%u/%u", uint(epoch >> 32), uint(epoch));
 
           bool error_row = (row == (cursor->next));
           ndb_log_error("NDB Binlog: Writing row (%s) to ndb_binlog_index - %s",
@@ -6859,7 +6862,7 @@ Ndb_binlog_thread::do_run()
   thd->get_protocol_classic()->set_client_capabilities(0);
   thd->security_context()->skip_grants();
   // Create thd->net vithout vio
-  thd->get_protocol_classic()->init_net((st_vio *) 0);
+  thd->get_protocol_classic()->init_net((Vio *) 0);
 
   // Ndb binlog thread always use row format
   thd->set_current_stmt_binlog_format_row();
@@ -7213,7 +7216,7 @@ restart_cluster_failure:
       {
         static char buf[64];
         thd->proc_info= "Waiting for schema epoch";
-        my_snprintf(buf, sizeof(buf), "%s %u/%u(%u/%u)", thd->proc_info,
+        snprintf(buf, sizeof(buf), "%s %u/%u(%u/%u)", thd->proc_info,
                     (uint)(schema_epoch >> 32),
                     (uint)(schema_epoch),
                     (uint)(ndb_latest_received_binlog_epoch >> 32),
@@ -7821,7 +7824,7 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
     const ulonglong latest_trans_epoch = ndb_get_latest_trans_gci();
 
     const size_t buf_len =
-      my_snprintf(buf, buf_size,
+      snprintf(buf, buf_size,
                   "latest_epoch=%llu, "
                   "latest_trans_epoch=%llu, "
                   "latest_received_binlog_epoch=%llu, "

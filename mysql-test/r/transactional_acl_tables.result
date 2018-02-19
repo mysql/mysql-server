@@ -116,11 +116,9 @@ ROLLBACK;
 # Connection: con1
 
 # Connection: default
-SELECT user, host, authentication_string = password('xxx') FROM mysql.user WHERE host = 'h';
-user	host	authentication_string = password('xxx')
+SELECT user, host, authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548' FROM mysql.user WHERE host = 'h';
+user	host	authentication_string = '*3D56A309CD04FA2EEF181462E59011F075C89548'
 u1	h	1
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
 DROP USER u1@h;
 
 ########################################################################
@@ -865,10 +863,10 @@ u3	a	Select
 # GRANT for non existing user.
 # (only non-existing user components fail).
 GRANT SELECT(b) ON t1 TO u1@h, u2@h, u3@h;
-ERROR 42000: Can't find any matching row in the user table
+ERROR 42000: You are not allowed to create a user with GRANT
 SHOW WARNINGS;
 Level	Code	Message
-Error	1133	Can't find any matching row in the user table
+Error	1410	You are not allowed to create a user with GRANT
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
 u1	a	Select
@@ -885,7 +883,7 @@ u3	a	Select
 # REVOKE with existing and non existing user (REVOKE removed privileges
 # for existing accounts despite an error).
 REVOKE SELECT(a) ON t1 FROM u0@h, u1@h, u2@h, u3@h;
-ERROR 42000: There is no such grant defined for user 'u0' on host 'h'
+ERROR 42000: There is no such grant defined for user 'u0' on host 'h' on table 't1'
 SELECT user, column_name, column_priv FROM mysql.columns_priv;
 user	column_name	column_priv
 u1	a	Select
@@ -956,13 +954,9 @@ DROP USER u1@h, u2@h;
 ####################################################################
 # D. Simulate the SE failure and check the ACL statement behavior.
 ####################################################################
-SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT);
+CREATE USER user1@;
 GRANT UPDATE (a) ON t1 TO user1@;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 SET debug='+d,wl7158_grant_table_1';
 FLUSH PRIVILEGES;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
@@ -1064,25 +1058,22 @@ Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SET debug="-d,wl7158_replace_user_table_2";
 DROP USER u1@h;
+CREATE USER u1@h;
 SET debug="+d,wl7158_replace_user_table_1";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW GRANTS FOR u1@h;
-ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
 SET debug="-d,wl7158_replace_user_table_1";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 SET debug="+d,wl7158_replace_user_table_2";
-GRANT USAGE ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
+ALTER USER u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA"
   AND SUBJECT "testsubject" ISSUER "MySQL";
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
@@ -1090,19 +1081,16 @@ GRANT USAGE ON *.* TO `u1`@`h`
 GRANT SELECT ON `mysqltest`.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_user_table_2";
 DROP USER u1@h;
-CREATE USER u1@h;
-CREATE TABLE t1(a INT);
 SET debug="+d,wl7158_replace_user_table_1";
-GRANT SELECT ON t1 TO u1@h;
+CREATE USER u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SET debug="-d,wl7158_replace_user_table_1";
-DROP TABLE t1;
-DROP USER u1@h;
 CREATE USER u1@h;
 CREATE TABLE t1(a INT);
 SET debug="+d,mysql_table_grant_out_of_memory";
+CALL mtr.add_suppression(".*Out of memory *");
 GRANT SELECT ON t1 TO u1@h;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+Got one of the listed errors
 SET debug="-d,mysql_table_grant_out_of_memory";
 DROP TABLE t1;
 DROP USER u1@h;
@@ -1112,22 +1100,18 @@ ERROR HY000: The ACL operation failed due to the following error from SE: errcod
 SET debug="-d,wl7158_replace_user_table_3";
 CREATE USER u1@h;
 SET debug="+d,wl7158_replace_db_table_1";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SET debug="-d,wl7158_replace_db_table_1";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT SELECT ON mysqltest.* TO u1@h;
 SET debug="+d,wl7158_replace_db_table_2";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW GRANTS FOR u1@h;
 Grants for u1@h
@@ -1146,16 +1130,15 @@ GRANT USAGE ON *.* TO `u1`@`h`
 GRANT SELECT ON `mysqltest`.* TO `u1`@`h`
 SET debug="-d,wl7158_replace_db_table_3";
 DROP USER u1@h;
+CREATE USER u1@h;
 SET debug="+d,wl7158_replace_db_table_4";
-GRANT SELECT ON mysqltest.* TO u1@h REQUIRE CIPHER "EDH-RSA-DES-CBC3-SHA";
+GRANT SELECT ON mysqltest.* TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW GRANTS FOR u1@h;
-ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
 SET debug="-d,wl7158_replace_db_table_4";
+DROP USER u1@h;
 SET debug="+d,mysql_handle_grant_data_fail_on_routine_table";
 CREATE USER u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
@@ -1394,32 +1377,29 @@ GRANT USAGE ON *.* TO `u1`@`h`
 GRANT UPDATE (a) ON t1 TO u1@h;
 SET debug='+d,mysql_grant_table_init_out_of_memory';
 FLUSH PRIVILEGES;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+Got one of the listed errors
 SET debug='-d,mysql_grant_table_init_out_of_memory';
 DROP TABLE t1;
 DROP TABLE t2;
 DROP USER u1@h;
 # Test case that checks the whole transaction was rolled back
 # in the case of system error and that in-memory cache was reloaded after that
+CREATE USER u1@h;
 CREATE TABLE t1 (a INT);
 SET debug="+d,wl7158_replace_column_table_5";
 GRANT SELECT(a), UPDATE(a), INSERT(a), REFERENCES(a) ON t1 TO u1@h;
 ERROR HY000: The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 Error	3501	The ACL operation failed due to the following error from SE: errcode 149 - Lock deadlock; Retry transaction
-SHOW GRANTS FOR u1@h;
-ERROR 42000: There is no such grant defined for user 'u1' on host 'h'
 # Check that changes of the whole statement have been rolled back.
 SELECT * FROM mysql.columns_priv WHERE host = 'h' AND user = 'u1';
 Host	Db	User	Table_name	Column_name	Timestamp	Column_priv
 SELECT * FROM mysql.tables_priv WHERE host = 'h' AND user = 'u1';
 Host	Db	User	Table_name	Grantor	Timestamp	Table_priv	Column_priv
-SELECT * FROM mysql.user WHERE host = 'h' AND user = 'u1';
-Host	User	Select_priv	Insert_priv	Update_priv	Delete_priv	Create_priv	Drop_priv	Reload_priv	Shutdown_priv	Process_priv	File_priv	Grant_priv	References_priv	Index_priv	Alter_priv	Show_db_priv	Super_priv	Create_tmp_table_priv	Lock_tables_priv	Execute_priv	Repl_slave_priv	Repl_client_priv	Create_view_priv	Show_view_priv	Create_routine_priv	Alter_routine_priv	Create_user_priv	Event_priv	Trigger_priv	Create_tablespace_priv	ssl_type	ssl_cipher	x509_issuer	x509_subject	max_questions	max_updates	max_connections	max_user_connections	plugin	authentication_string	password_expired	password_last_changed	password_lifetime	account_locked	Create_role_priv	Drop_role_priv	Password_reuse_history	Password_reuse_time
 SET debug="-d,wl7158_replace_column_table_5";
 DROP TABLE t1;
+DROP USER u1@h;
 CREATE TABLE t1 (a INT);
 CREATE USER u1@h;
 SHOW GRANTS FOR u1@h;

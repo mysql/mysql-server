@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,19 +22,15 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef NGS_FILE_INTERFACE_H_
 #define NGS_FILE_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/memory.h"
 
+namespace ngs {
 
-namespace ngs
-{
-
-class File_interface
-{
-public:
+class File_interface {
+ public:
   typedef ngs::shared_ptr<File_interface> Shared_ptr;
 
   virtual ~File_interface() {}
@@ -46,6 +42,6 @@ public:
   virtual int fsync() = 0;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // NGS_FILE_INTERFACE_H_
+#endif  // NGS_FILE_INTERFACE_H_

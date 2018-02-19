@@ -1087,8 +1087,6 @@ a
 150
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 ( ID1 int(10) unsigned NOT NULL DEFAULT '0' , ID2 datetime NOT NULL DEFAULT '0000-00-00 00:00:00' , DATA1 varchar(10) , DATA2 double(5,4) , DATA3 datetime , PRIMARY KEY (ID1,ID2));
 CREATE TABLE t2 ( ID int(3) unsigned NOT NULL DEFAULT '0' , DATA1 timestamp DEFAULT '0000-00-00 00:00:00' , PRIMARY KEY (ID));
 (SELECT * FROM t1 AS PARTITIONED, t2 AS
@@ -1328,8 +1326,8 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('ä','ö','ü') CHARACTER SET utf8 NOT NULL DEFAULT 'ü',
-  `b` enum('one','two') CHARACTER SET utf8 DEFAULT NULL,
+  `a` enum('ä','ö','ü') CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'ü',
+  `b` enum('one','two') CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL,
   `c` enum('one','two') DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('ä', 'one', 'one'), ('ö', 'two', 'one'), ('ü', NULL, NULL);
@@ -1508,8 +1506,6 @@ id
 99
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -2715,7 +2711,7 @@ CREATE TABLE t1 ENGINE=InnoDB SELECT a FROM
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` geometrycollection DEFAULT NULL
+  `a` geomcollection DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 DROP TABLE geometries;
@@ -2856,6 +2852,44 @@ variable_name	tweaked_value
 Created_tmp_disk_tables	0
 Created_tmp_tables	1
 #
+# Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+#
+CREATE TABLE t1(
+a tinyint(4) DEFAULT NULL,
+b int(11) DEFAULT NULL,
+c bigint(20) DEFAULT NULL
+);
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+DESCRIBE v2;
+Field	Type	Null	Key	Default	Extra
+1	int(1)	NO		0	
+My_exp_1	int(1)	NO		0	
+My_exp_1_1	int(1)	NO		0	
+-1	int(2)	NO		0	
+My_exp_-1	int(2)	NO		0	
+My_exp_1_-1	int(2)	NO		0	
+DESCRIBE v3;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(4)	YES		NULL	
+b	int(11)	YES		NULL	
+c	bigint(20)	YES		NULL	
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+# End of test for Bug#11747567
+#
 # Bug #27068222 CREATE TABLE USING SELECT WITH UNION
 #               FAILS FOR DATE COLUMN
 #
@@ -2903,8 +2937,6 @@ t1	CREATE TABLE `t1` (
   `g1` geometry NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 SET SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@SQL_MODE;
 @@SQL_MODE
 
@@ -2978,7 +3010,7 @@ DROP TEMPORARY TABLE t2;
 SET SQL_MODE=DEFAULT;
 SELECT @@SQL_MODE;
 @@SQL_MODE
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 CREATE TEMPORARY TABLE t2 AS
 SELECT * FROM t1;
 # we see that with CREATE SELECT (no UNION), defaults are inherited.

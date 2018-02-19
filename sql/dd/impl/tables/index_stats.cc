@@ -23,7 +23,7 @@
 #include "sql/dd/impl/tables/index_stats.h"
 
 #include "sql/dd/impl/raw/object_keys.h"
-#include "sql/dd/impl/tables/dd_properties.h"     // TARGET_DD_VERSION
+#include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 
 namespace dd {
@@ -31,8 +31,7 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-Index_stats::Index_stats()
-{
+Index_stats::Index_stats() {
   m_target_def.set_table_name("index_stats");
 
   m_target_def.add_field(FIELD_SCHEMA_NAME, "FIELD_SCHEMA_NAME",
@@ -50,47 +49,38 @@ Index_stats::Index_stats()
 
   m_target_def.add_index(INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN,
                          "INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN",
-                         "UNIQUE KEY (schema_name, table_name, " \
+                         "UNIQUE KEY (schema_name, table_name, "
                          "index_name, column_name)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-const Index_stats &Index_stats::instance()
-{
-  static Index_stats *s_instance= new Index_stats();
+const Index_stats &Index_stats::instance() {
+  static Index_stats *s_instance = new Index_stats();
   return *s_instance;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Index_stat::Name_key *Index_stats::create_object_key(
-  const String_type &schema_name,
-  const String_type &table_name,
-  const String_type &index_name,
-  const String_type &column_name)
-{
+    const String_type &schema_name, const String_type &table_name,
+    const String_type &index_name, const String_type &column_name) {
   return new (std::nothrow) Composite_4char_key(
-                                  INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN,
-                                  FIELD_SCHEMA_NAME, schema_name,
-                                  FIELD_TABLE_NAME, table_name,
-                                  FIELD_INDEX_NAME, index_name,
-                                  FIELD_COLUMN_NAME, column_name);
+      INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN, FIELD_SCHEMA_NAME, schema_name,
+      FIELD_TABLE_NAME, table_name, FIELD_INDEX_NAME, index_name,
+      FIELD_COLUMN_NAME, column_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
 Object_key *Index_stats::create_range_key_by_table_name(
-                           const String_type &schema_name,
-                           const String_type &table_name)
-{
+    const String_type &schema_name, const String_type &table_name) {
   return new (std::nothrow) Index_stat_range_key(
-          INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN,
-          FIELD_SCHEMA_NAME, schema_name,
-          FIELD_TABLE_NAME, table_name);
+      INDEX_UK_SCHEMA_TABLE_INDEX_COLUMN, FIELD_SCHEMA_NAME, schema_name,
+      FIELD_TABLE_NAME, table_name);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd

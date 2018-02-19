@@ -29,6 +29,7 @@
 #include <HugoTransactions.hpp>
 #include <Bitmask.hpp>
 #include <Vector.hpp>
+#include "my_alloc.h"
 
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;

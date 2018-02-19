@@ -21,13 +21,12 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "components/mysql_server/system_variable_source_imp.h"
+
 #include "components/mysql_server/server_component.h"
+#include "mysql/components/service_implementation.h"
 #include "sql/set_var.h"
 
-void mysql_comp_system_variable_source_init()
-{
-  return;
-}
+void mysql_comp_system_variable_source_init() { return; }
 
 /**
   Get source of given system variable.
@@ -40,17 +39,12 @@ void mysql_comp_system_variable_source_init()
   @retval true Failure
 */
 DEFINE_BOOL_METHOD(mysql_system_variable_source_imp::get,
-  (const char* name, unsigned int length,
-     enum enum_variable_source* source))
-{
-  try
-  {
+                   (const char *name, unsigned int length,
+                    enum enum_variable_source *source)) {
+  try {
     return get_sysvar_source(name, length, source);
-  }
-  catch (...)
-  {
+  } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
   return true;
 }
-

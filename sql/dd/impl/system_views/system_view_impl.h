@@ -23,28 +23,25 @@
 #ifndef DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED
 #define DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED
 
-#include "sql/dd/types/system_view.h"                   // System_view
+#include "sql/dd/types/system_view.h"  // System_view
 
 namespace dd {
 namespace system_views {
 
 template <typename T>
-class System_view_impl : virtual public System_view
-{
-public:
-  virtual const System_view_definition *view_definition() const
-  {
+class System_view_impl : virtual public System_view {
+ public:
+  virtual const System_view_definition *view_definition() const {
     return &m_target_def;
   }
 
-  virtual bool hidden() const
-  { return false; }
+  virtual bool hidden() const { return false; }
 
-protected:
+ protected:
   T m_target_def;
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__SYSTEM_VIEW_IMPL_INCLUDED

@@ -98,8 +98,7 @@ typedef struct PSI_sp_locker PSI_sp_locker;
   @since PSI_STATEMENT_VERSION_1
   This structure is used to register an instrumented statement.
 */
-struct PSI_statement_info_v1
-{
+struct PSI_statement_info_v1 {
   /** The registered statement key. */
   PSI_statement_key m_key;
   /** The name of the statement instrument to register. */
@@ -127,8 +126,7 @@ typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
   This memory is provided by the instrumented code for performance reasons.
   @sa get_thread_statement_locker_v1_t
 */
-struct PSI_statement_locker_state_v1
-{
+struct PSI_statement_locker_state_v1 {
   /** Discarded flag. */
   bool m_discarded;
   /** In prepare flag. */
@@ -197,8 +195,7 @@ struct PSI_statement_locker_state_v1
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
-struct PSI_sp_locker_state_v1
-{
+struct PSI_sp_locker_state_v1 {
   /** Internal state. */
   unsigned int m_flags;
   /** Current thread. */
@@ -230,10 +227,8 @@ typedef void (*register_statement_v1_t)(const char *category,
   @return a statement locker, or NULL
 */
 typedef struct PSI_statement_locker *(*get_thread_statement_locker_v1_t)(
-  struct PSI_statement_locker_state_v1 *state,
-  PSI_statement_key key,
-  const void *charset,
-  PSI_sp_share *sp_share);
+    struct PSI_statement_locker_state_v1 *state, PSI_statement_key key,
+    const void *charset, PSI_sp_share *sp_share);
 
 /**
   Refine a statement locker to a more specific key.
@@ -243,7 +238,7 @@ typedef struct PSI_statement_locker *(*get_thread_statement_locker_v1_t)(
   @sa PSI_FLAG_MUTABLE
 */
 typedef struct PSI_statement_locker *(*refine_statement_v1_t)(
-  struct PSI_statement_locker *locker, PSI_statement_key key);
+    struct PSI_statement_locker *locker, PSI_statement_key key);
 
 /**
   Start a new statement event.
@@ -254,8 +249,7 @@ typedef struct PSI_statement_locker *(*refine_statement_v1_t)(
   @param src_line source line number
 */
 typedef void (*start_statement_v1_t)(struct PSI_statement_locker *locker,
-                                     const char *db,
-                                     unsigned int db_length,
+                                     const char *db, unsigned int db_length,
                                      const char *src_file,
                                      unsigned int src_line);
 
@@ -293,7 +287,7 @@ typedef void (*set_statement_rows_sent_t)(struct PSI_statement_locker *locker,
   @param count the number of rows examined
 */
 typedef void (*set_statement_rows_examined_t)(
-  struct PSI_statement_locker *locker, unsigned long long count);
+    struct PSI_statement_locker *locker, unsigned long long count);
 
 /**
   Increment a statement event "created tmp disk tables" metric.
@@ -301,7 +295,7 @@ typedef void (*set_statement_rows_examined_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_created_tmp_disk_tables_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "created tmp tables" metric.
@@ -309,7 +303,7 @@ typedef void (*inc_statement_created_tmp_disk_tables_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_created_tmp_tables_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select full join" metric.
@@ -317,7 +311,7 @@ typedef void (*inc_statement_created_tmp_tables_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_full_join_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select full range join" metric.
@@ -325,7 +319,7 @@ typedef void (*inc_statement_select_full_join_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_full_range_join_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select range join" metric.
@@ -333,7 +327,7 @@ typedef void (*inc_statement_select_full_range_join_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_range_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select range check" metric.
@@ -341,7 +335,7 @@ typedef void (*inc_statement_select_range_t)(
   @param count the metric increment value
 */
 typedef void (*inc_statement_select_range_check_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "select scan" metric.
@@ -357,7 +351,7 @@ typedef void (*inc_statement_select_scan_t)(struct PSI_statement_locker *locker,
   @param count the metric increment value
 */
 typedef void (*inc_statement_sort_merge_passes_t)(
-  struct PSI_statement_locker *locker, unsigned long count);
+    struct PSI_statement_locker *locker, unsigned long count);
 
 /**
   Increment a statement event "sort range" metric.
@@ -388,14 +382,14 @@ typedef void (*inc_statement_sort_scan_t)(struct PSI_statement_locker *locker,
   @param locker the statement locker
 */
 typedef void (*set_statement_no_index_used_t)(
-  struct PSI_statement_locker *locker);
+    struct PSI_statement_locker *locker);
 
 /**
   Set a statement event "no good index used" metric.
   @param locker the statement locker
 */
 typedef void (*set_statement_no_good_index_used_t)(
-  struct PSI_statement_locker *locker);
+    struct PSI_statement_locker *locker);
 
 /**
   End a statement event.
@@ -411,13 +405,9 @@ typedef void (*end_statement_v1_t)(struct PSI_statement_locker *locker,
   @param locker a statement locker for the running thread.
 */
 typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
-  void *identity,
-  unsigned int stmt_id,
-  PSI_statement_locker *locker,
-  const char *stmt_name,
-  size_t stmt_name_length,
-  const char *name,
-  size_t length);
+    void *identity, unsigned int stmt_id, PSI_statement_locker *locker,
+    const char *stmt_name, size_t stmt_name_length, const char *name,
+    size_t length);
 
 /**
   destroy a prepare statement.
@@ -453,7 +443,7 @@ typedef void (*set_prepared_stmt_text_v1_t)(PSI_prepared_stmt *prepared_stmt,
   @param locker a statement locker for the running thread
 */
 typedef struct PSI_digest_locker *(*digest_start_v1_t)(
-  struct PSI_statement_locker *locker);
+    struct PSI_statement_locker *locker);
 
 /**
   Add a computed digest to the current digest instrumentation.
@@ -472,11 +462,10 @@ typedef void (*digest_end_v1_t)(struct PSI_digest_locker *locker,
   @param object_name_length length of object_name
   @return a stored program share instrumentation, or NULL
 */
-typedef struct PSI_sp_share *(*get_sp_share_v1_t)(unsigned int object_type,
-                                                  const char *schema_name,
-                                                  unsigned int schema_name_length,
-                                                  const char *object_name,
-                                                  unsigned int object_name_length);
+typedef struct PSI_sp_share *(*get_sp_share_v1_t)(
+    unsigned int object_type, const char *schema_name,
+    unsigned int schema_name_length, const char *object_name,
+    unsigned int object_name_length);
 
 /**
   Release a stored program share.
@@ -489,12 +478,10 @@ typedef PSI_sp_locker *(*start_sp_v1_t)(struct PSI_sp_locker_state_v1 *state,
 
 typedef void (*end_sp_v1_t)(struct PSI_sp_locker *locker);
 
-typedef void (*drop_sp_v1_t)(unsigned int object_type,
-                             const char *schema_name,
+typedef void (*drop_sp_v1_t)(unsigned int object_type, const char *schema_name,
                              unsigned int schema_name_length,
                              const char *object_name,
                              unsigned int object_name_length);
-
 
 typedef struct PSI_statement_info_v1 PSI_statement_info;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;

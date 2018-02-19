@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @brief
 
@@ -41,108 +40,108 @@
 #include <mysql/components/services/log_shared.h>
 
 BEGIN_SERVICE_DEFINITION(log_service)
-  /**
-    Have the service process one log line.
+/**
+  Have the service process one log line.
 
-    @param   instance  State-pointer that was returned on open.
-    @param   ll        The log_line collection of log_items.
+  @param   instance  State-pointer that was returned on open.
+  @param   ll        The log_line collection of log_items.
 
-    @retval  <0        an error occurred
-    @retval  =0        no work was done
-    @retval  >0        number of processed entities
-  */
-  DECLARE_METHOD(int, run,             (void *instance, log_line *ll));
+  @retval  <0        an error occurred
+  @retval  =0        no work was done
+  @retval  >0        number of processed entities
+*/
+DECLARE_METHOD(int, run, (void *instance, log_line *ll));
 
-  /**
-    Flush any buffers.  This function will be called by the server
-    on FLUSH ERROR LOGS.  The service may write its buffers, close
-    and re-open any log files to work with log-rotation, etc.
-    The flush function MUST NOT itself log anything!
-    A service implementation may provide a nullptr if it does not
-    wish to provide a flush function.
+/**
+  Flush any buffers.  This function will be called by the server
+  on FLUSH ERROR LOGS.  The service may write its buffers, close
+  and re-open any log files to work with log-rotation, etc.
+  The flush function MUST NOT itself log anything!
+  A service implementation may provide a nullptr if it does not
+  wish to provide a flush function.
 
-    @param   instance  State-pointer that was returned on open.
-                       Value may be changed in flush.
+  @param   instance  State-pointer that was returned on open.
+                     Value may be changed in flush.
 
-    @retval  <0        an error occurred
-    @retval  =0        no work was done
-    @retval  >0        flush completed without incident
-  */
-  DECLARE_METHOD(int, flush,           (void **instance));
+  @retval  <0        an error occurred
+  @retval  =0        no work was done
+  @retval  >0        flush completed without incident
+*/
+DECLARE_METHOD(int, flush, (void **instance));
 
-  /**
-    Open a new instance.
+/**
+  Open a new instance.
 
-    @param   ll        optional arguments
-    @param   instance  If state is needed, the service may allocate and
-                       initialize it and return a pointer to it here.
-                       (This of course is particularly pertinent to
-                       components that may be opened multiple times,
-                       such as the JSON log writer.)
-                       This state is for use of the log-service component
-                       in question only and can take any layout suitable
-                       to that component's need. The state is opaque to
-                       the server/logging framework. It must be released
-                       on close.
+  @param   ll        optional arguments
+  @param   instance  If state is needed, the service may allocate and
+                     initialize it and return a pointer to it here.
+                     (This of course is particularly pertinent to
+                     components that may be opened multiple times,
+                     such as the JSON log writer.)
+                     This state is for use of the log-service component
+                     in question only and can take any layout suitable
+                     to that component's need. The state is opaque to
+                     the server/logging framework. It must be released
+                     on close.
 
-    @retval  <0        a new instance could not be created
-    @retval  =0        success, returned hande is valid
-  */
-  DECLARE_METHOD(int, open,         (log_line *ll, void **instance));
+  @retval  <0        a new instance could not be created
+  @retval  =0        success, returned hande is valid
+*/
+DECLARE_METHOD(int, open, (log_line * ll, void **instance));
 
-  /**
-    Close and release an instance. Flushes any buffers.
+/**
+  Close and release an instance. Flushes any buffers.
 
-    @param   instance  State-pointer that was returned on open.
-                       If memory was allocated for this state,
-                       it should be released, and the pointer
-                       set to nullptr.
+  @param   instance  State-pointer that was returned on open.
+                     If memory was allocated for this state,
+                     it should be released, and the pointer
+                     set to nullptr.
 
-    @retval  <0        an error occurred
-    @retval  =0        success
-  */
-  DECLARE_METHOD(int, close,           (void **instance));
+  @retval  <0        an error occurred
+  @retval  =0        success
+*/
+DECLARE_METHOD(int, close, (void **instance));
 
-  /**
-    Variable listener.  This is a temporary solution until we have
-    per-component system variables.  "check" is called when the user
-    uses SQL statements trying to assign a value to certain server
-    system variables; the function can prevent assignment if e.g.
-    the supplied value has the wrong format.
+/**
+  Variable listener.  This is a temporary solution until we have
+  per-component system variables.  "check" is called when the user
+  uses SQL statements trying to assign a value to certain server
+  system variables; the function can prevent assignment if e.g.
+  the supplied value has the wrong format.
 
-    If several listeners are registered, an error will be signaled
-    to the user on the SQL level as soon as one service identifies
-    a problem with the value.
+  If several listeners are registered, an error will be signaled
+  to the user on the SQL level as soon as one service identifies
+  a problem with the value.
 
-    @param   ll  log-line having as first element a list-item
-                 describing the variable (name, new value)
+  @param   ll  log-line having as first element a list-item
+               describing the variable (name, new value)
 
-    @retval   0  for allow (including when we don't feel the event is for us),
-    @retval  -1  for deny
-  */
-  DECLARE_METHOD(int, variable_check,  (log_line *ll));
+  @retval   0  for allow (including when we don't feel the event is for us),
+  @retval  -1  for deny
+*/
+DECLARE_METHOD(int, variable_check, (log_line * ll));
 
-  /**
-    Variable listener.  This is a temporary solution until we have
-    per-component system variables. "update" is called when the user
-    uses SQL statements trying to assign a value to certain server
-    system variables. If we got this far, we have already been called
-    upon to "check" the new value, and have confirmed that it meets
-    the requirements. "update" should now update the internal
-    representation of the value. Since we have already checked the
-    new value, failure should be a rare occurance (out of memory,
-    the operating system did not let us open the new file name, etc.).
+/**
+  Variable listener.  This is a temporary solution until we have
+  per-component system variables. "update" is called when the user
+  uses SQL statements trying to assign a value to certain server
+  system variables. If we got this far, we have already been called
+  upon to "check" the new value, and have confirmed that it meets
+  the requirements. "update" should now update the internal
+  representation of the value. Since we have already checked the
+  new value, failure should be a rare occurance (out of memory,
+  the operating system did not let us open the new file name, etc.).
 
-    If several listeners are registered, all will currently be called
-    with the new value, even if one of them signals failure.
+  If several listeners are registered, all will currently be called
+  with the new value, even if one of them signals failure.
 
-    @param  ll  log-line having as first element a list-item 
-                describing the variable (name, new value)
+  @param  ll  log-line having as first element a list-item
+              describing the variable (name, new value)
 
-    @retval  0  for success (including when we don't feel the event is for us),
-    @retval !0  for failure
-  */
-  DECLARE_METHOD(int, variable_update, (log_line *ll));
+  @retval  0  for success (including when we don't feel the event is for us),
+  @retval !0  for failure
+*/
+DECLARE_METHOD(int, variable_update, (log_line * ll));
 END_SERVICE_DEFINITION(log_service)
 
 #endif

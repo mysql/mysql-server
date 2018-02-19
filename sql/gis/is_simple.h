@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,8 @@ namespace gis {
 /// @retval false Success.
 /// @retval true An error has occurred. The error has been reported with
 /// my_error().
-bool is_simple(const dd::Spatial_reference_system* srs, const Geometry* g,
-               const char* func_name, bool* result, bool* result_null) noexcept;
+bool is_simple(const dd::Spatial_reference_system *srs, const Geometry *g,
+               const char *func_name, bool *result, bool *result_null) noexcept;
 
 }  // namespace gis
 

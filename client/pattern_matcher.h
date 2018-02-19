@@ -23,8 +23,8 @@
 */
 
 #include <m_ctype.h>
-#include <unordered_set>
 #include <string>
+#include <unordered_set>
 
 /**
   Enables comparison of strings against particular set of patterns. Patterns
@@ -32,25 +32,21 @@
   be added to the class through a special method. Matching method traverses all
   of the patterns within pattern matcher in search for a match.
 */
-class Pattern_matcher
-{
-
-public:
-
-  size_t add_patterns(const std::string& patterns, char delimiter= ':');
-  bool is_matching(const std::string& text, const CHARSET_INFO* info) const;
+class Pattern_matcher {
+ public:
+  size_t add_patterns(const std::string &patterns, char delimiter = ':');
+  bool is_matching(const std::string &text, const CHARSET_INFO *info) const;
   void clear();
 
-private:
-
+ private:
   /** any (single) character wild card */
-  const static char WILD_ONE= '?';
+  const static char WILD_ONE = '?';
 
   /** zero or many characters wild card */
-  const static char WILD_MANY= '*';
+  const static char WILD_MANY = '*';
 
   /** escape sequence character */
-  const static char WILD_ESCAPE= '\\';
+  const static char WILD_ESCAPE = '\\';
 
   /** used for storing matcher patterns */
   std::unordered_set<std::string> m_patterns;

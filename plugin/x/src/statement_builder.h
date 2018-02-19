@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -68,12 +68,12 @@ class Statement_builder {
       return *this;
     }
 
-    template<typename L, typename Op>
+    template <typename L, typename Op>
     const Generator &put_each(const L &list, Op generate) const {
       return put_each(list.begin(), list.end(), generate);
     }
 
-    template<typename I, typename Op>
+    template <typename I, typename Op>
     const Generator &put_list(I begin, I end, Op generate,
                               const std::string &separator = ",") const {
       if (std::distance(begin, end) == 0) return *this;
@@ -95,7 +95,7 @@ class Statement_builder {
     template <typename T>
     const Generator &put_list(
         const ::google::protobuf::RepeatedPtrField<T> &list,
-        const Generator &(Generator::*put_fun)(const T &) const,
+        const Generator &(Generator::*put_fun)(const T &)const,
         const std::string &separator = ",") const {
       return put_list(list.begin(), list.end(),
                       ngs::bind(put_fun, this, ngs::placeholders::_1),
@@ -127,6 +127,8 @@ class Statement_builder {
       m_qb.dot();
       return *this;
     }
+
+    Expression_generator::Args args() const { return m_gen.args(); }
 
     const Expression_generator &m_gen;
     Query_string_builder &m_qb;

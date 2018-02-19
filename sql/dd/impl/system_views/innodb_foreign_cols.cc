@@ -25,30 +25,31 @@
 namespace dd {
 namespace system_views {
 
-const Innodb_foreign_cols &Innodb_foreign_cols::instance()
-{
-  static Innodb_foreign_cols *s_instance= new Innodb_foreign_cols();
+const Innodb_foreign_cols &Innodb_foreign_cols::instance() {
+  static Innodb_foreign_cols *s_instance = new Innodb_foreign_cols();
   return *s_instance;
 }
 
-Innodb_foreign_cols::Innodb_foreign_cols()
-{
+Innodb_foreign_cols::Innodb_foreign_cols() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_FOREIGN_ID, "ID",
-    "CONCAT(sch.name, '/', fk.name)" + m_target_def.fs_name_collation());
+  m_target_def.add_field(
+      FIELD_FOREIGN_ID, "ID",
+      "CONCAT(sch.name, '/', fk.name)" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_FOR_COL_NAME, "FOR_COL_NAME", "col.name");
   m_target_def.add_field(FIELD_REF_COL_NAME, "REF_COL_NAME",
                          "referenced_column_name");
   m_target_def.add_field(FIELD_COL_POS, "POS", "fk_col.ordinal_position");
 
   m_target_def.add_from("mysql.foreign_key_column_usage fk_col");
-  m_target_def.add_from("JOIN mysql.foreign_keys fk ON "
-                        "fk.id=fk_col.foreign_key_id");
+  m_target_def.add_from(
+      "JOIN mysql.foreign_keys fk ON "
+      "fk.id=fk_col.foreign_key_id");
   m_target_def.add_from("JOIN mysql.tables tbl ON fk.table_id=tbl.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON fk.schema_id=sch.id");
-  m_target_def.add_from("JOIN mysql.columns col ON tbl.id=col.table_id "
-                        "AND fk_col.column_id=col.id");
+  m_target_def.add_from(
+      "JOIN mysql.columns col ON tbl.id=col.table_id "
+      "AND fk_col.column_id=col.id");
 
   m_target_def.add_where("NOT tbl.type = 'VIEW'");
   m_target_def.add_where("AND tbl.hidden = 'Visible'");
@@ -56,5 +57,5 @@ Innodb_foreign_cols::Innodb_foreign_cols()
   m_target_def.add_where("AND tbl.engine='INNODB'");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

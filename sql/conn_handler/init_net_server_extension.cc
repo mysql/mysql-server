@@ -26,37 +26,35 @@
 
 #include <stddef.h>
 
+#include "lex_string.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_socket_bits.h"
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/mysql_idle.h"       // MYSQL_SOCKET_SET_STATE,
+#include "mysql/psi/mysql_idle.h"  // MYSQL_SOCKET_SET_STATE,
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql_com.h"
 #include "mysql_com_server.h"
-#include "sql/key.h"
-                                        // MYSQL_START_IDLE_WAIT
-#include "sql/mysqld.h"                 // stage_starting
+// MYSQL_START_IDLE_WAIT
+#include "sql/mysqld.h"  // stage_starting
 #include "sql/protocol_classic.h"
-#include "sql/sql_class.h"              // THD
+#include "sql/sql_class.h"  // THD
 #include "violite.h"
 
-#ifdef HAVE_PSI_STATEMENT_INTERFACE     // TODO: << nonconformance with HAVE_PSI_INTERFACE
+#ifdef HAVE_PSI_STATEMENT_INTERFACE  // TODO: << nonconformance with
+                                     // HAVE_PSI_INTERFACE
 PSI_statement_info stmt_info_new_packet;
 #endif
 
-static void net_before_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
-                                  void *user_data,
-                                  size_t /* unused: count */)
-{
+static void net_before_header_psi(NET *net MY_ATTRIBUTE((unused)),
+                                  void *user_data, size_t /* unused: count */) {
   THD *thd;
-  thd= static_cast<THD*> (user_data);
+  thd = static_cast<THD *>(user_data);
   DBUG_ASSERT(thd != NULL);
 
-  if (thd->m_server_idle)
-  {
+  if (thd->m_server_idle) {
     /*
       The server is IDLE, waiting for the next command.
       Technically, it is a wait on a socket, which may take a long time,
@@ -69,16 +67,14 @@ static void net_before_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
   }
 }
 
-static void net_after_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
-                                 void *user_data,
-                                 size_t /* unused: count */, bool rc)
-{
+static void net_after_header_psi(NET *net MY_ATTRIBUTE((unused)),
+                                 void *user_data, size_t /* unused: count */,
+                                 bool rc) {
   THD *thd;
-  thd= static_cast<THD*> (user_data);
+  thd = static_cast<THD *>(user_data);
   DBUG_ASSERT(thd != NULL);
 
-  if (thd->m_server_idle)
-  {
+  if (thd->m_server_idle) {
     /*
       The server just got data for a network packet header,
       from the network layer.
@@ -92,14 +88,11 @@ static void net_after_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
     */
     MYSQL_END_IDLE_WAIT(thd->m_idle_psi);
 
-    if (! rc)
-    {
+    if (!rc) {
       DBUG_ASSERT(thd->m_statement_psi == NULL);
-      thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
-                                                  stmt_info_new_packet.m_key,
-                                                  thd->db().str,
-                                                  thd->db().length,
-                                                  thd->charset(), NULL);
+      thd->m_statement_psi = MYSQL_START_STATEMENT(
+          &thd->m_statement_state, stmt_info_new_packet.m_key, thd->db().str,
+          thd->db().length, thd->charset(), NULL);
 
       /*
         Starts a new stage in performance schema, if compiled in and enabled.
@@ -113,24 +106,22 @@ static void net_after_header_psi(struct st_net *net MY_ATTRIBUTE((unused)),
       by also passing count here.
     */
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
-    thd->m_server_idle= false;
+    thd->m_server_idle = false;
   }
 }
 
-
-void init_net_server_extension(THD *thd)
-{
+void init_net_server_extension(THD *thd) {
   /* Start with a clean state for connection events. */
-  thd->m_idle_psi= NULL;
-  thd->m_statement_psi= NULL;
-  thd->m_server_idle= false;
+  thd->m_idle_psi = NULL;
+  thd->m_statement_psi = NULL;
+  thd->m_server_idle = false;
 
   /* Hook up the NET_SERVER callback in the net layer. */
-  thd->m_net_server_extension.m_user_data= thd;
-  thd->m_net_server_extension.m_before_header= net_before_header_psi;
-  thd->m_net_server_extension.m_after_header= net_after_header_psi;
+  thd->m_net_server_extension.m_user_data = thd;
+  thd->m_net_server_extension.m_before_header = net_before_header_psi;
+  thd->m_net_server_extension.m_after_header = net_after_header_psi;
 
   /* Activate this private extension for the mysqld server. */
-  thd->get_protocol_classic()->get_net()->extension=
-    &thd->m_net_server_extension;
+  thd->get_protocol_classic()->get_net()->extension =
+      &thd->m_net_server_extension;
 }

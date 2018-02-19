@@ -123,25 +123,19 @@
 #define mysql_cond_broadcast_with_src(C, F, L) \
   inline_mysql_cond_broadcast(C, F, L)
 
-static inline void
-inline_mysql_cond_register(
-  const char *category MY_ATTRIBUTE((unused)),
-  PSI_cond_info *info MY_ATTRIBUTE((unused)),
-  int count MY_ATTRIBUTE((unused))
-  )
-{
+static inline void inline_mysql_cond_register(
+    const char *category MY_ATTRIBUTE((unused)),
+    PSI_cond_info *info MY_ATTRIBUTE((unused)),
+    int count MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
   PSI_COND_CALL(register_cond)(category, info, count);
 #endif
 }
 
-static inline int
-inline_mysql_cond_init(
-  PSI_cond_key key MY_ATTRIBUTE((unused)),
-  mysql_cond_t *that,
-  const char *src_file MY_ATTRIBUTE((unused)),
-  int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_init(
+    PSI_cond_key key MY_ATTRIBUTE((unused)), mysql_cond_t *that,
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
   that->m_psi = PSI_COND_CALL(init_cond)(key, &that->m_cond);
 #else
@@ -150,14 +144,11 @@ inline_mysql_cond_init(
   return native_cond_init(&that->m_cond);
 }
 
-static inline int
-inline_mysql_cond_destroy(mysql_cond_t *that,
-                          const char *src_file MY_ATTRIBUTE((unused)),
-                          int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_destroy(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL)
-  {
+  if (that->m_psi != NULL) {
     PSI_COND_CALL(destroy_cond)(that->m_psi);
     that->m_psi = NULL;
   }
@@ -165,36 +156,30 @@ inline_mysql_cond_destroy(mysql_cond_t *that,
   return native_cond_destroy(&that->m_cond);
 }
 
-static inline int
-inline_mysql_cond_wait(mysql_cond_t *that,
-                       mysql_mutex_t *mutex,
-                       const char *src_file MY_ATTRIBUTE((unused)),
-                       int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_wait(
+    mysql_cond_t *that, mysql_mutex_t *mutex,
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL)
-  {
+  if (that->m_psi != NULL) {
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
-    locker = PSI_COND_CALL(start_cond_wait)(
-      &state, that->m_psi, mutex->m_psi, PSI_COND_WAIT, src_file, src_line);
+    locker = PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                            PSI_COND_WAIT, src_file, src_line);
 
     /* Instrumented code */
-    result = my_cond_wait(&that->m_cond,
-                          &mutex->m_mutex
+    result = my_cond_wait(&that->m_cond, &mutex->m_mutex
 #ifdef SAFE_MUTEX
                           ,
-                          src_file,
-                          src_line
+                          src_file, src_line
 #endif
-                          );
+    );
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_COND_CALL(end_cond_wait)(locker, result);
     }
 
@@ -203,54 +188,41 @@ inline_mysql_cond_wait(mysql_cond_t *that,
 #endif
 
   /* Non instrumented code */
-  result = my_cond_wait(&that->m_cond,
-                        &mutex->m_mutex
+  result = my_cond_wait(&that->m_cond, &mutex->m_mutex
 #ifdef SAFE_MUTEX
                         ,
-                        src_file,
-                        src_line
+                        src_file, src_line
 #endif
-                        );
+  );
 
   return result;
 }
 
-static inline int
-inline_mysql_cond_timedwait(mysql_cond_t *that,
-                            mysql_mutex_t *mutex,
-                            const struct timespec *abstime,
-                            const char *src_file MY_ATTRIBUTE((unused)),
-                            int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_timedwait(
+    mysql_cond_t *that, mysql_mutex_t *mutex, const struct timespec *abstime,
+    const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL)
-  {
+  if (that->m_psi != NULL) {
     /* Instrumentation start */
     PSI_cond_locker *locker;
     PSI_cond_locker_state state;
-    locker = PSI_COND_CALL(start_cond_wait)(&state,
-                                            that->m_psi,
-                                            mutex->m_psi,
-                                            PSI_COND_TIMEDWAIT,
-                                            src_file,
-                                            src_line);
+    locker =
+        PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                       PSI_COND_TIMEDWAIT, src_file, src_line);
 
     /* Instrumented code */
-    result = my_cond_timedwait(&that->m_cond,
-                               &mutex->m_mutex,
-                               abstime
+    result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
 #ifdef SAFE_MUTEX
                                ,
-                               src_file,
-                               src_line
+                               src_file, src_line
 #endif
-                               );
+    );
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_COND_CALL(end_cond_wait)(locker, result);
     }
 
@@ -259,28 +231,22 @@ inline_mysql_cond_timedwait(mysql_cond_t *that,
 #endif
 
   /* Non instrumented code */
-  result = my_cond_timedwait(&that->m_cond,
-                             &mutex->m_mutex,
-                             abstime
+  result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
 #ifdef SAFE_MUTEX
                              ,
-                             src_file,
-                             src_line
+                             src_file, src_line
 #endif
-                             );
+  );
 
   return result;
 }
 
-static inline int
-inline_mysql_cond_signal(mysql_cond_t *that,
-                         const char *src_file MY_ATTRIBUTE((unused)),
-                         int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_signal(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL)
-  {
+  if (that->m_psi != NULL) {
     PSI_COND_CALL(signal_cond)(that->m_psi);
   }
 #endif
@@ -288,15 +254,12 @@ inline_mysql_cond_signal(mysql_cond_t *that,
   return result;
 }
 
-static inline int
-inline_mysql_cond_broadcast(mysql_cond_t *that,
-                            const char *src_file MY_ATTRIBUTE((unused)),
-                            int src_line MY_ATTRIBUTE((unused)))
-{
+static inline int inline_mysql_cond_broadcast(
+    mysql_cond_t *that, const char *src_file MY_ATTRIBUTE((unused)),
+    int src_line MY_ATTRIBUTE((unused))) {
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
-  if (that->m_psi != NULL)
-  {
+  if (that->m_psi != NULL) {
     PSI_COND_CALL(broadcast_cond)(that->m_psi);
   }
 #endif
@@ -306,6 +269,6 @@ inline_mysql_cond_broadcast(mysql_cond_t *that,
 
 #endif /* DISABLE_MYSQL_THREAD_H */
 
-/** @} (end of group psi_api_cond) */
+  /** @} (end of group psi_api_cond) */
 
 #endif

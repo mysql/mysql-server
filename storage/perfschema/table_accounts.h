@@ -44,60 +44,51 @@ struct PFS_account;
 /**
   A row of PERFORMANCE_SCHEMA.ACCOUNTS.
 */
-struct row_accounts
-{
+struct row_accounts {
   /** Column USER, HOST. */
   PFS_account_row m_account;
   /** Columns CURRENT_CONNECTIONS, TOTAL_CONNECTIONS. */
   PFS_connection_stat_row m_connection_stat;
 };
 
-class PFS_index_accounts_by_user_host : public PFS_index_accounts
-{
-public:
+class PFS_index_accounts_by_user_host : public PFS_index_accounts {
+ public:
   PFS_index_accounts_by_user_host()
-    : PFS_index_accounts(&m_key_1, &m_key_2), m_key_1("USER"), m_key_2("HOST")
-  {
-  }
+      : PFS_index_accounts(&m_key_1, &m_key_2),
+        m_key_1("USER"),
+        m_key_2("HOST") {}
 
-  ~PFS_index_accounts_by_user_host()
-  {
-  }
+  ~PFS_index_accounts_by_user_host() {}
 
   virtual bool match(PFS_account *pfs);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_host m_key_2;
 };
 
 /** Table PERFORMANCE_SCHEMA.ACCOUNTS. */
-class table_accounts : public cursor_by_account
-{
-public:
+class table_accounts : public cursor_by_account {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   /** Table builder */
   static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   table_accounts();
 
-public:
-  ~table_accounts()
-  {
-  }
+ public:
+  ~table_accounts() {}
 
   int index_init(uint idx, bool sorted);
 
-private:
+ private:
   virtual int make_row(PFS_account *pfs);
 
   /** Table share lock. */

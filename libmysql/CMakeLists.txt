@@ -166,7 +166,7 @@ SET(CLIENT_SOURCES
   libmysql.cc
   errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/client_plugin.c 
+  ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
   ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
@@ -188,7 +188,7 @@ ENDIF()
 #
 IF (WITH_CLIENT_PROTOCOL_TRACING)
 
-  LIST(APPEND CLIENT_SOURCES mysql_trace.c)
+  LIST(APPEND CLIENT_SOURCES mysql_trace.cc)
   ADD_DEFINITIONS(-D CLIENT_PROTOCOL_TRACING)
 
   IF (WITH_TEST_TRACE_PLUGIN)
@@ -327,6 +327,13 @@ MYSQL_ADD_EXECUTABLE(libmysql_api_test
 SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 IF(LIBRT)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBRT})
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/api_test.c
+    COMPILE_FLAGS -Wstrict-prototypes
+    )
 ENDIF()
 
 # We need to find both SSL .dlls and libmysql.dll, link statically on WIN32

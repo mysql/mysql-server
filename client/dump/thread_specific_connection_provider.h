@@ -34,29 +34,29 @@
 #include "client/base/mutex.h"
 #include "client/dump/abstract_connection_provider.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Thread_specific_connection_provider : public Abstract_connection_provider
-{
-public:
+class Thread_specific_connection_provider
+    : public Abstract_connection_provider {
+ public:
   Thread_specific_connection_provider(
-    Mysql::Tools::Base::I_connection_factory* connection_factory);
+      Mysql::Tools::Base::I_connection_factory *connection_factory);
   ~Thread_specific_connection_provider();
 
-  virtual Mysql::Tools::Base::Mysql_query_runner* get_runner(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler);
+  virtual Mysql::Tools::Base::Mysql_query_runner *get_runner(
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler);
 
-private:
+ private:
   std::mutex mu;
-  std::unordered_map<std::thread::id, Mysql::Tools::Base::Mysql_query_runner*>
-     m_runners;
+  std::unordered_map<std::thread::id, Mysql::Tools::Base::Mysql_query_runner *>
+      m_runners;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

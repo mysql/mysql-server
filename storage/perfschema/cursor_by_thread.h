@@ -38,29 +38,21 @@
   @{
 */
 
-class PFS_index_threads : public PFS_engine_index
-{
-public:
-  PFS_index_threads(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_threads : public PFS_engine_index {
+ public:
+  PFS_index_threads(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
   PFS_index_threads(PFS_engine_key *key_1, PFS_engine_key *key_2)
-    : PFS_engine_index(key_1, key_2)
-  {
-  }
+      : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_threads()
-  {
-  }
+  ~PFS_index_threads() {}
 
   virtual bool match(PFS_thread *pfs) = 0;
 };
 
 /** Cursor CURSOR_BY_THREAD. */
-class cursor_by_thread : public PFS_engine_table
-{
-public:
+class cursor_by_thread : public PFS_engine_table {
+ public:
   static ha_rows get_row_count();
 
   virtual void reset_position(void);
@@ -70,24 +62,22 @@ public:
 
   virtual int index_next();
 
-protected:
+ protected:
   cursor_by_thread(const PFS_engine_table_share *share);
 
-public:
-  ~cursor_by_thread()
-  {
-  }
+ public:
+  ~cursor_by_thread() {}
 
-protected:
+ protected:
   virtual int make_row(PFS_thread *thread) = 0;
 
-private:
+ private:
   /** Current position. */
   PFS_simple_index m_pos;
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   PFS_index_threads *m_opened_index;
 };
 

@@ -7,8 +7,6 @@ DROP FUNCTION test.f1;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE test.t1 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
 CREATE TABLE test.t2 (a INT NOT NULL AUTO_INCREMENT, t TIMESTAMP, t2 TIMESTAMP, PRIMARY KEY(a));
 SET sql_mode = default;

@@ -37,49 +37,52 @@
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
-namespace ngs
-{
-  class Output_buffer;
+namespace ngs {
+class Output_buffer;
 
-  class Row_builder: public Message_builder
-  {
-    typedef ::google::protobuf::io::CodedOutputStream CodedOutputStream;
-  public:
-    Row_builder();
-    ~Row_builder();
+class Row_builder : public Message_builder {
+  typedef ::google::protobuf::io::CodedOutputStream CodedOutputStream;
 
-    void start_row(Output_buffer* out_buffer);
-    void abort_row();
-    void end_row();
+ public:
+  Row_builder();
+  ~Row_builder();
 
-    void add_null_field();
-    void add_longlong_field(longlong value, bool unsigned_flag);
-    void add_decimal_field(const decimal_t * value);
-    void add_decimal_field(const char * const value, size_t length);
-    void add_double_field(double value);
-    void add_float_field(float value);
-    void add_date_field(const MYSQL_TIME * value);
-    void add_time_field(const MYSQL_TIME * value, uint decimals);
-    void add_datetime_field(const MYSQL_TIME * value, uint decimals);
-    void add_string_field(const char * const value, size_t length,
-      const CHARSET_INFO * const valuecs);
-    void add_set_field(const char * const value, size_t length,
-      const CHARSET_INFO * const valuecs);
-    void add_bit_field(const char * const value, size_t length,
-      const CHARSET_INFO * const valuecs);
+  void start_row(Output_buffer *out_buffer);
+  void abort_row();
+  void end_row();
 
-    inline size_t get_num_fields() const { return m_row_processing ? m_num_fields : 0; }
+  void add_null_field();
+  void add_longlong_field(longlong value, bool unsigned_flag);
+  void add_decimal_field(const decimal_t *value);
+  void add_decimal_field(const char *const value, size_t length);
+  void add_double_field(double value);
+  void add_float_field(float value);
+  void add_date_field(const MYSQL_TIME *value);
+  void add_time_field(const MYSQL_TIME *value, uint decimals);
+  void add_datetime_field(const MYSQL_TIME *value, uint decimals);
+  void add_string_field(const char *const value, size_t length,
+                        const CHARSET_INFO *const valuecs);
+  void add_set_field(const char *const value, size_t length,
+                     const CHARSET_INFO *const valuecs);
+  void add_bit_field(const char *const value, size_t length,
+                     const CHARSET_INFO *const valuecs);
 
-  private:
-    // how many fields were already stored in the buffer for the row being currently processed (since start_row())
-    size_t m_num_fields;
-    // true if currently the row is being built (there was start_row() with no closing end_row())
-    bool m_row_processing;
+  inline size_t get_num_fields() const {
+    return m_row_processing ? m_num_fields : 0;
+  }
 
-    static size_t get_time_size(const MYSQL_TIME * value);
-    static void append_time_values(const MYSQL_TIME * value, CodedOutputStream* out_stream);
-  };
-}
+ private:
+  // how many fields were already stored in the buffer for the row being
+  // currently processed (since start_row())
+  size_t m_num_fields;
+  // true if currently the row is being built (there was start_row() with no
+  // closing end_row())
+  bool m_row_processing;
 
+  static size_t get_time_size(const MYSQL_TIME *value);
+  static void append_time_values(const MYSQL_TIME *value,
+                                 CodedOutputStream *out_stream);
+};
+}  // namespace ngs
 
-#endif //  _NGS_ROW_BUILDER_H_
+#endif  //  _NGS_ROW_BUILDER_H_

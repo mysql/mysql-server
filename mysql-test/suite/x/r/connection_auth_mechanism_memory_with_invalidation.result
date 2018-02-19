@@ -233,11 +233,12 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-RUN GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost' IDENTIFIED BY 'sha256_new';
+RUN GRANT SELECT,LOCK TABLES ON *.* TO xuser_sha256@'localhost'
 
 0 rows affected
-Warnings generated:
-WARNING | 1287 | Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+RUN SET PASSWORD FOR 'xuser_sha256'@'localhost' = 'sha256_new'
+
+0 rows affected
 -- Expecting failure with parameters: DISABLED	memory	xuser_sha256	sha256
 --
 connecting...

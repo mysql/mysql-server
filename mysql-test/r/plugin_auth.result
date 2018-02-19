@@ -49,15 +49,6 @@ ERROR 28000: Access denied for user 'plug'@'localhost' (using password: YES)
 select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
-## test no_auto_create_user sql mode with plugin users
-SET @@sql_mode=no_auto_create_user;
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server';
-ERROR 42000: Can't find any matching row in the user table
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server' BY '123';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-SET @@sql_mode=default;
-DROP USER grant_user;
 ## test utf-8 user name
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 GRANT PROXY ON plug_dest TO `Ÿ`;
@@ -65,35 +56,7 @@ select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 Ÿ@localhost	plug_dest@%
 DROP USER `Ÿ`;
-## test GRANT ... IDENTIFIED WITH/BY ...
 CREATE DATABASE test_grant_db;
-# create new user via GRANT WITH
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest;
-GRANT PROXY ON plug_dest TO new_grant_user;
-select USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-new_grant_user@localhost	plug_dest@%
-USE test_grant_db;
-CREATE TABLE t1 (a INT);
-DROP TABLE t1;
-REVOKE ALL PRIVILEGES ON test_grant_db.* FROM new_grant_user;
-# try re-create existing user via GRANT IDENTIFIED BY
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user
-IDENTIFIED BY 'unused_password';
-# make sure password doesn't take precendence
-ERROR 28000: Access denied for user 'new_grant_user'@'localhost' (using password: YES)
-#make sure plugin auth still available
-select USER(),CURRENT_USER();
-USER()	CURRENT_USER()
-new_grant_user@localhost	plug_dest@%
-USE test_grant_db;
-CREATE TABLE t1 (a INT);
-DROP TABLE t1;
-DROP USER new_grant_user;
 REVOKE SELECT on test_grant_db.* FROM joro 
 INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'INDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'' at line 2
@@ -125,7 +88,7 @@ CREATE USER grant_plug_dest2 IDENTIFIED BY 'grant_plug_dest_passwd2';
 GRANT ALL PRIVILEGES ON *.* TO grant_plug;
 ERROR 28000: Access denied for user 'grant_plug'@'localhost' (using password: YES)
 GRANT ALL PRIVILEGES,PROXY ON grant_plug_dest TO grant_plug;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PROXY ON grant_plug_dest TO grant_plug' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',PROXY ON grant_plug_dest TO grant_plug' at line 1
 this should fail : can't combine PROXY
 GRANT ALL SELECT,PROXY ON grant_plug_dest TO grant_plug;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SELECT,PROXY ON grant_plug_dest TO grant_plug' at line 1
@@ -161,10 +124,8 @@ should work : root has PROXY to all users
 GRANT PROXY ON ''@'' TO grant_plug;
 REVOKE PROXY ON ''@'' FROM grant_plug;
 should work : root has PROXY to all users
-GRANT PROXY ON ''@'' TO proxy_admin IDENTIFIED BY 'test' 
-WITH GRANT OPTION;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER proxy_admin IDENTIFIED BY 'test';
+GRANT PROXY ON ''@'' TO proxy_admin WITH GRANT OPTION;
 need USAGE : PROXY doesn't contain it.
 GRANT USAGE on *.* TO proxy_admin;
 in proxy_admin_con;
@@ -258,17 +219,12 @@ command_type NOT LIKE 'Prepare';
 argument
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
-GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS '<secret>'
 CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
-IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>'
 CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
 AS 'grant_plug_dest'
 CREATE USER 'grant_plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER 'grant_plug_dest2'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-GRANT PROXY ON ''@'' TO 'proxy_admin'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' WITH GRANT OPTION
+CREATE USER 'proxy_admin'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 CREATE USER 'plug_dest'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<secret>' PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
@@ -282,20 +238,10 @@ SET GLOBAL general_log= @old_general_log;
 #
 #  Bug #56798 : Wrong credentials assigned when using a proxy user.
 #
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
+CREATE USER power_user;
 GRANT ALL PRIVILEGES ON *.* TO power_user;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT USAGE ON anonymous_db.* TO ''@''
-  IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER ''@'' IDENTIFIED WITH 'test_plugin_server' AS 'power_user';
+GRANT USAGE ON anonymous_db.* TO ''@'';
 GRANT PROXY ON power_user TO ''@'';
 CREATE DATABASE confidential_db;
 SELECT user(),current_user(),@@proxy_user;

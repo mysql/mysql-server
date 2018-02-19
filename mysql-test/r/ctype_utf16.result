@@ -526,7 +526,7 @@ create table t1 (a enum('x','y','z') character set utf16);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z') CHARACTER SET utf16 DEFAULT NULL
+  `a` enum('x','y','z') CHARACTER SET utf16 COLLATE utf16_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');
@@ -540,7 +540,7 @@ alter table t1 change a a enum('x','y','z','d','e','ä','ö','ü') character set
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16 DEFAULT NULL
+  `a` enum('x','y','z','d','e','ä','ö','ü') CHARACTER SET utf16 COLLATE utf16_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('D');
 insert into t1 values ('E ');
@@ -562,7 +562,7 @@ create table t1 (a set ('x','y','z','ä','ö','ü') character set utf16);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf16 DEFAULT NULL
+  `a` set('x','y','z','ä','ö','ü') CHARACTER SET utf16 COLLATE utf16_general_ci DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 insert into t1 values ('x');
 insert into t1 values ('y');
@@ -780,13 +780,13 @@ NOT NULL default 'passive'
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf16 NOT NULL DEFAULT 'passive'
+  `status` enum('active','passive') CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL DEFAULT 'passive'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ALTER TABLE t1 ADD a int NOT NULL AFTER status;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `status` enum('active','passive') CHARACTER SET utf16 NOT NULL DEFAULT 'passive',
+  `status` enum('active','passive') CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL DEFAULT 'passive',
   `a` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
@@ -900,8 +900,6 @@ DBFFDC00
 DBFFDCFF
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (s1 varchar(50) character set ucs2);
 insert into t1 values (0xdf84);
 alter table t1 modify column s1 varchar(50) character set utf16;
@@ -988,15 +986,13 @@ a
 1
 drop table t1;
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a varchar(17000) character set utf16);
 Warnings:
 Note	1246	Converting column 'a' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` mediumtext CHARACTER SET utf16
+  `a` mediumtext CHARACTER SET utf16 COLLATE utf16_general_ci
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;
 SET sql_mode = default;
@@ -1004,7 +1000,7 @@ create table t1 (a varchar(250) character set utf16 primary key) engine=MyISAM;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(250) CHARACTER SET utf16 NOT NULL,
+  `a` varchar(250) CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
@@ -1014,7 +1010,7 @@ create table t1 (a varchar(150) character set utf16 primary key);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(150) CHARACTER SET utf16 NOT NULL,
+  `a` varchar(150) CHARACTER SET utf16 COLLATE utf16_general_ci NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 drop table t1;

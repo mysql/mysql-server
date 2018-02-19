@@ -25,26 +25,25 @@
 #ifndef I_PROGRESS_REPORTER_INCLUDED
 #define I_PROGRESS_REPORTER_INCLUDED
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 class I_progress_watcher;
 
-class I_progress_reporter
-{
-public:
+class I_progress_reporter {
+ public:
   virtual ~I_progress_reporter();
 
   /**
     Add new Progress Watcher to report to.
    */
   virtual void register_progress_watcher(
-    I_progress_watcher* new_progress_watcher)= 0;
+      I_progress_watcher *new_progress_watcher) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

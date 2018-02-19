@@ -25,142 +25,136 @@
   Equi-height bucket (implementation).
 */
 
-#include "sql/histograms/equi_height_bucket.h" // equi_height::Bucket
+#include "sql/histograms/equi_height_bucket.h"  // equi_height::Bucket
 
-#include <cmath>
-#include <memory>                          // std::unique_ptr
+#include <stddef.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <algorithm>
+#include <limits>
+#include <memory>  // std::unique_ptr
 
 #include "binary_log_types.h"
-#include "my_base.h"                       // ha_rows
+#include "m_ctype.h"
+#include "my_base.h"  // ha_rows
 #include "my_dbug.h"
 #include "my_inttypes.h"
+#include "my_time.h"
 #include "mysql_time.h"
-#include "sql/histograms/value_map.h"      // Histogram_comparator
-#include "sql/item.h"                      // DTCollation
-#include "sql/json_dom.h"                  // Json_*
-#include "sql/my_decimal.h"                // my_decimal_cmp
-#include "sql/sql_time.h"                  // calc_time_diff
+#include "sql/histograms/value_map.h"  // Histogram_comparator
+#include "sql/json_dom.h"              // Json_*
+#include "sql/my_decimal.h"            // my_decimal_cmp
+#include "sql/sql_time.h"              // calc_time_diff
+#include "template_utils.h"
 
 namespace histograms {
 namespace equi_height {
 
-template<typename T>
+template <typename T>
 Bucket<T>::Bucket(T lower, T upper, double freq, ha_rows num_distinct)
-  :m_lower_inclusive(lower), m_upper_inclusive(upper),
-  m_cumulative_frequency(freq), m_num_distinct(num_distinct)
-{
+    : m_lower_inclusive(lower),
+      m_upper_inclusive(upper),
+      m_cumulative_frequency(freq),
+      m_num_distinct(num_distinct) {
   DBUG_ASSERT(m_cumulative_frequency >= 0.0);
   DBUG_ASSERT(m_cumulative_frequency <= 1.0);
   DBUG_ASSERT(m_num_distinct >= 1);
   DBUG_ASSERT(!histograms::Histogram_comparator()(upper, lower));
 }
 
-
-template<typename T>
-bool Bucket<T>::bucket_to_json(Json_array *json_array) const
-{
+template <typename T>
+bool Bucket<T>::bucket_to_json(Json_array *json_array) const {
   // Lower and upper inclusive value.
   if (add_values_json_bucket(get_lower_inclusive(), get_upper_inclusive(),
                              json_array))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   // Cumulative frequency.
   const Json_double frequency(get_cumulative_frequency());
   if (json_array->append_clone(&frequency))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   // Number of distinct values.
   const Json_uint num_distinct(get_num_distinct());
   if (json_array->append_clone(&num_distinct))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<double>::add_values_json_bucket(const double &lower_value,
                                             const double &upper_value,
-                                            Json_array *json_array)
-{
+                                            Json_array *json_array) {
   const Json_double json_lower_value(lower_value);
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_double json_upper_value(upper_value);
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<String>::add_values_json_bucket(const String &lower_value,
                                             const String &upper_value,
-                                            Json_array *json_array)
-{
+                                            Json_array *json_array) {
   const Json_opaque json_lower_value(enum_field_types::MYSQL_TYPE_STRING,
                                      lower_value.ptr(), lower_value.length());
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_opaque json_upper_value(enum_field_types::MYSQL_TYPE_STRING,
                                      upper_value.ptr(), upper_value.length());
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<ulonglong>::add_values_json_bucket(const ulonglong &lower_value,
                                                const ulonglong &upper_value,
-                                               Json_array *json_array)
-{
+                                               Json_array *json_array) {
   const Json_uint json_lower_value(lower_value);
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_uint json_upper_value(upper_value);
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<longlong>::add_values_json_bucket(const longlong &lower_value,
                                               const longlong &upper_value,
-                                              Json_array *json_array)
-{
+                                              Json_array *json_array) {
   const Json_int json_lower_value(lower_value);
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_int json_upper_value(upper_value);
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
                                                 const MYSQL_TIME &upper_value,
-                                                Json_array *json_array)
-{
+                                                Json_array *json_array) {
   DBUG_ASSERT(lower_value.time_type == upper_value.time_type);
 
   enum_field_types field_type;
-  switch (lower_value.time_type)
-  {
+  switch (lower_value.time_type) {
     case MYSQL_TIMESTAMP_DATE:
-      field_type= MYSQL_TYPE_DATE;
+      field_type = MYSQL_TYPE_DATE;
       break;
     case MYSQL_TIMESTAMP_DATETIME:
-      field_type= MYSQL_TYPE_DATETIME;
+      field_type = MYSQL_TYPE_DATETIME;
       break;
     case MYSQL_TIMESTAMP_TIME:
-      field_type= MYSQL_TYPE_TIME;
+      field_type = MYSQL_TYPE_TIME;
       break;
     default:
       /* purecov: begin deadcode */
@@ -171,57 +165,49 @@ bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
 
   const Json_datetime json_lower_value(lower_value, field_type);
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_datetime json_upper_value(upper_value, field_type);
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
-template<>
+template <>
 bool Bucket<my_decimal>::add_values_json_bucket(const my_decimal &lower_value,
                                                 const my_decimal &upper_value,
-                                                Json_array *json_array)
-{
+                                                Json_array *json_array) {
   const Json_decimal json_lower_value(lower_value);
   if (json_array->append_clone(&json_lower_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
 
   const Json_decimal json_upper_value(upper_value);
   if (json_array->append_clone(&json_upper_value))
-    return true;                              /* purecov: inspected */
+    return true; /* purecov: inspected */
   return false;
 }
 
-
 template <class T>
-static bool values_are_equal(const T &val1, const T &val2)
-{
+static bool values_are_equal(const T &val1, const T &val2) {
   return (!Histogram_comparator()(val1, val2) &&
           !Histogram_comparator()(val2, val1));
 }
 
-
 template <class T>
-double Bucket<T>::get_distance_from_lower(const T &value) const
-{
+double Bucket<T>::get_distance_from_lower(const T &value) const {
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
   else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
     return 1.0;
 
   // Make sure that double arithmeric is used in case of very large values.
-  const double lower_inclusive= static_cast<double>(get_lower_inclusive());
+  const double lower_inclusive = static_cast<double>(get_lower_inclusive());
   return (value - lower_inclusive + 1.0) /
-    (get_upper_inclusive() - lower_inclusive + 1.0);
+         (get_upper_inclusive() - lower_inclusive + 1.0);
 }
 
-
 template <>
-double Bucket<double>::get_distance_from_lower(const double &value) const
-{
+double Bucket<double>::get_distance_from_lower(const double &value) const {
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
   else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
@@ -230,8 +216,6 @@ double Bucket<double>::get_distance_from_lower(const double &value) const
   return (value - get_lower_inclusive()) /
          (get_upper_inclusive() - get_lower_inclusive());
 }
-
-
 
 /**
   Convert an array of uchar values into an 64bit unsigned integer. It simply
@@ -253,18 +237,16 @@ double Bucket<double>::get_distance_from_lower(const double &value) const
 
   @return The converted value.
 */
-static std::uint64_t uchar_array_to_64bit_unsigned(const uchar *ptr, size_t len)
-{
-  std::uint64_t result= 0U;
-  for (size_t i= 0; i < sizeof(result) && i < len; ++i)
-    result= (result << 8) | ptr[i];
+static std::uint64_t uchar_array_to_64bit_unsigned(const uchar *ptr,
+                                                   size_t len) {
+  std::uint64_t result = 0U;
+  for (size_t i = 0; i < sizeof(result) && i < len; ++i)
+    result = (result << 8) | ptr[i];
 
-  for (size_t i= len; i < sizeof(result); ++i)
-    result= (result << 8) | 0;
+  for (size_t i = len; i < sizeof(result); ++i) result = (result << 8) | 0;
 
   return result;
 }
-
 
 /**
   An attempt to calculate the distance for string values. It goes like this:
@@ -307,57 +289,51 @@ static std::uint64_t uchar_array_to_64bit_unsigned(const uchar *ptr, size_t len)
   @return The distance, between 0.0 and 1.0 inclusive.
 */
 template <>
-double Bucket<String>::
-get_distance_from_lower(const String &value) const
-{
-  DBUG_ASSERT(value.charset()->number == get_lower_inclusive().charset()->number);
+double Bucket<String>::get_distance_from_lower(const String &value) const {
+  DBUG_ASSERT(value.charset()->number ==
+              get_lower_inclusive().charset()->number);
 
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
   else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
     return 1.0;
 
-  uint max_strnxfrm_len=
-    value.charset()->coll->strnxfrmlen(value.charset(),
-                                       HISTOGRAM_MAX_COMPARE_LENGTH);
+  uint max_strnxfrm_len = value.charset()->coll->strnxfrmlen(
+      value.charset(), HISTOGRAM_MAX_COMPARE_LENGTH);
 
   std::unique_ptr<uchar[]> value_buf(new uchar[max_strnxfrm_len]());
   std::unique_ptr<uchar[]> upper_buf(new uchar[max_strnxfrm_len]());
   std::unique_ptr<uchar[]> lower_buf(new uchar[max_strnxfrm_len]());
 
-  const uchar *ptr= pointer_cast<const uchar*>(value.ptr());
-  size_t value_len= my_strnxfrm(value.charset(), value_buf.get(),
-                                max_strnxfrm_len, ptr, value.length());
+  const uchar *ptr = pointer_cast<const uchar *>(value.ptr());
+  size_t value_len = my_strnxfrm(value.charset(), value_buf.get(),
+                                 max_strnxfrm_len, ptr, value.length());
 
-  const uchar *ptr2= pointer_cast<const uchar*>(get_lower_inclusive().ptr());
-  size_t lower_len= my_strnxfrm(value.charset(), lower_buf.get(),
-                                max_strnxfrm_len, ptr2,
-                                get_lower_inclusive().length());
+  const uchar *ptr2 = pointer_cast<const uchar *>(get_lower_inclusive().ptr());
+  size_t lower_len =
+      my_strnxfrm(value.charset(), lower_buf.get(), max_strnxfrm_len, ptr2,
+                  get_lower_inclusive().length());
 
-  const uchar *ptr3= pointer_cast<const uchar*>(get_upper_inclusive().ptr());
-  size_t upper_len= my_strnxfrm(value.charset(), upper_buf.get(),
-                                max_strnxfrm_len, ptr3,
-                                get_upper_inclusive().length());
+  const uchar *ptr3 = pointer_cast<const uchar *>(get_upper_inclusive().ptr());
+  size_t upper_len =
+      my_strnxfrm(value.charset(), upper_buf.get(), max_strnxfrm_len, ptr3,
+                  get_upper_inclusive().length());
 
   // Find the common prefix from these three arrays
-  size_t shortest_buffer= std::min(value_len, lower_len);
-  shortest_buffer= std::min(shortest_buffer, upper_len);
-  size_t start_index= 0;
+  size_t shortest_buffer = std::min(value_len, lower_len);
+  shortest_buffer = std::min(shortest_buffer, upper_len);
+  size_t start_index = 0;
   while (value_buf.get()[start_index] == upper_buf.get()[start_index] &&
          upper_buf.get()[start_index] == lower_buf.get()[start_index] &&
-         start_index < shortest_buffer)
-  {
+         start_index < shortest_buffer) {
     start_index++;
   }
 
-  std::uint64_t lower_converted=
-    uchar_array_to_64bit_unsigned(lower_buf.get() + start_index,
-                                  lower_len - start_index);
-  std::uint64_t upper_converted=
-    uchar_array_to_64bit_unsigned(upper_buf.get() + start_index,
-                                  upper_len - start_index);
-  if (upper_converted == lower_converted)
-  {
+  std::uint64_t lower_converted = uchar_array_to_64bit_unsigned(
+      lower_buf.get() + start_index, lower_len - start_index);
+  std::uint64_t upper_converted = uchar_array_to_64bit_unsigned(
+      upper_buf.get() + start_index, upper_len - start_index);
+  if (upper_converted == lower_converted) {
     /*
       This should not be hit, since we already have checked for equal upper
       and lower values at the beginning of this function.
@@ -365,37 +341,33 @@ get_distance_from_lower(const String &value) const
     return 1.0; /* purecov: deadcode */
   }
 
-  std::uint64_t value_converted=
-    uchar_array_to_64bit_unsigned(value_buf.get() + start_index,
-                                  value_len - start_index);
+  std::uint64_t value_converted = uchar_array_to_64bit_unsigned(
+      value_buf.get() + start_index, value_len - start_index);
 
   DBUG_ASSERT(lower_converted <= value_converted);
   DBUG_ASSERT(value_converted <= upper_converted);
 
   return (value_converted - lower_converted) /
-    static_cast<double>(upper_converted - lower_converted);
+         static_cast<double>(upper_converted - lower_converted);
 }
 
-
 template <>
-double Bucket<MYSQL_TIME>::
-get_distance_from_lower(const MYSQL_TIME &value) const
-{
-  MYSQL_TIME lower_modified= get_lower_inclusive();
-  MYSQL_TIME upper_modified= get_upper_inclusive();
-  MYSQL_TIME value_modified= value;
+double Bucket<MYSQL_TIME>::get_distance_from_lower(
+    const MYSQL_TIME &value) const {
+  MYSQL_TIME lower_modified = get_lower_inclusive();
+  MYSQL_TIME upper_modified = get_upper_inclusive();
+  MYSQL_TIME value_modified = value;
 
   if (value.time_type == MYSQL_TIMESTAMP_DATE ||
-      get_lower_inclusive().time_type == MYSQL_TIMESTAMP_DATE)
-  {
+      get_lower_inclusive().time_type == MYSQL_TIMESTAMP_DATE) {
     // Calculate the difference using only the date part.
     TIME_set_hhmmss(&lower_modified, 0);
     TIME_set_hhmmss(&upper_modified, 0);
     TIME_set_hhmmss(&value_modified, 0);
 
-    lower_modified.second_part= 0;
-    upper_modified.second_part= 0;
-    value_modified.second_part= 0;
+    lower_modified.second_part = 0;
+    upper_modified.second_part = 0;
+    value_modified.second_part = 0;
   }
 
   if (Histogram_comparator()(value_modified, lower_modified))
@@ -409,11 +381,11 @@ get_distance_from_lower(const MYSQL_TIME &value) const
   */
   longlong upper_lower_diff_seconds;
   long upper_lower_diff_microseconds;
-  int sign= lower_modified.neg != upper_modified.neg ? -1 : 1;
+  int sign = lower_modified.neg != upper_modified.neg ? -1 : 1;
   calc_time_diff(&lower_modified, &upper_modified, sign,
                  &upper_lower_diff_seconds, &upper_lower_diff_microseconds);
-  double upper_lower_diff=
-    upper_lower_diff_seconds + (upper_lower_diff_microseconds / 1000000.0);
+  double upper_lower_diff =
+      upper_lower_diff_seconds + (upper_lower_diff_microseconds / 1000000.0);
 
   /*
     Calculate the difference in seconds between the lower inclusive value of
@@ -421,20 +393,18 @@ get_distance_from_lower(const MYSQL_TIME &value) const
   */
   longlong value_lower_diff_seconds;
   long value_lower_diff_microseconds;
-  sign= lower_modified.neg != value_modified.neg ? -1 : 1;
+  sign = lower_modified.neg != value_modified.neg ? -1 : 1;
   calc_time_diff(&lower_modified, &value_modified, sign,
                  &value_lower_diff_seconds, &value_lower_diff_microseconds);
-  double value_lower_diff=
-    value_lower_diff_seconds + (value_lower_diff_microseconds / 1000000.0);
+  double value_lower_diff =
+      value_lower_diff_seconds + (value_lower_diff_microseconds / 1000000.0);
 
   return value_lower_diff / upper_lower_diff;
 }
 
-
 template <>
-double Bucket<my_decimal>::
-get_distance_from_lower(const my_decimal &value) const
-{
+double Bucket<my_decimal>::get_distance_from_lower(
+    const my_decimal &value) const {
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
   else if (values_are_equal(get_lower_inclusive(), get_upper_inclusive()))
@@ -453,13 +423,11 @@ get_distance_from_lower(const my_decimal &value) const
   my_decimal2double(0, &value, &value_double);
 
   return (value_double - lower_inclusive_double) /
-    (upper_inclusive_double - lower_inclusive_double);
+         (upper_inclusive_double - lower_inclusive_double);
 }
 
-
 template <class T>
-double Bucket<T>::value_probability() const
-{
+double Bucket<T>::value_probability() const {
   /*
     As default, assume that the number of possible values between the lower and
     upper value of the bucket is VERY high.
@@ -469,22 +437,17 @@ double Bucket<T>::value_probability() const
   return get_num_distinct() / std::numeric_limits<double>::max();
 }
 
-
 template <>
-double Bucket<longlong>::value_probability() const
-{
-  return get_num_distinct() /
-    (static_cast<double>(get_upper_inclusive()) - get_lower_inclusive() + 1);
+double Bucket<longlong>::value_probability() const {
+  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
+                               get_lower_inclusive() + 1);
 }
 
-
 template <>
-double Bucket<ulonglong>::value_probability() const
-{
-  return get_num_distinct() /
-    (static_cast<double>(get_upper_inclusive()) - get_lower_inclusive() + 1);
+double Bucket<ulonglong>::value_probability() const {
+  return get_num_distinct() / (static_cast<double>(get_upper_inclusive()) -
+                               get_lower_inclusive() + 1);
 }
-
 
 // Explicit template instantiations.
 template class Bucket<double>;
@@ -494,5 +457,5 @@ template class Bucket<longlong>;
 template class Bucket<MYSQL_TIME>;
 template class Bucket<my_decimal>;
 
-} // namespace equi_height
-} // namespace bucket
+}  // namespace equi_height
+}  // namespace histograms

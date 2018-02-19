@@ -21,20 +21,21 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef ROLE_TABLES_H
-#define	ROLE_TABLES_H
+#define ROLE_TABLES_H
 
 #include "sql/auth/auth_common.h"
 
 class THD;
 struct TABLE;
 
-bool modify_role_edges_in_table(THD *thd, TABLE *table, const Auth_id_ref &from_user,
-                                  const Auth_id_ref &to_user, bool with_admin_option,
-                                  bool delete_option);
-bool modify_default_roles_in_table(THD *thd, TABLE *table, const Auth_id_ref &auth_id,
-                                   const Auth_id_ref &role,
-                                   bool delete_option);
+bool modify_role_edges_in_table(THD *thd, TABLE *table,
+                                const Auth_id_ref &from_user,
+                                const Auth_id_ref &to_user,
+                                bool with_admin_option, bool delete_option);
+bool modify_default_roles_in_table(THD *thd, TABLE *table,
+                                   const Auth_id_ref &auth_id,
+                                   const Auth_id_ref &role, bool delete_option);
 TABLE *open_role_edges_table(THD *thd);
 TABLE *open_default_role_table(THD *thd);
 void close_all_role_tables(THD *thd);
-#endif	/* ROLE_TABLES_H */
+#endif /* ROLE_TABLES_H */

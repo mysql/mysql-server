@@ -23,8 +23,8 @@
 #ifndef DD__RESOURCE_GROUP_IMPL_INCLUDED
 #define DD__RESOURCE_GROUP_IMPL_INCLUDED
 
-#include <bitset>
 #include <sys/types.h>
+#include <bitset>
 #include <new>
 #include <string>
 #include <vector>
@@ -33,27 +33,23 @@
 #include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/impl/types/weak_object_impl.h"
 #include "sql/dd/object_id.h"
-#include "sql/dd/types/resource_group.h"           // dd::Resource_group
-#include "sql/resourcegroups/resource_group_sql_cmd.h" // resourcegroups::Type
-
+#include "sql/dd/types/resource_group.h"                // dd::Resource_group
+#include "sql/resourcegroups/resource_group_sql_cmd.h"  // resourcegroups::Type
 
 namespace dd {
 
 class Open_dictionary_tables_ctx;
 class Weak_object;
 
-
 class Resource_group_impl : virtual public Entity_object_impl,
-                            public Resource_group
-{
-public:
+                            public Resource_group {
+ public:
   Resource_group_impl();
   Resource_group_impl(const Resource_group_impl &);
 
-  virtual ~Resource_group_impl()
-  {}
+  virtual ~Resource_group_impl() {}
 
-public:
+ public:
   const Object_table &object_table() const override;
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
@@ -62,49 +58,49 @@ public:
   bool store_attributes(Raw_record *r) override;
   void debug_print(String_type &outb) const override;
 
-  const resourcegroups::Type &resource_group_type() const override
-  { return m_type; }
-  void set_resource_group_type(const resourcegroups::Type &type) override
-  { m_type= type; }
+  const resourcegroups::Type &resource_group_type() const override {
+    return m_type;
+  }
+  void set_resource_group_type(const resourcegroups::Type &type) override {
+    m_type = type;
+  }
 
-  bool resource_group_enabled() const override
-  { return m_enabled; }
-  void set_resource_group_enabled(bool enabled) override
-  { m_enabled= enabled; }
+  bool resource_group_enabled() const override { return m_enabled; }
+  void set_resource_group_enabled(bool enabled) override {
+    m_enabled = enabled;
+  }
 
-  const std::bitset<CPU_MASK_SIZE> &cpu_id_mask() const override
-  { return m_cpu_id_mask; }
+  const std::bitset<CPU_MASK_SIZE> &cpu_id_mask() const override {
+    return m_cpu_id_mask;
+  }
 
   void set_cpu_id_mask(
-    const std::vector<resourcegroups::Range>& vcpu_vec) override
-  {
+      const std::vector<resourcegroups::Range> &vcpu_vec) override {
     m_cpu_id_mask.reset();
-    for (auto vcpu_range : vcpu_vec)
-    {
-      for(auto bit_pos= vcpu_range.m_start; bit_pos <= vcpu_range.m_end;
-                        ++bit_pos)
+    for (auto vcpu_range : vcpu_vec) {
+      for (auto bit_pos = vcpu_range.m_start; bit_pos <= vcpu_range.m_end;
+           ++bit_pos)
         m_cpu_id_mask.set(bit_pos);
     }
   }
 
-  int thread_priority() const override
-  { return m_thread_priority; }
+  int thread_priority() const override { return m_thread_priority; }
 
-  void set_thread_priority(int priority) override
-  { m_thread_priority= priority; }
+  void set_thread_priority(int priority) override {
+    m_thread_priority = priority;
+  }
 
-private:
+ private:
   String_type m_resource_group_name;
   resourcegroups::Type m_type;
   bool m_enabled;
   std::bitset<CPU_MASK_SIZE> m_cpu_id_mask;
   int m_thread_priority;
 
-  Resource_group *clone() const override
-  {
+  Resource_group *clone() const override {
     return new Resource_group_impl(*this);
   }
 };
 
-} // dd
-#endif // DD__RESOURCE_GROUP_IMPL_INCLUDED
+}  // namespace dd
+#endif  // DD__RESOURCE_GROUP_IMPL_INCLUDED

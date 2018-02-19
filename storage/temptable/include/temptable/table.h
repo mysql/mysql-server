@@ -33,32 +33,32 @@ TempTable Table declarations. */
 #include <utility>       /* std::pair, std::move */
 #include <vector>        /* std::vector */
 
-#include "sql/table.h"        /* TABLE, TABLE_SHARE */
+#include "sql/table.h" /* TABLE, TABLE_SHARE */
 #include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
-#include "storage/temptable/include/temptable/column.h" /* temptable::Column */
-#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
-#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
-#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
-#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/column.h"  /* temptable::Column */
+#include "storage/temptable/include/temptable/cursor.h"  /* temptable::Cursor */
+#include "storage/temptable/include/temptable/index.h"   /* temptable::Index */
+#include "storage/temptable/include/temptable/result.h"  /* temptable::Result */
+#include "storage/temptable/include/temptable/row.h"     /* temptable::Row */
 #include "storage/temptable/include/temptable/storage.h" /* temptable::Storage */
 
 namespace temptable {
 
 class Table {
  public:
-  Table(TABLE* mysql_table, bool all_columns_are_fixed_size);
+  Table(TABLE *mysql_table, bool all_columns_are_fixed_size);
 
   /* The `m_rows` member is too expensive to copy around. */
-  Table(const Table&) = delete;
-  Table& operator=(const Table&) = delete;
+  Table(const Table &) = delete;
+  Table &operator=(const Table &) = delete;
 
-  Table(Table&& other);
-  Table& operator=(Table&& rhs);
+  Table(Table &&other);
+  Table &operator=(Table &&rhs);
 
   ~Table();
 
-  const TABLE* mysql_table() const;
-  void mysql_table(TABLE* table);
+  const TABLE *mysql_table() const;
+  void mysql_table(TABLE *table);
 
   size_t mysql_row_length() const;
 
@@ -66,17 +66,17 @@ class Table {
 
   size_t number_of_columns() const;
 
-  const Columns& columns() const;
+  const Columns &columns() const;
 
   size_t number_of_rows() const;
 
-  const Index& index(size_t i) const;
+  const Index &index(size_t i) const;
 
-  const Column& column(size_t i) const;
+  const Column &column(size_t i) const;
 
-  const Storage& rows() const;
+  const Storage &rows() const;
 
-  void row(const Storage::Iterator& pos, unsigned char* mysql_row) const;
+  void row(const Storage::Iterator &pos, unsigned char *mysql_row) const;
 
   /** Insert a new row in the table. If something else than Result::OK is
    * returned, then the state of the table and its indexes is unchanged by the
@@ -86,7 +86,7 @@ class Table {
    * @return result code */
   Result insert(
       /** [in] The contents of the new row to be inserted. */
-      const unsigned char* mysql_row);
+      const unsigned char *mysql_row);
 
   /** Update a row in the table. The semantics of this are enforced by the
    * handler API. If something else than Result::OK is returned, then the state
@@ -97,12 +97,12 @@ class Table {
   Result update(
       /** [in] The contents of the old row to be updated. The row pointed to by
        * `target_row` must equal this. */
-      const unsigned char* mysql_row_old,
+      const unsigned char *mysql_row_old,
       /** [in] The contents of the new row. */
-      const unsigned char* mysql_row_new,
+      const unsigned char *mysql_row_new,
       /** [in,out] Position in the list of rows to update. The row pointed to
        * by this must equal `mysql_row_old`. */
-      Storage::Element* target_row,
+      Storage::Element *target_row,
       /** [in] Indicate if this is reversing an incomplete update operation.
        * When a normal update(reversal = false) fails at some index for example
        * because the index is unique and it resulted in a duplicate, then we
@@ -114,8 +114,8 @@ class Table {
       /** [in] In case of reversal, the index which we failed to update. */
       size_t max_index = 0);
 
-  Result remove(const unsigned char* mysql_row_must_be,
-                const Storage::Iterator& victim_position);
+  Result remove(const unsigned char *mysql_row_must_be,
+                const Storage::Iterator &victim_position);
 
   void truncate();
 
@@ -127,14 +127,14 @@ class Table {
   /** Index entry for storing index pointer as well
    * as allocated memory size. */
   struct Index_entry {
-    Index* m_index;
+    Index *m_index;
 
     size_t m_alloc_size;
   };
 
   /** Create index for given key and append it to indexes table. */
   template <class T>
-  void append_new_index(const KEY& mysql_index);
+  void append_new_index(const KEY &mysql_index);
 
   /** Create the indexes in `m_index_entries`
    * from `m_mysql_table->key_info[]`. */
@@ -161,7 +161,7 @@ class Table {
 
   Columns m_columns;
 
-  TABLE* m_mysql_table;
+  TABLE *m_mysql_table;
 };
 
 /** A container for the list of the tables. Don't allocate memory for it from
@@ -176,11 +176,11 @@ extern thread_local Tables tables;
 
 /* Implementation of inlined methods. */
 
-inline Table::Table(Table&& other) : m_rows(nullptr) {
+inline Table::Table(Table &&other) : m_rows(nullptr) {
   *this = std::move(other);
 }
 
-inline Table& Table::operator=(Table&& rhs) {
+inline Table &Table::operator=(Table &&rhs) {
   m_rows = std::move(rhs.m_rows);
 
   m_all_columns_are_fixed_size = rhs.m_all_columns_are_fixed_size;
@@ -208,9 +208,9 @@ inline Table& Table::operator=(Table&& rhs) {
   return *this;
 }
 
-inline const TABLE* Table::mysql_table() const { return m_mysql_table; }
+inline const TABLE *Table::mysql_table() const { return m_mysql_table; }
 
-inline void Table::mysql_table(TABLE* mysql_table) {
+inline void Table::mysql_table(TABLE *mysql_table) {
   m_mysql_table = mysql_table;
 }
 
@@ -222,26 +222,26 @@ inline size_t Table::number_of_indexes() const {
 
 inline size_t Table::number_of_columns() const { return m_columns.size(); }
 
-inline const Columns& Table::columns() const { return m_columns; }
+inline const Columns &Table::columns() const { return m_columns; }
 
 inline size_t Table::number_of_rows() const { return m_rows.size(); }
 
-inline const Index& Table::index(size_t i) const {
+inline const Index &Table::index(size_t i) const {
   return *m_index_entries[i].m_index;
 }
 
-inline const Column& Table::column(size_t i) const {
+inline const Column &Table::column(size_t i) const {
   DBUG_ASSERT(i < m_columns.size());
   return m_columns[i];
 }
 
-inline const Storage& Table::rows() const { return m_rows; }
+inline const Storage &Table::rows() const { return m_rows; }
 
-inline void Table::row(const Storage::Iterator& pos,
-                       unsigned char* mysql_row) const {
+inline void Table::row(const Storage::Iterator &pos,
+                       unsigned char *mysql_row) const {
   DBUG_ASSERT(m_mysql_row_length == m_mysql_table->s->rec_buff_length);
 
-  const Storage::Element* storage_element = *pos;
+  const Storage::Element *storage_element = *pos;
 
   if (m_all_columns_are_fixed_size) {
     DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
@@ -250,7 +250,7 @@ inline void Table::row(const Storage::Iterator& pos,
   } else {
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
 
-    const Row* row = static_cast<const Row*>(storage_element);
+    const Row *row = static_cast<const Row *>(storage_element);
     row->copy_to_mysql_row(m_columns, mysql_row, m_mysql_row_length);
   }
 }
@@ -258,7 +258,7 @@ inline void Table::row(const Storage::Iterator& pos,
 inline void Table::truncate() {
   if (!m_all_columns_are_fixed_size) {
     for (auto element : m_rows) {
-      Row* row = static_cast<Row*>(element);
+      Row *row = static_cast<Row *>(element);
       row->~Row();
     }
   }
@@ -267,7 +267,7 @@ inline void Table::truncate() {
   /* Truncate indexes even if `m_indexes_are_enabled` is false. Somebody may
    * use truncate() before enabling indexes and we don't want an empty m_rows
    * with some stale data inside the indexes. */
-  for (auto& entry : m_index_entries) {
+  for (auto &entry : m_index_entries) {
     entry.m_index->truncate();
   }
 }
@@ -288,14 +288,14 @@ inline Result Table::enable_indexes() {
 
 /** Create index for given key and appends it to indexes table. */
 template <class T>
-inline void Table::append_new_index(const KEY& mysql_index) {
+inline void Table::append_new_index(const KEY &mysql_index) {
   Index_entry entry;
 
   entry.m_alloc_size = sizeof(T);
 
   auto mem_ptr = m_allocator.allocate(entry.m_alloc_size);
   try {
-    entry.m_index = new (mem_ptr) T (*this, mysql_index, m_allocator);
+    entry.m_index = new (mem_ptr) T(*this, mysql_index, m_allocator);
 
     m_index_entries.push_back(entry);
   } catch (...) {

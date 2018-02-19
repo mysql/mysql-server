@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -29,17 +29,16 @@
 
 #include "plugin/x/ngs/include/ngs_common/to_string.h"
 
-
 #ifdef GetMessage
 #undef GetMessage
 #endif
 
 namespace formatter {
 
-using FieldDescriptor  = google::protobuf::FieldDescriptor;
-using FieldDescriptors = std::vector<const FieldDescriptor*>;
-using Reflection       = google::protobuf::Reflection;
-using Message          = xcl::XProtocol::Message;
+using FieldDescriptor = google::protobuf::FieldDescriptor;
+using FieldDescriptors = std::vector<const FieldDescriptor *>;
+using Reflection = google::protobuf::Reflection;
+using Message = xcl::XProtocol::Message;
 
 namespace details {
 
@@ -83,15 +82,13 @@ class Field_path_extractor {
 };
 
 Field_path_extractor::Field_path_extractor(const std::string &path)
-: m_path(path),
-  m_field_full_name(path.substr(0, path.find('.'))),
-  m_index(m_field_full_name.find('[')) {
-}
+    : m_path(path),
+      m_field_full_name(path.substr(0, path.find('.'))),
+      m_index(m_field_full_name.find('[')) {}
 
 std::string Field_path_extractor::get_next_fields() const {
   const std::size_t position = m_field_full_name.length() + 1;
-  if (m_path.length() <= position)
-      return "";
+  if (m_path.length() <= position) return "";
 
   return m_path.substr(position);
 }
@@ -102,25 +99,22 @@ bool Field_path_extractor::get_current_field(std::string *out_result) const {
   for (std::size_t i = 0; i < out_result->length(); ++i) {
     const char c = (*out_result)[i];
 
-    if (!std::isalnum(c) &&  '_' != c)
-      return false;
+    if (!std::isalnum(c) && '_' != c) return false;
   }
 
   return true;
 }
 
-bool Field_path_extractor::get_index(
-    bool *out_has_index,
-    int *out_index) const {
-  const bool has_index = std::string::npos  != m_index;
+bool Field_path_extractor::get_index(bool *out_has_index,
+                                     int *out_index) const {
+  const bool has_index = std::string::npos != m_index;
   if (has_index) {
-    if (m_field_full_name.find(']') != m_field_full_name.length() -1) {
+    if (m_field_full_name.find(']') != m_field_full_name.length() - 1) {
       return false;
     }
 
     std::string index_str = m_field_full_name.substr(
-        m_index + 1,
-        m_field_full_name.length() - 1 - m_index - 1);
+        m_index + 1, m_field_full_name.length() - 1 - m_index - 1);
     bool valid_index = !index_str.empty();
 
     for (std::size_t i = 0; i < index_str.length(); ++i)
@@ -133,7 +127,7 @@ bool Field_path_extractor::get_index(
     *out_index = ngs::stoi(index_str);
   }
 
-  *out_has_index  = has_index;
+  *out_has_index = has_index;
 
   return true;
 }
@@ -144,7 +138,7 @@ class Field {
   bool m_has_index;
   int m_index;
 
-  bool operator() (const FieldDescriptor *fd) const {
+  bool operator()(const FieldDescriptor *fd) const {
     return m_name == fd->name();
   }
 };
@@ -159,8 +153,7 @@ static Fields get_fields_array_from_path(std::string path) {
     Field field;
 
     if (!path_extractor.get_current_field(&field.m_name))
-      throw std::logic_error(
-          "Elements name contains not allowed characters");
+      throw std::logic_error("Elements name contains not allowed characters");
 
     if (!path_extractor.get_index(&field.m_has_index, &field.m_index))
       throw std::logic_error("Wrong filter format, around elements index");
@@ -174,24 +167,19 @@ static Fields get_fields_array_from_path(std::string path) {
 
 }  // namespace details
 
-
 template <typename Message_type>
-static std::string message_to_text(
-    const std::string &binary_message) {
-  std::string   result;
-  Message_type  message;
+static std::string message_to_text(const std::string &binary_message) {
+  std::string result;
+  Message_type message;
 
   message.ParseFromString(binary_message);
   google::protobuf::TextFormat::PrintToString(message, &result);
 
-  return message.GetDescriptor()->full_name() + " { " +
-      result +
-      " }";
+  return message.GetDescriptor()->full_name() + " { " + result + " }";
 }
 
-static std::string messages_field_to_text(
-     const Message &message,
-     const FieldDescriptor *fd) {
+static std::string messages_field_to_text(const Message &message,
+                                          const FieldDescriptor *fd) {
   const Reflection *reflection = message.GetReflection();
 
   switch (fd->cpp_type()) {
@@ -230,52 +218,42 @@ static std::string messages_field_to_text(
   }
 }
 
-static std::string messages_repeated_field_to_text(
-     const Message &message,
-     const FieldDescriptor *fd,
-     const int index) {
+static std::string messages_repeated_field_to_text(const Message &message,
+                                                   const FieldDescriptor *fd,
+                                                   const int index) {
   const Reflection *reflection = message.GetReflection();
 
   switch (fd->cpp_type()) {
     case FieldDescriptor::CPPTYPE_INT32:
-      return ngs::to_string(reflection->GetRepeatedInt32(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedInt32(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_UINT32:
-      return ngs::to_string(reflection->GetRepeatedUInt32(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedUInt32(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_INT64:
-      return ngs::to_string(reflection->GetRepeatedInt64(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedInt64(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_UINT64:
-      return ngs::to_string(reflection->GetRepeatedUInt64(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedUInt64(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_DOUBLE:
-      return ngs::to_string(reflection->GetRepeatedDouble(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedDouble(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_FLOAT:
-      return ngs::to_string(reflection->GetRepeatedFloat(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedFloat(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_BOOL:
-      return ngs::to_string(reflection->GetRepeatedBool(
-          message, fd, index));
+      return ngs::to_string(reflection->GetRepeatedBool(message, fd, index));
 
     case FieldDescriptor::CPPTYPE_ENUM:
-      return reflection->GetRepeatedEnum(
-          message, fd, index)->name();
+      return reflection->GetRepeatedEnum(message, fd, index)->name();
 
     case FieldDescriptor::CPPTYPE_STRING:
-      return reflection->GetRepeatedString(
-          message, fd, index);
+      return reflection->GetRepeatedString(message, fd, index);
 
     case FieldDescriptor::CPPTYPE_MESSAGE:
-      return message_to_text(reflection->GetRepeatedMessage(
-          message, fd, index));
+      return message_to_text(
+          reflection->GetRepeatedMessage(message, fd, index));
 
     default:
       throw std::logic_error("Unknown protobuf message type");
@@ -292,26 +270,28 @@ std::string message_to_text(const Message &message) {
   // special handling for nested messages (at least for Notices)
   if (message.GetDescriptor()->full_name() == "Mysqlx.Notice.Frame") {
     Mysqlx::Notice::Frame frame =
-        *static_cast<const Mysqlx::Notice::Frame*>(&message);
+        *static_cast<const Mysqlx::Notice::Frame *>(&message);
 
     switch (frame.type()) {
       case ::Mysqlx::Notice::Frame_Type_WARNING: {
-        const auto payload_as_text = message_to_text<
-            Mysqlx::Notice::Warning>(frame.payload());
+        const auto payload_as_text =
+            message_to_text<Mysqlx::Notice::Warning>(frame.payload());
 
         frame.set_payload(payload_as_text);
         break;
       }
       case ::Mysqlx::Notice::Frame_Type_SESSION_VARIABLE_CHANGED: {
-        const auto payload_as_text = message_to_text<
-            Mysqlx::Notice::SessionVariableChanged>(frame.payload());
+        const auto payload_as_text =
+            message_to_text<Mysqlx::Notice::SessionVariableChanged>(
+                frame.payload());
 
         frame.set_payload(payload_as_text);
         break;
       }
       case ::Mysqlx::Notice::Frame_Type_SESSION_STATE_CHANGED: {
-        const auto payload_as_text = message_to_text<
-            Mysqlx::Notice::SessionStateChanged>(frame.payload());
+        const auto payload_as_text =
+            message_to_text<Mysqlx::Notice::SessionStateChanged>(
+                frame.payload());
 
         frame.set_payload(payload_as_text);
         break;
@@ -323,10 +303,7 @@ std::string message_to_text(const Message &message) {
     printer.PrintToString(message, &output);
   }
 
-  return message.GetDescriptor()->full_name() +
-      " {\n" +
-      output +
-      "}\n";
+  return message.GetDescriptor()->full_name() + " {\n" + output + "}\n";
 }
 
 /**
@@ -338,21 +315,17 @@ std::string message_to_text(const Message &message) {
   * printing of field which is array (a message or scalar needs to be
     selected)
 */
-std::string message_to_text(
-    const Message &message,
-    const std::string &field_path) {
-  if (field_path.empty())
-    return message_to_text(message);
+std::string message_to_text(const Message &message,
+                            const std::string &field_path) {
+  if (field_path.empty()) return message_to_text(message);
 
   const FieldDescriptor *field_descriptor = NULL;
-  const Message         *msg = &message;
-  details::Fields        fields =
-      details::get_fields_array_from_path(field_path);
-  std::size_t            index_of_last_element = fields.size() - 1;
+  const Message *msg = &message;
+  details::Fields fields = details::get_fields_array_from_path(field_path);
+  std::size_t index_of_last_element = fields.size() - 1;
 
-  for (std::size_t field_index = 0;
-      field_index < fields.size();
-      ++field_index) {
+  for (std::size_t field_index = 0; field_index < fields.size();
+       ++field_index) {
     const bool is_last_element = index_of_last_element == field_index;
     FieldDescriptors output;
     const details::Field &expected_field = fields[field_index];
@@ -360,30 +333,32 @@ std::string message_to_text(
 
     reflection->ListFields(*msg, &output);
 
-    FieldDescriptors::iterator i = std::find_if(
-        output.begin(),
-        output.end(),
-        expected_field);
+    FieldDescriptors::iterator i =
+        std::find_if(output.begin(), output.end(), expected_field);
 
     if (output.end() == i) {
-      throw  std::logic_error(
-          "Message '" + msg->GetDescriptor()->full_name() +
-          "' doesn't contains field '" + expected_field.m_name + "'"
-          " or the field isn't set");
+      throw std::logic_error("Message '" + msg->GetDescriptor()->full_name() +
+                             "' doesn't contains field '" +
+                             expected_field.m_name +
+                             "'"
+                             " or the field isn't set");
     }
 
     field_descriptor = *i;
 
     if (field_descriptor->is_repeated() != expected_field.m_has_index) {
-      throw std::logic_error(expected_field.m_has_index ?
-          "Element '" + expected_field.m_name + "' isn't an array" :
-          "Element '" + expected_field.m_name + "' is an array and requires "
-          "an index");
+      throw std::logic_error(expected_field.m_has_index
+                                 ? "Element '" + expected_field.m_name +
+                                       "' isn't an array"
+                                 : "Element '" + expected_field.m_name +
+                                       "' is an array and requires "
+                                       "an index");
     }
 
     if (!is_last_element) {
       if (FieldDescriptor::CPPTYPE_MESSAGE != field_descriptor->cpp_type()) {
-        throw std::logic_error("Path must point to a message for "
+        throw std::logic_error(
+            "Path must point to a message for "
             "all elements except last");
       }
 
@@ -391,21 +366,18 @@ std::string message_to_text(
         Move the msg pointer to the selected field
       */
       if (expected_field.m_has_index) {
-        const int field_array_elements = reflection->FieldSize(
-            *msg,
-            field_descriptor);
+        const int field_array_elements =
+            reflection->FieldSize(*msg, field_descriptor);
 
         if (expected_field.m_index >= field_array_elements) {
-          throw std::logic_error(
-              "Elements '" + expected_field.m_name + "' index out of boundary "
-              "(size of the array is " + ngs::to_string(field_array_elements) +
-              ")");
+          throw std::logic_error("Elements '" + expected_field.m_name +
+                                 "' index out of boundary "
+                                 "(size of the array is " +
+                                 ngs::to_string(field_array_elements) + ")");
         }
 
-        msg = &reflection->GetRepeatedMessage(
-            *msg,
-            field_descriptor,
-            expected_field.m_index);
+        msg = &reflection->GetRepeatedMessage(*msg, field_descriptor,
+                                              expected_field.m_index);
       } else {
         msg = &reflection->GetMessage(*msg, field_descriptor);
       }
@@ -425,11 +397,9 @@ std::string message_to_text(
   if (!field_descriptor->is_repeated())
     return prefix + messages_field_to_text(*msg, field_descriptor);
 
-  return prefix + messages_repeated_field_to_text(
-      *msg,
-      field_descriptor,
-      fields[index_of_last_element].m_index);
+  return prefix +
+         messages_repeated_field_to_text(*msg, field_descriptor,
+                                         fields[index_of_last_element].m_index);
 }
-
 
 }  // namespace formatter

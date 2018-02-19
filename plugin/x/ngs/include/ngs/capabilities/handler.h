@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,32 +30,25 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 
+namespace ngs {
+class Client_interface;
 
-namespace ngs
-{
-  class Client_interface;
+class Capability_handler {
+ public:
+  virtual ~Capability_handler() {}
 
+  virtual const std::string name() const = 0;
 
-  class Capability_handler
-  {
-  public:
-    virtual ~Capability_handler() { }
+  virtual bool is_supported() const = 0;
 
-    virtual const std::string name() const = 0;
+  virtual void get(::Mysqlx::Datatypes::Any &any) = 0;
+  virtual bool set(const ::Mysqlx::Datatypes::Any &any) = 0;
 
-    virtual bool is_supported() const = 0;
+  virtual void commit() = 0;
+};
 
-    virtual void get(::Mysqlx::Datatypes::Any &any) = 0;
-    virtual bool set(const ::Mysqlx::Datatypes::Any &any)  = 0;
+typedef ngs::shared_ptr<Capability_handler> Capability_handler_ptr;
 
-    virtual void commit() = 0;
-  };
-
-
-  typedef ngs::shared_ptr<Capability_handler> Capability_handler_ptr;
-
-
-} // namespace ngs
-
+}  // namespace ngs
 
 #endif

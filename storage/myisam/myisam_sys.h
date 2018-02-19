@@ -23,8 +23,8 @@
 #ifndef MYISAM_SYS_INCLUDED
 #define MYISAM_SYS_INCLUDED
 
-#include "my_io.h"
 #include "my_inttypes.h"
+#include "my_io.h"
 #include "my_macros.h"
 
 C_MODE_START

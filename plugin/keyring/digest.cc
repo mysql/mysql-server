@@ -25,73 +25,56 @@
 
 #include "my_dbug.h"
 
-namespace keyring
-{
-  Digest::Digest(DigestKind digest_kind/*=SHA256*/)
-    : is_empty(TRUE)
-  {
-    set_digest_kind(digest_kind);
-  }
+namespace keyring {
+Digest::Digest(DigestKind digest_kind /*=SHA256*/) : is_empty(true) {
+  set_digest_kind(digest_kind);
+}
 
-  Digest::Digest(DigestKind digestKind, const char* value)
-    : is_empty(TRUE)
-  {
-    set_digest_kind(digestKind);
-    assign(value);
-  }
+Digest::Digest(DigestKind digestKind, const char *value) : is_empty(true) {
+  set_digest_kind(digestKind);
+  assign(value);
+}
 
-  void Digest::set_digest_kind(DigestKind digest_kind)
-  {
-   switch (digest_kind)
-    {
-      case SHA256:
-        length= SHA256_DIGEST_LENGTH;
-        value=new unsigned char[length];
-        break;
-      default:
-        DBUG_ASSERT(0);
-    }
+void Digest::set_digest_kind(DigestKind digest_kind) {
+  switch (digest_kind) {
+    case SHA256:
+      length = SHA256_DIGEST_LENGTH;
+      value = new unsigned char[length];
+      break;
+    default:
+      DBUG_ASSERT(0);
   }
+}
 
-  Digest::~Digest()
-  {
-    memset(value, 0, length);
-    delete[] value;
-  }
+Digest::~Digest() {
+  memset(value, 0, length);
+  delete[] value;
+}
 
-  void Digest::assign(const char *value)
-  {
-    DBUG_ASSERT(value != NULL);
-    memcpy(this->value, value, length);
-    is_empty= FALSE;
-  }
+void Digest::assign(const char *value) {
+  DBUG_ASSERT(value != NULL);
+  memcpy(this->value, value, length);
+  is_empty = false;
+}
 
-  bool Digest::operator==(const Digest &digest)
-  {
-    return this->is_empty == digest.is_empty &&
-           this->length == digest.length &&
-           memcmp(this->value, digest.value, this->length) == 0;
-  }
+bool Digest::operator==(const Digest &digest) {
+  return this->is_empty == digest.is_empty && this->length == digest.length &&
+         memcmp(this->value, digest.value, this->length) == 0;
+}
 
-  Digest &Digest::operator=(const Digest &digest)
-  {
-    this->length=digest.length;
-    this->is_empty= digest.is_empty;
-    if (digest.is_empty == FALSE)
-      memcpy(this->value, digest.value, digest.length);
-    return *this;
-  }
+Digest &Digest::operator=(const Digest &digest) {
+  this->length = digest.length;
+  this->is_empty = digest.is_empty;
+  if (digest.is_empty == false)
+    memcpy(this->value, digest.value, digest.length);
+  return *this;
+}
 
-  void Digest::compute(uchar *memory, size_t memory_size)
-  {
-    //We are using SHA256 method from mysys_ssl library which symbols are exported
-    //by mysqld. SHA256 is defined in both cases - when server is linked with openssl
-    //and when it is linked with wolfSSL.
-#ifdef HAVE_WOLFSSL
-    (void) SHA_HASH256(memory, memory_size, value);
-#else
-    (void)::SHA256(memory, memory_size, value);
-#endif
-    is_empty= FALSE;
-  }
-}//namespace keyring
+void Digest::compute(uchar *memory, size_t memory_size) {
+  // We are using SHA_EVP256 method from mysys_ssl library which symbols are
+  // exported  by mysqld. SHA_EVP256 is defined in both cases - when server is
+  // linked with openssl  and when it is linked with wolfSSL.
+  (void)::SHA_EVP256(memory, memory_size, value);
+  is_empty = false;
+}
+}  // namespace keyring

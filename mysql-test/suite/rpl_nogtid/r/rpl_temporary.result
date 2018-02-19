@@ -143,9 +143,7 @@ include/rpl_reset.inc
 -- Bug#43748
 -- make a user on the slave that can list but not kill system threads.
 FLUSH PRIVILEGES;
-GRANT USAGE   ON *.* TO user43748@127.0.0.1 IDENTIFIED BY 'meow';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER user43748@127.0.0.1 IDENTIFIED BY 'meow';
 GRANT PROCESS ON *.* TO user43748@127.0.0.1;
 -- try to KILL system-thread as that non-privileged user (on slave).
 SELECT id INTO @id FROM information_schema.processlist WHERE user='system user' LIMIT 1;

@@ -1010,7 +1010,7 @@ RUN CREATE SCHEMA mysqlxplugin_coll
 RUN USE mysqlxplugin_coll
 
 0 rows affected
-RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY)
+RUN CREATE TABLE mysqlxplugin_coll.main_collection (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY)
 
 0 rows affected
 RUN insert into mysqlxplugin_coll.main_collection (doc, _id) values ('{"_id": "1", "name": "Omar", "Last_Name":"Andrei"}', json_unquote(json_extract(doc, '$._id')))

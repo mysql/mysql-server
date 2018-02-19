@@ -222,8 +222,6 @@ Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 #
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -236,8 +234,6 @@ Warning	1618	<DATA DIRECTORY> option ignored
 INSERT INTO t1 VALUES (6, "SQL MODE NO_DIR_IN_CREATE prevents DATA DIRECTORY");
 DROP TABLE t1;
 set @@sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # MySQL engine does not allow DATA DIRECTORY to be
 # within --datadir for any engine, including InnoDB

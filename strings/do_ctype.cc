@@ -35,134 +35,120 @@
 uchar to_upper[256];
 uchar to_lower[256], sort_order[256];
 
-static int	ascii_output=1;
-static string	tab_names[]={ "to_lower[]={","to_upper[]={","sort_order[]={" };
-static uchar*	tabell[]= {to_lower,to_upper,sort_order};
+static int ascii_output = 1;
+static string tab_names[] = {"to_lower[]={", "to_upper[]={", "sort_order[]={"};
+static uchar *tabell[] = {to_lower, to_upper, sort_order};
 
-void	get_options(),init_case_convert();
+void get_options(), init_case_convert();
 
-main(argc,argv)
-int argc;
+main(argc, argv) int argc;
 char *argv[];
 {
-  int i,j,ch;
-  DBUG_ENTER ("main");
-  DBUG_PROCESS (argv[0]);
+  int i, j, ch;
+  DBUG_ENTER("main");
+  DBUG_PROCESS(argv[0]);
 
-  get_options(&argc,&argv);
+  get_options(&argc, &argv);
   init_case_convert();
   puts("Tabells for caseconverts and sorttest of characters\n");
-  for (i=0 ; i < 3 ; i++)
-  {
-    printf("uchar %s\n",tab_names[i]);
-    for (j=0 ; j <= 255 ; j++)
-    {
-      ch=(int) tabell[i][j];
-      if (ascii_output && isprint(ch) && ! (ch & 128))
-      {
-	if (strchr("\\'",(char) ch))
-	  printf("'\\%c',  ",ch);
-	else
-	  printf("'%c',   ",ch);
-      }
-      else
-	printf("'\\%03o',",ch);
-      if ((j+1 & 7) == 0)
-	puts("");
+  for (i = 0; i < 3; i++) {
+    printf("uchar %s\n", tab_names[i]);
+    for (j = 0; j <= 255; j++) {
+      ch = (int)tabell[i][j];
+      if (ascii_output && isprint(ch) && !(ch & 128)) {
+        if (strchr("\\'", (char)ch))
+          printf("'\\%c',  ", ch);
+        else
+          printf("'%c',   ", ch);
+      } else
+        printf("'\\%03o',", ch);
+      if ((j + 1 & 7) == 0) puts("");
     }
     puts("};\n");
   }
   DBUG_RETURN(0);
 } /* main */
 
-	/* Read options */
+/* Read options */
 
-void get_options(argc,argv)
-int *argc;
+void get_options(argc, argv) int *argc;
 char **argv[];
 {
-  int help,version;
-  char *pos,*progname;
+  int help, version;
+  char *pos, *progname;
 
-  progname= (*argv)[0];
-  help=0; ascii_output=1;
-  while (--*argc >0 && *(pos = *(++*argv)) == '-' )
-  {
-    while (*++pos)
-    {
-      version=0;
-      switch(*pos) {
-      case 'n':					/* Numeric output */
-	ascii_output=0;
-	break;
-      case '#':
-	DBUG_PUSH (++pos);
-      *(pos--) = '\0';			/* Skippa argument */
-      break;
-      case 'V':
-	version=1;
-      case 'I':
-      case '?':
-	printf("%s  Ver 1.0\n",progname);
-	if (version)
-	  break;
-	puts("Output tabells of to_lower[], to_upper[] and sortorder[]\n");
-	printf("Usage: %s [-n?I]\n",progname);
-	puts("Options: -? or -I \"Info\" -n \"numeric output\"");
-	break;
-      default:
-	fprintf(stderr,"illegal option: -%c\n",*pos);
-	break;
+  progname = (*argv)[0];
+  help = 0;
+  ascii_output = 1;
+  while (--*argc > 0 && *(pos = *(++*argv)) == '-') {
+    while (*++pos) {
+      version = 0;
+      switch (*pos) {
+        case 'n': /* Numeric output */
+          ascii_output = 0;
+          break;
+        case '#':
+          DBUG_PUSH(++pos);
+          *(pos--) = '\0'; /* Skippa argument */
+          break;
+        case 'V':
+          version = 1;
+        case 'I':
+        case '?':
+          printf("%s  Ver 1.0\n", progname);
+          if (version) break;
+          puts("Output tabells of to_lower[], to_upper[] and sortorder[]\n");
+          printf("Usage: %s [-n?I]\n", progname);
+          puts("Options: -? or -I \"Info\" -n \"numeric output\"");
+          break;
+        default:
+          fprintf(stderr, "illegal option: -%c\n", *pos);
+          break;
       }
     }
   }
   return;
 } /* get_options */
 
+  /* set up max character for which isupper() and toupper() gives */
+  /* right answer. Is usually 127 or 255 */
 
-	/* set up max character for which isupper() and toupper() gives */
-	/* right answer. Is usually 127 or 255 */
+#define MAX_CHAR_OK 127 /* 7 Bit ascii */
 
-#define MAX_CHAR_OK	127			/* 7 Bit ascii */
+/* Initiate arrays for case-conversation */
 
-	/* Initiate arrays for case-conversation */
-
-void init_case_convert()
-{
+void init_case_convert() {
   int16 i;
-  uchar *higher_pos,*lower_pos;
+  uchar *higher_pos, *lower_pos;
   DBUG_ENTER("init_case_convert");
 
-  for (i=0 ; i <= MAX_CHAR_OK ; i++)
-  {
-    to_upper[i]= sort_order[i]= (islower(i) ? toupper(i) : (char) i);
-    to_lower[i]=  (isupper(i) ? tolower(i) : (char) i);
+  for (i = 0; i <= MAX_CHAR_OK; i++) {
+    to_upper[i] = sort_order[i] = (islower(i) ? toupper(i) : (char)i);
+    to_lower[i] = (isupper(i) ? tolower(i) : (char)i);
   }
 #if MAX_CHAR_OK != 255
-  for (i--; i++ < 255 ;)
-    to_upper[i]= sort_order[i]= to_lower[i]= (char) i;
+  for (i--; i++ < 255;) to_upper[i] = sort_order[i] = to_lower[i] = (char)i;
 #endif
 
-  higher_pos= (uchar *) "[]\\@^";
-  lower_pos=  (uchar *) "{}|`~";
+  higher_pos = (uchar *)"[]\\@^";
+  lower_pos = (uchar *)"{}|`~";
 
-  while (*higher_pos)
-  {
-    to_upper[ *lower_pos ] = sort_order[ *lower_pos ] = (char) *higher_pos;
-    to_lower[ *higher_pos++ ] = (char) *lower_pos++;
+  while (*higher_pos) {
+    to_upper[*lower_pos] = sort_order[*lower_pos] = (char)*higher_pos;
+    to_lower[*higher_pos++] = (char)*lower_pos++;
   }
 
-	/* sets upp sortorder; higer_pos character (upper and lower) is */
-	/* changed to lower_pos character */
+  /* sets upp sortorder; higer_pos character (upper and lower) is */
+  /* changed to lower_pos character */
 
-  higher_pos= (uchar *) "][\\~`";		/* R{tt ordning p} tecknen */
-  lower_pos= (uchar *)	"[\\]YE";		/* Ordning enligt ascii */
+  higher_pos = (uchar *)"][\\~`"; /* R{tt ordning p} tecknen */
+  lower_pos = (uchar *)"[\\]YE";  /* Ordning enligt ascii */
 
-  while (*higher_pos)
-  {
-    sort_order[ *higher_pos ] =
-      sort_order[(uchar)to_lower[*higher_pos]] = *lower_pos;
-    higher_pos++; lower_pos++;
+  while (*higher_pos) {
+    sort_order[*higher_pos] = sort_order[(uchar)to_lower[*higher_pos]] =
+        *lower_pos;
+    higher_pos++;
+    lower_pos++;
   }
   DBUG_VOID_RETURN;
 } /* init_case_convert */

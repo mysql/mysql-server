@@ -22,9 +22,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <my_sys.h>
 #include "pattern_matcher.h"
-
+#include <my_sys.h>
 
 /**
   @brief Parses concatenated patterns and adds them to internal pattern list
@@ -34,37 +33,33 @@
 
   @return                 number of added patterns
 */
-size_t Pattern_matcher::add_patterns(const std::string& patterns, char delimiter)
-{
+size_t Pattern_matcher::add_patterns(const std::string &patterns,
+                                     char delimiter) {
   DBUG_ENTER("Pattern_matcher::add_patterns");
-  size_t length= patterns.length();
-  size_t pattern_count= 0;
+  size_t length = patterns.length();
+  size_t pattern_count = 0;
 
   // we don't parse empty patterns
-  if (length == 0)
-    DBUG_RETURN(pattern_count);
+  if (length == 0) DBUG_RETURN(pattern_count);
 
-  size_t first= 0;
-  size_t last= 0;
-  do
-  {
+  size_t first = 0;
+  size_t last = 0;
+  do {
     // find end of the token
-    if ((last= patterns.find(delimiter, first)) == std::string::npos)
-      last= length;
+    if ((last = patterns.find(delimiter, first)) == std::string::npos)
+      last = length;
 
     // we store only tokens that are not empty
-    if (last - first > 0)
-    {
+    if (last - first > 0) {
       m_patterns.emplace(patterns, first, last - first);
       ++pattern_count;
     }
 
-    first= last + 1;
+    first = last + 1;
   } while (last != length);
 
   DBUG_RETURN(pattern_count);
 }
-
 
 /**
   @brief Verifies whether text matches any of the matcher internal patterns
@@ -76,18 +71,15 @@ size_t Pattern_matcher::add_patterns(const std::string& patterns, char delimiter
     @retval   true        at least one pattern matches provided string
     @retval   false       string does not match any of the patterns
 */
-bool Pattern_matcher::is_matching(const std::string& text, const CHARSET_INFO* info) const
-{
+bool Pattern_matcher::is_matching(const std::string &text,
+                                  const CHARSET_INFO *info) const {
   DBUG_ENTER("Pattern_matcher::is_matching");
 
   // traverse all patterns, return true on first match
-  for (auto& pattern : m_patterns)
-  {
-    if (info->coll->wildcmp(info,
-                           text.c_str(), text.c_str() + text.length(),
-                           pattern.c_str(), pattern.c_str() + pattern.length(),
-                            WILD_ESCAPE, WILD_ONE, WILD_MANY) == 0)
-    {
+  for (auto &pattern : m_patterns) {
+    if (info->coll->wildcmp(info, text.c_str(), text.c_str() + text.length(),
+                            pattern.c_str(), pattern.c_str() + pattern.length(),
+                            WILD_ESCAPE, WILD_ONE, WILD_MANY) == 0) {
       DBUG_RETURN(true);
     }
   }
@@ -95,11 +87,7 @@ bool Pattern_matcher::is_matching(const std::string& text, const CHARSET_INFO* i
   DBUG_RETURN(false);
 }
 
-
 /**
   @brief Removes all previously stored patterns from pattern matcher
 */
-void Pattern_matcher::clear()
-{
-  m_patterns.clear();
-}
+void Pattern_matcher::clear() { m_patterns.clear(); }

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -112,7 +112,8 @@ class Admin_command_arguments_object
   void get_scalar_arg(const char *name, const bool optional, H *handler);
   template <typename H>
   void get_scalar_value(const Any &value, H *handler);
-  const Object::ObjectField *get_object_field(const char *name, const bool optional);
+  const Object::ObjectField *get_object_field(const char *name,
+                                              const bool optional);
   void set_error(const char *name);
   Admin_command_arguments_object *add_sub_object(const Object &object);
 
@@ -121,7 +122,7 @@ class Admin_command_arguments_object
   const Object &m_object;
   ngs::Error_code m_error;
   int m_args_consumed;
-  std::vector<std::shared_ptr<Admin_command_arguments_object> > m_sub_objects;
+  std::vector<std::shared_ptr<Admin_command_arguments_object>> m_sub_objects;
 };
 
 }  // namespace xpl

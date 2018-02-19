@@ -31,13 +31,12 @@
 #include "client/dump/mysql_chain_element_options.h"
 #include "client/dump/mysqldump_tool_chain_maker_options.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Program : public Mysql::Tools::Base::Abstract_connection_program
-{
-public:
+class Program : public Mysql::Tools::Base::Abstract_connection_program {
+ public:
   Program();
 
   ~Program();
@@ -52,7 +51,7 @@ public:
 
   void create_options();
 
-  void error(const Mysql::Tools::Base::Message_data& message);
+  void error(const Mysql::Tools::Base::Message_data &message);
 
   void short_usage();
 
@@ -62,22 +61,22 @@ public:
 
   int get_error_code();
 
-private:
-  bool message_handler(const Mysql::Tools::Base::Message_data& message);
-  void error_log_file_callback(char*);
+ private:
+  bool message_handler(const Mysql::Tools::Base::Message_data &message);
+  void error_log_file_callback(char *);
   void close_redirected_stderr();
 
-  Mysql_chain_element_options* m_mysql_chain_element_options;
-  Mysqldump_tool_chain_maker_options* m_mysqldump_tool_chain_maker_options;
+  Mysql_chain_element_options *m_mysql_chain_element_options;
+  Mysqldump_tool_chain_maker_options *m_mysqldump_tool_chain_maker_options;
   bool m_single_transaction;
   bool m_watch_progress;
   Mysql::Nullable<std::string> m_error_log_file;
-  FILE* m_stderr;
+  FILE *m_stderr;
   std::atomic<uint32_t> m_error_code;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

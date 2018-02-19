@@ -23,9 +23,9 @@
 #include "sql/sql_view.h"
 
 #include <limits.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
-#include <algorithm>
 #include <utility>
 
 #include "lex_string.h"
@@ -36,25 +36,24 @@
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
+#include "mysql/mysql_lex_string.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/service_my_snprintf.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h" // CREATE_VIEW_ACL
+#include "sql/auth/auth_common.h"  // CREATE_VIEW_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/binlog.h"     // mysql_bin_log
+#include "sql/binlog.h"  // mysql_bin_log
 #include "sql/dd/cache/dictionary_client.h"
-#include "sql/dd/dd.h"      // dd::get_dictionary
-#include "sql/dd/dd_schema.h" // dd::schema_exists
-#include "sql/dd/dd_view.h" // dd::create_view
-#include "sql/dd/dictionary.h" // dd::Dictionary
+#include "sql/dd/dd.h"          // dd::get_dictionary
+#include "sql/dd/dd_schema.h"   // dd::schema_exists
+#include "sql/dd/dd_view.h"     // dd::create_view
+#include "sql/dd/dictionary.h"  // dd::Dictionary
 #include "sql/dd/types/abstract_table.h"
-#include "sql/dd_sql_view.h" // update_referencing_views_metadata
-#include "sql/derror.h"     // ER_THD
+#include "sql/dd_sql_view.h"  // update_referencing_views_metadata
+#include "sql/derror.h"       // ER_THD
 #include "sql/enum_query_type.h"
-#include "sql/error_handler.h" // Internal_error_handler
+#include "sql/error_handler.h"  // Internal_error_handler
 #include "sql/field.h"
 #include "sql/item.h"
 #include "sql/key.h"
@@ -66,7 +65,6 @@
 #include "sql/sp_cache.h"   // sp_cache_invalidate
 #include "sql/sql_base.h"   // get_table_def_key
 #include "sql/sql_class.h"  // THD
-#include "sql/sql_connect.h"
 #include "sql/sql_const.h"
 #include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
@@ -77,13 +75,14 @@
 #include "sql/sql_table.h"  // write_bin_log
 #include "sql/system_variables.h"
 #include "sql/table.h"
+#include "sql/thd_raii.h"
 #include "sql/transaction.h"
 #include "sql_string.h"
 #include "thr_lock.h"
 
 namespace dd {
-class View;
 class Schema;
+class View;
 }  // namespace dd
 
 /*
@@ -102,45 +101,38 @@ class Schema;
     NAME_LEN, it is truncated.
 */
 
-static void make_unique_view_field_name(Item *target,
-                                        List<Item> &item_list,
-                                        Item *last_element)
-{
-  const char *name= (target->orig_name.is_set() ?
-                     target->orig_name.ptr() : target->item_name.ptr());
+static void make_unique_view_field_name(Item *target, List<Item> &item_list,
+                                        Item *last_element) {
+  const char *name = (target->orig_name.is_set() ? target->orig_name.ptr()
+                                                 : target->item_name.ptr());
   size_t name_len;
   uint attempt;
-  char buff[NAME_LEN+1];
+  char buff[NAME_LEN + 1];
   List_iterator_fast<Item> itc(item_list);
 
-  for (attempt= 0;; attempt++)
-  {
+  for (attempt = 0;; attempt++) {
     Item *check;
-    bool ok= TRUE;
+    bool ok = true;
 
     if (attempt)
-      name_len= my_snprintf(buff, NAME_LEN, "My_exp_%d_%s", attempt, name);
+      name_len = snprintf(buff, NAME_LEN, "My_exp_%d_%s", attempt, name);
     else
-      name_len= my_snprintf(buff, NAME_LEN, "My_exp_%s", name);
+      name_len = snprintf(buff, NAME_LEN, "My_exp_%s", name);
 
-    do
-    {
-      check= itc++;
-      if (check != target && check->item_name.eq(buff))
-      {
-        ok= FALSE;
+    do {
+      check = itc++;
+      if (check != target && check->item_name.eq(buff)) {
+        ok = false;
         break;
       }
     } while (check != last_element);
-    if (ok)
-      break;
+    if (ok) break;
     itc.rewind();
   }
 
-  target->orig_name= target->item_name;
+  target->orig_name = target->item_name;
   target->item_name.copy(buff, name_len);
 }
-
 
 /**
   When creating a derived table, check if duplicate column names are present,
@@ -163,23 +155,18 @@ static void make_unique_view_field_name(Item *target,
 */
 
 bool check_duplicate_names(const Create_col_name_list *column_names,
-                           List<Item> &item_list, bool gen_unique_view_name)
-{
+                           List<Item> &item_list, bool gen_unique_view_name) {
   DBUG_ENTER("check_duplicate_names");
-  if (column_names)
-  {
-    const uint count= column_names->size();
-    if (count != item_list.elements)
-    {
+  if (column_names) {
+    const uint count = column_names->size();
+    if (count != item_list.elements) {
       my_error(ER_VIEW_WRONG_LIST, MYF(0));
       DBUG_RETURN(true);
     }
-    for (uint i= 0 ; i < count ; ++i)
-      for (uint j= i + 1 ; j < count ; ++j)
-      {
+    for (uint i = 0; i < count; ++i)
+      for (uint j = i + 1; j < count; ++j) {
         if (!my_strcasecmp(system_charset_info, (*column_names)[i].str,
-                           (*column_names)[j].str))
-        {
+                           (*column_names)[j].str)) {
           my_error(ER_DUP_FIELDNAME, MYF(0), (*column_names)[i].str);
           DBUG_RETURN(true);
         }
@@ -191,19 +178,15 @@ bool check_duplicate_names(const Create_col_name_list *column_names,
   List_iterator_fast<Item> it(item_list);
   List_iterator_fast<Item> itc(item_list);
 
-  while ((item= it++))
-  {
+  while ((item = it++)) {
     Item *check;
     /* treat underlying fields like set by user names */
     if (item->real_item()->type() == Item::FIELD_ITEM)
       item->item_name.set_autogenerated(false);
     itc.rewind();
-    while ((check= itc++) && check != item)
-    {
-      if (item->item_name.eq(check->item_name))
-      {
-        if (!gen_unique_view_name)
-          goto err;
+    while ((check = itc++) && check != item) {
+      if (item->item_name.eq(check->item_name)) {
+        if (!gen_unique_view_name) goto err;
         if (item->item_name.is_autogenerated())
           make_unique_view_field_name(item, item_list, item);
         else if (check->item_name.is_autogenerated())
@@ -213,13 +196,12 @@ bool check_duplicate_names(const Create_col_name_list *column_names,
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 
 err:
   my_error(ER_DUP_FIELDNAME, MYF(0), item->item_name.ptr());
-  DBUG_RETURN(TRUE);
+  DBUG_RETURN(true);
 }
-
 
 /**
   Check if auto generated column names are conforming and
@@ -228,27 +210,24 @@ err:
   @param  lex   LEX for this thread.
 */
 
-static void make_valid_column_names(LEX *lex)
-{
+static void make_valid_column_names(LEX *lex) {
   Item *item;
   size_t name_len;
   char buff[NAME_LEN];
-  uint column_no= 1;
+  uint column_no = 1;
 
-  for (SELECT_LEX *sl= lex->select_lex; sl; sl= sl->next_select())
-  {
-    for (List_iterator_fast<Item> it(sl->item_list); (item= it++); column_no++)
-    {
+  for (SELECT_LEX *sl = lex->select_lex; sl; sl = sl->next_select()) {
+    for (List_iterator_fast<Item> it(sl->item_list); (item = it++);
+         column_no++) {
       if (!item->item_name.is_autogenerated() ||
           !check_column_name(item->item_name.ptr()))
         continue;
-      name_len= my_snprintf(buff, NAME_LEN, "Name_exp_%u", column_no);
-      item->orig_name= item->item_name;
+      name_len = snprintf(buff, NAME_LEN, "Name_exp_%u", column_no);
+      item->orig_name = item->item_name;
       item->item_name.copy(buff, name_len);
     }
   }
 }
-
 
 /*
   Fill defined view parts
@@ -259,66 +238,66 @@ static void make_valid_column_names(LEX *lex)
       view               view to operate on
 
   DESCRIPTION
-    This function will initialize the parts of the view 
+    This function will initialize the parts of the view
     definition that are not specified in ALTER VIEW
     to their values from CREATE VIEW.
     The view must be opened to get its definition.
-    We use a copy of the view when opening because we want 
+    We use a copy of the view when opening because we want
     to preserve the original view instance.
 
   RETURN VALUE
-    TRUE                 can't open table
-    FALSE                success
+    true                 can't open table
+    false                success
 */
-static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
-{
+static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view) {
   const char *cache_key;
-  size_t cache_key_length= get_table_def_key(view, &cache_key);
+  size_t cache_key_length = get_table_def_key(view, &cache_key);
   TABLE_LIST decoy;
-  memcpy (&decoy, view, sizeof (TABLE_LIST));
+  decoy = *view;
+  /*
+    It's not clear what the above assignment actually wants to
+    accomplish. What we do know is that it does *not* want to copy the MDL
+    request, so we overwrite it with an uninitialized request.
+  */
+  decoy.mdl_request = MDL_request();
 
   mysql_mutex_lock(&LOCK_open);
 
   TABLE_SHARE *share;
-  if (!(share= get_table_share(thd, view->db, view->table_name, cache_key,
-                               cache_key_length, true)))
-  {
+  if (!(share = get_table_share(thd, view->db, view->table_name, cache_key,
+                                cache_key_length, true))) {
     mysql_mutex_unlock(&LOCK_open);
     return true;
   }
 
-  if (!share->is_view)
-  {
+  if (!share->is_view) {
     my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
     return true;
   }
 
-  bool view_open_result= open_and_read_view(thd, share, &decoy);
+  bool view_open_result = open_and_read_view(thd, share, &decoy);
 
   release_table_share(share);
   mysql_mutex_unlock(&LOCK_open);
 
-  if (view_open_result)
-    return true;
+  if (view_open_result) return true;
 
-  LEX *lex= thd->lex;
-  if (!lex->definer)
-  {
-    view->definer.host= decoy.definer.host;
-    view->definer.user= decoy.definer.user;
-    lex->definer= &view->definer;
+  LEX *lex = thd->lex;
+  if (!lex->definer) {
+    view->definer.host = decoy.definer.host;
+    view->definer.user = decoy.definer.user;
+    lex->definer = &view->definer;
   }
   if (lex->create_view_algorithm == VIEW_ALGORITHM_UNDEFINED)
-    lex->create_view_algorithm= (uint8) decoy.algorithm;
+    lex->create_view_algorithm = (uint8)decoy.algorithm;
   if (lex->create_view_suid == VIEW_SUID_DEFAULT)
-    lex->create_view_suid= decoy.view_suid ? 
-      VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
+    lex->create_view_suid =
+        decoy.view_suid ? VIEW_SUID_DEFINER : VIEW_SUID_INVOKER;
 
-  return FALSE;
+  return false;
 }
-
 
 /**
   @brief CREATE VIEW privileges pre-check.
@@ -328,17 +307,16 @@ static bool fill_defined_view_parts(THD *thd, TABLE_LIST *view)
   @param view views to create
   @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
 
-  @retval FALSE Operation was a success.
-  @retval TRUE An error occured.
+  @retval false Operation was a success.
+  @retval true An error occured.
 */
 
 bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
-                          enum_view_create_mode mode)
-{
-  LEX        *const lex= thd->lex;
+                          enum_view_create_mode mode) {
+  LEX *const lex = thd->lex;
   /* first table in list is target VIEW name => cut off it */
-  SELECT_LEX *const select_lex= lex->select_lex;
-  bool res= true;
+  SELECT_LEX *const select_lex = lex->select_lex;
+  bool res = true;
   DBUG_ENTER("create_view_precheck");
 
   /*
@@ -357,37 +335,29 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   */
 
   // Allow creation of views on information_schema only during bootstrap
-  if (!is_infoschema_db(view->db))
-  {
-    if ((check_access(thd, CREATE_VIEW_ACL, view->db,
-                      &view->grant.privilege,
-                      &view->grant.m_internal,
-                      0, 0) ||
-         check_grant(thd, CREATE_VIEW_ACL, view, FALSE, 1, FALSE)) ||
+  if (!is_infoschema_db(view->db)) {
+    if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
+                      &view->grant.m_internal, 0, 0) ||
+         check_grant(thd, CREATE_VIEW_ACL, view, false, 1, false)) ||
         (mode != enum_view_create_mode::VIEW_CREATE_NEW &&
-         (check_access(thd, DROP_ACL, view->db,
-                       &view->grant.privilege,
-                       &view->grant.m_internal,
-                       0, 0) ||
-          check_grant(thd, DROP_ACL, view, FALSE, 1, FALSE))))
+         (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
+                       &view->grant.m_internal, 0, 0) ||
+          check_grant(thd, DROP_ACL, view, false, 1, false))))
       goto err;
   }
 
-  for (TABLE_LIST *tbl= tables; tbl; tbl= tbl->next_global)
-  {
+  for (TABLE_LIST *tbl = tables; tbl; tbl = tbl->next_global) {
     /*
       Ensure that we have some privileges on this table, stricter checks will
       be performed for each referenced column during resolving.
     */
-    if (tbl->is_internal())
-    {
+    if (tbl->is_internal()) {
       // Optimizer internal tables have no ACL entries
       tbl->set_privileges(SELECT_ACL);
       continue;
     }
 
-    if (check_some_access(thd, VIEW_ANY_ACL, tbl))
-    {
+    if (check_some_access(thd, VIEW_ANY_ACL, tbl)) {
       my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0), "ANY",
                thd->security_context()->priv_user().str,
                thd->security_context()->priv_host().str, tbl->table_name);
@@ -406,30 +376,26 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   /*
     Mark fields for special privilege check ("any" privilege)
   */
-  for (SELECT_LEX *sl= select_lex; sl; sl= sl->next_select())
-  {
+  for (SELECT_LEX *sl = select_lex; sl; sl = sl->next_select()) {
     List_iterator_fast<Item> it(sl->item_list);
     Item *item;
-    while ((item= it++))
-    {
+    while ((item = it++)) {
       Item_field *field;
-      if ((field= item->field_for_view_update()))
-      {
+      if ((field = item->field_for_view_update())) {
         /*
          any_privileges may be reset later by the Item_field::set_field
          method in case of a system temporary table.
         */
-        field->any_privileges= 1;
+        field->any_privileges = 1;
       }
     }
   }
 
-  res= false;
+  res = false;
 
 err:
   DBUG_RETURN(res || thd->is_error());
 }
-
 
 /**
   @brief Creating/altering VIEW procedure
@@ -457,19 +423,18 @@ err:
 */
 
 bool mysql_create_view(THD *thd, TABLE_LIST *views,
-                       enum_view_create_mode mode)
-{
-  LEX *lex= thd->lex;
+                       enum_view_create_mode mode) {
+  LEX *lex = thd->lex;
   bool link_to_local;
   /* first table in list is target VIEW name => cut off it */
-  TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
-  TABLE_LIST *tables= lex->query_tables;
+  TABLE_LIST *view = lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables = lex->query_tables;
   TABLE_LIST *tbl;
-  SELECT_LEX *const select_lex= lex->select_lex;
+  SELECT_LEX *const select_lex = lex->select_lex;
   SELECT_LEX *sl;
-  SELECT_LEX_UNIT *const unit= lex->unit;
-  bool res= false;
-  bool exists= false;
+  SELECT_LEX_UNIT *const unit = lex->unit;
+  bool res = false;
+  bool exists = false;
   DBUG_ENTER("mysql_create_view");
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -483,71 +448,62 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     alteration of views under LOCK TABLES.
   */
 
-  if (thd->locked_tables_mode)
-  {
+  if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
-    res= true;
+    res = true;
     goto err;
   }
 
-  if (create_view_precheck(thd, tables, view, mode))
-  {
-    res= true;
+  if (create_view_precheck(thd, tables, view, mode)) {
+    res = true;
     goto err;
   }
 
   lex->link_first_table_back(view, link_to_local);
-  view->open_type= OT_BASE_ONLY;
+  view->open_type = OT_BASE_ONLY;
 
   /*
     No pre-opening of temporary tables is possible since must
     wait until TABLE_LIST::open_type is set. So we have to open
     them here instead.
   */
-  if (open_temporary_tables(thd, lex->query_tables))
-  {
-    view= lex->unlink_first_table(&link_to_local);
-    res= true;
+  if (open_temporary_tables(thd, lex->query_tables)) {
+    view = lex->unlink_first_table(&link_to_local);
+    res = true;
     goto err;
   }
 
   /* Not required to lock any tables. */
-  if (open_tables_for_query(thd, lex->query_tables, 0))
-  {
-    view= lex->unlink_first_table(&link_to_local);
-    res= true;
+  if (open_tables_for_query(thd, lex->query_tables, 0)) {
+    view = lex->unlink_first_table(&link_to_local);
+    res = true;
     goto err;
   }
 
-  view= lex->unlink_first_table(&link_to_local);
+  view = lex->unlink_first_table(&link_to_local);
 
   /*
     Checking the existence of the database in which the view is to be created.
     Errors will be reported in dd::schema_exists().
   */
-  if (dd::schema_exists(thd, view->db, &exists))
-  {
-    res= true;
+  if (dd::schema_exists(thd, view->db, &exists)) {
+    res = true;
     goto err;
-  }
-  else if (!exists)
-  {
+  } else if (!exists) {
     my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
-    res= true;
+    res = true;
     goto err;
   }
 
   if (mode == enum_view_create_mode::VIEW_ALTER &&
-      fill_defined_view_parts(thd, view))
-  {
-    res= true;
+      fill_defined_view_parts(thd, view)) {
+    res = true;
     goto err;
   }
 
   sp_cache_invalidate();
 
-  if (!lex->definer)
-  {
+  if (!lex->definer) {
     /*
       DEFINER-clause is missing; we have to create default definer in
       persistent arena to be PS/SP friendly.
@@ -556,10 +512,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     */
     Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    lex->definer= create_default_definer(thd);
+    lex->definer = create_default_definer(thd);
 
-    if (!lex->definer)
-      goto err;
+    if (!lex->definer) goto err;
   }
 
   /*
@@ -570,29 +525,19 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (lex->definer &&
       (strcmp(lex->definer->user.str,
               thd->security_context()->priv_user().str) != 0 ||
-       my_strcasecmp(system_charset_info,
-                     lex->definer->host.str,
-                     thd->security_context()->priv_host().str) != 0))
-  {
-    Security_context *sctx= thd->security_context();
+       my_strcasecmp(system_charset_info, lex->definer->host.str,
+                     thd->security_context()->priv_host().str) != 0)) {
+    Security_context *sctx = thd->security_context();
     if (!(sctx->check_access(SUPER_ACL) ||
-          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first))
-    {
+          sctx->has_global_grant(STRING_WITH_LEN("SET_USER_ID")).first)) {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER or SET_USER_ID");
-      res= true;
+      res = true;
       goto err;
-    }
-    else
-    {
-      if (!is_acl_user(thd,
-                       lex->definer->host.str,
-                       lex->definer->user.str))
-      {
-        push_warning_printf(thd, Sql_condition::SL_NOTE,
-                            ER_NO_SUCH_USER,
+    } else {
+      if (!is_acl_user(thd, lex->definer->host.str, lex->definer->user.str)) {
+        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_NO_SUCH_USER,
                             ER_THD(thd, ER_NO_SUCH_USER),
-                            lex->definer->user.str,
-                            lex->definer->host.str);
+                            lex->definer->user.str, lex->definer->host.str);
       }
     }
   }
@@ -603,15 +548,12 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     open_and_lock_tables can change the value of tables,
     e.g. it may happen if before the function call tables was equal to 0.
   */
-  for (tbl= lex->query_tables; tbl; tbl= tbl->next_global)
-  {
+  for (tbl = lex->query_tables; tbl; tbl = tbl->next_global) {
     /* is this table view and the same view which we creates now? */
-    if (tbl->is_view() &&
-        strcmp(tbl->view_db.str, view->db) == 0 &&
-        strcmp(tbl->view_name.str, view->table_name) == 0)
-    {
+    if (tbl->is_view() && strcmp(tbl->view_db.str, view->db) == 0 &&
+        strcmp(tbl->view_name.str, view->table_name) == 0) {
       my_error(ER_NO_SUCH_TABLE, MYF(0), tbl->view_db.str, tbl->view_name.str);
-      res= true;
+      res = true;
       goto err;
     }
 
@@ -622,28 +564,25 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       referenced views in CREATE VIEW so they don't have table
       object.
     */
-    if (tbl->table)
-    {
+    if (tbl->table) {
       /* is this table temporary and is not view? */
       if (tbl->table->s->tmp_table != NO_TMP_TABLE && !tbl->is_view() &&
-          !tbl->schema_table)
-      {
+          !tbl->schema_table) {
         my_error(ER_VIEW_SELECT_TMPTABLE, MYF(0), tbl->alias);
-        res= true;
+        res = true;
         goto err;
       }
     }
   }
 
   /* prepare select to resolve all fields */
-  lex->context_analysis_only|= CONTEXT_ANALYSIS_ONLY_VIEW;
-  if (unit->prepare(thd, 0, 0, 0))
-  {
+  lex->context_analysis_only |= CONTEXT_ANALYSIS_ONLY_VIEW;
+  if (unit->prepare(thd, 0, 0, 0)) {
     /*
       some errors from prepare are reported to user, if is not then
       it will be checked after err: label
     */
-    res= true;
+    res = true;
     goto err;
   }
 
@@ -655,9 +594,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     duplication; any further UNION-ed part isn't used for determining
     names of the view's columns.
   */
-  if (check_duplicate_names(view->derived_column_names(), select_lex->item_list, 1))
-  {
-    res= true;
+  if (check_duplicate_names(view->derived_column_names(), select_lex->item_list,
+                            1)) {
+    res = true;
     goto err;
   }
 
@@ -665,10 +604,9 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     Make sure the view doesn't have so many columns that we hit the
     64k header limit if the view is materialized as a MyISAM table.
   */
-  if (select_lex->item_list.elements > MAX_FIELDS)
-  {
+  if (select_lex->item_list.elements > MAX_FIELDS) {
     my_error(ER_TOO_MANY_FIELDS, MYF(0));
-    res= true;
+    res = true;
     goto err;
   }
 
@@ -689,50 +627,42 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     corresponding column. In that case, return an error for CREATE VIEW.
    */
   {
-    Item *report_item= NULL;
+    Item *report_item = NULL;
     /*
        This will hold the intersection of the priviliges on all columns in the
        view.
      */
-    uint final_priv= VIEW_ANY_ACL;
+    uint final_priv = VIEW_ANY_ACL;
 
-    for (sl= select_lex; sl; sl= sl->next_select())
-    {
-      DBUG_ASSERT(view->db);                     /* Must be set in the parser */
+    for (sl = select_lex; sl; sl = sl->next_select()) {
+      DBUG_ASSERT(view->db); /* Must be set in the parser */
       List_iterator_fast<Item> it(sl->item_list);
       Item *item;
-      while ((item= it++))
-      {
-        Item_field *fld= item->field_for_view_update();
-        uint priv= (get_column_grant(thd, &view->grant, view->db,
-                                     view->table_name, item->item_name.ptr()) &
-                    VIEW_ANY_ACL);
+      while ((item = it++)) {
+        Item_field *fld = item->field_for_view_update();
+        uint priv = (get_column_grant(thd, &view->grant, view->db,
+                                      view->table_name, item->item_name.ptr()) &
+                     VIEW_ANY_ACL);
 
-        if (fld && !fld->field->table->s->tmp_table)
-        {
+        if (fld && !fld->field->table->s->tmp_table) {
+          final_priv &= fld->have_privileges;
 
-          final_priv&= fld->have_privileges;
-
-          if (~fld->have_privileges & priv)
-            report_item= item;
+          if (~fld->have_privileges & priv) report_item = item;
         }
       }
     }
 
-    if (!final_priv && report_item)
-    {
-      my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0),
-               "create view", thd->security_context()->priv_user().str,
+    if (!final_priv && report_item) {
+      my_error(ER_COLUMNACCESS_DENIED_ERROR, MYF(0), "create view",
+               thd->security_context()->priv_user().str,
                thd->security_context()->priv_host().str,
-               report_item->item_name.ptr(),
-               view->table_name);
-      res= true;
+               report_item->item_name.ptr(), view->table_name);
+      res = true;
       goto err;
     }
   }
 
-  if ((res= mysql_register_view(thd, view, mode)))
-    goto err_with_rollback;
+  if ((res = mysql_register_view(thd, view, mode))) goto err_with_rollback;
 
   /*
     View TABLE_SHARE must be removed from the table definition cache in order
@@ -745,19 +675,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   {
     Uncommitted_tables_guard uncommited_tables(thd);
     uncommited_tables.add_table(view);
-    if ((res= update_referencing_views_metadata(thd, view, false,
-                                                &uncommited_tables)))
+    if ((res = update_referencing_views_metadata(thd, view, false,
+                                                 &uncommited_tables)))
       goto err_with_rollback;
   }
 
   // Binlog CREATE/ALTER/CREATE OR REPLACE event.
-  if (mysql_bin_log.is_open())
-  {
+  if (mysql_bin_log.is_open()) {
     String buff;
-    const LEX_STRING command[3]=
-    {{ C_STRING_WITH_LEN("CREATE ") },
-      { C_STRING_WITH_LEN("ALTER ") },
-      { C_STRING_WITH_LEN("CREATE OR REPLACE ") }};
+    const LEX_STRING command[3] = {{C_STRING_WITH_LEN("CREATE ")},
+                                   {C_STRING_WITH_LEN("ALTER ")},
+                                   {C_STRING_WITH_LEN("CREATE OR REPLACE ")}};
 
     buff.append(command[static_cast<int>(thd->lex->create_view_mode)].str,
                 command[static_cast<int>(thd->lex->create_view_mode)].length);
@@ -765,19 +693,14 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN("VIEW "));
     /* Test if user supplied a db (ie: we did not use thd->db) */
     if (views->db && views->db[0] &&
-        (thd->db().str == NULL || strcmp(views->db, thd->db().str)))
-    {
-      append_identifier(thd, &buff, views->db,
-                        views->db_length);
+        (thd->db().str == NULL || strcmp(views->db, thd->db().str))) {
+      append_identifier(thd, &buff, views->db, views->db_length);
       buff.append('.');
     }
-    append_identifier(thd, &buff, views->table_name,
-                      views->table_name_length);
-    if (view->derived_column_names())
-    {
-      int i= 0;
-      for (auto name : *view->derived_column_names())
-      {
+    append_identifier(thd, &buff, views->table_name, views->table_name_length);
+    if (view->derived_column_names()) {
+      int i = 0;
+      for (auto name : *view->derived_column_names()) {
         buff.append(i++ ? ", " : "(");
         append_identifier(thd, &buff, name.str, name.length);
       }
@@ -786,18 +709,17 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     buff.append(STRING_WITH_LEN(" AS "));
     buff.append(views->source.str, views->source.length);
 
-    int errcode= query_error_code(thd, true);
+    int errcode = query_error_code(thd, true);
     thd->add_to_binlog_accessed_dbs(views->db);
-    if ((res= thd->binlog_query(THD::STMT_QUERY_TYPE, buff.ptr(),
-                                buff.length(), true, false, false, errcode)))
+    if ((res = thd->binlog_query(THD::STMT_QUERY_TYPE, buff.ptr(),
+                                 buff.length(), true, false, false, errcode)))
       goto err_with_rollback;
   }
 
   // Commit changes to the data-dictionary and binary log.
-  res= DBUG_EVALUATE_IF("simulate_create_view_failure", true, false) ||
-       trans_commit_stmt(thd) || trans_commit(thd);
-  if (res)
-    goto err_with_rollback;
+  res = DBUG_EVALUATE_IF("simulate_create_view_failure", true, false) ||
+        trans_commit_stmt(thd) || trans_commit(thd);
+  if (res) goto err_with_rollback;
 
   my_ok(thd);
   lex->link_first_table_back(view, link_to_local);
@@ -823,7 +745,6 @@ err:
   DBUG_RETURN(res || thd->is_error());
 }
 
-
 /*
   Check if view is updatable.
 
@@ -834,54 +755,46 @@ err:
   @retval false     Otherwise.
 */
 
-bool is_updatable_view(THD *thd, TABLE_LIST *view)
-{
-  bool updatable_view= false;
-  LEX *lex= thd->lex;
+bool is_updatable_view(THD *thd, TABLE_LIST *view) {
+  bool updatable_view = false;
+  LEX *lex = thd->lex;
 
   /*
     A view can be merged if it is technically possible and if the user didn't
     ask that we create a temporary table instead.
   */
-  bool can_be_merged=
-    lex->unit->is_mergeable() && view->algorithm != VIEW_ALGORITHM_TEMPTABLE;
+  bool can_be_merged =
+      lex->unit->is_mergeable() && view->algorithm != VIEW_ALGORITHM_TEMPTABLE;
 
   if (!dd::get_dictionary()->is_system_view_name(view->db, view->table_name) &&
-      (updatable_view= can_be_merged))
-  {
+      (updatable_view = can_be_merged)) {
     /// @see SELECT_LEX::merge_derived()
-    bool updatable= false;
-    bool outer_joined= false;
-    for (TABLE_LIST *tbl= lex->select_lex->table_list.first;
-         tbl;
-         tbl= tbl->next_local)
-    {
-      updatable|= !((tbl->is_view() && !tbl->updatable_view) ||
-                     tbl->schema_table);
-      outer_joined|= tbl->is_inner_table_of_outer_join();
+    bool updatable = false;
+    bool outer_joined = false;
+    for (TABLE_LIST *tbl = lex->select_lex->table_list.first; tbl;
+         tbl = tbl->next_local) {
+      updatable |=
+          !((tbl->is_view() && !tbl->updatable_view) || tbl->schema_table);
+      outer_joined |= tbl->is_inner_table_of_outer_join();
     }
-    updatable&= !outer_joined;
+    updatable &= !outer_joined;
 
-    if (updatable)
-    {
+    if (updatable) {
       // check that at least one column in view is updatable.
-      bool view_has_updatable_column= false;
+      bool view_has_updatable_column = false;
       List_iterator_fast<Item> it(lex->select_lex->item_list);
       Item *item;
-      while ((item= it++))
-      {
-	Item_field *item_field= item->field_for_view_update();
-	if (item_field && !item_field->table_ref->schema_table)
-	{
-	  view_has_updatable_column= true;
-	  break;
-	}
+      while ((item = it++)) {
+        Item_field *item_field = item->field_for_view_update();
+        if (item_field && !item_field->table_ref->schema_table) {
+          view_has_updatable_column = true;
+          break;
+        }
       }
-      updatable&= view_has_updatable_column;
+      updatable &= view_has_updatable_column;
     }
 
-    if (!updatable)
-      updatable_view= false;
+    if (!updatable) updatable_view = false;
   }
 
   /*
@@ -894,19 +807,16 @@ bool is_updatable_view(THD *thd, TABLE_LIST *view)
     NOTE: this skip cases of using table via VIEWs, joined VIEWs, VIEWs with
     UNION
   */
-  if (updatable_view &&
-      !lex->select_lex->master_unit()->is_union() &&
+  if (updatable_view && !lex->select_lex->master_unit()->is_union() &&
       !(lex->select_lex->table_list.first)->next_local &&
       find_table_in_global_list(lex->query_tables->next_global,
-				lex->query_tables->db,
-				lex->query_tables->table_name))
-  {
-    updatable_view= false;
+                                lex->query_tables->db,
+                                lex->query_tables->table_name)) {
+    updatable_view = false;
   }
 
   return updatable_view;
 }
-
 
 /**
   Register view by writing its definition to the data-dictionary.
@@ -927,8 +837,7 @@ bool is_updatable_view(THD *thd, TABLE_LIST *view)
 */
 
 bool mysql_register_view(THD *thd, TABLE_LIST *view,
-                         enum_view_create_mode mode)
-{
+                         enum_view_create_mode mode) {
   /*
     View definition query -- a SELECT statement that fully defines view. It
     is generated from the Item-tree built from the original (specified by
@@ -955,14 +864,10 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     View definition query is stored in the client character set.
   */
   char view_query_buff[4096];
-  String view_query(view_query_buff,
-                    sizeof (view_query_buff),
-                    thd->charset());
+  String view_query(view_query_buff, sizeof(view_query_buff), thd->charset());
 
   char is_query_buff[4096];
-  String is_query(is_query_buff,
-                  sizeof (is_query_buff),
-                  system_charset_info);
+  String is_query(is_query_buff, sizeof(is_query_buff), system_charset_info);
 
   DBUG_ENTER("mysql_register_view");
 
@@ -970,15 +875,15 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     A view can be merged if it is technically possible and if the user didn't
     ask that we create a temporary table instead.
   */
-  LEX *lex= thd->lex;
-  const bool can_be_merged= lex->unit->is_mergeable() &&
-    lex->create_view_algorithm != VIEW_ALGORITHM_TEMPTABLE;
+  LEX *lex = thd->lex;
+  const bool can_be_merged =
+      lex->unit->is_mergeable() &&
+      lex->create_view_algorithm != VIEW_ALGORITHM_TEMPTABLE;
 
-  if (can_be_merged)
-  {
-    for (ORDER *order= lex->select_lex->order_list.first ;
-         order; order= order->next)
-      order->used_alias= false;               /// @see Item::print_for_order()
+  if (can_be_merged) {
+    for (ORDER *order = lex->select_lex->order_list.first; order;
+         order = order->next)
+      order->used_alias = false;  /// @see Item::print_for_order()
   }
 
   /* Generate view definition and IS queries. */
@@ -990,73 +895,63 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     Sql_mode_parse_guard parse_guard(thd);
 
     lex->unit->print(&view_query, QT_TO_ARGUMENT_CHARSET);
-    lex->unit->print(&is_query,
-                enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
+    lex->unit->print(&is_query, enum_query_type(QT_TO_SYSTEM_CHARSET |
+                                                QT_WITHOUT_INTRODUCERS));
   }
   DBUG_PRINT("info",
-             ("View: %*.s", (int) view_query.length(), view_query.ptr()));
+             ("View: %*.s", (int)view_query.length(), view_query.ptr()));
 
   /* fill structure (NOTE: TABLE_LIST::source will be removed) */
-  view->source= thd->lex->create_view_select;
+  view->source = thd->lex->create_view_select;
 
   if (!thd->make_lex_string(&view->select_stmt, view_query.ptr(),
-                            view_query.length(), false))
-  {
+                            view_query.length(), false)) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }
 
-  if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE &&
-      !can_be_merged)
-  {
+  if (lex->create_view_algorithm == VIEW_ALGORITHM_MERGE && !can_be_merged) {
     push_warning(thd, Sql_condition::SL_WARNING, ER_WARN_VIEW_MERGE,
                  ER_THD(thd, ER_WARN_VIEW_MERGE));
-    lex->create_view_algorithm= VIEW_ALGORITHM_UNDEFINED;
+    lex->create_view_algorithm = VIEW_ALGORITHM_UNDEFINED;
   }
-  view->algorithm= lex->create_view_algorithm;
-  view->definer.user= lex->definer->user;
-  view->definer.host= lex->definer->host;
-  view->view_suid= lex->create_view_suid;
-  view->with_check= lex->create_view_check;
+  view->algorithm = lex->create_view_algorithm;
+  view->definer.user = lex->definer->user;
+  view->definer.host = lex->definer->host;
+  view->view_suid = lex->create_view_suid;
+  view->with_check = lex->create_view_check;
 
-  view->updatable_view= is_updatable_view(thd, view);
+  view->updatable_view = is_updatable_view(thd, view);
 
   /* init timestamp */
-  if (!view->timestamp.str)
-    view->timestamp.str= view->timestamp_buffer;
+  if (!view->timestamp.str) view->timestamp.str = view->timestamp_buffer;
 
   /* check old definition */
-  bool update_view= false;
-  const dd::Abstract_table *at= nullptr;
+  bool update_view = false;
+  const dd::Abstract_table *at = nullptr;
   if (thd->dd_client()->acquire(view->db, view->table_name, &at))
     DBUG_RETURN(true);
 
-  if (at != nullptr)
-  {
-    if (mode == enum_view_create_mode::VIEW_CREATE_NEW)
-    {
+  if (at != nullptr) {
+    if (mode == enum_view_create_mode::VIEW_CREATE_NEW) {
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), view->alias);
       DBUG_RETURN(true);
     }
 
     if (at->type() != dd::enum_table_type::USER_VIEW &&
-        at->type() != dd::enum_table_type::SYSTEM_VIEW)
-    {
+        at->type() != dd::enum_table_type::SYSTEM_VIEW) {
       my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
       DBUG_RETURN(true);
     }
 
-    update_view= true;
+    update_view = true;
 
     /*
       TODO: read dependence list, too, to process cascade/restrict
       TODO: special cascade/restrict procedure for alter?
     */
-  }
-  else
-  {
-    if (mode == enum_view_create_mode::VIEW_ALTER)
-    {
+  } else {
+    if (mode == enum_view_create_mode::VIEW_ALTER) {
       my_error(ER_NO_SUCH_TABLE, MYF(0), view->db, view->alias);
       DBUG_RETURN(true);
     }
@@ -1064,7 +959,7 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
 
   /* Initialize view creation context from the environment. */
 
-  view->view_creation_ctx= View_creation_ctx::create(thd);
+  view->view_creation_ctx = View_creation_ctx::create(thd);
 
   /*
     Set LEX_STRING attributes in view-structure for parser to create
@@ -1093,23 +988,19 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
     DBUG_RETURN(true);
 
   if (!thd->make_lex_string(&view->view_body_utf8, is_query.ptr(),
-                            is_query.length(), false))
-  {
+                            is_query.length(), false)) {
     my_error(ER_OUT_OF_RESOURCES, MYF(0));
     DBUG_RETURN(true);
   }
 
-  if (view->with_check != VIEW_CHECK_NONE &&
-      !view->updatable_view)
-  {
+  if (view->with_check != VIEW_CHECK_NONE && !view->updatable_view) {
     my_error(ER_VIEW_NONUPD_CHECK, MYF(0), view->db, view->table_name);
     DBUG_RETURN(true);
   }
 
   // It is either ALTER or CREATE OR REPLACE of an existing view.
-  if (update_view)
-  {
-    dd::View *new_view= nullptr;
+  if (update_view) {
+    dd::View *new_view = nullptr;
     if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
                                                    &new_view))
       DBUG_RETURN(true);
@@ -1120,12 +1011,10 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   }
 
   // It is either CREATE or CREATE OR REPLACE of non-existent view.
-  const dd::Schema *schema= nullptr;
-  if (thd->dd_client()->acquire(view->db, &schema))
-    DBUG_RETURN(true);
+  const dd::Schema *schema = nullptr;
+  if (thd->dd_client()->acquire(view->db, &schema)) DBUG_RETURN(true);
 
-  if (schema == nullptr)
-  {
+  if (schema == nullptr) {
     my_error(ER_BAD_DB_ERROR, MYF(0), view->db);
     DBUG_RETURN(true);
   }
@@ -1133,35 +1022,28 @@ bool mysql_register_view(THD *thd, TABLE_LIST *view,
   DBUG_RETURN(dd::create_view(thd, *schema, view));
 }
 
-
 /// RAII class to ease error handling in parse_view_definition()
-class Make_view_tracker
-{
-public:
+class Make_view_tracker {
+ public:
   Make_view_tracker(THD *thd, TABLE_LIST *view_ref, bool *result)
-  : thd(thd), old_lex(thd->lex), view_ref(view_ref), result(result)
-  {}
-  ~Make_view_tracker()
-  {
-    if (thd->lex != old_lex)
-    {
-      lex_end(thd->lex);                // Terminate processing of view LEX
-      thd->lex= old_lex;                // Needed for prepare_security
+      : thd(thd), old_lex(thd->lex), view_ref(view_ref), result(result) {}
+  ~Make_view_tracker() {
+    if (thd->lex != old_lex) {
+      lex_end(thd->lex);   // Terminate processing of view LEX
+      thd->lex = old_lex;  // Needed for prepare_security
     }
-    if (*result && view_ref->is_view())
-    {
+    if (*result && view_ref->is_view()) {
       delete view_ref->view_query();
-      view_ref->set_view_query(NULL);   // view_ref is no longer a VIEW
+      view_ref->set_view_query(NULL);  // view_ref is no longer a VIEW
     }
   }
 
-private:
+ private:
   THD *const thd;
   LEX *const old_lex;
   TABLE_LIST *const view_ref;
   bool *const result;
 };
-
 
 /**
   Open and read a view definition.
@@ -1175,79 +1057,69 @@ private:
   @note In case true value returned an error has been already set in DA.
 */
 
-bool open_and_read_view(THD *thd, TABLE_SHARE *share,
-                        TABLE_LIST *view_ref)
-{
+bool open_and_read_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *view_ref) {
   DBUG_ENTER("open_and_read_view");
 
-  TABLE_LIST *const top_view= view_ref->top_table();
+  TABLE_LIST *const top_view = view_ref->top_table();
 
-  if (view_ref->required_type == dd::enum_table_type::BASE_TABLE)
-  {
+  if (view_ref->required_type == dd::enum_table_type::BASE_TABLE) {
     my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
              "BASE TABLE");
-    DBUG_RETURN(true); 
+    DBUG_RETURN(true);
   }
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-  if (view_ref->is_view())
-  {
+  if (view_ref->is_view()) {
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 view_ref->view_db.str, view_ref->view_name.str));
     DBUG_RETURN(false);
   }
 
-  if (view_ref->index_hints && view_ref->index_hints->elements)
-  {
+  if (view_ref->index_hints && view_ref->index_hints->elements) {
     my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
              view_ref->index_hints->head()->key_name.str, view_ref->table_name);
     DBUG_RETURN(true);
   }
 
-  // Check that view is not referenced recursively 
-  for (TABLE_LIST *precedent= view_ref->referencing_view;
-       precedent;
-       precedent= precedent->referencing_view)
-  {
+  // Check that view is not referenced recursively
+  for (TABLE_LIST *precedent = view_ref->referencing_view; precedent;
+       precedent = precedent->referencing_view) {
     if (precedent->view_name.length == view_ref->table_name_length &&
         precedent->view_db.length == view_ref->db_length &&
-        my_strcasecmp(system_charset_info,
-                      precedent->view_name.str, view_ref->table_name) == 0 &&
-        my_strcasecmp(system_charset_info,
-                      precedent->view_db.str, view_ref->db) == 0)
-    {
-      my_error(ER_VIEW_RECURSIVE, MYF(0),
-               top_view->view_db.str, top_view->view_name.str);
+        my_strcasecmp(system_charset_info, precedent->view_name.str,
+                      view_ref->table_name) == 0 &&
+        my_strcasecmp(system_charset_info, precedent->view_db.str,
+                      view_ref->db) == 0) {
+      my_error(ER_VIEW_RECURSIVE, MYF(0), top_view->view_db.str,
+               top_view->view_name.str);
       DBUG_RETURN(true);
     }
   }
 
   // Initialize timestamp
   if (!view_ref->timestamp.str)
-    view_ref->timestamp.str= view_ref->timestamp_buffer;
+    view_ref->timestamp.str = view_ref->timestamp_buffer;
 
   // Prepare default values for old format
-  view_ref->view_suid= TRUE;
-  view_ref->definer.user.str= view_ref->definer.host.str= 0;
-  view_ref->definer.user.length= view_ref->definer.host.length= 0;
+  view_ref->view_suid = true;
+  view_ref->definer.user.str = view_ref->definer.host.str = 0;
+  view_ref->definer.user.length = view_ref->definer.host.length = 0;
 
   DBUG_ASSERT(share->view_object);
 
   // Read view details from the view object.
   if (dd::read_view(view_ref, *share->view_object, thd->mem_root))
-    DBUG_RETURN(true);                          /* purecov: inspected */
+    DBUG_RETURN(true); /* purecov: inspected */
 
   // Check old format view.
-  if (!view_ref->definer.user.str)
-  {
-    DBUG_ASSERT(!view_ref->definer.host.str &&
-                !view_ref->definer.user.length &&
+  if (!view_ref->definer.user.str) {
+    DBUG_ASSERT(!view_ref->definer.host.str && !view_ref->definer.user.length &&
                 !view_ref->definer.host.length);
-    push_warning_printf(thd, Sql_condition::SL_WARNING,
-                        ER_VIEW_FRM_NO_USER, ER_THD(thd, ER_VIEW_FRM_NO_USER),
-                        view_ref->db, view_ref->table_name);
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_VIEW_FRM_NO_USER,
+                        ER_THD(thd, ER_VIEW_FRM_NO_USER), view_ref->db,
+                        view_ref->table_name);
     get_default_definer(thd, &view_ref->definer);
   }
 
@@ -1256,27 +1128,21 @@ bool open_and_read_view(THD *thd, TABLE_SHARE *share,
     the view definition file. Use UTF8 character set if view definition
     file is of old version and does not contain the character set names.
   */
-  view_ref->view_creation_ctx= View_creation_ctx::create(thd, view_ref);
+  view_ref->view_creation_ctx = View_creation_ctx::create(thd, view_ref);
 
   DBUG_RETURN(false);
 }
 
-
 /**
   This internal handler is used to trap ER_NO_SYSTEM_TABLE_ACCESS.
 */
-class DD_table_access_error_handler : public Internal_error_handler
-{
-public:
-  DD_table_access_error_handler()
-  {}
+class DD_table_access_error_handler : public Internal_error_handler {
+ public:
+  DD_table_access_error_handler() {}
 
-  virtual bool handle_condition(THD*,
-                                uint sql_errno,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char*)
-  {
+  virtual bool handle_condition(THD *, uint sql_errno, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *) {
     return (sql_errno == ER_NO_SYSTEM_TABLE_ACCESS);
   }
 };
@@ -1288,13 +1154,11 @@ public:
   @param view_lex   View's LEX object.
   @param parent_lex Original LEX object.
 */
-void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
-{
-  for (SELECT_LEX *select= view_lex->all_selects_list;
-       select != nullptr; select= select->next_select_in_list())
-    select->parent_lex= parent_lex;
+void merge_query_blocks(LEX *view_lex, LEX *parent_lex) {
+  for (SELECT_LEX *select = view_lex->all_selects_list; select != nullptr;
+       select = select->next_select_in_list())
+    select->parent_lex = parent_lex;
 }
-
 
 /**
   Parse a view definition.
@@ -1310,14 +1174,12 @@ void merge_query_blocks(LEX *view_lex, LEX *parent_lex)
   @note In case true value returned an error has been already set in DA.
 */
 
-bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
-{
+bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   DBUG_ENTER("parse_view_definition");
 
-  TABLE_LIST *const top_view= view_ref->top_table();
+  TABLE_LIST *const top_view = view_ref->top_table();
 
-  if (view_ref->is_view())
-  {
+  if (view_ref->is_view()) {
     /*
       It's an execution of a PS/SP and the view has already been unfolded
       into a list of used tables. Now we only need to update the information
@@ -1334,8 +1196,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       of Opt_trace_start. Security context change is checked in
       prepare_security() below.
     */
-    if (!view_ref->prelocking_placeholder &&
-        view_ref->prepare_security(thd))
+    if (!view_ref->prelocking_placeholder && view_ref->prepare_security(thd))
       DBUG_RETURN(true);
 
     DBUG_RETURN(false);
@@ -1357,28 +1218,27 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     but will invoke open_table_from_share(), which will
     eventually call this function.
   */
-  view_ref->open_type= OT_BASE_ONLY;
+  view_ref->open_type = OT_BASE_ONLY;
 
   Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   // A parsed view requires its own LEX object
-  LEX *const old_lex= thd->lex;
-  LEX *const view_lex= (LEX *) new(thd->mem_root) st_lex_local;
-  if (!view_lex)
-    DBUG_RETURN(true);
+  LEX *const old_lex = thd->lex;
+  LEX *const view_lex = (LEX *)new (thd->mem_root) st_lex_local;
+  if (!view_lex) DBUG_RETURN(true);
 
-  bool result= false;
+  bool result = false;
   Make_view_tracker view_tracker(thd, view_ref, &result);
 
-  thd->lex= view_lex;
+  thd->lex = view_lex;
 
   view_ref->set_view_query(view_lex);
 
-  LEX_CSTRING current_db_name_saved= thd->db();
+  LEX_CSTRING current_db_name_saved = thd->db();
   Parser_state parser_state;
-  if ((result= parser_state.init(thd, view_ref->select_stmt.str,
-                                 view_ref->select_stmt.length)))
-    DBUG_RETURN(true);           /* purecov: inspected */
+  if ((result = parser_state.init(thd, view_ref->select_stmt.str,
+                                  view_ref->select_stmt.length)))
+    DBUG_RETURN(true); /* purecov: inspected */
   /*
     Use view db name as thread default database, in order to ensure
     that the view is parsed and prepared correctly.
@@ -1389,13 +1249,13 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
   lex_start(thd);
 
-  SELECT_LEX *const view_select= view_lex->select_lex;
+  SELECT_LEX *const view_select = view_lex->select_lex;
 
   // Correctly mark unit for explain
-  view_lex->unit->explain_marker= CTX_DERIVED;
+  view_lex->unit->explain_marker = CTX_DERIVED;
 
   // Needed for correct units markup for EXPLAIN
-  view_lex->explain_format= old_lex->explain_format;
+  view_lex->explain_format = old_lex->explain_format;
 
   if (thd->m_digest != NULL)
     thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1415,52 +1275,46 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     is INFORMATION_SCHEMA system view and allowed to invoke native method. Error
     ER_NO_ACCESS_TO_NATIVE_FCT is reported otherwise.
   */
-  bool parsing_system_view_saved= thd->parsing_system_view;
-  thd->parsing_system_view=
-      dd::get_dictionary()->is_system_view_name(view_ref->db,
-                                                view_ref->table_name);
+  bool parsing_system_view_saved = thd->parsing_system_view;
+  thd->parsing_system_view = dd::get_dictionary()->is_system_view_name(
+      view_ref->db, view_ref->table_name);
 
-  if (thd->parsing_system_view)
-    thd->push_internal_handler(&dd_access_handler);
+  if (thd->parsing_system_view) thd->push_internal_handler(&dd_access_handler);
 
   {
     // Switch off modes which can prevent normal parsing of VIEW
     Sql_mode_parse_guard parse_guard(thd);
 
-
     // Parse the query text of the view
-    result= parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
+    result = parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
   }
 
-  if (thd->parsing_system_view)
-    thd->pop_internal_handler();
+  if (thd->parsing_system_view) thd->pop_internal_handler();
 
-  thd->parsing_system_view= parsing_system_view_saved;
+  thd->parsing_system_view = parsing_system_view_saved;
 
   // Restore environment
   if ((old_lex->sql_command == SQLCOM_SHOW_FIELDS) ||
       (old_lex->sql_command == SQLCOM_SHOW_CREATE))
-    view_lex->sql_command= old_lex->sql_command;
+    view_lex->sql_command = old_lex->sql_command;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->reset_db(current_db_name_saved);
   mysql_mutex_unlock(&thd->LOCK_thd_data);
 
-  if (result)
-    DBUG_RETURN(true);            /* purecov: inspected */
+  if (result) DBUG_RETURN(true); /* purecov: inspected */
 
   // sql_calc_found_rows is only relevant for outer-most query expression
   view_lex->select_lex->remove_base_options(OPTION_FOUND_ROWS);
 
-  TABLE_LIST *const view_tables= view_lex->query_tables;
+  TABLE_LIST *const view_tables = view_lex->query_tables;
 
   /*
     Check rights to run commands (EXPLAIN SELECT & SHOW CREATE) which show
     underlying tables.
     Skip this step if we are opening view for prelocking only.
   */
-  if (!view_ref->prelocking_placeholder)
-  {
+  if (!view_ref->prelocking_placeholder) {
     // If executing prepared statement: see "Optimizer trace" note above.
     opt_trace_disable_if_no_view_access(thd, view_ref, view_tables);
 
@@ -1489,70 +1343,61 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       Finally at this point making sure we have SHOW_VIEW_ACL on the views
       will suffice as we implicitly require SELECT_ACL anyway.
     */
-      
+
     TABLE_LIST view_no_suid;
-    memset(static_cast<void *>(&view_no_suid), 0, sizeof(TABLE_LIST));
-    view_no_suid.db= view_ref->db;
-    view_no_suid.table_name= view_ref->table_name;
+    view_no_suid.db = view_ref->db;
+    view_no_suid.table_name = view_ref->table_name;
 
     DBUG_ASSERT(view_tables == NULL || view_tables->security_ctx == NULL);
 
-    if (check_table_access(thd, SELECT_ACL, view_tables,
-                           false, UINT_MAX, true) ||
-        check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid,
-                           false, UINT_MAX, true))
-      view_ref->view_no_explain= true;
+    if (check_table_access(thd, SELECT_ACL, view_tables, false, UINT_MAX,
+                           true) ||
+        check_table_access(thd, SHOW_VIEW_ACL, &view_no_suid, false, UINT_MAX,
+                           true))
+      view_ref->view_no_explain = true;
 
-    if (old_lex->is_explain() && is_explainable_query(old_lex->sql_command))
-    {
+    if (old_lex->is_explain() && is_explainable_query(old_lex->sql_command)) {
       // EXPLAIN statement should be allowed on views created in
       // information_schema
-      if (!is_infoschema_db(view_ref->db) && view_ref->view_no_explain)
-      {
+      if (!is_infoschema_db(view_ref->db) && view_ref->view_no_explain) {
         my_error(ER_VIEW_NO_EXPLAIN, MYF(0));
-        result= true;
+        result = true;
         DBUG_RETURN(true);
       }
-    }
-    else if ((old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
-             !view_ref->belong_to_view)
-    {
+    } else if ((old_lex->sql_command == SQLCOM_SHOW_CREATE) &&
+               !view_ref->belong_to_view) {
       // SHOW CREATE statement should be allowed on views created in
       // information_schema
       if (!is_infoschema_db(view_ref->db) &&
           check_table_access(thd, SHOW_VIEW_ACL, view_ref, false, UINT_MAX,
-                             false))
-      {
-        result= true;
+                             false)) {
+        result = true;
         DBUG_RETURN(true);
       }
     }
   }
 
-  if (!(view_ref->view_tables= new(thd->mem_root) List<TABLE_LIST>))
-  {
-    result= true;
+  if (!(view_ref->view_tables = new (thd->mem_root) List<TABLE_LIST>)) {
+    result = true;
     DBUG_RETURN(true);
   }
   /*
     Apply necessary updates to the tables underlying this view.
     view_tables_tail points to last table after this loop.
   */
-  TABLE_LIST *view_tables_tail= NULL;
-  for (TABLE_LIST *tbl= view_tables;
-       tbl;
-       tbl= (view_tables_tail= tbl)->next_global)
-  {
+  TABLE_LIST *view_tables_tail = NULL;
+  for (TABLE_LIST *tbl = view_tables; tbl;
+       tbl = (view_tables_tail = tbl)->next_global) {
     // Make sure this table is not substituted with a temporary table
-    tbl->open_type= OT_BASE_ONLY;
+    tbl->open_type = OT_BASE_ONLY;
 
-    tbl->belong_to_view= top_view;
-    tbl->referencing_view= view_ref;
-    tbl->prelocking_placeholder= view_ref->prelocking_placeholder;
+    tbl->belong_to_view = top_view;
+    tbl->referencing_view = view_ref;
+    tbl->prelocking_placeholder = view_ref->prelocking_placeholder;
 
     // Clear privilege since this is based on user's security context.
-    tbl->grant.privilege= 0;
-    
+    tbl->grant.privilege = 0;
+
     /*
       For LOCK TABLES we need to acquire "strong" metadata lock to ensure
       that we properly protect underlying tables for storage engines which
@@ -1572,8 +1417,7 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   }
 
   // Count all derived tables and views in the enclosing query block.
-  if (view_ref->select_lex)
-    view_ref->select_lex->derived_table_count++;
+  if (view_ref->select_lex) view_ref->select_lex->derived_table_count++;
   /*
     Add tables of view after the view in the global table list.
 
@@ -1588,19 +1432,15 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     which is not permitted (causes assert).
   */
   if (view_tables && !(view_ref->prelocking_placeholder &&
-                       view_ref->lock_descriptor().type == TL_IGNORE))
-  {
-    if (view_ref->next_global)
-    {
-      view_tables_tail->next_global= view_ref->next_global;
-      view_ref->next_global->prev_global= &view_tables_tail->next_global;
+                       view_ref->lock_descriptor().type == TL_IGNORE)) {
+    if (view_ref->next_global) {
+      view_tables_tail->next_global = view_ref->next_global;
+      view_ref->next_global->prev_global = &view_tables_tail->next_global;
+    } else {
+      old_lex->query_tables_last = &view_tables_tail->next_global;
     }
-    else
-    {
-      old_lex->query_tables_last= &view_tables_tail->next_global;
-    }
-    view_tables->prev_global= &view_ref->next_global;
-    view_ref->next_global= view_tables;
+    view_tables->prev_global = &view_ref->next_global;
+    view_ref->next_global = view_tables;
   }
 
   /*
@@ -1609,20 +1449,19 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   */
   old_lex->set_stmt_unsafe_flags(view_lex->get_stmt_unsafe_flags());
 
-  const bool view_is_mergeable=
-    view_ref->algorithm != VIEW_ALGORITHM_TEMPTABLE &&
-    view_lex->unit->is_mergeable();
-  TABLE_LIST *view_main_select_tables= NULL;
+  const bool view_is_mergeable =
+      view_ref->algorithm != VIEW_ALGORITHM_TEMPTABLE &&
+      view_lex->unit->is_mergeable();
+  TABLE_LIST *view_main_select_tables = NULL;
 
-  if (view_is_mergeable)
-  {
+  if (view_is_mergeable) {
     /*
       Currently 'view_main_select_tables' differs from 'view_tables'
       only then view has CONVERT_TZ() function in its select list.
       This may change in future, for example if we enable merging of
       views with subqueries in select list.
     */
-    view_main_select_tables= view_select->table_list.first;
+    view_main_select_tables = view_select->table_list.first;
 
     /*
       Let us set proper lock type for tables of the view's main
@@ -1630,14 +1469,13 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       view. This won't work for view containing union. But this is
       ok since we don't allow insert and update on such views anyway.
     */
-    for (TABLE_LIST *tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
-    {
+    for (TABLE_LIST *tbl = view_main_select_tables; tbl;
+         tbl = tbl->next_local) {
       enum_mdl_type mdl_lock_type;
 
       tbl->set_lock(view_ref->lock_descriptor());
 
-      if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
-      {
+      if (old_lex->sql_command == SQLCOM_LOCK_TABLES) {
         /*
           For LOCK TABLES we need to acquire "strong" metadata lock to
           ensure that we properly protect underlying tables for storage
@@ -1646,20 +1484,18 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
           LOCK TABLES ... READ LOCAL.
         */
         if (tbl->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE)
-          mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
-        else
-        {
-          mdl_lock_type= (tbl->lock_descriptor().type == TL_READ) ?
-                         MDL_SHARED_READ : MDL_SHARED_READ_ONLY;
+          mdl_lock_type = MDL_SHARED_NO_READ_WRITE;
+        else {
+          mdl_lock_type = (tbl->lock_descriptor().type == TL_READ)
+                              ? MDL_SHARED_READ
+                              : MDL_SHARED_READ_ONLY;
         }
-      }
-      else
-      {
+      } else {
         /*
           For other statements we can acquire "weak" locks.
           Still we want to respect explicit LOW_PRIORITY clause.
         */
-        mdl_lock_type= mdl_type_for_dml(tbl->lock_descriptor().type);
+        mdl_lock_type = mdl_type_for_dml(tbl->lock_descriptor().type);
       }
 
       tbl->mdl_request.set_type(mdl_lock_type);
@@ -1670,8 +1506,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
       original sql command and 'duplicates' of the outer lex.
       This is used later in set_trg_event_type_for_command.
     */
-    view_lex->sql_command= old_lex->sql_command;
-    view_lex->duplicates= old_lex->duplicates;
+    view_lex->sql_command = old_lex->sql_command;
+    view_lex->duplicates = old_lex->duplicates;
   }
 
   /*
@@ -1685,76 +1521,68 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
     this view serves as simple placeholder and we should not continue
     further processing.
   */
-  if (view_ref->prelocking_placeholder)
-    DBUG_RETURN(false);
+  if (view_ref->prelocking_placeholder) DBUG_RETURN(false);
 
   // Move nondeterminism information to whole query.
-  old_lex->safe_to_cache_query&= view_lex->safe_to_cache_query;
+  old_lex->safe_to_cache_query &= view_lex->safe_to_cache_query;
 
-  old_lex->subqueries= true;
+  old_lex->subqueries = true;
 
   Security_context *security_ctx;
 
-  if (view_ref->view_suid)
-  {
+  if (view_ref->view_suid) {
     /*
       For suid views prepare a security context for checking underlying
       objects of the view.
     */
-    if (!(view_ref->view_sctx= (Security_context *)thd->stmt_arena->mem_calloc(sizeof(Security_context))))
-    {
-      result= true;
+    if (!(view_ref->view_sctx = (Security_context *)thd->stmt_arena->mem_calloc(
+              sizeof(Security_context)))) {
+      result = true;
       DBUG_RETURN(true);
     }
     // TODO Do we need to initialize this context to get the correct active
     // roles (ie the default roles)
-    security_ctx= view_ref->view_sctx;
+    security_ctx = view_ref->view_sctx;
     security_ctx->init();
-    DBUG_PRINT("info",("Allocated suid view. Active roles: %lu",
-      (ulong)view_ref->view_sctx->get_active_roles()->size()));
+    DBUG_PRINT("info",
+               ("Allocated suid view. Active roles: %lu",
+                (ulong)view_ref->view_sctx->get_active_roles()->size()));
     thd->m_view_ctx_list.push_back(view_ref->view_sctx);
-  }
-  else
-  {
+  } else {
     /*
       For non-suid views inherit security context from view's table list.
       This allows properly handle situation when non-suid view is used
-      from within suid view.    
+      from within suid view.
     */
-    security_ctx= view_ref->security_ctx;   
+    security_ctx = view_ref->security_ctx;
   }
 
   // Assign the context to the tables referenced in the view
-  if (view_tables)
-  {
+  if (view_tables) {
     DBUG_ASSERT(view_tables_tail);
-    for (TABLE_LIST *tbl= view_tables;
-         tbl != view_tables_tail->next_global;
-         tbl= tbl->next_global)
-      tbl->security_ctx= security_ctx;
+    for (TABLE_LIST *tbl = view_tables; tbl != view_tables_tail->next_global;
+         tbl = tbl->next_global)
+      tbl->security_ctx = security_ctx;
   }
 
   // Assign security context to name resolution contexts of view
-  for (SELECT_LEX *sl= view_lex->all_selects_list;
-       sl;
-       sl= sl->next_select_in_list())
-    sl->context.security_ctx= security_ctx;
+  for (SELECT_LEX *sl = view_lex->all_selects_list; sl;
+       sl = sl->next_select_in_list())
+    sl->context.security_ctx = security_ctx;
 
   /*
     Setup an error processor to hide error messages issued by stored
     routines referenced in the view
   */
-  for (SELECT_LEX *sl= view_lex->all_selects_list;
-       sl;
-       sl= sl->next_select_in_list())
-  {
-    sl->context.view_error_handler= true;
-    sl->context.view_error_handler_arg= view_ref;
+  for (SELECT_LEX *sl = view_lex->all_selects_list; sl;
+       sl = sl->next_select_in_list()) {
+    sl->context.view_error_handler = true;
+    sl->context.view_error_handler_arg = view_ref;
   }
 
   merge_query_blocks(thd->lex, old_lex);
 
-  view_select->linkage= DERIVED_TABLE_TYPE;
+  view_select->linkage = DERIVED_TABLE_TYPE;
 
   // Updatability is not decided yet
   DBUG_ASSERT(!view_ref->is_updatable());
@@ -1766,20 +1594,18 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
 
   // Link chain of query blocks into global list:
   view_lex->all_selects_list->include_chain_in_global(
-                                                    &old_lex->all_selects_list);
+      &old_lex->all_selects_list);
 
   view_ref->derived_key_list.empty();
 
   DBUG_ASSERT(view_lex == thd->lex);
-  thd->lex= old_lex;                            // Needed for prepare_security
-  result= !view_ref->prelocking_placeholder &&
-          view_ref->prepare_security(thd);
+  thd->lex = old_lex;  // Needed for prepare_security
+  result = !view_ref->prelocking_placeholder && view_ref->prepare_security(thd);
 
   lex_end(view_lex);
 
   DBUG_RETURN(result);
 }
-
 
 /**
   Drop view
@@ -1804,9 +1630,8 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref)
   @retval true Error
 */
 
-bool mysql_drop_view(THD *thd, TABLE_LIST *views)
-{
-  bool some_views_deleted= false;
+bool mysql_drop_view(THD *thd, TABLE_LIST *views) {
+  bool some_views_deleted = false;
 
   DBUG_ENTER("mysql_drop_view");
 
@@ -1815,8 +1640,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     might lead to deadlock. But since we can't really lock view with LOCK
     TABLES we have to simply prohibit dropping of views.
   */
-  if (thd->locked_tables_mode)
-  {
+  if (thd->locked_tables_mode) {
     my_error(ER_LOCK_OR_ACTIVE_TRANSACTION, MYF(0));
     DBUG_RETURN(true);
   }
@@ -1828,8 +1652,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
 
   // First check which views exist
   String non_existant_views;
-  for (TABLE_LIST *view= views; view; view= view->next_local)
-  {
+  for (TABLE_LIST *view = views; view; view = view->next_local) {
     /*
       Either, the entity does not exist, in which case we will
       issue a warning (if running with DROP ... IF EXISTS), or
@@ -1838,43 +1661,34 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
       Otherwise, the entity does indeed exist, and we must take
       different actions depending on the table type.
     */
-    const dd::Abstract_table *at= nullptr;
+    const dd::Abstract_table *at = nullptr;
     if (thd->dd_client()->acquire(view->db, view->table_name, &at))
       DBUG_RETURN(true);
 
-    if (at == nullptr)
-    {
+    if (at == nullptr) {
       String tbl_name(view->db, system_charset_info);
       tbl_name.append('.');
       tbl_name.append(String(view->table_name, system_charset_info));
 
       if (thd->lex->drop_if_exists)
-	push_warning_printf(thd, Sql_condition::SL_NOTE,
-                            ER_BAD_TABLE_ERROR,
-                            ER_THD(thd, ER_BAD_TABLE_ERROR),
-                            tbl_name.c_ptr());
-      else
-      {
-        if (non_existant_views.length())
-          non_existant_views.append(',');
+        push_warning_printf(thd, Sql_condition::SL_NOTE, ER_BAD_TABLE_ERROR,
+                            ER_THD(thd, ER_BAD_TABLE_ERROR), tbl_name.c_ptr());
+      else {
+        if (non_existant_views.length()) non_existant_views.append(',');
         non_existant_views.append(tbl_name);
       }
-    }
-    else if (at->type() == dd::enum_table_type::BASE_TABLE)
-    {
+    } else if (at->type() == dd::enum_table_type::BASE_TABLE) {
       my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
       DBUG_RETURN(true);
     }
   }
-  if (non_existant_views.length())
-  {
+  if (non_existant_views.length()) {
     my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
     DBUG_RETURN(true);
   }
 
   // Then actually start dropping views.
-  for (TABLE_LIST *view= views; view; view= view->next_local)
-  {
+  for (TABLE_LIST *view = views; view; view = view->next_local) {
     DBUG_EXECUTE_IF("fail_while_acquiring_view_obj",
                     DBUG_SET("+d,fail_while_acquiring_dd_object"););
     /*
@@ -1885,9 +1699,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
       Otherwise, the entity does indeed exist, and we must take
       different actions depending on the table type.
     */
-    const dd::Abstract_table *at= nullptr;
-    if (thd->dd_client()->acquire(view->db, view->table_name, &at))
-    {
+    const dd::Abstract_table *at = nullptr;
+    if (thd->dd_client()->acquire(view->db, view->table_name, &at)) {
       DBUG_EXECUTE_IF("fail_while_acquiring_view_obj",
                       DBUG_SET("-d,fail_while_acquiring_dd_object"););
       trans_rollback_stmt(thd);
@@ -1896,10 +1709,9 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
       DBUG_RETURN(true);
     }
 
-    if (at == nullptr)
-    {
+    if (at == nullptr) {
       DBUG_ASSERT(thd->lex->drop_if_exists);
-      continue; // Warning reported above.
+      continue;  // Warning reported above.
     }
 
     DBUG_ASSERT(at->type() == dd::enum_table_type::SYSTEM_VIEW ||
@@ -1919,8 +1731,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     */
     if (thd->dd_client()->drop(at) ||
         update_referencing_views_metadata(thd, view, false,
-                                          &uncommitted_tables))
-    {
+                                          &uncommitted_tables)) {
       trans_rollback_stmt(thd);
       /*
         Full rollback in case we have THD::transaction_rollback_request
@@ -1932,16 +1743,14 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     }
 
     thd->add_to_binlog_accessed_dbs(view->db);
-    some_views_deleted= true;
+    some_views_deleted = true;
   }
 
-  if (some_views_deleted)
-    sp_cache_invalidate();
+  if (some_views_deleted) sp_cache_invalidate();
 
   if (write_bin_log(thd, false, thd->query().str, thd->query().length,
                     some_views_deleted) ||
-      DBUG_EVALUATE_IF("simulate_drop_view_failure", true, false))
-  {
+      DBUG_EVALUATE_IF("simulate_drop_view_failure", true, false)) {
     DBUG_EXECUTE_IF("simulate_drop_view_failure",
                     my_error(ER_UNKNOWN_ERROR, MYF(0)););
     trans_rollback_stmt(thd);
@@ -1954,13 +1763,11 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
     DBUG_RETURN(true);
   }
 
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-    DBUG_RETURN(true);
+  if (trans_commit_stmt(thd) || trans_commit(thd)) DBUG_RETURN(true);
 
   my_ok(thd);
   DBUG_RETURN(false);
 }
-
 
 /**
   check of key (primary or unique) presence in updatable view
@@ -1979,8 +1786,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views)
   @return false is success, true if error
 */
 
-bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
-{
+bool check_key_in_view(THD *thd, TABLE_LIST *view,
+                       const TABLE_LIST *table_ref) {
   DBUG_ENTER("check_key_in_view");
 
   /*
@@ -1994,11 +1801,11 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     DBUG_RETURN(false); /* it is normal table or query without LIMIT */
 
   TABLE *const table = table_ref->table;
-  view= view->top_table();
-  Field_translator *const trans= view->field_translation;
-  Field_translator *const end_of_trans= view->field_translation_end;
-  KEY *key_info= table->key_info;
-  KEY *const key_info_end= key_info + table->s->keys;
+  view = view->top_table();
+  Field_translator *const trans = view->field_translation;
+  Field_translator *const end_of_trans = view->field_translation_end;
+  KEY *key_info = table->key_info;
+  KEY *const key_info_end = key_info + table->s->keys;
 
   {
     /*
@@ -2009,41 +1816,34 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
       This fix_fields() call is necessary for execution of prepared statements.
       When repeated preparation is eliminated the call can be deleted.
     */
-    enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
-    thd->mark_used_columns= MARK_COLUMNS_NONE;
-    ulong want_privilege_saved= thd->want_privilege;
-    thd->want_privilege= 0;
-    for (Field_translator *fld= trans; fld < end_of_trans; fld++)
-    {
+    enum_mark_columns save_mark_used_columns = thd->mark_used_columns;
+    thd->mark_used_columns = MARK_COLUMNS_NONE;
+    ulong want_privilege_saved = thd->want_privilege;
+    thd->want_privilege = 0;
+    for (Field_translator *fld = trans; fld < end_of_trans; fld++) {
       if (!fld->item->fixed && fld->item->fix_fields(thd, &fld->item))
-        DBUG_RETURN(true);                      /* purecov: inspected */
+        DBUG_RETURN(true); /* purecov: inspected */
     }
-    thd->mark_used_columns= save_mark_used_columns;
-    thd->want_privilege= want_privilege_saved;
+    thd->mark_used_columns = save_mark_used_columns;
+    thd->want_privilege = want_privilege_saved;
   }
   /* Loop over all keys to see if a unique-not-null key is used */
-  for (;key_info != key_info_end ; key_info++)
-  {
-    if ((key_info->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
-    {
-      KEY_PART_INFO *key_part= key_info->key_part;
-      KEY_PART_INFO *key_part_end= key_part + key_info->user_defined_key_parts;
+  for (; key_info != key_info_end; key_info++) {
+    if ((key_info->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) {
+      KEY_PART_INFO *key_part = key_info->key_part;
+      KEY_PART_INFO *key_part_end = key_part + key_info->user_defined_key_parts;
 
       /* check that all key parts are used */
-      for (;;)
-      {
+      for (;;) {
         Field_translator *k;
-        for (k= trans; k < end_of_trans; k++)
-        {
+        for (k = trans; k < end_of_trans; k++) {
           Item_field *field;
-          if ((field= k->item->field_for_view_update()) &&
+          if ((field = k->item->field_for_view_update()) &&
               field->field == key_part->field)
             break;
         }
-        if (k == end_of_trans)
-          break;                                // Key is not possible
-        if (++key_part == key_part_end)
-          DBUG_RETURN(FALSE);                   // Found usable key
+        if (k == end_of_trans) break;  // Key is not possible
+        if (++key_part == key_part_end) DBUG_RETURN(false);  // Found usable key
       }
     }
   }
@@ -2053,38 +1853,33 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
   {
     Field **field_ptr;
     Field_translator *fld;
-    for (field_ptr= table->field; *field_ptr; field_ptr++)
-    {
-      for (fld= trans; fld < end_of_trans; fld++)
-      {
+    for (field_ptr = table->field; *field_ptr; field_ptr++) {
+      for (fld = trans; fld < end_of_trans; fld++) {
         Item_field *field;
-        if ((field= fld->item->field_for_view_update()) &&
+        if ((field = fld->item->field_for_view_update()) &&
             field->field == *field_ptr)
           break;
       }
-      if (fld == end_of_trans)                // If field didn't exists
+      if (fld == end_of_trans)  // If field didn't exists
       {
         /*
           Keys or all fields of underlying tables are not found => we have
           to check variable updatable_views_with_limit to decide should we
           issue an error or just a warning
         */
-        if (thd->variables.updatable_views_with_limit)
-        {
+        if (thd->variables.updatable_views_with_limit) {
           /* update allowed, but issue warning */
-          push_warning(thd, Sql_condition::SL_NOTE,
-                       ER_WARN_VIEW_WITHOUT_KEY,
+          push_warning(thd, Sql_condition::SL_NOTE, ER_WARN_VIEW_WITHOUT_KEY,
                        ER_THD(thd, ER_WARN_VIEW_WITHOUT_KEY));
-          DBUG_RETURN(FALSE);
+          DBUG_RETURN(false);
         }
         /* prohibit update */
-        DBUG_RETURN(TRUE);
+        DBUG_RETURN(true);
       }
     }
   }
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
-
 
 /*
   insert fields from VIEW (MERGE algorithm) into given list
@@ -2095,27 +1890,23 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view, const TABLE_LIST *table_ref)
     view      view for processing
 
   RETURN
-    FALSE OK
-    TRUE  error (is not sent to cliet)
+    false OK
+    true  error (is not sent to cliet)
 */
 
-bool insert_view_fields(List<Item> *list, TABLE_LIST *view)
-{
+bool insert_view_fields(List<Item> *list, TABLE_LIST *view) {
   Field_translator *trans_end;
   Field_translator *trans;
   DBUG_ENTER("insert_view_fields");
 
-  if (!(trans= view->field_translation))
-    DBUG_RETURN(false);
-  trans_end= view->field_translation_end;
+  if (!(trans = view->field_translation)) DBUG_RETURN(false);
+  trans_end = view->field_translation_end;
 
-  for (Field_translator *entry= trans; entry < trans_end; entry++)
-  {
-    Item_field *fld= entry->item->field_for_view_update();
-    if (fld == NULL)
-    {
+  for (Field_translator *entry = trans; entry < trans_end; entry++) {
+    Item_field *fld = entry->item->field_for_view_update();
+    if (fld == NULL) {
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), entry->name);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
 
     list->push_back(fld);

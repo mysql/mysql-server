@@ -26,26 +26,22 @@
 #include <map>
 #include <set>
 
-#include "extra/regex/my_regex.h"       // my_regex_t
-#include "lex.h"                        // symbols[]
-#include "m_ctype.h"                    // CHARSET_INFO
-#include "welcome_copyright_notice.h"   // ORACLE_WELCOME_COPYRIGHT_NOTICE
+#include "extra/regex/my_regex.h"      // my_regex_t
+#include "lex.h"                       // symbols[]
+#include "m_ctype.h"                   // CHARSET_INFO
+#include "welcome_copyright_notice.h"  // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
-
-int main(int argc, const char *argv[])
-{
-  if (argc != 2)
-  {
+int main(int argc, const char *argv[]) {
+  if (argc != 2) {
     fprintf(stderr, "Usage: %s <YACC file>\n", argv[0]);
     return EXIT_FAILURE;
   }
 
-  const char *yacc_filename= argv[1];
+  const char *yacc_filename = argv[1];
 
   std::ifstream yacc(yacc_filename);
-  if (!yacc.is_open())
-  {
-    fprintf(stderr, "Failed to open \"%s\"",  yacc_filename);
+  if (!yacc.is_open()) {
+    fprintf(stderr, "Failed to open \"%s\"", yacc_filename);
     return EXIT_FAILURE;
   }
 
@@ -59,14 +55,12 @@ int main(int argc, const char *argv[])
 
   std::set<size_t> keyword_tokens;
   std::string s;
-  size_t token_num= 257;
-  while (getline(yacc, s))
-  {
-    if (!my_regexec(&rx, s.c_str(), sizeof(match) / sizeof(*match), match, 0))
-    {
+  size_t token_num = 257;
+  while (getline(yacc, s)) {
+    if (!my_regexec(&rx, s.c_str(), sizeof(match) / sizeof(*match), match, 0)) {
       token_num++;
-      const char *semantic_type= s.c_str() + match[2].rm_so;
-      const size_t semantic_type_sz= match[2].rm_eo - match[2].rm_so;
+      const char *semantic_type = s.c_str() + match[2].rm_so;
+      const size_t semantic_type_sz = match[2].rm_eo - match[2].rm_so;
       if (semantic_type_sz != 0 &&
           strncmp(semantic_type, "<keyword>", semantic_type_sz) == 0)
         keyword_tokens.insert(token_num);
@@ -77,27 +71,26 @@ int main(int argc, const char *argv[])
 
   std::map<std::string, bool> words;
 
-  for (size_t i= 0; i < array_elements(symbols); i++)
-  {
-    const SYMBOL *sym= &symbols[i];
+  for (size_t i = 0; i < array_elements(symbols); i++) {
+    const SYMBOL *sym = &symbols[i];
 
     if (sym->group != SG_KEYWORDS && sym->group != SG_HINTABLE_KEYWORDS)
-      continue; // Function or optimizer hint name.
+      continue;  // Function or optimizer hint name.
 
-    if (!isalpha(sym->name[0]))
-      continue; // Operator.
+    if (!isalpha(sym->name[0])) continue;  // Operator.
 
-    bool is_reserved= keyword_tokens.count(sym->tok) == 0;
-    if (!words.insert(std::make_pair(sym->name, is_reserved)).second)
-    {
-      fprintf(stderr, "This should not happen: \"%s\" has duplicates."
-              " See symbols[] in lex.h", sym->name);
+    bool is_reserved = keyword_tokens.count(sym->tok) == 0;
+    if (!words.insert(std::make_pair(sym->name, is_reserved)).second) {
+      fprintf(stderr,
+              "This should not happen: \"%s\" has duplicates."
+              " See symbols[] in lex.h",
+              sym->name);
       DBUG_ASSERT(false);
       return EXIT_FAILURE;
     }
   }
 
-  auto &out= std::cout;
+  auto &out = std::cout;
 
   out << ORACLE_GPL_COPYRIGHT_NOTICE("2017") << std::endl;
 

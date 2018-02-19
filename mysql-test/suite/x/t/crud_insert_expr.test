@@ -6,6 +6,7 @@
 ## Test starts here
 --write_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
 ## Test data
+-->quiet
 -->sql
 DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
@@ -56,11 +57,11 @@ Mysqlx.Crud.Insert {
 	    name { name: "makedate" }
 	    param {
 	      type : LITERAL
-		literal { type: V_SINT v_signed_int: 2015 }
+	      literal { type: V_SINT v_signed_int: 2015 }
 	    }
 	    param {
-	      type : LITERAL 
-		literal { type: V_SINT v_signed_int: 15 }
+	      type : LITERAL
+	      literal { type: V_SINT v_signed_int: 15 }
 	    }
 	  }
 	}
@@ -95,7 +96,7 @@ Mysqlx.Crud.Insert {
           }
         }
         param {
-          type: LITERAL 
+          type: LITERAL
             literal {
               type: V_STRING  v_string { value: "one" }
           }
@@ -115,8 +116,41 @@ Mysqlx.Crud.Insert {
     }
   }
 }
+-->recvresult
 
-#-- Mysqlx.Sql.StmtExecuteOk
+Mysqlx.Crud.Insert {
+  collection {
+    name: "mycoll"
+    schema: "xtest"
+  }
+  data_model: DOCUMENT
+  row {
+    field {
+      type: OBJECT object {
+        fld {
+          key: '_id'
+          value {
+            type: FUNC_CALL function_call {
+              name { name: "hex" }
+              param {
+                type: LITERAL literal {
+                  type: V_STRING  v_string { value: "three" }
+                }
+              }
+            }
+          }
+        }
+        fld {
+          key: 'value'
+          value {
+            type: LITERAL literal { type: V_UINT v_unsigned_int: 88 }
+          }
+        }
+      }
+    }
+  }
+}
+
 -->recvresult
 
 -->sql

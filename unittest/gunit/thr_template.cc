@@ -20,40 +20,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_systime.h"
+/*
+  As this file may be included from inside a namespace, we cannot do
+  #includes here. However, you should #include "my_systime.h" outside
+  that namespace.
+*/
 
 volatile int32 bad;
 my_thread_attr_t thr_attr;
 mysql_mutex_t mutex;
 mysql_cond_t cond;
 uint running_threads;
-const int THREADS= 30;
-const int CYCLES= 3000;
+const int THREADS = 30;
+const int CYCLES = 3000;
 
-void test_concurrently(const char *test, my_start_routine handler, int n, int m)
-{
+void test_concurrently(const char *test, my_start_routine handler, int n,
+                       int m) {
   my_thread_handle t;
-  ulonglong now= my_getsystime();
+  ulonglong now = my_getsystime();
 
   my_thread_attr_init(&thr_attr);
-  bad= 0;
+  bad = 0;
 
-  for (running_threads= n ; n ; n--)
-  {
-    if (my_thread_create(&t, &thr_attr, handler, &m) != 0)
-    {
+  for (running_threads = n; n; n--) {
+    if (my_thread_create(&t, &thr_attr, handler, &m) != 0) {
       ADD_FAILURE() << "Could not create thread";
       abort();
     }
   }
   mysql_mutex_lock(&mutex);
-  while (running_threads)
-    mysql_cond_wait(&cond, &mutex);
+  while (running_threads) mysql_cond_wait(&cond, &mutex);
   mysql_mutex_unlock(&mutex);
 
-  now= my_getsystime()-now;
-  EXPECT_FALSE(bad)
-    << "tested " << test
-    << " in " << ((double)now)/1e7 << " secs "
-    << "(" << bad << ")";
+  now = my_getsystime() - now;
+  EXPECT_FALSE(bad) << "tested " << test << " in " << ((double)now) / 1e7
+                    << " secs "
+                    << "(" << bad << ")";
 }

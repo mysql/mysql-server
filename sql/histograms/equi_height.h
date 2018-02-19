@@ -74,43 +74,40 @@
   }
 */
 
-#include <cstddef>                     // size_t
-#include <new>
-#include <string>                      // std::string
-#include <vector>                      // std::vector
+#include <cstddef>  // size_t
+#include <set>
+#include <string>  // std::string
 
-#include "my_base.h"                   // ha_rows
-#include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/histograms/equi_height_bucket.h" // equi_height::Bucket, IWYU pragma: keep
-#include "sql/histograms/histogram.h"  // Histogram, value_map_type
-#include "sql/histograms/value_map.h"  // Value_map
-#include "sql/my_decimal.h"
-#include "sql/thr_malloc.h"
-#include "sql_string.h"
-#include "template_utils.h"
+#include "sql/histograms/equi_height_bucket.h"  // IWYU pragma: keep
+#include "sql/histograms/histogram.h"           // Histogram, value_map_type
+#include "sql/histograms/value_map_type.h"
 
 class Json_array;
 class Json_object;
-template <class T> class Memroot_allocator;
+namespace histograms {
+struct Histogram_comparator;
+}  // namespace histograms
+struct MEM_ROOT;
+template <class T>
+class Memroot_allocator;
 
 namespace histograms {
 
 namespace equi_height {
-template <class T> class Bucket;
+template <class T>
+class Bucket;
 }  // namespace equi_height
 
 template <class T>
-class Equi_height : public Histogram
-{
-private:
+class Equi_height : public Histogram {
+ private:
   /// String representation of the histogram type EQUI-HEIGHT.
   static constexpr const char *equi_height_str() { return "equi-height"; }
 
   /// The buckets for this histogram.
-  std::set<equi_height::Bucket<T>,
-           Histogram_comparator,
-           Memroot_allocator<equi_height::Bucket<T>>> m_buckets;
+  std::set<equi_height::Bucket<T>, Histogram_comparator,
+           Memroot_allocator<equi_height::Bucket<T>>>
+      m_buckets;
 
   /**
     Create Equi-height buckets from a JSON array.
@@ -134,8 +131,9 @@ private:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_less_than_equal_selectivity(const T& value) const;
-protected:
+  double get_less_than_equal_selectivity(const T &value) const;
+
+ protected:
   /**
     Populate this histogram with contents from a JSON object.
 
@@ -145,7 +143,7 @@ protected:
   */
   bool json_to_histogram(const Json_object &json_object) override;
 
-public:
+ public:
   /**
     Find the fraction of values equal to 'value'.
 
@@ -156,7 +154,7 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_equal_to_selectivity(const T& value) const;
+  double get_equal_to_selectivity(const T &value) const;
 
   /**
     Find the fraction of values that is less than 'value'.
@@ -168,7 +166,7 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_less_than_selectivity(const T& value) const;
+  double get_less_than_selectivity(const T &value) const;
 
   /**
     Find the fraction of values that is greater than 'value'.
@@ -180,7 +178,7 @@ public:
 
     @return the selectivity between 0.0 and 1.0 inclusive.
   */
-  double get_greater_than_selectivity(const T& value) const;
+  double get_greater_than_selectivity(const T &value) const;
 
   /**
     Equi-height constructor.
@@ -260,6 +258,6 @@ public:
   Histogram *clone(MEM_ROOT *mem_root) const override;
 };
 
-} // namespace histograms
+}  // namespace histograms
 
 #endif

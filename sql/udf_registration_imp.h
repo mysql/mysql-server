@@ -23,10 +23,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #if !defined(UDF_REGISTRATION_IMP_H)
 #define UDF_REGISTRATION_IMP_H
 
-#include <mysql/components/services/udf_registration.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/udf_registration.h>
 
-typedef struct st_udf_func udf_func;
+struct udf_func;
 
 /**
   A helper class for the implementation of the
@@ -35,38 +35,32 @@ typedef struct st_udf_func udf_func;
   Needed because we register these service implementations
   as part of the mysql_server component.
 */
-class mysql_udf_registration_imp
-{
-public: /* service implementations */
-
+class mysql_udf_registration_imp {
+ public: /* service implementations */
   /** udf_registration::udf_register */
   static DEFINE_BOOL_METHOD(udf_register,
-    (const char *name,
-     Item_result return_type,
-     Udf_func_any func,
-     Udf_func_init init_func,
-     Udf_func_deinit deinit_func));
+                            (const char *name, Item_result return_type,
+                             Udf_func_any func, Udf_func_init init_func,
+                             Udf_func_deinit deinit_func));
 
   /** udf_registration::udf_unregister
       and udf_registration_aggregate::udf_register
   */
   static DEFINE_BOOL_METHOD(udf_unregister,
-    (const char *name, int *was_present));
+                            (const char *name, int *was_present));
 
   /** udf_registration_aggregate::udf_register */
   static DEFINE_BOOL_METHOD(udf_register_aggregate,
-    (const char *func_name,
-     enum Item_result return_type,
-     Udf_func_any func,
-     Udf_func_init init_func,
-     Udf_func_deinit deinit_func,
-     Udf_func_add add_func,
-     Udf_func_clear clear_func));
-private:
+                            (const char *func_name,
+                             enum Item_result return_type, Udf_func_any func,
+                             Udf_func_init init_func,
+                             Udf_func_deinit deinit_func, Udf_func_add add_func,
+                             Udf_func_clear clear_func));
+
+ private:
   static bool udf_register_inner(udf_func *func);
   static udf_func *alloc_udf(const char *func_name,
-                             enum Item_result return_type,
-                             Udf_func_any func,
+                             enum Item_result return_type, Udf_func_any func,
                              Udf_func_init init_func,
                              Udf_func_deinit deinit_func);
 };

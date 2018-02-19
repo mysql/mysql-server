@@ -109,7 +109,8 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
     argv[argc++] = buf.c_str();
     char** tmp = (char**)argv;
     const char* groups[] = {"cluster_config", 0};
-    int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+    MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+    int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
     if (ret) {
       g_logger.error("Unable to load defaults for cluster: %s",
                      clusters[i].c_str());
@@ -182,7 +183,8 @@ bool setup_config(atrt_config& config, const char* atrt_mysqld) {
       argv[argc++] = buf.c_str();
       const char* groups[] = {"mysql_cluster", 0};
       char** tmp = (char**)argv;
-      ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+      MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+      ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
 
       if (ret) {
         g_logger.error("Unable to load defaults for cluster: %s",
@@ -206,7 +208,8 @@ bool load_custom_processes(atrt_config& config, atrt_cluster& cluster) {
   char** tmp = (char**)argv;
   const char* groups[] = {"cluster_deployment", 0};
 
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret != 0) {
     g_logger.error("Failure to '%s' group for cluster %s", groups[0],
                    cluster.m_name.c_str());
@@ -300,7 +303,8 @@ bool load_deployment_options_for_process(atrt_cluster& cluster,
   buf[1].assfmt("cluster_deployment.%s.%u", proc.m_name.c_str(), proc.m_index);
   const char* groups[] = {buf[0].c_str(), buf[1].c_str(), 0};
 
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret != 0) {
     g_logger.error("Failed to load defaults for cluster %s's process %s",
                    cluster.m_name.c_str(), proc.m_name.c_str());
@@ -500,7 +504,8 @@ static bool load_process(atrt_config& config, atrt_cluster& cluster,
       return false;
   }
 
-  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp);
+  MEM_ROOT* alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512}; // LEAK
+  int ret = load_defaults(g_my_cnf, groups, &argc, &tmp, alloc);
   if (ret) {
     g_logger.error("Unable to load defaults for cluster: %s",
                    cluster.m_name.c_str());

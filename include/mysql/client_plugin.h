@@ -49,74 +49,74 @@
 
 #if defined(_MSC_VER)
 #if defined(MYSQL_DYNAMIC_PLUGIN)
-  #ifdef __cplusplus
-    #define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
-  #else
-    #define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
-  #endif
+#ifdef __cplusplus
+#define MYSQL_PLUGIN_EXPORT extern "C" __declspec(dllexport)
+#else
+#define MYSQL_PLUGIN_EXPORT __declspec(dllexport)
+#endif
 #else /* MYSQL_DYNAMIC_PLUGIN */
-  #ifdef __cplusplus
-    #define  MYSQL_PLUGIN_EXPORT extern "C"
-  #else
-    #define MYSQL_PLUGIN_EXPORT
-  #endif
-#endif /*MYSQL_DYNAMIC_PLUGIN */
-#else /*_MSC_VER */
+#ifdef __cplusplus
+#define MYSQL_PLUGIN_EXPORT extern "C"
+#else
 #define MYSQL_PLUGIN_EXPORT
 #endif
-
+#endif /*MYSQL_DYNAMIC_PLUGIN */
+#else  /*_MSC_VER */
+#define MYSQL_PLUGIN_EXPORT
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* known plugin types */
-#define MYSQL_CLIENT_reserved1               0
-#define MYSQL_CLIENT_reserved2               1
-#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN   2
-#define MYSQL_CLIENT_TRACE_PLUGIN            3
+#define MYSQL_CLIENT_reserved1 0
+#define MYSQL_CLIENT_reserved2 1
+#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN 2
+#define MYSQL_CLIENT_TRACE_PLUGIN 3
 
-#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION  0x0100
-#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION           0x0100
+#define MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION 0x0100
+#define MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION 0x0100
 
-#define MYSQL_CLIENT_MAX_PLUGINS             4
+#define MYSQL_CLIENT_MAX_PLUGINS 4
 
-#define mysql_declare_client_plugin(X)          \
-     MYSQL_PLUGIN_EXPORT struct st_mysql_client_plugin_ ## X        \
-        _mysql_client_plugin_declaration_ = {   \
-          MYSQL_CLIENT_ ## X ## _PLUGIN,        \
-          MYSQL_CLIENT_ ## X ## _PLUGIN_INTERFACE_VERSION,
-#define mysql_end_client_plugin             }
+#define mysql_declare_client_plugin(X)           \
+  MYSQL_PLUGIN_EXPORT st_mysql_client_plugin_##X \
+      _mysql_client_plugin_declaration_ = {      \
+          MYSQL_CLIENT_##X##_PLUGIN,             \
+          MYSQL_CLIENT_##X##_PLUGIN_INTERFACE_VERSION,
+#define mysql_end_client_plugin }
 
 /* generic plugin header structure */
-#define MYSQL_CLIENT_PLUGIN_HEADER                      \
-  int type;                                             \
-  unsigned int interface_version;                       \
-  const char *name;                                     \
-  const char *author;                                   \
-  const char *desc;                                     \
-  unsigned int version[3];                              \
-  const char *license;                                  \
-  void *mysql_api;                                      \
-  int (*init)(char *, size_t, int, va_list);            \
-  int (*deinit)(void);                                  \
+#define MYSQL_CLIENT_PLUGIN_HEADER           \
+  int type;                                  \
+  unsigned int interface_version;            \
+  const char *name;                          \
+  const char *author;                        \
+  const char *desc;                          \
+  unsigned int version[3];                   \
+  const char *license;                       \
+  void *mysql_api;                           \
+  int (*init)(char *, size_t, int, va_list); \
+  int (*deinit)(void);                       \
   int (*options)(const char *option, const void *);
 
-struct st_mysql_client_plugin
-{
+struct st_mysql_client_plugin {
   MYSQL_CLIENT_PLUGIN_HEADER
 };
 
-struct st_mysql;
+struct MYSQL;
 
 /******** authentication plugin specific declarations *********/
 #include "plugin_auth_common.h"
 
-struct st_mysql_client_plugin_AUTHENTICATION
-{
+struct auth_plugin_t {
   MYSQL_CLIENT_PLUGIN_HEADER
-  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct st_mysql *mysql);
+  int (*authenticate_user)(MYSQL_PLUGIN_VIO *vio, struct MYSQL *mysql);
 };
+
+// Needed for the mysql_declare_client_plugin() macro. Do not use elsewhere.
+typedef struct auth_plugin_t st_mysql_client_plugin_AUTHENTICATION;
 
 /******** using plugins ************/
 
@@ -133,9 +133,9 @@ struct st_mysql_client_plugin_AUTHENTICATION
   @retval
   a pointer to the loaded plugin, or NULL in case of a failure
 */
-struct st_mysql_client_plugin *
-mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
-                  int argc, ...);
+struct st_mysql_client_plugin *mysql_load_plugin(struct MYSQL *mysql,
+                                                 const char *name, int type,
+                                                 int argc, ...);
 
 /**
   loads a plugin and initializes it, taking va_list as an argument
@@ -153,9 +153,9 @@ mysql_load_plugin(struct st_mysql *mysql, const char *name, int type,
   @retval
   a pointer to the loaded plugin, or NULL in case of a failure
 */
-struct st_mysql_client_plugin *
-mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
-                    int argc, va_list args);
+struct st_mysql_client_plugin *mysql_load_plugin_v(struct MYSQL *mysql,
+                                                   const char *name, int type,
+                                                   int argc, va_list args);
 
 /**
   finds an already loaded plugin by name, or loads it, if necessary
@@ -167,8 +167,9 @@ mysql_load_plugin_v(struct st_mysql *mysql, const char *name, int type,
   @retval
   a pointer to the plugin, or NULL in case of a failure
 */
-struct st_mysql_client_plugin *
-mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
+struct st_mysql_client_plugin *mysql_client_find_plugin(struct MYSQL *mysql,
+                                                        const char *name,
+                                                        int type);
 
 /**
   adds a plugin structure to the list of loaded plugins
@@ -184,9 +185,8 @@ mysql_client_find_plugin(struct st_mysql *mysql, const char *name, int type);
   @retval
   a pointer to the plugin, or NULL in case of a failure
 */
-struct st_mysql_client_plugin *
-mysql_client_register_plugin(struct st_mysql *mysql,
-                             struct st_mysql_client_plugin *plugin);
+struct st_mysql_client_plugin *mysql_client_register_plugin(
+    struct MYSQL *mysql, struct st_mysql_client_plugin *plugin);
 
 /**
   set plugin options
@@ -203,10 +203,8 @@ mysql_client_register_plugin(struct st_mysql *mysql,
 int mysql_plugin_options(struct st_mysql_client_plugin *plugin,
                          const char *option, const void *value);
 
-
 #ifdef __cplusplus
 }
 #endif
 
 #endif
-

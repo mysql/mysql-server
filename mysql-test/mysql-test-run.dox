@@ -5832,23 +5832,39 @@
     </li>
 
     <li>
-      <tt>copy_file <b>from_file to_file</b></tt>
+      <tt>copy_file <b>from_file to_file</b> [<b>retry</b>]</tt>
 
       Copy the file <b><em>from_file</em></b> to the file
       <b><em>to_file</em></b>. The command fails if
       <b><em>to_file</em></b> already exists. The file name arguments
       are subject to variable substitution.
+
+      <b>copy_file</b> can also take an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
+      @verbatim
+  copy_file $MYSQL_TMP_DIR/copy1.txt $MYSQL_TMP_DIR/copy2.txt;
+  copy_file $MYSQL_TMP_DIR/foo.txt $MYSQL_TMP_DIR/foo2.txt 5;
+      @endverbatim
     </li>
 
     <li>
       <tt>copy_files_wildcard <b>src_dir_name dst_dir_name</b>
-                              [<b>pattern</b>]</tt>
+                              <b>pattern</b> [<b>retry</b>]</tt>
 
       Copy all files that match the pattern in the source directory to
       the destination directory. Patterns can use <b>?</b> to
       represent any single character, or <b>*</b> for any sequence of
       0 or more characters. The <b>.</b> character is treated like any
-      other. The pattern may not include <b>/</b>.
+      other. The pattern may not include <b>/</b>. If all the files
+      need to be copied, the <b>*</b> wildcard can be used.
+
+      <b>copy_files_wildcard</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number
+      of times. Each retry happens after an interval of one second.
 
       The command works like this:
 
@@ -5870,14 +5886,7 @@
         </li>
 
         <li>
-          The pattern argument is optional. If no pattern is provided,
-          all files from the source directory are copied to the
-          destination directory.
-        </li>
-
-        <li>
-          If a pattern is provided, but no files match it, an error
-          occurs.
+          If no files match the specified pattern, an error occurs.
         </li>
 
         <li>
@@ -5886,7 +5895,8 @@
       </ul>
 
       @verbatim
-  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt
+  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt;
+  copy_files_wildcard $MYSQLTEST_VARDIR/std_data/ $MYSQLTEST_VARDIR/copy1/ *.txt 5;
       @endverbatim
     </li>
 
@@ -6448,14 +6458,21 @@
     </li>
 
     <li>
-      <tt>file_exists <b>file_name</b></tt>
+      <tt>file_exists <b>file_name</b> [<b>retry</b>]</tt>
 
       <b>file_exists</b> succeeds if the named file exists and fails
       otherwise. The file name argument is subject to variable
       substitution.
 
+      <b>file_exists</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number
+      of times. Each retry happens after an interval of one second.
+
+
       @verbatim
   file_exists /etc/passwd;
+  file_exists /etc/passwd 5;
       @endverbatim
     </li>
 
@@ -6672,15 +6689,22 @@
     </li>
 
     <li>
-      <tt>move_file <b>from_name to_name</b></tt>
+      <tt>move_file <b>from_name to_name</b> [<b>retry</b>]</tt>
 
       <b>move_file</b> renames <b><em>from_name</em></b> to
       <b><em>to_name</em></b>. The file name arguments are subject to
       variable substitution, but must evaluate to a literal file name,
       not a file name pattern.
 
+      <b>move_file</b> can also take an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
+
       @verbatim
   move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out;
+  move_file $MYSQL_TMP_DIR/data01 $MYSQL_TMP_DIR/test.out 5;
       @endverbatim
     </li>
 
@@ -6827,33 +6851,43 @@
     </li>
 
     <li>
-      <tt>remove_file <b>file_name</b></tt>
+      <tt>remove_file <b>file_name</b> [<b>retry</b>]</tt>
 
       <b>remove_file</b> removes the file. It fails with an error if
       the file does not exist. The file name argument is subject to
       variable substitution, but must evaluate to a literal file name,
       not a file name pattern.
 
+      <b>remove_file</b> also takes an optional argument <b>retry</b>.
+      If the command fails due to an environmental issue, the command
+      can be retried for a <b>retry</b> number of times. Each retry
+      happens after an interval of one second.
+
       @verbatim
   remove_file $MYSQL_TMP_DIR/data01;
+  remove_file $MYSQL_TMP_DIR/data01 5
       @endverbatim
     </li>
 
     <li>
-      <tt>remove_files_wildcard <b>dir_name</b> [<b>pattern</b>]</tt>
+      <tt>remove_files_wildcard <b>dir_name</b> <b>pattern</b> [<b>retry</b>]</tt>
 
       Remove all files in the named directory that match the pattern.
       Removal does not apply to directories matching the pattern or
       matching files in subdirectories. Patterns can use <b>?</b> to
       represent any single character, or <b>*</b> for any sequence of
       0 or more characters. The <b>.</b> character is treated like any
-      other. The pattern may not include <b>/</b>.
+      other. The pattern may not include <b>/</b>. If all the files
+      need to be removed, the <b>*</b> wildcard can be used.
 
-      If no pattern argument is given, all files in the directory will
-      be removed, but not the directory itself.
+      <b>remove_files_wildcard</b> can also take an optional argument
+      <b>retry</b>. If the command fails due to an environmental
+      issue, the command can be retried for a <b>retry</b> number of
+      times. Each retry happens after an interval of one second.
 
       @verbatim
   remove_files_wildcard $MYSQL_TMP_DIR file*.txt;
+  remove_files_wildcard $MYSQL_TMP_DIR file*.txt 5;
       @endverbatim
     </li>
 
@@ -7896,8 +7930,7 @@
 
     <li>
       The <b>test_services</b> plugin demonstrates how to test the
-      <b>my_snprintf</b> and <b>my_plugin_log_service</b> services
-      in unthreaded context.
+      <b>my_plugin_log_service</b> service in unthreaded context.
     </li>
 
     <li>
@@ -7988,8 +8021,7 @@
         <li>
           If you copied <b>test_services.cc</b> or
           <b>test_services_threaded.cc</b>, the file contains tests
-          for the <b>my_snprintf</b> and
-          <b>my_plugin_log_service</b> services in unthreaded or
+          for the <b>my_plugin_log_service</b> service in unthreaded or
           threaded contexts. Replace or modify those tests with code
           for your own tests.
           those tests with code for your own tests.

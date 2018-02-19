@@ -38,8 +38,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_mdl_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_MDL_VERSION_1
   Performance Schema Metadata Lock Interface number for version 1.
@@ -55,8 +53,7 @@ C_MODE_START
 #define PSI_CURRENT_MDL_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_mdl_bootstrap
-{
+struct PSI_mdl_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -75,8 +72,7 @@ typedef struct PSI_mdl_bootstrap PSI_mdl_bootstrap;
   Performance Schema Metadata Lock Interface, version 1.
   @since PSI_TRANSACTION_VERSION_1
 */
-struct PSI_mdl_service_v1
-{
+struct PSI_mdl_service_v1 {
   create_metadata_lock_v1_t create_metadata_lock;
   set_metadata_lock_status_v1_t set_metadata_lock_status;
   destroy_metadata_lock_v1_t destroy_metadata_lock;
@@ -91,7 +87,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_mdl_service_t *psi_mdl_service;
 #endif /* HAVE_PSI_METADATA_INTERFACE */
 
 /** @} (end of group psi_abi_mdl) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MDL_H */

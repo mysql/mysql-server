@@ -42,10 +42,8 @@ CREATE VIEW test.v_procs_priv AS SELECT * FROM mysql.procs_priv WHERE User LIKE 
 CREATE VIEW test.v_event AS SELECT definer FROM information_schema.events WHERE event_name = 'e1';
 CREATE PROCEDURE p1() SELECT 1;
 --echo # bug48321_1-01234 has the max length(16) of user.
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER 'bug48321_1-01234'@'localhost';
 GRANT ALL PRIVILEGES ON *.* TO 'bug48321_1-01234'@'localhost' WITH GRANT OPTION;
-set sql_mode= @orig_sql_mode;
 
 --echo
 --echo # Make sure the max lengths of user and host

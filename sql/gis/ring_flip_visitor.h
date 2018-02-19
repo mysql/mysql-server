@@ -71,11 +71,11 @@ class Ring_flip_visitor : public Nop_visitor {
   bool visit_enter(Polygon *py) override;
   bool visit_enter(Multipolygon *py) override;
 
-  bool visit_enter(Multipoint *mpt) override {
+  bool visit_enter(Multipoint *) override {
     return true;  // Don't descend into each point.
   }
 
-  bool visit_enter(Multilinestring *mls) override {
+  bool visit_enter(Multilinestring *) override {
     return true;  // Don't descend into each linestring.
   }
 };

@@ -124,10 +124,10 @@ Top 2 Queries Using Custom View
 query	db	exec_count	total_latency	avg_latency	rows_sent_avg	rows_examined_avg	rows_affected_avg	digest
 QUERY_INSERT	test	2	LATENCY	LATENCY	0	0	1	DIGEST_INSERT
 QUERY_SELECT	test	2	LATENCY	LATENCY	2	9	0	DIGEST_SELECT
-SET SESSION sql_mode = 'NO_AUTO_CREATE_USER';
+SET SESSION sql_mode = '';
 CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
 ERROR 45000: Unknown action. Supported actions are: cleanup, create_table, create_tmp, delta, overall, save, snapshot
-SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION';
+SET SESSION sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 CALL sys.statement_performance_analyzer('do magic', NULL, NULL);
 ERROR 01000: Data truncated for column 'in_action' at row 1
 CALL sys.statement_performance_analyzer('create_tmp', 'sys.tmp_digests', NULL);

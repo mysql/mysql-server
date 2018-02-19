@@ -30,37 +30,35 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Component status variables as a service to mysql_server component
 */
 
-typedef struct st_mysql_show_var STATUS_VAR;
+struct SHOW_VAR;
 
 /**
   Service to register variable and unregister variable.
 */
 BEGIN_SERVICE_DEFINITION(status_variable_registration)
 
-  /**
-    Register status variable.
+/**
+  Register status variable.
 
-    @param  status_var fully constructed status variable object.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
+  @param  status_var fully constructed status variable object.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
 
-    Note: Please see the components/test/test_status_var_service.cc file,
-    to know how to construct status varables for different variable types.
-  */
-  DECLARE_BOOL_METHOD(register_variable,
-  (STATUS_VAR *status_var));
+  Note: Please see the components/test/test_status_var_service.cc file,
+  to know how to construct status varables for different variable types.
+*/
+DECLARE_BOOL_METHOD(register_variable, (SHOW_VAR * status_var));
 
-  /**
-    Unregister's status variable.
-    @param  status_var STATUS_VAR object with only the name of the variable,
-                       which has to be removed from the global list.
-    @return Status of performed operation
-    @retval false success
-    @retval true failure
-  */
-  DECLARE_BOOL_METHOD(unregister_variable,
-  (STATUS_VAR *status_var));
+/**
+  Unregister's status variable.
+  @param  status_var SHOW_VAR object with only the name of the variable,
+                     which has to be removed from the global list.
+  @return Status of performed operation
+  @retval false success
+  @retval true failure
+*/
+DECLARE_BOOL_METHOD(unregister_variable, (SHOW_VAR * status_var));
 
 END_SERVICE_DEFINITION(status_variable_registration)
 

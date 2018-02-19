@@ -23,27 +23,26 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
-#include "mach0data.h"
 #include "lot0types.h"
+#include "mach0data.h"
 #include "mtr0types.h"
 
-void
-mlog_write_ulint(
-        byte*           ptr,    /*!< in: pointer where to write */
-        ulint           val,    /*!< in: value to write */
-        mlog_id_t       type)   /*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+void mlog_write_ulint(
+    byte *ptr,      /*!< in: pointer where to write */
+    ulint val,      /*!< in: value to write */
+    mlog_id_t type) /*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 {
-        switch (type) {
-        case MLOG_1BYTE:
-                mach_write_to_1(ptr, val);
-                break;
-        case MLOG_2BYTES:
-                mach_write_to_2(ptr, val);
-                break;
-        case MLOG_4BYTES:
-                mach_write_to_4(ptr, val);
-                break;
-        default:
-                ut_error;
-        }
+  switch (type) {
+    case MLOG_1BYTE:
+      mach_write_to_1(ptr, val);
+      break;
+    case MLOG_2BYTES:
+      mach_write_to_2(ptr, val);
+      break;
+    case MLOG_4BYTES:
+      mach_write_to_4(ptr, val);
+      break;
+    default:
+      ut_error;
+  }
 }

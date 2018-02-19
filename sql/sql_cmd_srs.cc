@@ -35,51 +35,44 @@
 #include "sql/dd/dd.h"  // dd::create_object
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"
 #include "sql/dd/types/spatial_reference_system.h"
-#include "sql/derror.h"    // ER_THD
-#include "sql/gis/srid.h"  // gis::srid_t
-#include "sql/sql_class.h"    // Disable_autocommit_guard, THD
+#include "sql/derror.h"       // ER_THD
+#include "sql/gis/srid.h"     // gis::srid_t
+#include "sql/sql_class.h"    // THD
 #include "sql/sql_prepare.h"  // Ed_connection
 #include "sql/srs_fetcher.h"
+#include "sql/thd_raii.h"  // Disable_autocommit_guard
 #include "sql/transaction.h"
 
 /// Issue a warning if an SRID is within one of the reserved ranges.
 ///
 /// @param[in] srid The SRID to check.
 /// @param[in] thd Thread context.
-static void warn_if_in_reserved_range(gis::srid_t srid, THD *thd)
-{
-  gis::srid_t min= 0;
-  gis::srid_t max= 0;
+static void warn_if_in_reserved_range(gis::srid_t srid, THD *thd) {
+  gis::srid_t min = 0;
+  gis::srid_t max = 0;
 
-  if (srid <= 32767)
-  {
+  if (srid <= 32767) {
     // Reserved by EPSG, cf. OGP Publication 373-7-1 Geomatics Guidance Note
     // number 7, part 1 - August 2012, Sect 5.9.
-    min= 0;
-    max= 32767;
-  }
-  else if (srid >= 60000000 && srid <= 69999999)
-  {
+    min = 0;
+    max = 32767;
+  } else if (srid >= 60000000 && srid <= 69999999) {
     // Reserved by EPSG, cf. OGP Publication 373-7-1 Geomatics Guidance Note
     // number 7, part 1 - August 2012, Sect 5.9.
-    min= 60000000;
-    max= 69999999;
-  }
-  else if (srid >= 2000000000 && srid <= 2147483647)
-  {
+    min = 60000000;
+    max = 69999999;
+  } else if (srid >= 2000000000 && srid <= 2147483647) {
     // Reserved by MySQL.
-    min= 2000000000;
-    max= 2147483647;
+    min = 2000000000;
+    max = 2147483647;
   }
 
-  if (!(min == 0 && max == 0))
-  {
+  if (!(min == 0 && max == 0)) {
     push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_RESERVED_SRID_RANGE,
                         ER_THD(thd, ER_WARN_RESERVED_SRID_RANGE), min, max);
   }
 }
-
 
 /// Check if an SRS is used, i.e., if any columns depend on it.
 ///
@@ -88,8 +81,7 @@ static void warn_if_in_reserved_range(gis::srid_t srid, THD *thd)
 ///
 /// @retval true The SRS is used by at least one column.
 /// @retval false The SRS is not used by any columns.
-static bool srs_is_used(gis::srid_t srid, THD *thd)
-{
+static bool srs_is_used(gis::srid_t srid, THD *thd) {
   // We can't drop an SRS if it is used by a column (i.e., the column type has
   // an SRID type modifier referencing this SRS). Ideally, we'd like a foreign
   // key constraint to enforce this, but while waiting for the data dictionary
@@ -110,19 +102,14 @@ static bool srs_is_used(gis::srid_t srid, THD *thd)
   return conn.execute_direct(query_string);
 }
 
-
-bool Sql_cmd_create_srs::fill_srs(dd::Spatial_reference_system *srs)
-{
+bool Sql_cmd_create_srs::fill_srs(dd::Spatial_reference_system *srs) {
   DBUG_ASSERT(m_srs_name.str != nullptr);
   srs->set_name(m_srs_name.str);
 
-  if (m_organization.str != nullptr)
-  {
+  if (m_organization.str != nullptr) {
     srs->set_organization(m_organization.str);
     srs->set_organization_coordsys_id(m_organization_coordsys_id);
-  }
-  else
-  {
+  } else {
     srs->set_organization(nullptr);
     srs->set_organization_coordsys_id(nullptr);
   }
@@ -139,20 +126,17 @@ bool Sql_cmd_create_srs::fill_srs(dd::Spatial_reference_system *srs)
       ->parse_definition();
 }
 
-
 /// Abort the current statement and transaction.
 ///
 /// @param[in] thd Thread context.
 ///
 /// @retval false Success.
 /// @retval true An error occurred.
-static bool rollback(THD *thd)
-{
+static bool rollback(THD *thd) {
   bool error = trans_rollback_stmt(thd);
-  error|= trans_rollback(thd);
+  error |= trans_rollback(thd);
   return error;
 }
-
 
 /// Commit the current statement and transaction.
 ///
@@ -160,12 +144,10 @@ static bool rollback(THD *thd)
 ///
 /// @retval false Success.
 /// @retval true An error occurred.
-static bool commit(THD *thd)
-{
+static bool commit(THD *thd) {
   if (mysql_bin_log.is_open() &&
       thd->binlog_query(THD::STMT_QUERY_TYPE, thd->query().str,
-                        thd->query().length, true, false, false, 0))
-  {
+                        thd->query().length, true, false, false, 0)) {
     /* purecov: begin inspected */
     rollback(thd);
     return true;
@@ -175,11 +157,8 @@ static bool commit(THD *thd)
   return (trans_commit_stmt(thd) || trans_commit(thd));
 }
 
-
-bool Sql_cmd_create_srs::execute(THD *thd)
-{
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
-  {
+bool Sql_cmd_create_srs::execute(THD *thd) {
+  if (!(thd->security_context()->check_access(SUPER_ACL))) {
     my_error(ER_CMD_NEED_SUPER, MYF(0),
              m_or_replace ? "CREATE OR REPLACE SPATIAL REFERENCE SYSTEM"
                           : "CREATE SPATIAL REFERENCE SYSTEM");
@@ -187,50 +166,41 @@ bool Sql_cmd_create_srs::execute(THD *thd)
   }
 
   Disable_autocommit_guard dag(thd);
-  dd::cache::Dictionary_client *dd_client= thd->dd_client();
+  dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  auto rollback_guard= create_scope_guard([thd]()
-  {
-    if (rollback(thd))
-      DBUG_ASSERT(false); /* purecov: deadcode */
+  auto rollback_guard = create_scope_guard([thd]() {
+    if (rollback(thd)) DBUG_ASSERT(false); /* purecov: deadcode */
   });
   Srs_fetcher fetcher(thd);
-  dd::Spatial_reference_system *srs= nullptr;
+  dd::Spatial_reference_system *srs = nullptr;
   if (fetcher.acquire_for_modification(m_srid, &srs))
-    return true;  /* purecov: inspected */
+    return true; /* purecov: inspected */
 
-  if (srs != nullptr)
-  {
-    if (m_if_not_exists)
-    {
+  if (srs != nullptr) {
+    if (m_if_not_exists) {
       push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_SRS_ID_ALREADY_EXISTS,
                           ER_THD(thd, ER_WARN_SRS_ID_ALREADY_EXISTS), m_srid);
       my_ok(thd);
       return false;
     }
-    if (!m_or_replace)
-    {
+    if (!m_or_replace) {
       my_error(ER_SRS_ID_ALREADY_EXISTS, MYF(0), m_srid);
       return true;
     }
-    if (srs_is_used(m_srid, thd))
-    {
+    if (srs_is_used(m_srid, thd)) {
       my_error(ER_CANT_MODIFY_SRS_USED_BY_COLUMN, MYF(0), m_srid);
       return true;
     }
 
-    if (fill_srs(srs))
-      return true;  // Error has already been flagged.
+    if (fill_srs(srs)) return true;  // Error has already been flagged.
 
     warn_if_in_reserved_range(m_srid, thd);
 
-    if (dd_client->update(srs))
-      return true;  // Error has already been flagged.
+    if (dd_client->update(srs)) return true;  // Error has already been flagged.
 
     rollback_guard.commit();
-    if (commit(thd))
-      return true; /* purecov: inspected */
+    if (commit(thd)) return true; /* purecov: inspected */
     my_ok(thd);
     return false;
   }
@@ -239,52 +209,40 @@ bool Sql_cmd_create_srs::execute(THD *thd)
       dd::create_object<dd::Spatial_reference_system>());
   static_cast<dd::Spatial_reference_system_impl *>(new_srs.get())
       ->set_id(m_srid);
-  if (fill_srs(new_srs.get()))
-    return true;  // Error has already been flagged.
+  if (fill_srs(new_srs.get())) return true;  // Error has already been flagged.
 
   warn_if_in_reserved_range(m_srid, thd);
 
-  if (thd->dd_client()->store(new_srs.get()))
-    return true;
+  if (thd->dd_client()->store(new_srs.get())) return true;
 
   rollback_guard.commit();
-  if (commit(thd))
-    return true; /* purecov: inspected */
+  if (commit(thd)) return true; /* purecov: inspected */
   my_ok(thd);
   return false;
 }
 
-
-bool Sql_cmd_drop_srs::execute(THD *thd)
-{
-  if (!(thd->security_context()->check_access(SUPER_ACL)))
-  {
+bool Sql_cmd_drop_srs::execute(THD *thd) {
+  if (!(thd->security_context()->check_access(SUPER_ACL))) {
     my_error(ER_CMD_NEED_SUPER, MYF(0), "DROP SPATIAL REFERENCE SYSTEM");
     return true;
   }
   Disable_autocommit_guard dag(thd);
-  dd::cache::Dictionary_client *dd_client= thd->dd_client();
+  dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
-  auto rollback_guard= create_scope_guard([thd]()
-  {
-    if (rollback(thd))
-      DBUG_ASSERT(false); /* purecov: deadcode */
+  auto rollback_guard = create_scope_guard([thd]() {
+    if (rollback(thd)) DBUG_ASSERT(false); /* purecov: deadcode */
   });
   Srs_fetcher fetcher(thd);
-  dd::Spatial_reference_system *srs= nullptr;
+  dd::Spatial_reference_system *srs = nullptr;
   if (fetcher.acquire_for_modification(m_srid, &srs))
     return true; /* purecov: inspected */
 
-  if (srs == nullptr)
-  {
-    if (m_if_exists)
-    {
+  if (srs == nullptr) {
+    if (m_if_exists) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WARN_SRS_NOT_FOUND,
                           ER_THD(thd, ER_SRS_NOT_FOUND), m_srid);
       my_ok(thd);
-    }
-    else
-    {
+    } else {
       my_error(ER_SRS_NOT_FOUND, MYF(0), m_srid);
     }
     return !m_if_exists;
@@ -292,17 +250,14 @@ bool Sql_cmd_drop_srs::execute(THD *thd)
 
   warn_if_in_reserved_range(m_srid, thd);
 
-  if (srs_is_used(m_srid, thd))
-  {
+  if (srs_is_used(m_srid, thd)) {
     my_error(ER_CANT_MODIFY_SRS_USED_BY_COLUMN, MYF(0), m_srid);
     return true;
   }
 
-  if (dd_client->drop(srs))
-    return true; /* purecov: inspected */
+  if (dd_client->drop(srs)) return true; /* purecov: inspected */
   rollback_guard.commit();
-  if (commit(thd))
-    return true; /* purecov: inspected */
+  if (commit(thd)) return true; /* purecov: inspected */
   my_ok(thd);
   return false;
 }

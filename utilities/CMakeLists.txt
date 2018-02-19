@@ -92,7 +92,7 @@ IF(APPLE AND HAVE_CRYPTO_DYLIB AND HAVE_OPENSSL_DYLIB)
   ADD_DEPENDENCIES(comp_err copy_openssl_dlls)
 ENDIF()
 
-MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
+MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.cc)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)
 SET_TARGET_PROPERTIES(my_print_defaults PROPERTIES LINKER_LANGUAGE CXX)
 

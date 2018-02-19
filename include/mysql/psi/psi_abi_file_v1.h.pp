@@ -13,8 +13,7 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_file_locker;
 typedef struct PSI_file_locker PSI_file_locker;
-enum PSI_file_operation
-{
+enum PSI_file_operation {
   PSI_FILE_CREATE = 0,
   PSI_FILE_CREATE_TMP = 1,
   PSI_FILE_OPEN = 2,
@@ -34,8 +33,7 @@ enum PSI_file_operation
   PSI_FILE_SYNC = 16
 };
 typedef enum PSI_file_operation PSI_file_operation;
-struct PSI_file_info_v1
-{
+struct PSI_file_info_v1 {
   PSI_file_key *m_key;
   const char *m_name;
   unsigned int m_flags;
@@ -43,8 +41,7 @@ struct PSI_file_info_v1
   const char *m_documentation;
 };
 typedef struct PSI_file_info_v1 PSI_file_info_v1;
-struct PSI_file_locker_state_v1
-{
+struct PSI_file_locker_state_v1 {
   unsigned int m_flags;
   enum PSI_file_operation m_operation;
   struct PSI_file *m_file;
@@ -58,35 +55,28 @@ struct PSI_file_locker_state_v1
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 typedef void (*register_file_v1_t)(const char *category,
-                                   struct PSI_file_info_v1 *info,
-                                   int count);
+                                   struct PSI_file_info_v1 *info, int count);
 typedef void (*create_file_v1_t)(PSI_file_key key, const char *name, File file);
 typedef struct PSI_file_locker *(*get_thread_file_name_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  PSI_file_key key,
-  enum PSI_file_operation op,
-  const char *name,
-  const void *identity);
+    struct PSI_file_locker_state_v1 *state, PSI_file_key key,
+    enum PSI_file_operation op, const char *name, const void *identity);
 typedef struct PSI_file_locker *(*get_thread_file_stream_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  struct PSI_file *file,
-  enum PSI_file_operation op);
+    struct PSI_file_locker_state_v1 *state, struct PSI_file *file,
+    enum PSI_file_operation op);
 typedef struct PSI_file_locker *(*get_thread_file_descriptor_locker_v1_t)(
-  struct PSI_file_locker_state_v1 *state,
-  File file,
-  enum PSI_file_operation op);
+    struct PSI_file_locker_state_v1 *state, File file,
+    enum PSI_file_operation op);
 typedef void (*start_file_open_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *src_file,
                                           unsigned int src_line);
 typedef struct PSI_file *(*end_file_open_wait_v1_t)(
-  struct PSI_file_locker *locker, void *result);
+    struct PSI_file_locker *locker, void *result);
 typedef void (*end_file_open_wait_and_bind_to_descriptor_v1_t)(
-  struct PSI_file_locker *locker, File file);
+    struct PSI_file_locker *locker, File file);
 typedef void (*end_temp_file_open_wait_and_bind_to_descriptor_v1_t)(
-  struct PSI_file_locker *locker, File file, const char *filename);
+    struct PSI_file_locker *locker, File file, const char *filename);
 typedef void (*start_file_wait_v1_t)(struct PSI_file_locker *locker,
-                                     size_t count,
-                                     const char *src_file,
+                                     size_t count, const char *src_file,
                                      unsigned int src_line);
 typedef void (*end_file_wait_v1_t)(struct PSI_file_locker *locker,
                                    size_t count);
@@ -100,13 +90,10 @@ typedef void (*end_file_rename_wait_v1_t)(struct PSI_file_locker *locker,
                                           const char *new_name, int rc);
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
-struct PSI_file_bootstrap
-{
+struct PSI_file_bootstrap {
   void *(*get_interface)(int version);
 };
-typedef struct PSI_file_bootstrap PSI_file_bootstrap;
-struct PSI_file_service_v1
-{
+struct PSI_file_service_v1 {
   register_file_v1_t register_file;
   create_file_v1_t create_file;
   get_thread_file_name_locker_v1_t get_thread_file_name_locker;
@@ -115,9 +102,9 @@ struct PSI_file_service_v1
   start_file_open_wait_v1_t start_file_open_wait;
   end_file_open_wait_v1_t end_file_open_wait;
   end_file_open_wait_and_bind_to_descriptor_v1_t
-    end_file_open_wait_and_bind_to_descriptor;
+      end_file_open_wait_and_bind_to_descriptor;
   end_temp_file_open_wait_and_bind_to_descriptor_v1_t
-    end_temp_file_open_wait_and_bind_to_descriptor;
+      end_temp_file_open_wait_and_bind_to_descriptor;
   start_file_wait_v1_t start_file_wait;
   end_file_wait_v1_t end_file_wait;
   start_file_close_wait_v1_t start_file_close_wait;

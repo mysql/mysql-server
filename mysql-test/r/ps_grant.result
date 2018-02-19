@@ -5,14 +5,9 @@ ERROR 42000: There is no such grant defined for user 'second_user' on host 'loca
 create database mysqltest;
 use mysqltest;
 use test;
-grant usage on mysqltest.* to second_user@localhost
+create user second_user@localhost
 identified by 'looser' ;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant select on mysqltest.t9 to second_user@localhost
-identified by 'looser' ;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+grant select on mysqltest.t9 to second_user@localhost;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT SELECT ON `mysqltest`.`t9` TO `second_user`@`localhost`
@@ -31,10 +26,7 @@ my_col
 1
 select a as my_col from t1;
 ERROR 42000: SELECT command denied to user 'second_user'@'localhost' for table 't1'
-grant select on mysqltest.t1 to second_user@localhost
-identified by 'looser' ;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+grant select on mysqltest.t1 to second_user@localhost;
 show grants for second_user@localhost ;
 Grants for second_user@localhost
 GRANT SELECT ON `mysqltest`.`t1` TO `second_user`@`localhost`
@@ -81,12 +73,9 @@ commit ;
 show grants for second_user@localhost ;
 ERROR 42000: There is no such grant defined for user 'second_user' on host 'localhost'
 drop database mysqltest;
-prepare stmt3 from ' grant all on test.t1 to drop_user@localhost
-identified by ''looser'' ';
-grant all on test.t1 to drop_user@localhost
-identified by 'looser' ;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user drop_user@localhost identified by 'looser';
+prepare stmt3 from ' grant all on test.t1 to drop_user@localhost ';
+grant all on test.t1 to drop_user@localhost;
 prepare stmt3 from ' revoke all privileges on test.t1 from 
 drop_user@localhost ';
 revoke all privileges on test.t1 from drop_user@localhost ;

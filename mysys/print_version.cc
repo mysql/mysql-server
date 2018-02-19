@@ -42,35 +42,27 @@
 #include "mysql_com.h"
 #include "mysql_version.h"
 
-
 #ifdef MYSQL_SERVER_SUFFIX
 #define MYSQL_SERVER_SUFFIX_STR STRINGIFY_ARG(MYSQL_SERVER_SUFFIX)
 #else
 #define MYSQL_SERVER_SUFFIX_STR MYSQL_SERVER_SUFFIX_DEF
 #endif
 
-void print_version()
-{
+void print_version() {
   char version_buffer[SERVER_VERSION_LENGTH];
-  strxmov(version_buffer, MYSQL_SERVER_VERSION,
-	  MYSQL_SERVER_SUFFIX_STR, NullS);
-  printf("%s  Ver %s for %s on %s (%s)\n", my_progname,
-	 version_buffer, SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
+  printf("%s  Ver %s for %s on %s (%s)\n", my_progname, version_buffer,
+         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
-
-void print_version_debug()
-{
+void print_version_debug() {
   char version_buffer[SERVER_VERSION_LENGTH];
-  strxmov(version_buffer, MYSQL_SERVER_VERSION,
-	  MYSQL_SERVER_SUFFIX_STR, NullS);
-  printf("%s  Ver %s-debug for %s on %s (%s)\n", my_progname,
-	 version_buffer, SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+  strxmov(version_buffer, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
+  printf("%s  Ver %s-debug for %s on %s (%s)\n", my_progname, version_buffer,
+         SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }
 
-
-void print_explicit_version(const char* version)
-{
-  printf("%s  Ver %s for %s on %s (%s)\n", my_progname,
-	 version, SYSTEM_TYPE, MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
+void print_explicit_version(const char *version) {
+  printf("%s  Ver %s for %s on %s (%s)\n", my_progname, version, SYSTEM_TYPE,
+         MACHINE_TYPE, MYSQL_COMPILATION_COMMENT);
 }

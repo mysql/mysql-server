@@ -26,8 +26,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef _fil0fil_h_
 #define _fil0fil_h_
 
-#include "lot0types.h"
 #include "fil0types.h"
+#include "lot0types.h"
 #include "mach0data.h"
 
 /** File space address */
@@ -38,8 +38,8 @@ struct fil_addr_t {
   page_no_t page; /*!< page number within a space */
   ulint boffset;  /*!< byte offset within the page */
 
-  bool is_equal(const fil_addr_t& that) const {
-    return((page == that.page) && (boffset == that.boffset));
+  bool is_equal(const fil_addr_t &that) const {
+    return ((page == that.page) && (boffset == that.boffset));
   }
 
   std::ostream &print(std::ostream &out) const {
@@ -48,9 +48,8 @@ struct fil_addr_t {
   }
 };
 
-inline
-std::ostream& operator<<(std::ostream& out, const fil_addr_t& obj) {
-  return(obj.print(out));
+inline std::ostream &operator<<(std::ostream &out, const fil_addr_t &obj) {
+  return (obj.print(out));
 }
 
 typedef byte fil_faddr_t;
@@ -84,4 +83,4 @@ inline page_type_t fil_page_get_type(const byte *page) {
 #define FIL_PAGE_TYPE_ZLOB_FRAG 27
 #define FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY 28
 
-#endif // _fil0fil_h_
+#endif  // _fil0fil_h_

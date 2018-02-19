@@ -36,18 +36,16 @@
   Ditto LEX_CSTRING/MYSQL_LEX_CSTRING.
 */
 
-typedef struct st_mysql_lex_string LEX_STRING;
-typedef struct st_mysql_const_lex_string LEX_CSTRING;
+typedef struct MYSQL_LEX_STRING LEX_STRING;
+typedef struct MYSQL_LEX_CSTRING LEX_CSTRING;
 
 #ifdef __cplusplus
 
-static inline std::string to_string(const LEX_STRING &str)
-{
+static inline std::string to_string(const LEX_STRING &str) {
   return std::string(str.str, str.length);
 }
 
-static inline std::string to_string(const LEX_CSTRING &str)
-{
+static inline std::string to_string(const LEX_CSTRING &str) {
   return std::string(str.str, str.length);
 }
 

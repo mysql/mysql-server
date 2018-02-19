@@ -83,10 +83,19 @@ EXECUTE_PROCESS(
 
 IF(MSVC)
   # See CMAKE_CXX_CREATE_STATIC_LIBRARY
-  EXECUTE_PROCESS(
-    COMMAND ${CMAKE_LINKER} "/lib" "/NOLOGO" "${CMAKE_STATIC_LINKER_FLAGS}"
-    "/OUT:${TARGET_LOC}" ${LIB_LOCATIONS}
-    )
+  IF(CMAKE_LINKER MATCHES "lld-link")
+    # lld-link does not yet support making convenience libraries;
+    # use MSVC's linker. We assume link.exe is in our path.
+    EXECUTE_PROCESS(
+      COMMAND link.exe "/lib" "/NOLOGO" "${CMAKE_STATIC_LINKER_FLAGS}"
+      "/OUT:${TARGET_LOC}" ${LIB_LOCATIONS}
+      )
+  ELSE()
+    EXECUTE_PROCESS(
+      COMMAND ${CMAKE_LINKER} "/lib" "/NOLOGO" "${CMAKE_STATIC_LINKER_FLAGS}"
+      "/OUT:${TARGET_LOC}" ${LIB_LOCATIONS}
+      )
+  ENDIF()
 ELSEIF(APPLE)
   # libtool handles it for us
   EXECUTE_PROCESS(

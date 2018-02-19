@@ -26,14 +26,15 @@
 #include <stddef.h>
 #include <utility>
 
-#include "prealloced_array.h"   // Prealloced_array
-#include "sql/dd/impl/sdi.h"    // dd::Sdi_type
-#include "sql/dd/object_id.h"   // dd::Object_id
-#include "sql/dd/string_type.h" // dd::String_type
+#include "mysql/mysql_lex_string.h"
+#include "prealloced_array.h"    // Prealloced_array
+#include "sql/dd/impl/sdi.h"     // dd::Sdi_type
+#include "sql/dd/object_id.h"    // dd::Object_id
+#include "sql/dd/string_type.h"  // dd::String_type
 
 class THD;
 struct handlerton;
-struct st_mysql_const_lex_string;
+struct MYSQL_LEX_CSTRING;
 
 namespace dd {
 class Entity_object;
@@ -44,11 +45,10 @@ namespace sdi_file {
 /** Number of character (not bytes) of a tablename which will
     contrubute to the sdi file name. The whole name is not needed as
     the Object_id is added so that uniqueness is ensured */
-const size_t FILENAME_PREFIX_CHARS= 16;
+const size_t FILENAME_PREFIX_CHARS = 16;
 
 /** File name extension for sdi files. */
-const String_type EXT= ".sdi";
-
+const String_type EXT = ".sdi";
 
 /**
   Formats an sdi filename according to the mysql conventions for an entity
@@ -62,7 +62,6 @@ const String_type EXT= ".sdi";
  */
 String_type sdi_filename(Object_id id, const String_type &entity_name,
                          const String_type &schema);
-
 
 /**
   Stores sdi for table in a file.
@@ -85,7 +84,6 @@ bool store_tbl_sdi(const Sdi_type &sdi, const dd::Table &table,
 */
 bool remove(const String_type &fname);
 
-
 /**
   Removes sdi file for a table.
 
@@ -96,7 +94,6 @@ bool remove(const String_type &fname);
 */
 bool drop_tbl_sdi(const dd::Table &table, const dd::Schema &schema);
 
-
 /**
   Read an sdi file from disk and store in a buffer.
 
@@ -106,8 +103,7 @@ bool drop_tbl_sdi(const dd::Table &table, const dd::Schema &schema);
   @retval true if an error occurs
   @retval false otherwise
 */
-bool load(THD *thd, const dd::String_type &fname,
-          dd::String_type *buf);
+bool load(THD *thd, const dd::String_type &fname, dd::String_type *buf);
 
 /**
   Instantiation of std::pair to represent the full path to an sdi
@@ -133,7 +129,7 @@ typedef Prealloced_array<Path_type, 3> Paths_type;
   @retval true if an error occurs
   @retval false otherwise
 */
-bool expand_pattern(THD *thd, const struct st_mysql_lex_string &pattern,
+bool expand_pattern(THD *thd, const MYSQL_LEX_STRING &pattern,
                     Paths_type *paths);
 
 /**
@@ -146,6 +142,6 @@ bool expand_pattern(THD *thd, const struct st_mysql_lex_string &pattern,
  */
 bool check_data_files_exist(const dd::String_type &schema_name,
                             const dd::String_type &table_name);
-} // sdi_file
-} // namespace dd
-#endif // !DD__SDI_FILE_INCLUDED
+}  // namespace sdi_file
+}  // namespace dd
+#endif  // !DD__SDI_FILE_INCLUDED

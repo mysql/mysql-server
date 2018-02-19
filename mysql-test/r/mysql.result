@@ -397,8 +397,6 @@ End of 5.0 tests
 | 1 |
 +---+
 SET @@global.sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Warning (Code 1286): Unknown storage engine 'nonexistent'
 Warning (Code 1266): Using storage engine InnoDB for table 't2'
 Warning (Code 1286): Unknown storage engine 'nonexistent2'

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -24,12 +24,16 @@
 
 #include "plugin/x/src/crud_cmd_handler.h"
 
+#include "plugin/x/ngs/include/ngs/interface/client_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/delete_statement_builder.h"
 #include "plugin/x/src/expr_generator.h"
 #include "plugin/x/src/find_statement_builder.h"
 #include "plugin/x/src/insert_statement_builder.h"
 #include "plugin/x/src/notices.h"
+#include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/update_statement_builder.h"
 #include "plugin/x/src/view_statement_builder.h"
 #include "plugin/x/src/xpl_error.h"
@@ -48,26 +52,24 @@ ngs::Error_code Crud_command_handler::execute(
   m_qb.clear();
   try {
     builder.build(msg);
-  }
-  catch (const Expression_generator::Error &exc) {
+  } catch (const Expression_generator::Error &exc) {
     return ngs::Error(exc.error(), "%s", exc.what());
-  }
-  catch (const ngs::Error_code &error) {
+  } catch (const ngs::Error_code &error) {
     return error;
   }
   log_debug("CRUD query: %s", m_qb.get().c_str());
   ngs::Error_code error = session.data_context().execute(
       m_qb.get().data(), m_qb.get().length(), &resultset);
   if (error) return error_handling(error, msg);
-  notice_handling(session, resultset.get_info(), msg);
+  notice_handling(session, resultset.get_info(), builder, msg);
   (session.proto().*send_ok)();
   return ngs::Success();
 }
 
-template <typename M>
+template <typename B, typename M>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const M & /*msg*/) const {
+    const B & /*builder*/, const M & /*msg*/) const {
   notice_handling_common(session, info);
 }
 
@@ -90,11 +92,18 @@ inline bool check_message(const std::string &msg, const char *pattern,
 // -- Insert
 ngs::Error_code Crud_command_handler::execute_crud_insert(
     Session &session, const Mysqlx::Crud::Insert &msg) {
+  const auto &server = session.client().server();
+  Insert_statement_builder::Document_id_list id_list;
+  Insert_statement_builder::Document_id_aggregator id_agg(
+      &server.get_document_id_generator(), &id_list);
+  ngs::Error_code error = id_agg.configue(&session.data_context());
+  if (error) return error;
+
   Expression_generator gen(&m_qb, msg.args(), msg.collection().schema(),
                            is_table_data_model(msg));
   Empty_resultset rset;
-  return execute(session, Insert_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_insert,
+  return execute(session, Insert_statement_builder(gen, &id_agg), msg, rset,
+                 &ngs::Common_status_variables::m_crud_insert,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -130,11 +139,15 @@ ngs::Error_code Crud_command_handler::error_handling(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
+    const Insert_statement_builder &builder,
     const Mysqlx::Crud::Insert &msg) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
   if (is_table_data_model(msg))
     notices::send_generated_insert_id(session.proto(), info.last_insert_id);
+  else
+    notices::send_generated_document_ids(session.proto(),
+                                         builder.get_document_ids());
 }
 
 // -- Update
@@ -144,7 +157,7 @@ ngs::Error_code Crud_command_handler::execute_crud_update(
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Update_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_update,
+                 &ngs::Common_status_variables::m_crud_update,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -169,7 +182,8 @@ ngs::Error_code Crud_command_handler::error_handling(
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Update&) const {
+    const Update_statement_builder & /*builder*/,
+    const Mysqlx::Crud::Update & /*msg*/) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }
@@ -181,14 +195,15 @@ ngs::Error_code Crud_command_handler::execute_crud_delete(
                            is_table_data_model(msg));
   Empty_resultset rset;
   return execute(session, Delete_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_delete,
+                 &ngs::Common_status_variables::m_crud_delete,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
 template <>
 void Crud_command_handler::notice_handling(
     Session &session, const ngs::Resultset_interface::Info &info,
-    const Mysqlx::Crud::Delete&) const {
+    const Delete_statement_builder & /*builder*/,
+    const Mysqlx::Crud::Delete & /*msg*/) const {
   notice_handling_common(session, info);
   notices::send_rows_affected(session.proto(), info.affected_rows);
 }
@@ -200,7 +215,7 @@ ngs::Error_code Crud_command_handler::execute_crud_find(
                            is_table_data_model(msg));
   Streaming_resultset rset(&session.proto(), false);
   return execute(session, Find_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_find,
+                 &ngs::Common_status_variables::m_crud_find,
                  &ngs::Protocol_encoder_interface::send_exec_ok);
 }
 
@@ -235,7 +250,7 @@ ngs::Error_code Crud_command_handler::execute_create_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_create_view,
+                 &ngs::Common_status_variables::m_crud_create_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 
@@ -245,7 +260,7 @@ ngs::Error_code Crud_command_handler::execute_modify_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_modify_view,
+                 &ngs::Common_status_variables::m_crud_modify_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 
@@ -255,7 +270,7 @@ ngs::Error_code Crud_command_handler::execute_drop_view(
                            msg.collection().schema(), true);
   Empty_resultset rset;
   return execute(session, View_statement_builder(gen), msg, rset,
-                 &Common_status_variables::m_crud_drop_view,
+                 &ngs::Common_status_variables::m_crud_drop_view,
                  &ngs::Protocol_encoder_interface::send_ok);
 }
 

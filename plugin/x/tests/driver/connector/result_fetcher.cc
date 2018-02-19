@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,10 +30,9 @@
 #include "plugin/x/client/mysqlxclient/xrow.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_const.h"
 
-
 namespace {
 
-inline std::string get_typename(const xcl::Column_type& field) {
+inline std::string get_typename(const xcl::Column_type &field) {
   switch (field) {
     case xcl::Column_type::SINT:
       return "SINT";
@@ -61,8 +60,7 @@ inline std::string get_typename(const xcl::Column_type& field) {
   return "UNKNOWN";
 }
 
-inline std::string get_flags(const xcl::Column_type& field,
-                             uint32_t flags) {
+inline std::string get_flags(const xcl::Column_type &field, uint32_t flags) {
   std::string r;
 
   if (flags & MYSQLX_COLUMN_FLAGS_UINT_ZEROFILL) {  // and other equal 1
@@ -104,21 +102,19 @@ inline std::string get_flags(const xcl::Column_type& field,
 
 }  // namespace
 
-std::ostream& operator<<(
-    std::ostream& os,
-    const std::vector<xcl::Column_metadata>& meta) {
-  for (const xcl::Column_metadata& col : meta) {
+std::ostream &operator<<(std::ostream &os,
+                         const std::vector<xcl::Column_metadata> &meta) {
+  for (const xcl::Column_metadata &col : meta) {
     os << col.name << ":" << get_typename(col.type) << ':'
        << get_flags(col.type, col.flags) << '\n';
   }
   return os;
 }
 
-std::ostream& operator<<(std::ostream& os, Result_fetcher* result) {
+std::ostream &operator<<(std::ostream &os, Result_fetcher *result) {
   std::vector<xcl::Column_metadata> meta(result->column_metadata());
 
-  if (result->get_last_error())
-    return os;
+  if (result->get_last_error()) return os;
 
   for (std::size_t col = 0; col < meta.size(); ++col) {
     if (col != 0) os << "\t";

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2001, 2014, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2001, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,21 +24,18 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/******************************************************************//**
-@file include/fts0opt.h
-Full Text Search optimize thread
+/** @file include/fts0opt.h
+ Full Text Search optimize thread
 
-Created 2011-02-15 Jimmy Yang
-***********************************************************************/
+ Created 2011-02-15 Jimmy Yang
+ ***********************************************************************/
 #ifndef INNODB_FTS0OPT_H
 #define INNODB_FTS0OPT_H
 
 /********************************************************************
 Callback function to fetch the rows in an FTS INDEX record. */
-ibool
-fts_optimize_index_fetch_node(
-/*==========================*/
-                                        /* out: always returns non-NULL */
-        void*           row,		/* in: sel_node_t* */
-        void*           user_arg);	/* in: pointer to ib_vector_t */
+ibool fts_optimize_index_fetch_node(
+    /* out: always returns non-NULL */
+    void *row,       /* in: sel_node_t* */
+    void *user_arg); /* in: pointer to ib_vector_t */
 #endif

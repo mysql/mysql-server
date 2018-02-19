@@ -170,8 +170,6 @@ select @@version_tokens_session;
 
 --echo
 set @@version_tokens_session= "token111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111=abc;;";
---error ER_ACCESS_DENIED_ERROR
-set @@old_passwords= 0;
 -- echo
 disconnect con1;
 --source include/wait_until_disconnected.inc
@@ -197,8 +195,6 @@ connect (con1,localhost,vbhagi,,test);
 -- echo
 connection con1;
 set @@version_tokens_session= "token1=def;;;      token2  =   abc    ;  sdf =  ;;;;";
---error ER_ACCESS_DENIED_ERROR
-set @@old_passwords= 0;
 
 disconnect con1;
 --source include/wait_until_disconnected.inc

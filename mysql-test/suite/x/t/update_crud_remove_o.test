@@ -34,7 +34,7 @@ grant all on *.* to updateitemremove@localhost;
 DROP SCHEMA if EXISTS mysqlxcoll;
 CREATE SCHEMA mysqlxcoll;
 USE mysqlxcoll;
-CREATE TABLE maincoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+CREATE TABLE maincoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
 INSERT INTO maincoll (doc, _id) values ('{"_id": "1", "name": "Victor", "last_name": "Otero","amount": 4.99}',json_unquote(json_extract(doc, '$._id')));
 INSERT INTO maincoll (doc, _id) values ('{"_id": "2", "name": "Gonzalo", "last_name": "Chrystens","amount": 120.57}',json_unquote(json_extract(doc, '$._id')));
 INSERT INTO maincoll (doc, _id) values ('{"_id": "3", "name": "Abraham", "last_name": "Vega","amount": 74.56}',json_unquote(json_extract(doc, '$._id')));

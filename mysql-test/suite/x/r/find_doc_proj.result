@@ -7,7 +7,7 @@ RUN create schema xtest default charset 'utf8mb4'
 RUN use xtest
 
 0 rows affected
-RUN create table mycoll (doc JSON, _id VARCHAR(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+RUN create table mycoll (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
 
 0 rows affected
 RUN insert into mycoll (doc) values ('{"_id": "1", "name": "Joe1"}')
@@ -22,7 +22,7 @@ RUN insert into mycoll (doc) values ('{"_id": "3", "name": "Joe2", "last_name": 
 RUN insert into mycoll (doc) values ('{"_id": "4", "name": "小島", "last_name": "Bla"}')
 
 1 rows affected
-RUN create table funkycoll (doc JSON, _id VARCHAR(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
+RUN create table funkycoll (doc JSON, _id VARBINARY(32) GENERATED ALWAYS AS (json_unquote(json_extract(doc, '$._id'))) stored PRIMARY KEY)
 
 0 rows affected
 RUN insert into funkycoll (doc) values ('{"_id": "1", "I love \\\"\'quotes\'\\\"\\n": "I love \\\"\'quotes\'\\\"\\n"}')
@@ -37,7 +37,7 @@ RUN insert into funkycoll (doc) values ('{"_id": "3", "\\\",$.array[2]\\\\\\\"":
 RUN insert into funkycoll (doc) values ('{"_id": "4", "\\\",$.array[2]\\\\\\\"": "\\\",$.array[2]\\\\\\\""}')
 
 1 rows affected
-RUN create table fancycoll (doc JSON, _id VARCHAR(32) NOT NULL KEY)
+RUN create table fancycoll (doc JSON, _id VARBINARY(32) NOT NULL KEY)
 
 0 rows affected
 RUN insert into fancycoll (doc, _id) values ('\n{\n         \"_id\": \"X999_Y999\",\n         \"from\": {\n            \"name\": \"Tom Brady\", \"id\": \"X12\"\n         },\n         \"message\": \"Looking forward to 2010!\",\n         \"actions\": [\n            {\n               \"name\": \"Comment\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            },\n            {\n               \"name\": \"Like\",\n               \"link\": \"http://www.facebook.com/X999/posts/Y999\"\n            }\n         ],\n         \"type\": \"status\",\n         \"created_time\": \"2010-08-02T21:27:44+0000\",\n         \"updated_time\": \"2010-08-02T21:27:44+0000\"\n      }\n', json_unquote(json_extract(doc, '$._id')))

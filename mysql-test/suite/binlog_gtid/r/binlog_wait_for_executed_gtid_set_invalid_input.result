@@ -19,7 +19,6 @@ SET @save_sql_mode=@@SESSION.SQL_MODE;
 SET @@SESSION.SQL_MODE="STRICT_ALL_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT WAIT_FOR_EXECUTED_GTID_SET('MASTER_UUID:100', -1);;
 ERROR HY000: Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
 When SQL_MODE is non-strict mode, then it will return NULL immediately
@@ -31,8 +30,6 @@ NULL
 Warnings:
 Warning	1210	Incorrect arguments to WAIT_FOR_EXECUTED_GTID_SET.
 SET @@SESSION.SQL_MODE=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Test WAIT_FOR_EXECUTED_GTID_SET function with fractional timeout value.
 Earlier(before fix), 0.4 is read as integer value '0' and the function
 hanged forever (or till all the specified gtids are executed).

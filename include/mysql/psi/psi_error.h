@@ -37,8 +37,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_error_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_ERROR_VERSION_1
   Performance Schema Error Interface number for version 1.
@@ -54,8 +52,7 @@ C_MODE_START
 #define PSI_CURRENT_ERROR_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_error_bootstrap
-{
+struct PSI_error_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -64,7 +61,7 @@ struct PSI_error_bootstrap
     @sa PSI_ERROR_VERSION_2
     @sa PSI_CURRENT_ERROR_VERSION
   */
-  void* (*get_interface)(int version);
+  void *(*get_interface)(int version);
 };
 typedef struct PSI_error_bootstrap PSI_error_bootstrap;
 
@@ -74,20 +71,17 @@ typedef struct PSI_error_bootstrap PSI_error_bootstrap;
   Performance Schema Error Interface, version 1.
   @since PSI_ERROR_VERSION_1
 */
-struct PSI_error_service_v1
-{
+struct PSI_error_service_v1 {
   /** @sa log_error_v1_t. */
   log_error_v1_t log_error;
 };
 
 typedef struct PSI_error_service_v1 PSI_error_service_t;
 
-extern MYSQL_PLUGIN_IMPORT PSI_error_service_t* psi_error_service;
+extern MYSQL_PLUGIN_IMPORT PSI_error_service_t *psi_error_service;
 
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 
 /** @} (end of group psi_abi_error) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_ERROR_H */

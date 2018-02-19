@@ -28,10 +28,8 @@
 
 #include "my_thread_os_id.h"  // my_thread_os_id
 
-namespace resourcegroups
-{
-namespace platform
-{
+namespace resourcegroups {
+namespace platform {
 using cpu_id_t = uint32_t;
 
 /**
@@ -42,7 +40,6 @@ using cpu_id_t = uint32_t;
 
 bool is_platform_supported();
 
-
 /**
   Bind current thread to run on CPU cpu_id.
 
@@ -52,7 +49,6 @@ bool is_platform_supported();
 */
 
 bool bind_to_cpu(cpu_id_t cpu_id);
-
 
 /**
   Bind thread specified by thread_id to run on CPU cpu_id.
@@ -65,7 +61,6 @@ bool bind_to_cpu(cpu_id_t cpu_id);
 
 bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id);
 
-
 /**
   Bind current thread to run on the list of CPUS specified in cpu_ids.
 
@@ -75,7 +70,6 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id);
 */
 
 bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids);
-
 
 /**
   Bind thread specified by thread_id to run on list of CPUs specified by
@@ -90,7 +84,6 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids);
 bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
                   my_thread_os_id_t thread_id);
 
-
 /**
   Unbind current thread to run on all CPUs.
 
@@ -98,7 +91,6 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
 */
 
 bool unbind_thread();
-
 
 /**
   Unbind thread specified by thread_id to run on all CPUs.
@@ -108,7 +100,6 @@ bool unbind_thread();
 
 bool unbind_thread(my_thread_os_id_t thread_id);
 
-
 /**
   Get priority of thread specified by thread_id.
 
@@ -117,8 +108,7 @@ bool unbind_thread(my_thread_os_id_t thread_id);
   @returns an int indicating priority of the thread.
 */
 
-int  thread_priority(my_thread_os_id_t thread_id);
-
+int thread_priority(my_thread_os_id_t thread_id);
 
 /**
   Set priority of current thread.
@@ -129,7 +119,6 @@ int  thread_priority(my_thread_os_id_t thread_id);
 */
 
 bool set_thread_priority(int priority);
-
 
 /**
   Set priority of thread specified by thread_id.
@@ -142,13 +131,11 @@ bool set_thread_priority(int priority);
 
 bool set_thread_priority(int priority, my_thread_os_id_t thread_id);
 
-
 /**
   Get the number of VCPU.
 */
 
 uint32_t num_vcpus();
-
 
 /**
   Check if thread priority setting is allowed on the platform or not.
@@ -158,7 +145,6 @@ uint32_t num_vcpus();
 
 bool can_thread_priority_be_set();
 
-
 /**
   Check if thread priority value is valid.
 
@@ -166,7 +152,6 @@ bool can_thread_priority_be_set();
 */
 
 bool is_valid_thread_priority(int priority);
-
 
 /**
   Get the minimum priority value
@@ -176,7 +161,6 @@ bool is_valid_thread_priority(int priority);
 
 int min_thread_priority_value();
 
-
 /**
   Get the maximum priority value
 
@@ -184,6 +168,6 @@ int min_thread_priority_value();
 */
 
 int max_thread_priority_value();
-}
-}
-#endif // RESOURCEGROUPS_PLATFORM_THREAD_ATTRS_API_H_
+}  // namespace platform
+}  // namespace resourcegroups
+#endif  // RESOURCEGROUPS_PLATFORM_THREAD_ATTRS_API_H_

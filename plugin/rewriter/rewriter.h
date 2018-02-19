@@ -1,6 +1,6 @@
 #ifndef REWRITER_INCLUDED
 #define REWRITER_INCLUDED
-/*  Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -39,9 +39,7 @@
   file.
 */
 
-
 class Persisted_rule;
-
 
 /**
   Implementation of the post parse query rewriter. The public interface
@@ -49,16 +47,7 @@ class Persisted_rule;
   table, and rewrite_query(), which rewrites a query if applicable.
 */
 class Rewriter {
-
-public:
-
-  enum Load_status {
-    REWRITER_OK,
-    REWRITER_ERROR_TABLE_MALFORMED,
-    REWRITER_ERROR_LOAD_FAILED,
-    REWRITER_ERROR_READ_FAILED
-  };
-
+ public:
   Rewriter();
 
   /**
@@ -75,10 +64,10 @@ public:
 
     @return A Rewrite_result object.
   */
-  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar* key);
+  Rewrite_result rewrite_query(MYSQL_THD thd, const uchar *key);
 
   /// Empty the hashtable and reload all rules from disk table.
-  Load_status refresh(MYSQL_THD thd);
+  longlong refresh(MYSQL_THD thd);
 
   /**
     Implementation of the loading procedure. The server doesn't handle
@@ -90,16 +79,15 @@ public:
   */
   void do_refresh(MYSQL_THD session_thd);
 
-private:
-  Rewriter::Load_status m_refresh_status;
+ private:
+  longlong m_refresh_status;
 
   /// The in-memory rules hash table.
-  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>>
-    m_digests{PSI_INSTRUMENT_ME};
+  malloc_unordered_multimap<std::string, std::unique_ptr<Rule>> m_digests{
+      PSI_INSTRUMENT_ME};
 
   /// Loads the rule retrieved from the database in the hash table.
   bool load_rule(MYSQL_THD thd, Persisted_rule *diskrule);
-
 };
 
 #endif /* REWRITER_INCLUDED */

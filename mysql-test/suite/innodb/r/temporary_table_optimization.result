@@ -241,8 +241,6 @@ i
 7
 drop table t2;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create temporary table t (
 a int not null,
 b blob not null,

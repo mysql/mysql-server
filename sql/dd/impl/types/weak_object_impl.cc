@@ -28,14 +28,15 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysqld_error.h"                 // ER_*
-#include "sql/dd/impl/object_key.h"       // Needed for destructor
-#include "sql/dd/impl/raw/raw_record.h"   // Raw_record
-#include "sql/dd/impl/raw/raw_table.h"    // Raw_table
-#include "sql/dd/impl/transaction_impl.h" // Open_dictionary_tables_ctx
+#include "mysql/components/services/log_builtins.h"
+#include "mysqld_error.h"                  // ER_*
+#include "sql/dd/impl/object_key.h"        // Needed for destructor
+#include "sql/dd/impl/raw/raw_record.h"    // Raw_record
+#include "sql/dd/impl/raw/raw_table.h"     // Raw_table
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
 #include "sql/dd/impl/types/entity_object_impl.h"
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/object_table.h"    // Object_table
+#include "sql/dd/types/object_table.h"  // Object_table
 #include "sql/log.h"
 
 namespace dd {
@@ -51,28 +52,25 @@ namespace dd {
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
-{
+bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
   DBUG_ENTER("Weak_object_impl::store");
 
-  DBUG_EXECUTE_IF("fail_while_storing_dd_object",
-  {
+  DBUG_EXECUTE_IF("fail_while_storing_dd_object", {
     my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
     DBUG_RETURN(true);
   });
 
-  const Object_table &obj_table= this->object_table();
+  const Object_table &obj_table = this->object_table();
 
   // Get main object table.
 
-  Raw_table *t= otx->get_table(obj_table.name());
+  Raw_table *t = otx->get_table(obj_table.name());
 
   DBUG_ASSERT(t);
 
   // Insert or update record.
 
-  do
-  {
+  do {
     /*
       If we know that object has new primary key (e.g. to be generated
       at insert time) we can skip looking up and updating old record.
@@ -83,13 +81,11 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
       this acquires gap lock on supremum record and then tries to insert
       row into this gap.
     */
-    if (this->has_new_primary_key())
-      break;
+    if (this->has_new_primary_key()) break;
 
     std::unique_ptr<Object_key> obj_key(this->create_primary_key());
 
-    if (!obj_key.get())
-    {
+    if (!obj_key.get()) {
       /* purecov: begin deadcode */
       LogErr(ERROR_LEVEL, ER_DD_CANT_GET_OBJECT_KEY);
       DBUG_ASSERT(false);
@@ -98,28 +94,21 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
     }
 
     std::unique_ptr<Raw_record> r;
-    if (t->prepare_record_for_update(*obj_key, r))
-      DBUG_RETURN(true);
+    if (t->prepare_record_for_update(*obj_key, r)) DBUG_RETURN(true);
 
-    if (!r.get())
-      break;
+    if (!r.get()) break;
 
     // Existing record found -- do an UPDATE.
 
-    if (this->store_attributes(r.get()))
-    {
-      my_error(ER_UPDATING_DD_TABLE,
-               MYF(0),
-               obj_table.name().c_str());
+    if (this->store_attributes(r.get())) {
+      my_error(ER_UPDATING_DD_TABLE, MYF(0), obj_table.name().c_str());
       DBUG_RETURN(true);
     }
 
-    if (r->update())
-      DBUG_RETURN(true);
+    if (r->update()) DBUG_RETURN(true);
 
     DBUG_RETURN(store_children(otx));
-  }
-  while (false);
+  } while (false);
 
   // No existing record exists -- do an INSERT.
 
@@ -127,22 +116,17 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
 
   // Store attributes.
 
-  if (this->store_attributes(r.get()))
-  {
-    my_error(ER_UPDATING_DD_TABLE,
-             MYF(0),
-             obj_table.name().c_str());
+  if (this->store_attributes(r.get())) {
+    my_error(ER_UPDATING_DD_TABLE, MYF(0), obj_table.name().c_str());
     DBUG_RETURN(true);
   }
 
-  if (r->insert())
-    DBUG_RETURN(true);
+  if (r->insert()) DBUG_RETURN(true);
 
-  DBUG_EXECUTE_IF("weak_object_impl_store_fail_before_store_children",
-                  {
-                    my_error(ER_UNKNOWN_ERROR, MYF(0));
-                    DBUG_RETURN(true);
-                  });
+  DBUG_EXECUTE_IF("weak_object_impl_store_fail_before_store_children", {
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    DBUG_RETURN(true);
+  });
 
   this->set_primary_key_value(*r);
 
@@ -160,8 +144,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
   */
   r.reset();
 
-  if (store_children(otx))
-    DBUG_RETURN(true);
+  if (store_children(otx)) DBUG_RETURN(true);
 
   /*
     Mark object as having existing PK only after processing its children.
@@ -185,22 +168,19 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx)
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
-{
+bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const {
   DBUG_ENTER("Weak_object_impl::drop");
 
-  DBUG_EXECUTE_IF("fail_while_dropping_dd_object",
-                  {
-                    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
-                    DBUG_RETURN(true);
-                  });
+  DBUG_EXECUTE_IF("fail_while_dropping_dd_object", {
+    my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+    DBUG_RETURN(true);
+  });
 
-
-  const Object_table &obj_table= this->object_table();
+  const Object_table &obj_table = this->object_table();
 
   // Get main object table.
 
-  Raw_table *t= otx->get_table(obj_table.name());
+  Raw_table *t = otx->get_table(obj_table.name());
 
   DBUG_ASSERT(t);
 
@@ -209,11 +189,9 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
   std::unique_ptr<Object_key> obj_key(this->create_primary_key());
 
   std::unique_ptr<Raw_record> r;
-  if (t->prepare_record_for_update(*obj_key, r))
-    DBUG_RETURN(true);
+  if (t->prepare_record_for_update(*obj_key, r)) DBUG_RETURN(true);
 
-  if (!r.get())
-  {
+  if (!r.get()) {
     /* purecov: begin deadcode */
     LogErr(ERROR_LEVEL, ER_DD_CANT_CREATE_OBJECT_KEY);
     DBUG_ASSERT(false);
@@ -229,8 +207,7 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
     order of restore/store operation.
   */
 
-  if (this->drop_children(otx) || r->drop())
-    DBUG_RETURN(true);
+  if (this->drop_children(otx) || r->drop()) DBUG_RETURN(true);
 
   DBUG_RETURN(false);
 }
@@ -238,20 +215,17 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const
 ///////////////////////////////////////////////////////////////////////////
 
 bool Weak_object_impl::check_parent_consistency(Entity_object_impl *parent,
-                                                Object_id parent_id) const
-{
+                                                Object_id parent_id) const {
   DBUG_ASSERT(parent);
   DBUG_ASSERT(parent->id() == parent_id);
 
-  if (!parent)
-  {
+  if (!parent) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), this->object_table().name().c_str(),
              "Invalid parent reference (NULL).");
     return true;
   }
 
-  if (parent->id() != parent_id)
-  {
+  if (parent->id() != parent_id) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), this->object_table().name().c_str(),
              "Invalid parent ID");
 
@@ -263,4 +237,4 @@ bool Weak_object_impl::check_parent_consistency(Entity_object_impl *parent,
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

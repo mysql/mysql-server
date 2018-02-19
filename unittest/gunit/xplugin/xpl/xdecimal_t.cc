@@ -21,10 +21,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <gtest/gtest.h>
-#include <mysql/service_my_snprintf.h>
+#include <stdio.h>
 
 #include "plugin/x/client/mysqlxclient/xdecimal.h"
-
 
 namespace xpl {
 namespace test {
@@ -57,35 +56,47 @@ TEST(xdecimal, bytes) {
   EXPECT_EQ("-1234567",
             xcl::Decimal::from_bytes(
                 xcl::Decimal::from_bytes(std::string("\x00\x12\x34\x56\x7d", 5))
-                    .to_bytes()).to_string());
+                    .to_bytes())
+                .to_string());
   EXPECT_EQ("-123456",
             xcl::Decimal::from_bytes(
                 xcl::Decimal::from_bytes(std::string("\x00\x12\x34\x56\xd0", 5))
-                    .to_bytes()).to_string());
+                    .to_bytes())
+                .to_string());
   EXPECT_EQ("1234567",
             xcl::Decimal::from_bytes(
                 xcl::Decimal::from_bytes(std::string("\x00\x12\x34\x56\x7c", 5))
-                    .to_bytes()).to_string());
+                    .to_bytes())
+                .to_string());
   EXPECT_EQ("123456",
             xcl::Decimal::from_bytes(
                 xcl::Decimal::from_bytes(std::string("\x00\x12\x34\x56\xc0", 5))
-                    .to_bytes()).to_string());
-  EXPECT_EQ("-1234567.00",
-            xcl::Decimal::from_bytes(
-                xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x70\x0d",
-                                                     6)).to_bytes()).to_string());
-  EXPECT_EQ("-123456.11",
-            xcl::Decimal::from_bytes(
-                xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x11\xd0",
-                                                     6)).to_bytes()).to_string());
-  EXPECT_EQ("1234567.20",
-            xcl::Decimal::from_bytes(
-                xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x72\x0c",
-                                                     6)).to_bytes()).to_string());
-  EXPECT_EQ("123456.34",
-            xcl::Decimal::from_bytes(
-                xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x34\xc0",
-                                                     6)).to_bytes()).to_string());
+                    .to_bytes())
+                .to_string());
+  EXPECT_EQ(
+      "-1234567.00",
+      xcl::Decimal::from_bytes(
+          xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x70\x0d", 6))
+              .to_bytes())
+          .to_string());
+  EXPECT_EQ(
+      "-123456.11",
+      xcl::Decimal::from_bytes(
+          xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x11\xd0", 6))
+              .to_bytes())
+          .to_string());
+  EXPECT_EQ(
+      "1234567.20",
+      xcl::Decimal::from_bytes(
+          xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x72\x0c", 6))
+              .to_bytes())
+          .to_string());
+  EXPECT_EQ(
+      "123456.34",
+      xcl::Decimal::from_bytes(
+          xcl::Decimal::from_bytes(std::string("\x02\x12\x34\x56\x34\xc0", 6))
+              .to_bytes())
+          .to_string());
 }
 
 TEST(xdecimal, invalid) {

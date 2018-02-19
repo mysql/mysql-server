@@ -20,21 +20,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* This struct includes all reserved words and functions */
 
 #ifndef _lex_symbol_h
 #define _lex_symbol_h
 
-enum SYM_GROUP
-{
-  SG_KEYWORDS=          1 << 0, // SQL keywords and reserved words
-  SG_FUNCTIONS=         1 << 1, // very special native SQL functions
-  SG_HINTABLE_KEYWORDS= 1 << 2, // SQL keywords that accept optimizer hints
-  SG_HINTS=             1 << 3, // optimizer hint parser keywords
+enum SYM_GROUP {
+  SG_KEYWORDS = 1 << 0,           // SQL keywords and reserved words
+  SG_FUNCTIONS = 1 << 1,          // very special native SQL functions
+  SG_HINTABLE_KEYWORDS = 1 << 2,  // SQL keywords that accept optimizer hints
+  SG_HINTS = 1 << 3,              // optimizer hint parser keywords
 
   /* All tokens of the main parser: */
-  SG_MAIN_PARSER=       SG_KEYWORDS | SG_HINTABLE_KEYWORDS | SG_FUNCTIONS
+  SG_MAIN_PARSER = SG_KEYWORDS | SG_HINTABLE_KEYWORDS | SG_FUNCTIONS
 };
 
 struct SYMBOL {
@@ -45,10 +43,9 @@ struct SYMBOL {
   int group;
 };
 
-struct LEX_SYMBOL
-{
+struct LEX_SYMBOL {
   const SYMBOL *symbol;
-  char   *str;
+  char *str;
   unsigned int length;
 };
 

@@ -33,8 +33,8 @@
 #include "myisam.h"
 
 #define rt_PAGE_FIRST_KEY(page, nod_flag) (page + 2 + nod_flag)
-#define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) (key + key_length + \
-              (nod_flag ? nod_flag : info->s->base.rec_reflength))
+#define rt_PAGE_NEXT_KEY(key, key_length, nod_flag) \
+  (key + key_length + (nod_flag ? nod_flag : info->s->base.rec_reflength))
 #define rt_PAGE_END(page) (page + mi_getint(page))
 
 #define rt_PAGE_MIN_SIZE(block_length) ((uint)(block_length) / 3)
@@ -42,17 +42,17 @@
 int rtree_insert(MI_INFO *info, uint keynr, uchar *key, uint key_length);
 int rtree_delete(MI_INFO *info, uint keynr, uchar *key, uint key_length);
 
-int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length, 
-                    uint search_flag);
+int rtree_find_first(MI_INFO *info, uint keynr, uchar *key, uint key_length,
+                     uint search_flag);
 int rtree_find_next(MI_INFO *info, uint keynr, uint search_flag);
 
 int rtree_get_first(MI_INFO *info, uint keynr, uint key_length);
 int rtree_get_next(MI_INFO *info, uint keynr, uint key_length);
 
-ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key, 
-                       uint key_length, uint flag);
+ha_rows rtree_estimate(MI_INFO *info, uint keynr, uchar *key, uint key_length,
+                       uint flag);
 
-int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key, 
-                    uint key_length, my_off_t *new_page_offs);
+int rtree_split_page(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page, uchar *key,
+                     uint key_length, my_off_t *new_page_offs);
 
 #endif /* _rt_index_h */

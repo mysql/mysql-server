@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -23,7 +23,6 @@
  */
 
 #include "unittest/gunit/xplugin/xcl/protocol_t.h"
-
 
 namespace xcl {
 namespace test {
@@ -45,10 +44,10 @@ TEST_F(Xcl_protocol_impl_tests, execute_close) {
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_write) {
   const uint32 expected_header_size = 5;
-  const int expected_error_code  = 1123;
+  const int expected_error_code = 1123;
 
-  EXPECT_CALL(*m_mock_connection, write(_, expected_header_size)).
-      WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_connection, write(_, expected_header_size))
+      .WillOnce(Return(XError{expected_error_code, ""}));
   auto error = m_sut->execute_close();
 
   ASSERT_EQ(expected_error_code, error.error());
@@ -56,12 +55,12 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_write) {
 
 TEST_F(Xcl_protocol_impl_tests, execute_close_fail_at_read) {
   const uint32 expected_header_size = 5;
-  const int expected_error_code  = 1124;
+  const int expected_error_code = 1124;
 
-  EXPECT_CALL(*m_mock_connection, write(_, expected_header_size)).
-      WillOnce(Return(XError()));
-  EXPECT_CALL(*m_mock_connection, read(_, _)).
-      WillOnce(Return(XError{expected_error_code, ""}));
+  EXPECT_CALL(*m_mock_connection, write(_, expected_header_size))
+      .WillOnce(Return(XError()));
+  EXPECT_CALL(*m_mock_connection, read(_, _))
+      .WillOnce(Return(XError{expected_error_code, ""}));
   auto error = m_sut->execute_close();
 
   ASSERT_EQ(expected_error_code, error.error());
@@ -74,7 +73,7 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_of_error_msg) {
   auto msg_send = Send_desc::make_required();
   auto msg_recv = Recv_desc::make_required();
 
-  const uint32 expected_error_code  = 1124;
+  const uint32 expected_error_code = 1124;
   msg_recv.set_code(expected_error_code);
 
   expect_write_message_without_payload(msg_send);
@@ -102,14 +101,14 @@ TEST_F(Xcl_protocol_impl_tests, execute_close_failed_because_recv_wrong_msg) {
 
 TEST_F(Xcl_protocol_impl_tests, execute_with_resultset_msg_without_payload) {
   using Send_desc = Client_message<::Mysqlx::Session::Close>;
-  auto   msg_send = Send_desc::make_required();
+  auto msg_send = Send_desc::make_required();
   XError out_error;
 
   XQuery_result *expected_result = expect_factory_new_result();
   expect_write_message_without_payload(msg_send);
 
-  auto result = m_sut->execute_with_resultset(
-      Send_desc::get_id(), msg_send, &out_error);
+  auto result =
+      m_sut->execute_with_resultset(Send_desc::get_id(), msg_send, &out_error);
 
   ASSERT_FALSE(out_error);
   ASSERT_EQ(expected_result, result.get());
@@ -117,14 +116,14 @@ TEST_F(Xcl_protocol_impl_tests, execute_with_resultset_msg_without_payload) {
 
 TEST_F(Xcl_protocol_impl_tests, execute_with_resultset_msg_with_payload) {
   using Send_desc = Client_message<::Mysqlx::Crud::CreateView>;
-  auto   msg_send = Send_desc::make_required();
+  auto msg_send = Send_desc::make_required();
   XError out_error;
 
   XQuery_result *expected_result = expect_factory_new_result();
   expect_write_message(msg_send);
 
-  auto result = m_sut->execute_with_resultset(
-      Send_desc::get_id(), msg_send, &out_error);
+  auto result =
+      m_sut->execute_with_resultset(Send_desc::get_id(), msg_send, &out_error);
 
   ASSERT_FALSE(out_error);
   ASSERT_EQ(expected_result, result.get());
@@ -133,19 +132,19 @@ TEST_F(Xcl_protocol_impl_tests, execute_with_resultset_msg_with_payload) {
 TEST_F(Xcl_protocol_impl_tests, execute_with_resultset_fails_at_header_write) {
   using Close_desc = Client_message<::Mysqlx::Session::Close>;
 
-  auto          msg_close = Close_desc::make_required();
-  const int     expected_error_code = 23324;
-  XError        out_error;
+  auto msg_close = Close_desc::make_required();
+  const int expected_error_code = 23324;
+  XError out_error;
 
   expect_write_message_without_payload(msg_close, expected_error_code);
 
-  auto result = m_sut->execute_with_resultset(
-      Close_desc::get_id(), msg_close, &out_error);
+  auto result = m_sut->execute_with_resultset(Close_desc::get_id(), msg_close,
+                                              &out_error);
 
   ASSERT_EQ(expected_error_code, out_error.error());
 }
 
-template<typename Msg>
+template <typename Msg>
 class xcl_protocol_impl_tests_execute_msg
     : public Xcl_protocol_impl_tests_with_msg<Msg> {
  public:
@@ -154,43 +153,36 @@ class xcl_protocol_impl_tests_execute_msg
     this->setup_required_fields_in_message();
   }
 
-  std::unique_ptr<XQuery_result> do_execute(
-        const Mysqlx::Sql::StmtExecute &m,
-        XError *out_error) {
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Sql::StmtExecute &m,
+                                            XError *out_error) {
     return this->m_sut->execute_stmt(m, out_error);
   }
 
-  std::unique_ptr<XQuery_result> do_execute(
-        const Mysqlx::Crud::Find &m,
-        XError *out_error) {
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Crud::Find &m,
+                                            XError *out_error) {
     return this->m_sut->execute_find(m, out_error);
   }
 
-  std::unique_ptr<XQuery_result> do_execute(
-        const Mysqlx::Crud::Update &m,
-        XError *out_error) {
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Crud::Update &m,
+                                            XError *out_error) {
     return this->m_sut->execute_update(m, out_error);
   }
 
-  std::unique_ptr<XQuery_result> do_execute(
-        const Mysqlx::Crud::Insert &m,
-        XError *out_error) {
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Crud::Insert &m,
+                                            XError *out_error) {
     return this->m_sut->execute_insert(m, out_error);
   }
 
-  std::unique_ptr<XQuery_result> do_execute(
-        const Mysqlx::Crud::Delete &m,
-        XError *out_error) {
+  std::unique_ptr<XQuery_result> do_execute(const Mysqlx::Crud::Delete &m,
+                                            XError *out_error) {
     return this->m_sut->execute_delete(m, out_error);
   }
 };
 
-using Msg_vs_method_types = ::testing::Types<
-     ::Mysqlx::Sql::StmtExecute,
-     ::Mysqlx::Crud::Find,
-     ::Mysqlx::Crud::Insert,
-     ::Mysqlx::Crud::Update,
-     ::Mysqlx::Crud::Delete>;
+using Msg_vs_method_types =
+    ::testing::Types<::Mysqlx::Sql::StmtExecute, ::Mysqlx::Crud::Find,
+                     ::Mysqlx::Crud::Insert, ::Mysqlx::Crud::Update,
+                     ::Mysqlx::Crud::Delete>;
 
 TYPED_TEST_CASE(xcl_protocol_impl_tests_execute_msg, Msg_vs_method_types);
 
@@ -207,20 +199,19 @@ TYPED_TEST(xcl_protocol_impl_tests_execute_msg, msg_with_payload) {
 }
 
 TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_header_write) {
-  const uint32  expected_error_code = 2000;
-  XError        out_error;
+  const uint32 expected_error_code = 2000;
+  XError out_error;
 
-  this->expect_write_message_without_payload(
-      *this->m_message,
-      expected_error_code);
+  this->expect_write_message_without_payload(*this->m_message,
+                                             expected_error_code);
   auto result = this->do_execute(*this->m_message, &out_error);
 
   ASSERT_EQ(expected_error_code, out_error.error());
 }
 
 TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_payload_write) {
-  const uint32  expected_error_code = 23324;
-  XError        out_error;
+  const uint32 expected_error_code = 23324;
+  XError out_error;
 
   this->expect_write_message(*this->m_message, expected_error_code);
 
@@ -233,8 +224,8 @@ TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Connection::Capabilities>;
 
-  auto   msg_send = Send_desc::make_required();
-  auto   msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
   XError out_error;
 
   auto cap_value = msg_recv.mutable_capabilities()->Add();
@@ -255,10 +246,11 @@ TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities) {
             *result);
 }
 
-TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities_fails_at_header_write) {
+TEST_F(Xcl_protocol_impl_tests,
+       execute_fetch_capabilities_fails_at_header_write) {
   const uint32 expected_error = 2300;
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
-  auto   msg_send = Send_desc::make_required();
+  auto msg_send = Send_desc::make_required();
   XError out_error;
 
   expect_write_message_without_payload(msg_send, expected_error);
@@ -274,8 +266,8 @@ TEST_F(Xcl_protocol_impl_tests, execute_fetch_capabilities_fails_at_read) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Connection::Capabilities>;
 
-  auto   msg_send = Send_desc::make_required();
-  auto   msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
   XError out_error;
 
   expect_write_message_without_payload(msg_send);
@@ -293,8 +285,8 @@ TEST_F(Xcl_protocol_impl_tests,
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Error>;
 
-  auto   msg_send = Send_desc::make_required();
-  auto   msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
   XError out_error;
 
   msg_recv.set_code(expected_error);
@@ -312,8 +304,8 @@ TEST_F(Xcl_protocol_impl_tests,
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesGet>;
   using Recv_desc = Server_message<::Mysqlx::Ok>;
 
-  auto   msg_send = Send_desc::make_required();
-  auto   msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
   XError out_error;
 
   expect_write_message_without_payload(msg_send);
@@ -325,13 +317,12 @@ TEST_F(Xcl_protocol_impl_tests,
   ASSERT_FALSE(result.get());
 }
 
-TEST_F(Xcl_protocol_impl_tests,
-    execute_set_capability) {
+TEST_F(Xcl_protocol_impl_tests, execute_set_capability) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Ok>;
 
-  auto  msg_send = Send_desc::make_required();
-  auto  msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
 
   expect_write_message(msg_send);
   expect_read_message_without_payload(msg_recv);
@@ -342,13 +333,13 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests,
-    execute_set_capability_failed_because_of_recv_error_msg) {
+       execute_set_capability_failed_because_of_recv_error_msg) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Error>;
 
   const uint32 expected_error_code = 1001;
-  auto  msg_send = Send_desc::make_required();
-  auto  msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
 
   msg_recv.set_code(expected_error_code);
   expect_write_message(msg_send);
@@ -360,11 +351,11 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests,
-    execute_set_capability_failed_because_of_header_send_error) {
+       execute_set_capability_failed_because_of_header_send_error) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
 
   const uint32 expected_error_code = 1002;
-  auto         msg_send = Send_desc::make_required();
+  auto msg_send = Send_desc::make_required();
 
   expect_write_message_without_payload(msg_send, expected_error_code);
 
@@ -374,12 +365,12 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests,
-    execute_set_capability_failed_because_of_wrong_msg_recv) {
+       execute_set_capability_failed_because_of_wrong_msg_recv) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Session::AuthenticateContinue>;
 
-  auto  msg_send = Send_desc::make_required();
-  auto  msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
 
   expect_write_message(msg_send);
   expect_read_message(msg_recv);
@@ -390,13 +381,13 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests,
-    execute_set_capability_failed_because_of_io_error_recv) {
+       execute_set_capability_failed_because_of_io_error_recv) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
   using Recv_desc = Server_message<::Mysqlx::Ok>;
 
   const uint32 expected_error_code = 1003;
-  auto         msg_send = Send_desc::make_required();
-  auto         msg_recv = Recv_desc::make_required();
+  auto msg_send = Send_desc::make_required();
+  auto msg_recv = Recv_desc::make_required();
 
   expect_write_message(msg_send);
   expect_read_message_without_payload(msg_recv, expected_error_code);

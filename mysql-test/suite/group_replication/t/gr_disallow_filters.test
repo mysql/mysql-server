@@ -1,0 +1,231 @@
+################################################################################
+# This basic test verifies FILTERS is disallowed in group replication
+# environment.
+#
+# Test:
+# 0. Initialization:
+#  - The test requires three servers: M1, M2, and M3.
+# 1. Bootstrap start a group on M1. Start GR on M2.
+# 2. On M2, verify that replication filters on Group Replication
+#    channels 'group_replication_applier' and
+#    'group_replication_recovery' are disallowed.
+# 3. Execute some DDLs on M1 to check that nothing is filtered out on M2.
+# 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+# 5. Start GR on M3 and check donor's server_uuid.
+# 6. Start applier thread on M1 and M2.
+# 7. Allow member M3 to come ONLINE, then verify nothing is filtered out.
+# 8. Clean up.
+# 9. Verify that if the user specifies a per-channel replication filter
+#    through a command-line option (or in a configuration file) for
+#    group replication channels 'group_replication_recovery' and
+#    'group_replication_applier' which is disallowed, then the
+#    per-channel replication filter is discarded with a warning.
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--source include/force_restart.inc
+
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo #
+--echo # 1. Bootstrap start a group on M1. Start GR on M2.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded.");
+SET SESSION sql_log_bin= 1;
+
+--source include/start_group_replication.inc
+
+--echo #
+--echo # 2. On M2, verify that replication filters on Group Replication
+--echo #    channels 'group_replication_applier' and
+--echo #    'group_replication_recovery' are disallowed.
+--echo #
+
+--echo #
+--echo # 2.1. Verify that global replication filters can be configured with
+--echo #      startup options: --replicate-* without specifying channel_name
+--echo #      and a followed 'colon' in filter variable and
+--echo #      P_S.replication_applier_global_filters can display them
+--echo #      correctly.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+
+--echo #
+--echo # 2.2. Verify that group replication channels
+--echo #      'group_replication_recovery' and
+--echo #      'group_replication_applier' would not copy global replication
+--echo #      filters to its own per-channel replication filters, but the
+--echo #      default slave channel would copy global replication filters
+--echo #      to its own per-channel replication filters on creation.
+--echo #
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--echo #
+--echo # 2.3. CHANGE REPLICATION FILTER filter [, filter...] with no FOR CHANNEL
+--echo #      clause does not act on group replication channels
+--echo #      'group_replication_recovery' and 'group_replication_applier'.
+--echo #
+CHANGE REPLICATION FILTER
+ Replicate_Rewrite_DB=((db1,db2)),
+ Replicate_Ignore_Table=(db2.itab1),
+ Replicate_Wild_Do_Table = ('test.%', 'db1.t%', 'db2.t%'),
+ Replicate_Wild_Ignore_Table=('db2.ig%'),
+ Replicate_Ignore_DB=(global_db),
+ Replicate_Do_DB=(db9);
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+
+--echo #
+--echo # 2.4. If an explicit FOR CHANNEL clause is provided, CHANGE REPLICATION
+--echo # FILTER filter [, filter...] FOR CHANNEL <channel_name> is disallowed
+--echo # on group replication channels 'group_replication_recovery' and
+--echo # 'group_replication_applier'.
+--echo #
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION FILTER Replicate_Do_DB=(test, db1, db2) FOR CHANNEL 'group_replication_applier';
+--error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
+CHANGE REPLICATION FILTER Replicate_Do_DB=(test, db1, db2) FOR CHANNEL 'group_replication_recovery';
+
+--echo #
+--echo # 3. Execute some DDLs on M1 to check that nothing is filtered out on M2.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+CREATE DATABASE global_db;
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+USE global_db;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+
+USE db1;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+
+USE db2;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+
+USE test;
+CREATE TABLE tab1 (a INT PRIMARY KEY);
+CREATE TABLE itab1 (a INT PRIMARY KEY);
+CREATE TABLE igtab1 (a INT PRIMARY KEY);
+
+--echo # M1: Should display 4 databases
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+
+--echo # M1: Should display 12 tables
+SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+
+# Sync to the group.
+--source include/rpl_sync.inc
+
+--echo # Verify nothing is filtered on M2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--echo # M2: Should display 4 databases
+SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+
+--echo # M2: Should display 12 tables
+SELECT CONCAT(TABLE_SCHEMA,'.',TABLE_NAME) AS TABNAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN ('test', 'db1', 'db2', 'global_db') ORDER BY 1;
+
+--echo #
+--echo # 4. Stop applier thread on M1 and M2 so that M3 will stay in RECOVERING state.
+--echo #    And, we can fetch donor's server_uuid.
+--source include/gr_stop_applier_sql_thread.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_stop_applier_sql_thread.inc
+
+--echo #
+--echo # 5. Start GR on M3 and check donor's server_uuid.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_start_member_state= RECOVERING
+--source include/start_group_replication.inc
+
+--echo # Wait until donor is confirmed
+--let $wait_condition= SELECT source_uuid <> "" FROM performance_schema.replication_connection_status WHERE channel_name="group_replication_recovery" AND service_state="ON"
+--source include/wait_condition.inc
+
+--echo #
+--echo # 6. Start applier thread on M1 and M2.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/gr_start_applier_sql_thread.inc
+
+--echo #
+--echo # 7. Allow member M3 to come ONLINE, then verify data.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $group_replication_member_state= ONLINE
+--source include/gr_wait_for_member_state.inc
+
+# Verify nothing is filtered out on M3.
+ --let $assert_text= There are [4] databases
+ --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME IN (\'test\', \'db1\', \'db2\', \'global_db\')]" = 4
+ --source include/assert.inc
+
+ --let $assert_text= There are [12] tables
+ --let $assert_cond= "[SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA IN (\'test\', \'db1\', \'db2\', \'global_db\')]" = 12
+ --source include/assert.inc
+
+--echo #
+--echo # 8. Clean up
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+CHANGE REPLICATION FILTER
+ Replicate_Rewrite_DB=(),
+ Replicate_Ignore_Table=(),
+ Replicate_Wild_Do_Table = (),
+ Replicate_Wild_Ignore_Table=(),
+ Replicate_Ignore_DB=(),
+ Replicate_Do_DB=();
+SELECT COUNT(*) FROM performance_schema.replication_applier_filters;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+SELECT COUNT(*) FROM performance_schema.replication_applier_global_filters;
+SELECT FILTER_NAME, FILTER_RULE, CONFIGURED_BY FROM performance_schema.replication_applier_global_filters;
+
+DROP DATABASE global_db;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP TABLES test.tab1, test.itab1, test.igtab1;
+
+--echo #
+--echo # 9. Verify that if the user specifies a per-channel replication filter
+--echo #    through a command-line option (or in a configuration file) for
+--echo #    group replication channels 'group_replication_recovery' and
+--echo #    'group_replication_applier' which is disallowed, then the
+--echo #    per-channel replication filter is discarded with a warning.
+--echo #
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_disallow_filters.2.err
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_disallow_filters
+--let $assert_count = 1
+--let $assert_select = There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded.
+--let $assert_text = Found the expected warning "There are per-channel replication filter.s. configured for group replication channel 'group_replication_applier' which is disallowed. The filter.s. have been discarded."
+--source include/assert_grep.inc
+
+--source include/group_replication_end.inc

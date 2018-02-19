@@ -36,15 +36,16 @@
 #ifndef STATEMENT_EVENT_INCLUDED
 #define STATEMENT_EVENT_INCLUDED
 
+#include "byteorder.h"
 #include "control_events.h"
 
-namespace binary_log
-{
+namespace binary_log {
 /**
   The following constant represents the maximum of MYSQL_XID domain.
-  The maximum XID value practically is never supposed to grow beyond UINT64 range.
+  The maximum XID value practically is never supposed to grow beyond UINT64
+  range.
 */
-const uint64_t INVALID_XID= -1ULL;
+const uint64_t INVALID_XID = 0xffffffffffffffffULL;
 
 /**
   @class Query_event
@@ -200,17 +201,6 @@ const uint64_t INVALID_XID= -1ULL;
     MODE_ONLY_FULL_GROUP_BY==0x20
     MODE_NO_UNSIGNED_SUBTRACTION==0x40
     MODE_NO_DIR_IN_CREATE==0x80
-    MODE_POSTGRESQL==0x100
-    MODE_ORACLE==0x200
-    MODE_MSSQL==0x400
-    MODE_DB2==0x800
-    MODE_MAXDB==0x1000
-    MODE_NO_KEY_OPTIONS==0x2000
-    MODE_NO_TABLE_OPTIONS==0x4000
-    MODE_NO_FIELD_OPTIONS==0x8000
-    MODE_MYSQL323==0x10000
-    MODE_MYSQL323==0x20000
-    MODE_MYSQL40==0x40000
     MODE_ANSI==0x80000
     MODE_NO_AUTO_VALUE_ON_ZERO==0x100000
     MODE_NO_BACKSLASH_ESCAPES==0x200000
@@ -221,7 +211,6 @@ const uint64_t INVALID_XID= -1ULL;
     MODE_INVALID_DATES==0x4000000
     MODE_ERROR_FOR_DIVISION_BY_ZERO==0x8000000
     MODE_TRADITIONAL==0x10000000
-    MODE_NO_AUTO_CREATE_USER==0x20000000
     MODE_HIGH_NOT_PRECEDENCE==0x40000000
     MODE_PAD_CHAR_TO_FULL_LENGTH==0x80000000
     MODE_TIME_TRUNCATE_FRACTIONAL==0x100000000
@@ -433,27 +422,25 @@ const uint64_t INVALID_XID= -1ULL;
   * See Q_CHARSET_DATABASE_CODE in the table above.
 
   * When adding new status vars, please don't forget to update the
-  MAX_SIZE_LOG_EVENT_STATUS. 
+  MAX_SIZE_LOG_EVENT_STATUS.
 
 */
 
-class Query_event: public Binary_log_event
-{
-public:
+class Query_event : public Binary_log_event {
+ public:
   /** query event post-header */
-  enum Query_event_post_header_offset{
-    Q_THREAD_ID_OFFSET= 0,
-    Q_EXEC_TIME_OFFSET= 4,
-    Q_DB_LEN_OFFSET= 8,
-    Q_ERR_CODE_OFFSET= 9,
-    Q_STATUS_VARS_LEN_OFFSET= 11,
-    Q_DATA_OFFSET= QUERY_HEADER_LEN
+  enum Query_event_post_header_offset {
+    Q_THREAD_ID_OFFSET = 0,
+    Q_EXEC_TIME_OFFSET = 4,
+    Q_DB_LEN_OFFSET = 8,
+    Q_ERR_CODE_OFFSET = 9,
+    Q_STATUS_VARS_LEN_OFFSET = 11,
+    Q_DATA_OFFSET = QUERY_HEADER_LEN
   };
 
   /* these are codes, not offsets; not more than 256 values (1 byte). */
-  enum Query_event_status_vars
-  {
-    Q_FLAGS2_CODE= 0,
+  enum Query_event_status_vars {
+    Q_FLAGS2_CODE = 0,
     Q_SQL_MODE_CODE,
     /*
       Q_CATALOG_CODE is catalog with end zero stored; it is used only by MySQL
@@ -507,14 +494,15 @@ public:
     */
     Q_DDL_LOGGED_WITH_XID
   };
-  const char* query;
-  const char* db;
-  const char* catalog;
-  const char* time_zone_str;
-protected:
-  const char* user;
+  const char *query;
+  const char *db;
+  const char *catalog;
+  const char *time_zone_str;
+
+ protected:
+  const char *user;
   size_t user_len;
-  const char* host;
+  const char *host;
   size_t host_len;
 
   /* Required by the MySQL server class Log_event::Query_event */
@@ -527,9 +515,9 @@ protected:
     | catlog | time_zone | user | host | db name | \0 | Query | \0 |
     +--------+-----------+------+------+---------+----+-------+----+
   */
-  int fill_data_buf(unsigned char* dest, unsigned long len);
+  int fill_data_buf(unsigned char *dest, unsigned long len);
 
-public:
+ public:
   /* data members defined in order they are packed and written into the log */
   uint32_t thread_id;
   uint32_t query_exec_time;
@@ -588,7 +576,7 @@ public:
     Binlog format 3 and 4 start to differ (as far as class members are
     concerned) from here.
   */
-  size_t catalog_len;                    // <= 255 char; 0 means uninited
+  size_t catalog_len;            // <= 255 char; 0 means uninited
   uint16_t lc_time_names_number; /* 0 means en_US */
   uint16_t charset_database_number;
   /*
@@ -622,15 +610,12 @@ public:
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
   */
-  Query_event(const char* query_arg, const char* catalog_arg,
-              const char* db_arg, uint32_t query_length,
-              unsigned long thread_id_arg,
-              unsigned long long sql_mode_arg,
+  Query_event(const char *query_arg, const char *catalog_arg,
+              const char *db_arg, uint32_t query_length,
+              unsigned long thread_id_arg, unsigned long long sql_mode_arg,
               unsigned long auto_increment_increment_arg,
-              unsigned long auto_increment_offset_arg,
-              unsigned int number,
-              unsigned long long table_map_for_update_arg,
-              int errcode);
+              unsigned long auto_increment_offset_arg, unsigned int number,
+              unsigned long long table_map_for_update_arg, int errcode);
 
   /**
     The constructor receives a buffer and instantiates a Query_event filled in
@@ -651,13 +636,14 @@ public:
     </pre>
 
     @param buf                Containing the event header and data
-    @param event_len          The length upto which buf contains Query event data
+    @param event_len          The length upto which buf contains Query event
+    data
     @param description_event  FDE specific to the binlog version
 
     @param event_type         Required to determine whether the event type is
                               QUERY_EVENT or EXECUTE_LOAD_QUERY_EVENT
   */
-  Query_event(const char* buf, unsigned int event_len,
+  Query_event(const char *buf, unsigned int event_len,
               const Format_description_event *description_event,
               Log_event_type event_type);
   /**
@@ -665,14 +651,12 @@ public:
     creating static objects that have a special meaning and are invisible
     to the log.
   */
-  Query_event(Log_event_type type_arg= QUERY_EVENT);
-  virtual ~Query_event()
-  {
-  }
+  Query_event(Log_event_type type_arg = QUERY_EVENT);
+  virtual ~Query_event() {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 };
 
@@ -685,10 +669,8 @@ public:
 
   @return             Number of bytes available on event buffer.
 */
-template <class T> T available_buffer(const char* buf_start,
-                                      const char* buf_current,
-                                      T buf_len)
-{
+template <class T>
+T available_buffer(const char *buf_start, const char *buf_current, T buf_len) {
   /* Sanity check */
   if (buf_current < buf_start ||
       buf_len < static_cast<T>(buf_current - buf_start))
@@ -696,7 +678,6 @@ template <class T> T available_buffer(const char* buf_start,
 
   return static_cast<T>(buf_len - (buf_current - buf_start));
 }
-
 
 /**
   Check if jump value is within buffer limits.
@@ -709,11 +690,9 @@ template <class T> T available_buffer(const char* buf_start,
   @retval      True   If jump value is within buffer limits.
   @retval      False  Otherwise.
 */
-template <class T> bool valid_buffer_range(T jump,
-                                           const char* buf_start,
-                                           const char* buf_current,
-                                           T buf_len)
-{
+template <class T>
+bool valid_buffer_range(T jump, const char *buf_start, const char *buf_current,
+                        T buf_len) {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
 }
 
@@ -785,9 +764,8 @@ template <class T> bool valid_buffer_range(T jump,
   </tr>
   </table>
 */
-class User_var_event: public Binary_log_event
-{
-public:
+class User_var_event : public Binary_log_event {
+ public:
   enum Value_type {
     STRING_TYPE,
     REAL_TYPE,
@@ -795,18 +773,14 @@ public:
     ROW_TYPE,
     DECIMAL_TYPE,
     VALUE_TYPE_COUNT
-    };
-  enum {
-    UNDEF_F,
-    UNSIGNED_F
   };
-  enum User_var_event_data
-  {
-    UV_VAL_LEN_SIZE= 4,
-    UV_VAL_IS_NULL= 1,
-    UV_VAL_TYPE_SIZE= 1,
-    UV_NAME_LEN_SIZE= 4,
-    UV_CHARSET_NUMBER_SIZE= 4
+  enum { UNDEF_F, UNSIGNED_F };
+  enum User_var_event_data {
+    UV_VAL_LEN_SIZE = 4,
+    UV_VAL_IS_NULL = 1,
+    UV_VAL_TYPE_SIZE = 1,
+    UV_NAME_LEN_SIZE = 4,
+    UV_CHARSET_NUMBER_SIZE = 4
   };
 
   /**
@@ -816,17 +790,15 @@ public:
   User_var_event(const char *name_arg, unsigned int name_len_arg, char *val_arg,
                  unsigned long val_len_arg, Value_type type_arg,
                  unsigned int charset_number_arg, unsigned char flags_arg)
-    : Binary_log_event(USER_VAR_EVENT),
-      name(name_arg),
-      name_len(name_len_arg),
-      val(val_arg),
-      val_len(val_len_arg),
-      type((Value_type) type_arg),
-      charset_number(charset_number_arg),
-      is_null(!val),
-      flags(flags_arg)
-  {
-  }
+      : Binary_log_event(USER_VAR_EVENT),
+        name(name_arg),
+        name_len(name_len_arg),
+        val(val_arg),
+        val_len(val_len_arg),
+        type((Value_type)type_arg),
+        charset_number(charset_number_arg),
+        is_null(!val),
+        flags(flags_arg) {}
 
   /**
     The constructor receives a buffer and instantiates a User_var_event filled
@@ -854,7 +826,7 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  User_var_event(const char* buf, unsigned int event_len,
+  User_var_event(const char *buf, unsigned int event_len,
                  const Format_description_event *description_event);
   const char *name;
   unsigned int name_len;
@@ -865,19 +837,24 @@ public:
   bool is_null;
   unsigned char flags;
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
-  const char* get_value_type_string(enum Value_type type_arg) const
-  {
-    switch(type_arg)
-    {
-      case STRING_TYPE:return "String";
-      case REAL_TYPE:return "Real";
-      case INT_TYPE:return "Integer";
-      case ROW_TYPE:return "Row";
-      case DECIMAL_TYPE:return "Decimal";
-      case VALUE_TYPE_COUNT:return "Value type count";
-      default:return "Unknown";
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
+  const char *get_value_type_string(enum Value_type type_arg) const {
+    switch (type_arg) {
+      case STRING_TYPE:
+        return "String";
+      case REAL_TYPE:
+        return "Real";
+      case INT_TYPE:
+        return "Integer";
+      case ROW_TYPE:
+        return "Row";
+      case DECIMAL_TYPE:
+        return "Decimal";
+      case VALUE_TYPE_COUNT:
+        return "Value type count";
+      default:
+        return "Unknown";
     }
   }
 #endif
@@ -921,11 +898,10 @@ public:
 
   </table>
 */
-class Intvar_event: public Binary_log_event
-{
-public:
-  uint8_t  type;
-  uint64_t  val;
+class Intvar_event : public Binary_log_event {
+ public:
+  uint8_t type;
+  uint64_t val;
 
   /*
     The enum recognizes the type of variables that can occur in an
@@ -933,8 +909,7 @@ public:
     INSERT_ID, in accordance to the SQL query using LAST_INSERT_ID
     or INSERT_ID.
   */
-  enum Int_event_type
-  {
+  enum Int_event_type {
     INVALID_INT_EVENT,
     LAST_INSERT_ID_EVENT,
     INSERT_ID_EVENT
@@ -945,29 +920,23 @@ public:
     to an enum inside the class, since these are used only by
     members of this class itself.
   */
-  enum Intvar_event_offset
-  {
-    I_TYPE_OFFSET= 0,
-    I_VAL_OFFSET= 1
-  };
+  enum Intvar_event_offset { I_TYPE_OFFSET = 0, I_VAL_OFFSET = 1 };
 
   /**
     This method returns the string representing the type of the variable
     used in the event. Changed the definition to be similar to that
     previously defined in log_event.cc.
   */
-  std::string get_var_type_string() const
-  {
-    switch(type)
-    {
-    case INVALID_INT_EVENT:
-      return "INVALID_INT";
-    case LAST_INSERT_ID_EVENT:
-      return "LAST_INSERT_ID";
-    case INSERT_ID_EVENT:
-      return "INSERT_ID";
-    default: /* impossible */
-      return "UNKNOWN";
+  std::string get_var_type_string() const {
+    switch (type) {
+      case INVALID_INT_EVENT:
+        return "INVALID_INT";
+      case LAST_INSERT_ID_EVENT:
+        return "LAST_INSERT_ID";
+      case INSERT_ID_EVENT:
+        return "INSERT_ID";
+      default: /* impossible */
+        return "UNKNOWN";
     }
   }
 
@@ -993,7 +962,7 @@ public:
       +--------------------------------+
     </pre>
   */
-  Intvar_event(const char* buf,
+  Intvar_event(const char *buf,
                const Format_description_event *description_event);
   /**
    The minimal constructor for Intvar_event it initializes the instance
@@ -1001,23 +970,20 @@ public:
    object in Binary_log_event
   */
   Intvar_event(uint8_t type_arg, uint64_t val_arg)
-    : Binary_log_event(INTVAR_EVENT),
-      type(type_arg),
-      val(val_arg)
-  {}
+      : Binary_log_event(INTVAR_EVENT), type(type_arg), val(val_arg) {}
 
   ~Intvar_event() {}
 
-  /*
-    is_valid is event specific sanity checks to determine that the
-    object is correctly initialized. This is redundant here, because
-    no new allocation is done in the constructor of the event.
-    Else, they contain the value indicating whether the event was
-    correctly initialized.
-  */
+    /*
+      is_valid is event specific sanity checks to determine that the
+      object is correctly initialized. This is redundant here, because
+      no new allocation is done in the constructor of the event.
+      Else, they contain the value indicating whether the event was
+      correctly initialized.
+    */
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 };
 
@@ -1059,26 +1025,20 @@ public:
   </tr>
   </table>
 */
-class Rand_event: public Binary_log_event
-{
-public:
+class Rand_event : public Binary_log_event {
+ public:
   unsigned long long seed1;
   unsigned long long seed2;
-  enum Rand_event_data
-  {
-    RAND_SEED1_OFFSET= 0,
-    RAND_SEED2_OFFSET= 8
-  };
+  enum Rand_event_data { RAND_SEED1_OFFSET = 0, RAND_SEED2_OFFSET = 8 };
 
   /**
     This will initialize the instance variables seed1 & seed2, and set the
 type_code as RAND_EVENT in the header object in Binary_log_event
   */
   Rand_event(unsigned long long seed1_arg, unsigned long long seed2_arg)
-    : Binary_log_event(RAND_EVENT)
-  {
-    seed1= seed1_arg;
-    seed2= seed2_arg;
+      : Binary_log_event(RAND_EVENT) {
+    seed1 = seed1_arg;
+    seed2 = seed2_arg;
   }
 
   /**
@@ -1103,15 +1063,15 @@ type_code as RAND_EVENT in the header object in Binary_log_event
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Rand_event(const char* buf,
+  Rand_event(const char *buf,
              const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 };
-} // end namespace binary_log
+}  // end namespace binary_log
 /**
   @} (end of group Replication)
 */
-#endif	/* STATEMENT_EVENTS_INCLUDED */
+#endif /* STATEMENT_EVENTS_INCLUDED */

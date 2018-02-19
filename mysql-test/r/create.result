@@ -1,6 +1,4 @@
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2,t3,t4,t5;
 drop database if exists mysqltest;
 drop view if exists v1;
@@ -339,9 +337,9 @@ ERROR 42000: Incorrect column name 'a '
 create table t1 (a int,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 create table t1 (a int,,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
 create table t1 (,b int);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'b int)' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
 create table t1 (a int, key(a));
 create table t2 (b int, foreign key(b) references t1(a), key(b));
 drop table if exists t2,t1;
@@ -1210,7 +1208,7 @@ t1	CREATE TABLE `t1` (
   `c1` int(11) DEFAULT '12' COMMENT 'column1',
   `c2` int(11) DEFAULT NULL COMMENT 'column2',
   `c3` int(11) NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin
@@ -1223,7 +1221,7 @@ t2	CREATE TABLE `t2` (
   `c1` int(11) DEFAULT '12' COMMENT 'column1',
   `c2` int(11) DEFAULT NULL COMMENT 'column2',
   `c3` int(11) NOT NULL COMMENT 'column3',
-  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c4` varchar(255) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
   `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -1267,16 +1265,12 @@ CREATE TABLE t3(c1 DATETIME NOT NULL) ENGINE=MYISAM;
 INSERT INTO t3 VALUES (0);
 
 SET sql_mode = TRADITIONAL;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 
 ALTER TABLE t3 ADD INDEX(c1);
 ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
 
 # -- Cleanup.
 SET sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;

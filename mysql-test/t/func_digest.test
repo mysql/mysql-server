@@ -583,7 +583,6 @@ DROP TABLE t1;
 
 --echo # Let's check that warnings in the parser are silenced.
 SELECT statement_digest( "INSERT DELAYED INTO t1 VALUES(1)" );
-SELECT statement_digest( "SET PASSWORD = PASSWORD('foo')" );
 
 --echo #
 --echo # Test queries.
@@ -711,7 +710,6 @@ DROP TABLE t1;
 
 --echo # Let's check that warnings in the parser are silenced.
 SELECT statement_digest_text( "INSERT DELAYED INTO t1 VALUES(1)" );
-SELECT statement_digest_text( "SET PASSWORD = PASSWORD('foo')" );
 
 --echo #
 --echo # Test queries.

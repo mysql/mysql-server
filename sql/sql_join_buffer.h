@@ -30,66 +30,61 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/handler.h"
-#include "sql/sql_executor.h" // QEP_operation
+#include "sql/sql_executor.h"  // QEP_operation
 
 class Field;
 class Item;
 class JOIN;
-
 
 /**
   @file sql/sql_join_buffer.h
   Join buffer classes.
 */
 
-/* 
+/*
   Categories of data fields of variable length written into join cache buffers.
   The value of any of these fields is written into cache together with the
-  prepended length of the value.     
+  prepended length of the value.
 */
-#define CACHE_BLOB      1        /* blob field  */
-#define CACHE_STRIPPED  2        /* field stripped of trailing spaces */
-#define CACHE_VARSTR1   3        /* short string value (length takes 1 byte) */ 
-#define CACHE_VARSTR2   4        /* long string value (length takes 2 bytes) */
+#define CACHE_BLOB 1     /* blob field  */
+#define CACHE_STRIPPED 2 /* field stripped of trailing spaces */
+#define CACHE_VARSTR1 3  /* short string value (length takes 1 byte) */
+#define CACHE_VARSTR2 4  /* long string value (length takes 2 bytes) */
 
 /*
   The CACHE_FIELD structure used to describe fields of records that
   are written into a join cache buffer from record buffers and backward.
 */
-typedef struct st_cache_field {
-  uchar *str;   /**< buffer from/to where the field is to be copied */ 
-  uint length;  /**< maximal number of bytes to be copied from/to str */
-  /* 
+struct CACHE_FIELD {
+  uchar *str;  /**< buffer from/to where the field is to be copied */
+  uint length; /**< maximal number of bytes to be copied from/to str */
+  /*
     Field object for the moved field
     (0 - for a flag field, see JOIN_CACHE::create_flag_fields).
   */
   Field *field;
-  uint type;    /**< category of the of the copied field (CACHE_BLOB et al.) */
-  /* 
+  uint type; /**< category of the of the copied field (CACHE_BLOB et al.) */
+  /*
     The number of the record offset value for the field in the sequence
     of offsets placed after the last field of the record. These
     offset values are used to access fields referred to from other caches.
     If the value is 0 then no offset for the field is saved in the
     trailing sequence of offsets.
-  */ 
-  uint referenced_field_no; 
+  */
+  uint referenced_field_no;
   /// Used to chain rowid copy objects belonging to one join_tab
-  st_cache_field *next_copy_rowid;
+  CACHE_FIELD *next_copy_rowid;
   /* The remaining structure fields are used as containers for temp values */
   uint blob_length; /**< length of the blob to be copied */
   uint offset;      /**< field offset to be saved in cache buffer */
 
-  void bind_buffer(uchar *buffer)
-  {
-    if (next_copy_rowid != NULL)
-      next_copy_rowid->bind_buffer(buffer);
-    str= buffer;
+  void bind_buffer(uchar *buffer) {
+    if (next_copy_rowid != NULL) next_copy_rowid->bind_buffer(buffer);
+    str = buffer;
   }
   bool buffer_is_bound() const { return str != NULL; }
-} CACHE_FIELD;
-
+};
 
 /**
   JOIN_CACHE is the base class to support the implementations of both
@@ -110,11 +105,8 @@ typedef struct st_cache_field {
   the engine nodes (NDB Cluster).
 */
 
-class JOIN_CACHE :public QEP_operation
-{
-
-private:
-
+class JOIN_CACHE : public QEP_operation {
+ private:
   /// Size of the offset of a record from the cache.
   uint size_of_rec_ofs;
   /// Size of the length of a record in the cache.
@@ -122,16 +114,12 @@ private:
   /// Size of the offset of a field within a record in the cache.
   uint size_of_fld_ofs;
 
-protected:
+ protected:
   /// @return the number of bytes used to store an offset value
-  static uint offset_size(ulong len)
-  {
-    if (len <= 0xFFUL)
-      return 1;
-    if (len <= 0xFFFFUL)
-      return 2;
-    if (len <= 0xFFFFFFFFUL)
-      return 4;
+  static uint offset_size(ulong len) {
+    if (len <= 0xFFUL) return 1;
+    if (len <= 0xFFFFUL) return 2;
+    if (len <= 0xFFFFFFFFUL) return 4;
     return 8;
   }
 
@@ -141,13 +129,16 @@ protected:
     @param ptr      the encoded offset
     @return the decoded offset value
   */
-  static ulong get_offset(uint ofs_sz, const uchar *ptr)
-  {
+  static ulong get_offset(uint ofs_sz, const uchar *ptr) {
     switch (ofs_sz) {
-    case 1: return uint(*ptr);
-    case 2: return uint2korr(ptr);
-    case 4: return uint4korr(ptr);
-    case 8: return static_cast<ulong>(uint8korr(ptr));
+      case 1:
+        return uint(*ptr);
+      case 2:
+        return uint2korr(ptr);
+      case 4:
+        return uint4korr(ptr);
+      case 8:
+        return static_cast<ulong>(uint8korr(ptr));
     }
     return 0;
   }
@@ -158,13 +149,20 @@ protected:
     @param ptr      the encoded offset
     @param ofs      the offset value to encode
   */
-  static void store_offset(uint ofs_sz, uchar *ptr, ulong ofs)
-  {
+  static void store_offset(uint ofs_sz, uchar *ptr, ulong ofs) {
     switch (ofs_sz) {
-    case 1: *ptr= (uchar) ofs; return;
-    case 2: int2store(ptr, (uint16) ofs); return;
-    case 4: int4store(ptr, (uint32) ofs); return;
-    case 8: int8store(ptr, (uint64) ofs); return;
+      case 1:
+        *ptr = (uchar)ofs;
+        return;
+      case 2:
+        int2store(ptr, (uint16)ofs);
+        return;
+      case 4:
+        int4store(ptr, (uint32)ofs);
+        return;
+      case 8:
+        int8store(ptr, (uint64)ofs);
+        return;
     }
   }
 
@@ -270,7 +268,7 @@ protected:
   ulong buff_size;
 #ifndef DBUG_OFF
   /// Whether the join buffer is read-only.
-  bool m_read_only= false;
+  bool m_read_only = false;
 #endif
 
   /// The number of records put into the join buffer.
@@ -333,30 +331,24 @@ protected:
   uint get_size_of_rec_length() const { return size_of_rec_len; }
   uint get_size_of_fld_offset() const { return size_of_fld_ofs; }
 
-  uchar *get_rec_ref(uchar *ptr)
-  {
-    return buff+get_offset(size_of_rec_ofs, ptr-size_of_rec_ofs);
+  uchar *get_rec_ref(uchar *ptr) {
+    return buff + get_offset(size_of_rec_ofs, ptr - size_of_rec_ofs);
   }
-  ulong get_rec_length(const uchar *ptr)
-  {
+  ulong get_rec_length(const uchar *ptr) {
     return get_offset(size_of_rec_len, ptr);
   }
-  ulong get_fld_offset(const uchar *ptr)
-  {
+  ulong get_fld_offset(const uchar *ptr) {
     return get_offset(size_of_fld_ofs, ptr);
   }
 
-  void store_rec_ref(uchar *ptr, const uchar* ref)
-  {
-    store_offset(size_of_rec_ofs, ptr-size_of_rec_ofs, (ulong) (ref-buff));
+  void store_rec_ref(uchar *ptr, const uchar *ref) {
+    store_offset(size_of_rec_ofs, ptr - size_of_rec_ofs, (ulong)(ref - buff));
   }
 
-  void store_rec_length(uchar *ptr, ulong len)
-  {
+  void store_rec_length(uchar *ptr, ulong len) {
     store_offset(size_of_rec_len, ptr, len);
   }
-  void store_fld_offset(uchar *ptr, ulong ofs)
-  {
+  void store_fld_offset(uchar *ptr, ulong ofs) {
     store_offset(size_of_fld_ofs, ptr, ofs);
   }
 
@@ -373,8 +365,7 @@ protected:
   virtual uint aux_buffer_min_size() const { return 0; }
 
   /// @return how much space is remaining in the join buffer
-  virtual ulong rem_space() const
-  {
+  virtual ulong rem_space() const {
     DBUG_ASSERT(end_pos >= buff);
     DBUG_ASSERT(buff_size >= ulong(end_pos - buff));
     return ulong(buff_size - (end_pos - buff));
@@ -401,12 +392,11 @@ protected:
   /* Read a referenced field from the join buffer */
   bool read_referenced_field(CACHE_FIELD *copy, uchar *rec_ptr, uint *len);
 
-  /* 
+  /*
     True if rec_ptr points to the record whose blob data stay in
     record buffers
   */
-  bool blob_data_is_in_rec_buff(uchar *rec_ptr)
-  {
+  bool blob_data_is_in_rec_buff(uchar *rec_ptr) {
     return rec_ptr == last_rec_pos && last_rec_blob_data_is_in_rec_buff;
   }
 
@@ -416,7 +406,7 @@ protected:
                       last partial join record
     @return nested loop state
    */
-  virtual enum_nested_loop_state join_matching_records(bool skip_last)=0;
+  virtual enum_nested_loop_state join_matching_records(bool skip_last) = 0;
 
   /* Add null complements for unmatched outer records from buffer */
   virtual enum_nested_loop_state join_null_complements(bool skip_last);
@@ -457,7 +447,7 @@ protected:
   */
   virtual bool put_record_in_cache();
 
-public:
+ public:
   /* Pointer to the previous join cache if there is any */
   JOIN_CACHE *prev_cache;
   /* Pointer to the next join cache if there is any */
@@ -468,16 +458,14 @@ public:
     @retval 0 on success
     @retval 1 on failure
   */
-  virtual int init()= 0;
+  virtual int init() = 0;
 
   /// Reset the join buffer for reading/writing.
   virtual void reset_cache(bool for_writing);
 
   /// Add a record into join buffer and call join_records() if it's full.
-  virtual enum_nested_loop_state put_record()
-  {
-    if (put_record_in_cache())
-      return join_records(false);
+  virtual enum_nested_loop_state put_record() {
+    if (put_record_in_cache()) return join_records(false);
     return NESTED_LOOP_OK;
   }
 
@@ -496,11 +484,10 @@ public:
   uchar *get_curr_rec() const { return curr_rec_pos; }
 
   /** Set the current record link. */
-  void set_curr_rec_link(uchar *link) { curr_rec_link= link; }
+  void set_curr_rec_link(uchar *link) { curr_rec_link = link; }
 
   /// @return the current record link
-  uchar *get_curr_rec_link() const
-  {
+  uchar *get_curr_rec_link() const {
     return (curr_rec_link ? curr_rec_link : get_curr_rec());
   }
 
@@ -518,72 +505,68 @@ public:
     linked.
   */
   JOIN_CACHE(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
-    : QEP_operation(qep_tab_arg), join(j), buff(NULL), prev_cache(prev),
-    next_cache(NULL)
-    {
-      if (prev_cache)
-        prev_cache->next_cache= this;
-    }
+      : QEP_operation(qep_tab_arg),
+        join(j),
+        buff(NULL),
+        prev_cache(prev),
+        next_cache(NULL) {
+    if (prev_cache) prev_cache->next_cache = this;
+  }
   virtual ~JOIN_CACHE() {}
-  void mem_free()
-  {
+  void mem_free() {
     /*
       JOIN_CACHE doesn't support unlinking cache chain. This code is needed
       only by set_join_cache_denial().
     */
     /*
       If there is a previous/next cache linked to this cache through the
-      (next|prev)_cache pointer: remove the link. 
+      (next|prev)_cache pointer: remove the link.
     */
-    if (prev_cache)
-      prev_cache->next_cache= NULL;
-    if (next_cache)
-      next_cache->prev_cache= NULL;
+    if (prev_cache) prev_cache->next_cache = NULL;
+    if (next_cache) next_cache->prev_cache = NULL;
 
     my_free(buff);
-    buff= NULL;
+    buff = NULL;
   }
 
   /** Bits describing cache's type @sa setup_join_buffering() */
-  enum enum_join_cache_type
-  {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
+  enum enum_join_cache_type {
+    ALG_NONE = 0,
+    ALG_BNL = 1,
+    ALG_BKA = 2,
+    ALG_BKA_UNIQUE = 4
+  };
 
-  virtual enum_join_cache_type cache_type() const= 0;
+  virtual enum_join_cache_type cache_type() const = 0;
 
-  /* TRUE <=> cache reads rows by key */
-  bool is_key_access() const
-  { return cache_type() & (ALG_BKA | ALG_BKA_UNIQUE ); }
+  /* true <=> cache reads rows by key */
+  bool is_key_access() const {
+    return cache_type() & (ALG_BKA | ALG_BKA_UNIQUE);
+  }
 
   friend class JOIN_CACHE_BNL;
   friend class JOIN_CACHE_BKA;
   friend class JOIN_CACHE_BKA_UNIQUE;
 };
 
-class JOIN_CACHE_BNL final :public JOIN_CACHE
-{
+class JOIN_CACHE_BNL final : public JOIN_CACHE {
+ protected:
+  enum_nested_loop_state join_matching_records(bool skip_last) override;
 
-protected:
-
-  enum_nested_loop_state join_matching_records(bool skip_last)
-    override;
-
-public:
+ public:
   JOIN_CACHE_BNL(JOIN *j, QEP_TAB *qep_tab_arg, JOIN_CACHE *prev)
-    : JOIN_CACHE(j, qep_tab_arg, prev), const_cond(NULL)
-  {}
+      : JOIN_CACHE(j, qep_tab_arg, prev), const_cond(NULL) {}
 
   int init() override;
 
   enum_join_cache_type cache_type() const override { return ALG_BNL; }
 
-private:
+ private:
   Item *const_cond;
 };
 
-class JOIN_CACHE_BKA :public JOIN_CACHE
-{
-protected:
-
+class JOIN_CACHE_BKA : public JOIN_CACHE {
+ protected:
   /// Size of the MRR buffer at JOIN_CACHE::end_pos.
   ulong aux_buff_size;
   /// Flag to to be passed to the MRR interface.
@@ -606,21 +589,17 @@ protected:
     @sa DsMrr_impl::dsmrr_next()
     @sa DsMrr_impl::dsmrr_fill_buffer()
   */
-  void init_mrr_buff(uchar *end)
-  {
+  void init_mrr_buff(uchar *end) {
     DBUG_ASSERT(end > end_pos);
     DBUG_ASSERT(!m_read_only);
 #ifndef DBUG_OFF
-    m_read_only= true;
+    m_read_only = true;
 #endif
-    mrr_buff.buffer= end_pos;
-    mrr_buff.buffer_end= end;
+    mrr_buff.buffer = end_pos;
+    mrr_buff.buffer_end = end;
   }
 
-  virtual void init_mrr_buff()
-  {
-    init_mrr_buff(buff + buff_size);
-  }
+  virtual void init_mrr_buff() { init_mrr_buff(buff + buff_size); }
 
   /**
     The number of the cache fields that are used in building keys to access
@@ -648,11 +627,10 @@ protected:
   uint aux_buffer_incr();
 
   /// Reserve space for the MRR buffer for a record.
-  void reserve_aux_buffer() override
-  {
-    if (auto rem= rem_space()) {
-      auto incr= aux_buffer_incr();
-      aux_buff_size+= pack_length + incr < rem ? incr : rem;
+  void reserve_aux_buffer() override {
+    if (auto rem = rem_space()) {
+      auto incr = aux_buffer_incr();
+      aux_buff_size += pack_length + incr < rem ? incr : rem;
     }
   }
 
@@ -664,25 +642,21 @@ protected:
   /// Prepare to search for records that match records from the join buffer.
   bool init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges);
 
-public:
-
+ public:
   /// The MRR mode initially is set to 'flags'
-  JOIN_CACHE_BKA(JOIN *j, QEP_TAB *qep_tab_arg, uint flags, JOIN_CACHE* prev)
-    : JOIN_CACHE(j, qep_tab_arg, prev), mrr_mode(flags)
-  {}
+  JOIN_CACHE_BKA(JOIN *j, QEP_TAB *qep_tab_arg, uint flags, JOIN_CACHE *prev)
+      : JOIN_CACHE(j, qep_tab_arg, prev), mrr_mode(flags) {}
 
   int init() override;
 
-  void reset_cache(bool for_writing) override
-  {
+  void reset_cache(bool for_writing) override {
     JOIN_CACHE::reset_cache(for_writing);
-    aux_buff_size= 0;
+    aux_buff_size = 0;
   }
 
   /// @return how much space is remaining in the join buffer
-  ulong rem_space() const override
-  {
-    const auto space= JOIN_CACHE::rem_space();
+  ulong rem_space() const override {
+    const auto space = JOIN_CACHE::rem_space();
     DBUG_ASSERT(space >= aux_buff_size);
     return space - aux_buff_size;
   }
@@ -706,10 +680,10 @@ public:
   To build the chains with the same keys a hash table is employed. It is placed
   at the very end of the join buffer. The array of hash entries is allocated
   first at the very bottom of the join buffer, then go key entries. A hash entry
-  contains a header of the list of the key entries with the same hash value. 
+  contains a header of the list of the key entries with the same hash value.
   Each key entry is a structure of the following type:
     struct st_join_cache_key_entry {
-      union { 
+      union {
         uchar[] value;
         cache_ref *value_ref; // offset from the beginning of the buffer
       } hash_table_key;
@@ -717,12 +691,12 @@ public:
       cache_ref *last_rec // offset from the beginning of the buffer
     }
   The references linking the records in a chain are always placed at the very
-  beginning of the record info stored in the join buffer. The records are 
-  linked in a circular list. A new record is always added to the end of this 
+  beginning of the record info stored in the join buffer. The records are
+  linked in a circular list. A new record is always added to the end of this
   list. When a key is passed to the MRR interface it can be passed either with
   an association link containing a reference to the header of the record chain
   attached to the corresponding key entry in the hash table, or without any
-  association link. When the next record is returned by a call to the MRR 
+  association link. When the next record is returned by a call to the MRR
   function multi_range_read_next without any association (because if was not
   passed  together with the key) then the key value is extracted from the
   returned record and searched for it in the hash table. If there is any records
@@ -730,7 +704,7 @@ public:
 
   The following picture represents a typical layout for the info stored in the
   join buffer of a join cache object of the JOIN_CACHE_BKA_UNIQUE class.
-    
+
   buff
   V
   +----------------------------------------------------------------------------+
@@ -775,11 +749,8 @@ public:
 
 */
 
-class JOIN_CACHE_BKA_UNIQUE final :public JOIN_CACHE_BKA
-{
-
-private:
-
+class JOIN_CACHE_BKA_UNIQUE final : public JOIN_CACHE_BKA {
+ private:
   /// Size of the offset of a key entry in the hash table.
   uint size_of_key_ofs;
 
@@ -822,12 +793,11 @@ private:
   /// The offset of the data fields from the beginning of the record fields.
   uint data_fields_offset;
 
-  uint get_hash_idx(uchar* key, uint key_len);
+  uint get_hash_idx(uchar *key, uint key_len);
 
   void cleanup_hash_table();
 
-protected:
-
+ protected:
   uint get_size_of_key_offset() { return size_of_key_ofs; }
 
   /**
@@ -836,9 +806,8 @@ protected:
     This reference is actually the offset backward from the
     beginning of hash table.
   */
-  uchar *get_next_key_ref(uchar *key_ref_ptr)
-  {
-    return hash_table-get_offset(size_of_key_ofs, key_ref_ptr);
+  uchar *get_next_key_ref(uchar *key_ref_ptr) {
+    return hash_table - get_offset(size_of_key_ofs, key_ref_ptr);
   }
 
   /**
@@ -847,48 +816,42 @@ protected:
     field is pointed to by ref. The stored reference is actually
     the offset backward from the beginning of the hash table.
   */
-  void store_next_key_ref(uchar *key_ref_ptr, uchar *ref)
-  {
-    store_offset(size_of_key_ofs, key_ref_ptr, (ulong) (hash_table-ref));
+  void store_next_key_ref(uchar *key_ref_ptr, uchar *ref) {
+    store_offset(size_of_key_ofs, key_ref_ptr, (ulong)(hash_table - ref));
   }
 
   /**
     Check whether the reference to the next_key_ptr field at the position
     key_ref_ptr contains  a nil value.
   */
-  bool is_null_key_ref(uchar *key_ref_ptr)
-  {
-    ulong nil= 0;
-    return memcmp(key_ref_ptr, &nil, size_of_key_ofs ) == 0;
+  bool is_null_key_ref(uchar *key_ref_ptr) {
+    ulong nil = 0;
+    return memcmp(key_ref_ptr, &nil, size_of_key_ofs) == 0;
   }
 
   /**
     Set the reference to the next_key_ptr field at the position
     key_ref_ptr equal to nil.
   */
-  void store_null_key_ref(uchar *key_ref_ptr)
-  {
-    ulong nil= 0;
+  void store_null_key_ref(uchar *key_ref_ptr) {
+    ulong nil = 0;
     store_offset(size_of_key_ofs, key_ref_ptr, nil);
   }
 
-  uchar *get_next_rec_ref(uchar *ref_ptr)
-  {
-    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
+  uchar *get_next_rec_ref(uchar *ref_ptr) {
+    return buff + get_offset(get_size_of_rec_offset(), ref_ptr);
   }
 
-  void store_next_rec_ref(uchar *ref_ptr, uchar *ref)
-  {
-    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
+  void store_next_rec_ref(uchar *ref_ptr, uchar *ref) {
+    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong)(ref - buff));
   }
 
   /**
     Get the position of the embedded key value for the current
     record pointed to by get_curr_rec().
   */
-  uchar *get_curr_emb_key() const
-  {
-    return get_curr_rec()+data_fields_offset;
+  uchar *get_curr_emb_key() const {
+    return get_curr_rec() + data_fields_offset;
   }
 
   /**
@@ -898,9 +861,8 @@ protected:
 
     @return embedded key
   */
-  uchar *get_emb_key(const uchar *ref_ptr) const
-  {
-    return buff+get_offset(get_size_of_rec_offset(), ref_ptr);
+  uchar *get_emb_key(const uchar *ref_ptr) const {
+    return buff + get_offset(get_size_of_rec_offset(), ref_ptr);
   }
 
   /**
@@ -909,18 +871,16 @@ protected:
     @param[out] ref_ptr  stored reference (offset from JOIN_CACHE::buff)
     @param      ref      position of the embedded key
   */
-  void store_emb_key_ref(uchar *ref_ptr, const uchar *ref)
-  {
+  void store_emb_key_ref(uchar *ref_ptr, const uchar *ref) {
     DBUG_ASSERT(ref >= buff);
-    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong) (ref-buff));
+    store_offset(get_size_of_rec_offset(), ref_ptr, (ulong)(ref - buff));
   }
 
   /**
     @return how much space in the buffer would not be occupied by
     records, key entries and additional memory for the MRR buffer
   */
-  ulong rem_space() const override
-  {
+  ulong rem_space() const override {
     DBUG_ASSERT(last_key_entry >= end_pos);
     DBUG_ASSERT(buff_size >= aux_buff_size);
     DBUG_ASSERT(ulong(last_key_entry - end_pos) >= aux_buff_size);
@@ -932,8 +892,7 @@ protected:
     The entire space between the last record put into the join buffer and the
     last key entry added to the hash table is used for the MRR buffer.
   */
-  void init_mrr_buff() override
-  {
+  void init_mrr_buff() override {
     JOIN_CACHE_BKA::init_mrr_buff(last_key_entry);
   }
 
@@ -966,11 +925,10 @@ protected:
 
   bool put_record_in_cache() override;
 
-public:
-
-  JOIN_CACHE_BKA_UNIQUE(JOIN *j, QEP_TAB *qep_tab_arg, uint flags, JOIN_CACHE* prev)
-    : JOIN_CACHE_BKA(j, qep_tab_arg, flags, prev)
-  {}
+ public:
+  JOIN_CACHE_BKA_UNIQUE(JOIN *j, QEP_TAB *qep_tab_arg, uint flags,
+                        JOIN_CACHE *prev)
+      : JOIN_CACHE_BKA(j, qep_tab_arg, flags, prev) {}
 
   int init() override;
 
@@ -989,9 +947,8 @@ public:
   uint get_next_key(uchar **key) override;
 
   /// @return the head of the record chain attached to the current key entry
-  uchar *get_curr_key_chain()
-  {
-    return get_next_rec_ref(curr_key_entry+key_entry_length-
+  uchar *get_curr_key_chain() {
+    return get_next_rec_ref(curr_key_entry + key_entry_length -
                             get_size_of_rec_offset());
   }
 
@@ -1000,6 +957,5 @@ public:
 
   enum_join_cache_type cache_type() const override { return ALG_BKA_UNIQUE; }
 };
-
 
 #endif /* SQL_JOIN_CACHE_INCLUDED */

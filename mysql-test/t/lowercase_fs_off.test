@@ -8,13 +8,12 @@
 
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
 
 connect (master,localhost,root,,);
 connection master;
 create database d1;
-grant all on d1.* to 'sample'@'localhost' identified by 'password';
+create user 'sample'@'localhost' identified by 'password';
+grant all on d1.* to 'sample'@'localhost';
 flush privileges;
 
 connect (sample,localhost,sample,password,d1);
@@ -41,6 +40,7 @@ connection default;
 #
 CREATE DATABASE d1;
 USE d1;
+CREATE USER user_1@localhost;
 CREATE TABLE T1(f1 INT);
 CREATE TABLE t1(f1 INT);
 GRANT SELECT ON T1 to user_1@localhost;
@@ -66,6 +66,7 @@ CREATE DATABASE db1;
 USE db1;
 CREATE PROCEDURE p1() BEGIN END;
 CREATE FUNCTION f1(i INT) RETURNS INT RETURN i+1;
+CREATE USER user_1@localhost, USER_1@localhost;
 
 GRANT USAGE ON db1.* to user_1@localhost;
 GRANT EXECUTE ON PROCEDURE db1.P1 to user_1@localhost;

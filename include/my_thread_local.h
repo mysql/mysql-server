@@ -32,8 +32,6 @@
 
 typedef uint32 my_thread_id;
 
-C_MODE_START
-
 /**
   Retrieve the MySQL thread-local storage variant of errno.
 */
@@ -58,7 +56,8 @@ void set_thr_winerr(int winerr);
 
 #ifndef DBUG_OFF
 /* Return pointer to DBUG for holding current state */
-struct _db_code_state_ **my_thread_var_dbug();
+struct CODE_STATE;
+CODE_STATE **my_thread_var_dbug();
 
 my_thread_id my_thread_var_id();
 
@@ -66,6 +65,4 @@ void set_my_thread_var_id(my_thread_id id);
 
 #endif
 
-C_MODE_END
-
-#endif // MY_THREAD_LOCAL_INCLUDED
+#endif  // MY_THREAD_LOCAL_INCLUDED

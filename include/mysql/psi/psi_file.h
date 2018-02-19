@@ -37,8 +37,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_FILE_VERSION_1
   Performance Schema File Interface number for version 1.
@@ -54,8 +52,7 @@ C_MODE_START
 #define PSI_CURRENT_FILE_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_file_bootstrap
-{
+struct PSI_file_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -66,7 +63,6 @@ struct PSI_file_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_file_bootstrap PSI_file_bootstrap;
 
 #ifdef HAVE_PSI_FILE_INTERFACE
 
@@ -74,8 +70,7 @@ typedef struct PSI_file_bootstrap PSI_file_bootstrap;
   Performance Schema file Interface, version 1.
   @since PSI_FILE_VERSION_1
 */
-struct PSI_file_service_v1
-{
+struct PSI_file_service_v1 {
   /** @sa register_file_v1_t. */
   register_file_v1_t register_file;
   /** @sa create_file_v1_t. */
@@ -92,10 +87,10 @@ struct PSI_file_service_v1
   end_file_open_wait_v1_t end_file_open_wait;
   /** @sa end_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_file_open_wait_and_bind_to_descriptor_v1_t
-    end_file_open_wait_and_bind_to_descriptor;
+      end_file_open_wait_and_bind_to_descriptor;
   /** @sa end_temp_file_open_wait_and_bind_to_descriptor_v1_t. */
   end_temp_file_open_wait_and_bind_to_descriptor_v1_t
-    end_temp_file_open_wait_and_bind_to_descriptor;
+      end_temp_file_open_wait_and_bind_to_descriptor;
   /** @sa start_file_wait_v1_t. */
   start_file_wait_v1_t start_file_wait;
   /** @sa end_file_wait_v1_t. */
@@ -115,7 +110,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_file_service_t *psi_file_service;
 #endif /* HAVE_PSI_FILE_INTERFACE */
 
 /** @} (end of group psi_abi_file) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_FILE_H */

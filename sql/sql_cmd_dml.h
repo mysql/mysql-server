@@ -29,9 +29,8 @@
 struct LEX;
 class Query_result;
 
-class Sql_cmd_dml : public Sql_cmd
-{
-public:
+class Sql_cmd_dml : public Sql_cmd {
+ public:
   /// @return true if data change statement, false if not (SELECT statement)
   virtual bool is_data_change_stmt() const { return true; }
 
@@ -57,10 +56,8 @@ public:
 
   virtual bool is_single_table_plan() const { return false; }
 
-protected:
-  Sql_cmd_dml() :
-    Sql_cmd(), lex(NULL), result(NULL), m_empty_query(false)
-  {}
+ protected:
+  Sql_cmd_dml() : Sql_cmd(), lex(NULL), result(NULL), m_empty_query(false) {}
 
   /// @return true if query is guaranteed to return no data
   /**
@@ -68,14 +65,13 @@ protected:
           - Empty source for multi-table UPDATE and DELETE.
           - Check empty query expression for INSERT
   */
-  bool is_empty_query() const
-  {
-     DBUG_ASSERT(is_prepared());
-     return m_empty_query;
+  bool is_empty_query() const {
+    DBUG_ASSERT(is_prepared());
+    return m_empty_query;
   }
 
   /// Set statement as returning no data
-  void set_empty_query() { m_empty_query= true; }
+  void set_empty_query() { m_empty_query = true; }
 
   /**
     Perform a precheck of table privileges for the specific operation.
@@ -97,7 +93,7 @@ protected:
 
     @returns false if success, true if false
   */
-  virtual bool precheck(THD *thd)= 0;
+  virtual bool precheck(THD *thd) = 0;
 
   /**
     Perform the command-specific parts of DML command preparation,
@@ -119,10 +115,10 @@ protected:
   */
   virtual bool execute_inner(THD *thd);
 
-protected:
-  LEX *lex;                ///< Pointer to LEX for this statement
-  Query_result *result;    ///< Pointer to object for handling of the result
-  bool m_empty_query;      ///< True if query will produce no rows
+ protected:
+  LEX *lex;              ///< Pointer to LEX for this statement
+  Query_result *result;  ///< Pointer to object for handling of the result
+  bool m_empty_query;    ///< True if query will produce no rows
 };
 
 #endif /* SQL_CMD_DML_INCLUDED */

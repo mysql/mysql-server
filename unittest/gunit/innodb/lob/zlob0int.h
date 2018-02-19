@@ -76,15 +76,15 @@ struct z_index_entry_t {
 
   /** Constructor. */
   z_index_entry_t() : m_node(nullptr) {}
-  z_index_entry_t(flst_node_t* node) : m_node(node) {}
+  z_index_entry_t(flst_node_t *node) : m_node(node) {}
 
   /** Point to another index entry.
   @param[in]  node  point to this file list node. */
-  void reset(flst_node_t* node) { m_node = node; }
+  void reset(flst_node_t *node) { m_node = node; }
 
   /** Point to another index entry.
   @param[in]  node  point to this file list node. */
-  void reset(const z_index_entry_t& entry) { m_node = entry.m_node; }
+  void reset(const z_index_entry_t &entry) { m_node = entry.m_node; }
 
   /** Initialize an index entry to some sane value. */
   void init() {
@@ -107,34 +107,34 @@ struct z_index_entry_t {
   @param[in]  trxid  purging data belonging to trxid.
   @param[in,out]  lst  the list from which this entry will be removed.
   @param[in,out]  free_list the list to which this entry will be added. */
-  fil_addr_t purge_version(trx_id_t trxid, z_first_page_t& first,
-                           flst_base_node_t* lst, flst_base_node_t* free_list);
+  fil_addr_t purge_version(trx_id_t trxid, z_first_page_t &first,
+                           flst_base_node_t *lst, flst_base_node_t *free_list);
 
   /** Purge the current index entry. An index entry points to either a FIRST
   page or DATA page.  That LOB page will be freed if it is DATA page.  A FIRST
   page should not be freed. */
-  void purge(z_first_page_t& first);
+  void purge(z_first_page_t &first);
 
   /** Remove this node from the given list.
   @param[in]  bnode  the base node of the list from which to remove current
                      node. */
-  void remove(flst_base_node_t* bnode) { flst_remove(bnode, m_node); }
+  void remove(flst_base_node_t *bnode) { flst_remove(bnode, m_node); }
 
-  void insert_after(flst_base_node_t* base, z_index_entry_t& entry) {
+  void insert_after(flst_base_node_t *base, z_index_entry_t &entry) {
     flst_insert_after(base, m_node, entry.get_node());
   }
 
-  void insert_before(flst_base_node_t* base, z_index_entry_t& entry) {
+  void insert_before(flst_base_node_t *base, z_index_entry_t &entry) {
     flst_insert_before(base, entry.get_node(), m_node);
   }
 
   /** Add this node as the last node in the given list.
   @param[in]  bnode  the base node of the file list. */
-  void push_back(flst_base_node_t* bnode) { flst_add_last(bnode, m_node); }
+  void push_back(flst_base_node_t *bnode) { flst_add_last(bnode, m_node); }
 
   /** Add this node as the last node in the given list.
   @param[in]  bnode  the base node of the file list. */
-  void push_front(flst_base_node_t* bnode) { flst_add_first(bnode, m_node); }
+  void push_front(flst_base_node_t *bnode) { flst_add_first(bnode, m_node); }
 
   /** Set the previous index entry as null. */
   void set_prev_null() { flst_write_addr(m_node + OFFSET_PREV, fil_addr_null); }
@@ -150,12 +150,12 @@ struct z_index_entry_t {
 
   /** Set the versions list as null. */
   void set_versions_null() {
-    flst_base_node_t* bnode = get_versions_list();
+    flst_base_node_t *bnode = get_versions_list();
     flst_init(bnode);
   }
 
   /** Get the base node of the list of versions. */
-  flst_base_node_t* get_versions_list() const {
+  flst_base_node_t *get_versions_list() const {
     return (m_node + OFFSET_VERSIONS);
   }
 
@@ -218,8 +218,8 @@ struct z_index_entry_t {
   /* The given entry becomes the old version of the current entry.
   Move the version base node from old entry to current entry.
   @param[in]  entry  the old entry */
-  void set_old_version(z_index_entry_t& entry) {
-    flst_base_node_t* version_list = get_versions_list();
+  void set_old_version(z_index_entry_t &entry) {
+    flst_base_node_t *version_list = get_versions_list();
     ut_ad(flst_get_len(version_list) == 0);
 
     entry.move_version_base_node(*this);
@@ -233,21 +233,21 @@ struct z_index_entry_t {
   @param[in]  trxid  The transaction identifier.
   @param[in]  first  The first lob page containing index list and free
                           list. */
-  fil_addr_t make_old_version_current(trx_id_t trxid, z_first_page_t& first);
+  fil_addr_t make_old_version_current(trx_id_t trxid, z_first_page_t &first);
 
-  flst_node_t* get_node() { return (m_node); }
+  flst_node_t *get_node() { return (m_node); }
   bool is_null() const { return (m_node == nullptr); }
 
-  std::ostream& print(std::ostream& out) const;
-  std::ostream& print_pages(std::ostream& out) const;
+  std::ostream &print(std::ostream &out) const;
+  std::ostream &print_pages(std::ostream &out) const;
 
  private:
   /** Move the version base node from current entry to the given entry.
   @param[in]  entry  The index entry to which the version base node is moved
                      to. */
-  void move_version_base_node(z_index_entry_t& entry) {
-    flst_base_node_t* from_node = get_versions_list();
-    flst_base_node_t* to_node = entry.get_versions_list();
+  void move_version_base_node(z_index_entry_t &entry) {
+    flst_base_node_t *from_node = get_versions_list();
+    flst_base_node_t *to_node = entry.get_versions_list();
 
     memcpy(to_node, from_node, FLST_BASE_NODE_SIZE);
     ut_ad(flst_get_len(from_node) == flst_get_len(to_node));
@@ -260,10 +260,10 @@ struct z_index_entry_t {
     flst_init(from_node);
   }
 
-  flst_node_t* m_node;
+  flst_node_t *m_node;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const z_index_entry_t& obj) {
+inline std::ostream &operator<<(std::ostream &out, const z_index_entry_t &obj) {
   return (obj.print(out));
 }
 
@@ -295,7 +295,7 @@ struct z_frag_entry_t {
   static const ulint SIZE = OFFSET_BIG_FREE_LEN + 2;
 
   /** Constructor. */
-  z_frag_entry_t(flst_node_t* node) : m_node(node) {}
+  z_frag_entry_t(flst_node_t *node) : m_node(node) {}
 
   /** Constructor. */
   z_frag_entry_t() : m_node(nullptr) {}
@@ -312,37 +312,37 @@ struct z_frag_entry_t {
   }
 
   fil_addr_t get_self_addr() const {
-    page_t* frame = page_align(m_node);
+    page_t *frame = page_align(m_node);
     page_no_t page_no = mach_read_from_4(frame + FIL_PAGE_OFFSET);
     ulint offset = m_node - frame;
     ut_ad(offset < UNIV_PAGE_SIZE);
     return (fil_addr_t(page_no, offset));
   }
 
-  void update(const z_frag_page_t& frag_page);
+  void update(const z_frag_page_t &frag_page);
 
   /** Remove this node from the given list.
   @param[in]  bnode  the base node of the list from which to remove current
                      node. */
-  void remove(flst_base_node_t* bnode) { flst_remove(bnode, m_node); }
+  void remove(flst_base_node_t *bnode) { flst_remove(bnode, m_node); }
 
   /** Add this node as the last node in the given list.
   @param[in]  bnode  the base node of the file list. */
-  void push_back(flst_base_node_t* bnode) { flst_add_last(bnode, m_node); }
+  void push_back(flst_base_node_t *bnode) { flst_add_last(bnode, m_node); }
 
   /** Add this node as the first node in the given list.
   @param[in]  bnode  the base node of the file list. */
-  void push_front(flst_base_node_t* bnode) { flst_add_first(bnode, m_node); }
+  void push_front(flst_base_node_t *bnode) { flst_add_first(bnode, m_node); }
 
   /** Point to another frag entry.
   @param[in]  node  point to this file list node. */
-  void reset(flst_node_t* node) { m_node = node; }
+  void reset(flst_node_t *node) { m_node = node; }
 
   /** Set the previous frag entry as null. */
   void set_prev_null() { flst_write_addr(m_node + OFFSET_PREV, fil_addr_null); }
 
   /** Set the previous frag entry as null. */
-  void set_prev(const fil_addr_t& addr) {
+  void set_prev(const fil_addr_t &addr) {
     flst_write_addr(m_node + OFFSET_PREV, addr);
   }
 
@@ -353,7 +353,7 @@ struct z_frag_entry_t {
   void set_next_null() { flst_write_addr(m_node + OFFSET_NEXT, fil_addr_null); }
 
   /** Set the next frag entry. */
-  void set_next_null(const fil_addr_t& addr) {
+  void set_next_null(const fil_addr_t &addr) {
     flst_write_addr(m_node + OFFSET_NEXT, addr);
   }
 
@@ -410,15 +410,15 @@ struct z_frag_entry_t {
     mlog_write_ulint(m_node + OFFSET_BIG_FREE_LEN, n, MLOG_2BYTES);
   }
 
-  void purge(flst_base_node_t* used_lst, flst_base_node_t* free_lst);
+  void purge(flst_base_node_t *used_lst, flst_base_node_t *free_lst);
 
-  std::ostream& print(std::ostream& out) const;
+  std::ostream &print(std::ostream &out) const;
 
  private:
-  flst_node_t* m_node;
+  flst_node_t *m_node;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const z_frag_entry_t& obj) {
+inline std::ostream &operator<<(std::ostream &out, const z_frag_entry_t &obj) {
   return (obj.print(out));
 }
 
@@ -501,11 +501,11 @@ struct z_first_page_t {
   }
 
   bool empty() const {
-    flst_base_node_t* flst = index_list();
+    flst_base_node_t *flst = index_list();
     return (flst_get_len(flst) == 0);
   }
 
-  byte* begin_data_ptr() const { return (frame() + begin_data()); }
+  byte *begin_data_ptr() const { return (frame() + begin_data()); }
 
   /** Amount of zlob data that can be stored in first page (in bytes). */
   static ulint payload() {
@@ -513,15 +513,15 @@ struct z_first_page_t {
   }
 
   z_first_page_t() : m_block(nullptr) {}
-  z_first_page_t(buf_block_t* block) : m_block(block) {}
+  z_first_page_t(buf_block_t *block) : m_block(block) {}
 
-  buf_block_t* alloc() {
+  buf_block_t *alloc() {
     m_block = btr_page_alloc();
     init();
     return (m_block);
   }
 
-  buf_block_t* load(page_no_t page_no) {
+  buf_block_t *load(page_no_t page_no) {
     m_block = buf_page_get(page_no);
     return (m_block);
   }
@@ -536,13 +536,13 @@ struct z_first_page_t {
     set_page_type();
     set_data_len(0);
     set_trx_id(0);
-    flst_base_node_t* flst = free_list();
+    flst_base_node_t *flst = free_list();
     flst_init(flst);
-    flst_base_node_t* ilst = index_list();
+    flst_base_node_t *ilst = index_list();
     flst_init(ilst);
-    flst_base_node_t* free_frag_lst = free_frag_list();
+    flst_base_node_t *free_frag_lst = free_frag_list();
     flst_init(free_frag_lst);
-    flst_base_node_t* frag_lst = frag_list();
+    flst_base_node_t *frag_lst = frag_list();
     flst_init(frag_lst);
     init_index_entries();
     init_frag_entries();
@@ -614,21 +614,21 @@ struct z_first_page_t {
     mach_write_to_6(frame() + OFFSET_TRX_ID, tid);
   }
 
-  flst_base_node_t* free_list() const { return (frame() + OFFSET_FREE_LIST); }
+  flst_base_node_t *free_list() const { return (frame() + OFFSET_FREE_LIST); }
 
-  flst_base_node_t* index_list() const { return (frame() + OFFSET_INDEX_LIST); }
+  flst_base_node_t *index_list() const { return (frame() + OFFSET_INDEX_LIST); }
 
-  flst_base_node_t* free_frag_list() const {
+  flst_base_node_t *free_frag_list() const {
     return (frame() + OFFSET_FREE_FRAG_LIST);
   }
 
-  flst_base_node_t* frag_list() const { return (frame() + OFFSET_FRAG_LIST); }
+  flst_base_node_t *frag_list() const { return (frame() + OFFSET_FRAG_LIST); }
 
   void init_frag_entries() {
-    flst_base_node_t* free_frag_lst = free_frag_list();
+    flst_base_node_t *free_frag_lst = free_frag_list();
     ulint n = get_n_frag_entries();
     for (ulint i = 0; i < n; ++i) {
-      flst_node_t* ptr = frame() + begin_frag_entries();
+      flst_node_t *ptr = frame() + begin_frag_entries();
       ptr += (i * z_frag_entry_t::SIZE);
       z_frag_entry_t frag_entry(ptr);
       frag_entry.init();
@@ -637,10 +637,10 @@ struct z_first_page_t {
   }
 
   void init_index_entries() {
-    flst_base_node_t* flst = free_list();
+    flst_base_node_t *flst = free_list();
     ulint n = get_n_index_entries();
     for (ulint i = 0; i < n; ++i) {
-      flst_node_t* ptr = frame() + OFFSET_INDEX_BEGIN;
+      flst_node_t *ptr = frame() + OFFSET_INDEX_BEGIN;
       ptr += (i * z_index_entry_t::SIZE);
       z_index_entry_t entry(ptr);
       entry.init();
@@ -664,21 +664,21 @@ struct z_first_page_t {
   z_frag_entry_t alloc_frag_entry();
 
   /** Print the index entries. */
-  std::ostream& print_index_entries(std::ostream& out) const;
+  std::ostream &print_index_entries(std::ostream &out) const;
 
   /** Print the index entries. */
-  std::ostream& print_frag_entries(std::ostream& out) const;
+  std::ostream &print_frag_entries(std::ostream &out) const;
 
   /** Print the page. */
-  std::ostream& print(std::ostream& out) const;
+  std::ostream &print(std::ostream &out) const;
 
-  byte* frame() const { return (buf_block_get_frame(m_block)); }
+  byte *frame() const { return (buf_block_get_frame(m_block)); }
 
  private:
-  buf_block_t* m_block;
+  buf_block_t *m_block;
 };  // struct z_first_page_t
 
-inline std::ostream& operator<<(std::ostream& out, const z_first_page_t& obj) {
+inline std::ostream &operator<<(std::ostream &out, const z_first_page_t &obj) {
   return (obj.print(out));
 }
 
@@ -705,10 +705,10 @@ struct z_index_page_t {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
-  buf_block_t* alloc(z_first_page_t& first) {
+  buf_block_t *alloc(z_first_page_t &first) {
     m_block = btr_page_alloc();
     set_page_type();
-    flst_base_node_t* free_lst = first.free_list();
+    flst_base_node_t *free_lst = first.free_list();
     init(free_lst);
 
     /* Link the allocated index page to the first page. */
@@ -718,7 +718,7 @@ struct z_index_page_t {
     return (m_block);
   }
 
-  buf_block_t* load(page_no_t page_no) {
+  buf_block_t *load(page_no_t page_no) {
     m_block = buf_page_get(page_no);
     return (m_block);
   }
@@ -728,10 +728,10 @@ struct z_index_page_t {
     m_block = nullptr;
   }
 
-  void init(flst_base_node_t* free_lst) {
+  void init(flst_base_node_t *free_lst) {
     ulint n = get_n_index_entries();
     for (ulint i = 0; i < n; ++i) {
-      byte* ptr = frame() + FIL_PAGE_DATA;
+      byte *ptr = frame() + FIL_PAGE_DATA;
       ptr += (i * z_index_entry_t::SIZE);
       z_index_entry_t entry(ptr);
       entry.init();
@@ -747,9 +747,9 @@ struct z_index_page_t {
     return (payload() / z_index_entry_t::SIZE);
   }
 
-  byte* frame() const { return (buf_block_get_frame(m_block)); }
+  byte *frame() const { return (buf_block_get_frame(m_block)); }
 
-  buf_block_t* m_block;
+  buf_block_t *m_block;
 };
 
 /** The data page holding the zlob. */
@@ -768,9 +768,9 @@ struct z_data_page_t {
   }
 
   z_data_page_t() : m_block(nullptr) {}
-  z_data_page_t(buf_block_t* block) : m_block(block) {}
+  z_data_page_t(buf_block_t *block) : m_block(block) {}
 
-  buf_block_t* alloc() {
+  buf_block_t *alloc() {
     m_block = btr_page_alloc();
     init();
     return (m_block);
@@ -794,7 +794,7 @@ struct z_data_page_t {
     set_trx_id(0);
   }
 
-  byte* begin_data_ptr() const { return (frame() + OFFSET_DATA_BEGIN); }
+  byte *begin_data_ptr() const { return (frame() + OFFSET_DATA_BEGIN); }
 
   void set_data_len(ulint len) {
     mlog_write_ulint(frame() + OFFSET_DATA_LEN, len, MLOG_4BYTES);
@@ -818,9 +818,9 @@ struct z_data_page_t {
     return (fil_addr_t(page_no, OFFSET_DATA_BEGIN));
   }
 
-  byte* frame() const { return (buf_block_get_frame(m_block)); }
+  byte *frame() const { return (buf_block_get_frame(m_block)); }
 
-  buf_block_t* m_block;
+  buf_block_t *m_block;
 };
 
 /** A frag nodes page containing an array of z_frag_entry_t objects. */
@@ -846,10 +846,10 @@ struct z_frag_node_page_t {
     return (mach_read_from_4(frame() + FIL_PAGE_NEXT));
   }
 
-  buf_block_t* alloc(z_first_page_t& first) {
+  buf_block_t *alloc(z_first_page_t &first) {
     m_block = btr_page_alloc();
     set_page_type();
-    flst_base_node_t* free_lst = first.free_frag_list();
+    flst_base_node_t *free_lst = first.free_frag_list();
     init(free_lst);
 
     /* Link the allocated index page to the first page. */
@@ -864,15 +864,15 @@ struct z_frag_node_page_t {
     m_block = nullptr;
   }
 
-  buf_block_t* load(page_no_t page_no) {
+  buf_block_t *load(page_no_t page_no) {
     m_block = buf_page_get(page_no);
     return (m_block);
   }
 
-  void init(flst_base_node_t* free_lst) {
+  void init(flst_base_node_t *free_lst) {
     ulint n = get_n_frag_entries();
     for (ulint i = 0; i < n; ++i) {
-      byte* ptr = frame() + FIL_PAGE_DATA;
+      byte *ptr = frame() + FIL_PAGE_DATA;
       ptr += (i * z_frag_entry_t::SIZE);
       z_frag_entry_t entry(ptr);
       entry.init();
@@ -888,19 +888,19 @@ struct z_frag_node_page_t {
     return (payload() / z_frag_entry_t::SIZE);
   }
 
-  byte* frame() const { return (buf_block_get_frame(m_block)); }
+  byte *frame() const { return (buf_block_get_frame(m_block)); }
 
-  buf_block_t* m_block;
+  buf_block_t *m_block;
 };  // struct z_frag_node_page_t
 
 /** Insert a large object (LOB) into the system.
 @param[in,out]  ref  the LOB reference.
 @param[in]  blob  the large object.
 @param[in]  len  the length of the large object.*/
-dberr_t z_insert(trx_id_t trxid, lob::ref_t ref, byte* blob, ulint len);
+dberr_t z_insert(trx_id_t trxid, lob::ref_t ref, byte *blob, ulint len);
 
 /** Print information about the given compressed lob. */
-dberr_t z_print_info(lob::ref_t ref, std::ostream& out);
+dberr_t z_print_info(lob::ref_t ref, std::ostream &out);
 
 /** Fetch a compressed large object (ZLOB) from the system.
 @param[in] trxid the transaction that is doing the read.
@@ -910,7 +910,7 @@ dberr_t z_print_info(lob::ref_t ref, std::ostream& out);
 @param[out] buf  the output buffer (owned by caller) of minimum len bytes.
 @return the amount of data (in bytes) that was actually read. */
 ulint z_read(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
-             byte* buf);
+             byte *buf);
 
 /** Replace a large object (LOB) with the given new data.
 @param[in] trxid the transaction that is doing the read.
@@ -920,10 +920,10 @@ ulint z_read(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
 @param[in] buf  the buffer (owned by caller) with new data (len bytes).
 @return the actual number of bytes replaced. */
 ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
-                byte* buf);
+                byte *buf);
 
 /** Insert data into the middle of an LOB */
-ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte* data,
+ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte *data,
                       ulint len);
 
 /** Delete a portion of the given large object (LOB)
@@ -941,19 +941,19 @@ struct frag_node_t {
   static const ulint OFFSET_FRAG_ID = OFFSET_LEN + 2;
   static const ulint OFFSET_DATA = OFFSET_FRAG_ID + 2;
 
-  frag_node_t(flst_node_t* node) : m_node(page_align(node), node) {}
+  frag_node_t(flst_node_t *node) : m_node(page_align(node), node) {}
 
   frag_node_t() : m_node() {}
-  frag_node_t(const plist_node_t& node) : m_node(node) {}
+  frag_node_t(const plist_node_t &node) : m_node(node) {}
 
-  frag_node_t(byte* frame, byte* ptr) : m_node(frame, ptr) {}
+  frag_node_t(byte *frame, byte *ptr) : m_node(frame, ptr) {}
 
-  frag_node_t(byte* frame, byte* ptr, ulint len) : m_node(frame, ptr) {
+  frag_node_t(byte *frame, byte *ptr, ulint len) : m_node(frame, ptr) {
     mlog_write_ulint(m_node.ptr() + OFFSET_LEN, len, MLOG_2BYTES);
   }
 
-  byte* frag_begin() const { return (m_node.ptr() + OFFSET_DATA); }
-  byte* data_begin() const { return (m_node.ptr() + OFFSET_DATA); }
+  byte *frag_begin() const { return (m_node.ptr() + OFFSET_DATA); }
+  byte *data_begin() const { return (m_node.ptr() + OFFSET_DATA); }
 
   void set_total_len(ulint len) {
     mlog_write_ulint(m_node.ptr() + OFFSET_LEN, len, MLOG_2BYTES);
@@ -971,7 +971,7 @@ struct frag_node_t {
     mlog_write_ulint(m_node.ptr() + OFFSET_LEN, len - 2, MLOG_2BYTES);
   }
 
-  bool is_before(const frag_node_t& frag) const {
+  bool is_before(const frag_node_t &frag) const {
     return (m_node.is_before(frag.m_node));
   }
 
@@ -1002,7 +1002,7 @@ struct frag_node_t {
   /** Gets the pointer to the beginning of the current fragment.  Note that
   the beginning of the fragment contains meta data.
   @return pointer to the beginning of the current fragment. */
-  byte* ptr() const {
+  byte *ptr() const {
     ut_ad(!m_node.is_null());
     return (m_node.ptr());
   }
@@ -1010,14 +1010,14 @@ struct frag_node_t {
   /** Gets the pointer just after the current fragment.  The pointer returned
   does not belong to this fragment.  This is used to check adjacency.
   @return pointer to the end of the current fragment. */
-  byte* end_ptr() const {
+  byte *end_ptr() const {
     ut_ad(!m_node.is_null());
     return (ptr() + get_total_len());
   }
 
-  byte* frame() const { return (m_node.m_frame); }
+  byte *frame() const { return (m_node.m_frame); }
 
-  std::ostream& print(std::ostream& out) const {
+  std::ostream &print(std::ostream &out) const {
     if (!m_node.is_null()) {
       ulint len = get_total_len();
       out << "[frag_node_t: " << m_node << ", len=" << len << "/" << payload()
@@ -1043,10 +1043,10 @@ struct frag_node_t {
     return (frag_node_t(prev));
   }
 
-  bool merge(frag_node_t& next) {
-    byte* p1 = ptr();
+  bool merge(frag_node_t &next) {
+    byte *p1 = ptr();
     ulint len1 = get_total_len();
-    byte* p2 = next.ptr();
+    byte *p2 = next.ptr();
     ulint len2 = next.get_total_len();
 
     if (p2 == (p1 + len1)) {
@@ -1061,7 +1061,7 @@ struct frag_node_t {
   plist_node_t m_node;
 };
 
-inline std::ostream& operator<<(std::ostream& out, const frag_node_t& obj) {
+inline std::ostream &operator<<(std::ostream &out, const frag_node_t &obj) {
   return (obj.print(out));
 }
 
@@ -1092,7 +1092,7 @@ struct z_frag_page_t {
   static const ulint SIZE_OF_PAGE_DIR_ENTRY = 2; /* bytes */
 
   z_frag_page_t() : m_block(nullptr) {}
-  z_frag_page_t(buf_block_t* block) : m_block(block) {}
+  z_frag_page_t(buf_block_t *block) : m_block(block) {}
 
   z_frag_entry_t get_frag_entry();
 
@@ -1101,7 +1101,7 @@ struct z_frag_page_t {
     entry.update(*this);
   }
 
-  void set_frag_entry(const fil_addr_t& addr) const {
+  void set_frag_entry(const fil_addr_t &addr) const {
     ut_ad(addr.boffset < UNIV_PAGE_SIZE);
     return (flst_write_addr(frame() + OFFSET_FRAG_ENTRY, addr));
   }
@@ -1111,41 +1111,41 @@ struct z_frag_page_t {
   }
 
   ulint get_n_dir_entries() const {
-    byte* ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
+    byte *ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
     return (mach_read_from_2(ptr));
   }
 
   void set_n_dir_entries(ulint n) const {
-    byte* ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
+    byte *ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
     mlog_write_ulint(ptr, n, MLOG_2BYTES);
   }
 
-  bool is_border_frag(const frag_node_t& node) const {
+  bool is_border_frag(const frag_node_t &node) const {
     return (slots_end_ptr() == node.end_ptr());
   }
 
-  byte* slots_end_ptr() const {
+  byte *slots_end_ptr() const {
     ulint n = get_n_dir_entries();
-    byte* first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
-    byte* ptr = first - (n * SIZE_OF_PAGE_DIR_ENTRY);
+    byte *first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
+    byte *ptr = first - (n * SIZE_OF_PAGE_DIR_ENTRY);
     return (ptr);
   }
 
   paddr_t frag_id_to_addr(ulint frag_id) const {
-    byte* first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
-    byte* ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
+    byte *first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
+    byte *ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
     return (mach_read_from_2(ptr));
   }
 
   ulint get_nth_dir_entry(ulint frag_id) {
-    byte* first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
-    byte* ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
+    byte *first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
+    byte *ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
     return (mach_read_from_2(ptr));
   }
 
   void set_nth_dir_entry(ulint frag_id, paddr_t val) {
-    byte* first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
-    byte* ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
+    byte *first = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_FIRST;
+    byte *ptr = first - (frag_id * SIZE_OF_PAGE_DIR_ENTRY);
     mlog_write_ulint(ptr, val, MLOG_2BYTES);
   }
 
@@ -1156,14 +1156,14 @@ struct z_frag_page_t {
   }
 
   void incr_n_dir_entries() const {
-    byte* ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
+    byte *ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
     ulint n = mach_read_from_2(ptr);
     ut_a(n < FRAG_ID_NULL);
     mlog_write_ulint(ptr, n + 1, MLOG_2BYTES);
   }
 
   void decr_n_dir_entries() const {
-    byte* ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
+    byte *ptr = frame() + UNIV_PAGE_SIZE - OFFSET_PAGE_DIR_ENTRY_COUNT;
     ulint n = mach_read_from_2(ptr);
     ut_a(n > 0);
     mlog_write_ulint(ptr, n - 1, MLOG_2BYTES);
@@ -1197,7 +1197,7 @@ struct z_frag_page_t {
     return (id);
   }
 
-  std::ostream& print_frag_id(std::ostream& out) {
+  std::ostream &print_frag_id(std::ostream &out) {
     ulint n = get_n_dir_entries();
     out << "FRAG IDS: " << std::endl;
     for (ulint frag_id = 0; frag_id < n; frag_id++) {
@@ -1237,12 +1237,12 @@ struct z_frag_page_t {
 
   /** Allocate the fragment page.
   @return the allocated buffer block. */
-  buf_block_t* alloc();
+  buf_block_t *alloc();
 
   /** Free the fragment page along with its entry. */
-  void dealloc(z_first_page_t& first);
+  void dealloc(z_first_page_t &first);
 
-  buf_block_t* load(page_no_t page_no) {
+  buf_block_t *load(page_no_t page_no) {
     m_block = buf_page_get(page_no);
     return (m_block);
   }
@@ -1269,7 +1269,7 @@ struct z_frag_page_t {
     }
   }
 
-  void insert_into_free_list(frag_node_t& frag) {
+  void insert_into_free_list(frag_node_t &frag) {
     ut_ad(frag.get_frag_id() == FRAG_ID_NULL);
 
     plist_base_node_t free_lst = free_list();
@@ -1293,7 +1293,7 @@ struct z_frag_page_t {
     }
   }
 
-  void insert_into_frag_list(frag_node_t& frag) {
+  void insert_into_frag_list(frag_node_t &frag) {
     plist_base_node_t frag_lst = frag_list();
     plist_node_t node = frag_lst.get_first_node();
 
@@ -1311,13 +1311,13 @@ struct z_frag_page_t {
   /** Split one free fragment into two.
    @param[in]  free_frag  the free fragment that will be split.
    @param[in]  size  the payload size in bytes. */
-  void split_free_frag(frag_node_t& free_frag, ulint size) {
+  void split_free_frag(frag_node_t &free_frag, ulint size) {
     ut_ad(size < free_frag.payload());
     const ulint old_total_len = free_frag.get_total_len();
     plist_base_node_t free_lst = free_list();
 
-    byte* p1 = free_frag.ptr();
-    byte* p2 = p1 + frag_node_t::OFFSET_DATA + size;
+    byte *p1 = free_frag.ptr();
+    byte *p2 = p1 + frag_node_t::OFFSET_DATA + size;
     ulint remain = free_frag.get_total_len() - frag_node_t::OFFSET_DATA - size;
     ut_a(remain >= frag_node_t::OFFSET_DATA);
     free_frag.set_total_len(frag_node_t::OFFSET_DATA + size);
@@ -1331,13 +1331,13 @@ struct z_frag_page_t {
 
   frag_node_t get_frag_node(frag_id_t id) const {
     paddr_t off = frag_id_to_addr(id);
-    byte* f = frame();
+    byte *f = frame();
     return (frag_node_t(f, f + off));
   }
 
   void dealloc_fragment(ulint frag_id) {
     paddr_t off = frag_id_to_addr(frag_id);
-    byte* f = frame();
+    byte *f = frame();
     frag_node_t frag(f, f + off);
     dealloc_fragment(frag);
     dealloc_frag_id(frag_id);
@@ -1383,12 +1383,12 @@ struct z_frag_page_t {
   }
 
   plist_base_node_t free_list() const {
-    byte* f = frame();
+    byte *f = frame();
     return (plist_base_node_t(f, f + OFFSET_FREE_LIST));
   }
 
   plist_base_node_t frag_list() const {
-    byte* f = frame();
+    byte *f = frame();
     return (plist_base_node_t(f, f + OFFSET_FRAGS_LIST));
   }
 
@@ -1400,7 +1400,7 @@ struct z_frag_page_t {
     return (mach_read_from_2(frame() + FIL_PAGE_TYPE));
   }
 
-  const char* get_page_type_str() const {
+  const char *get_page_type_str() const {
     ulint type = get_page_type();
     ut_a(type == FIL_PAGE_TYPE_ZLOB_FRAG);
     return ("FIL_PAGE_TYPE_ZLOB_FRAG");
@@ -1431,9 +1431,9 @@ struct z_frag_page_t {
   /** Get the frag page number. */
   page_no_t get_page_no() const { return (m_block->get_page_no()); }
 
-  byte* frame() const { return (buf_block_get_frame(m_block)); }
+  byte *frame() const { return (buf_block_get_frame(m_block)); }
 
-  std::ostream& print(std::ostream& out) const {
+  std::ostream &print(std::ostream &out) const {
     print_free_list(out);
     print_frag_list(out);
     print_frags_in_order(out);
@@ -1456,9 +1456,9 @@ struct z_frag_page_t {
     return (frag_lst.get_len());
   }
 
-  std::ostream& print_frags_in_order(std::ostream& out) const;
+  std::ostream &print_frags_in_order(std::ostream &out) const;
 
-  std::ostream& print_free_list(std::ostream& out) const {
+  std::ostream &print_free_list(std::ostream &out) const {
     if (m_block == nullptr) {
       return (out);
     }
@@ -1472,7 +1472,7 @@ struct z_frag_page_t {
     return (out);
   }
 
-  std::ostream& print_frag_list(std::ostream& out) const {
+  std::ostream &print_frag_list(std::ostream &out) const {
     if (m_block == nullptr) {
       return (out);
     }
@@ -1486,7 +1486,7 @@ struct z_frag_page_t {
     return (out);
   }
 
-  std::ostream& print_page_dir(std::ostream& out) const {
+  std::ostream &print_page_dir(std::ostream &out) const {
     if (m_block == nullptr) {
       return (out);
     }
@@ -1523,7 +1523,7 @@ struct z_frag_page_t {
     dealloc_frag_id();
   }
 
-  buf_block_t* m_block;
+  buf_block_t *m_block;
 };
 
 };  // namespace zlob

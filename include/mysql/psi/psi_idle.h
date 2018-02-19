@@ -38,8 +38,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_idle_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_IDLE_VERSION_1
   Performance Schema Idle Interface number for version 1.
@@ -55,8 +53,7 @@ C_MODE_START
 #define PSI_CURRENT_IDLE_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_idle_bootstrap
-{
+struct PSI_idle_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -75,8 +72,7 @@ typedef struct PSI_idle_bootstrap PSI_idle_bootstrap;
   Performance Schema Idle Interface, version 1.
   @since PSI_IDLE_VERSION_1
 */
-struct PSI_idle_service_v1
-{
+struct PSI_idle_service_v1 {
   /** @sa start_idle_wait_v1_t. */
   start_idle_wait_v1_t start_idle_wait;
   /** @sa end_idle_wait_v1_t. */
@@ -90,7 +86,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_idle_service_t *psi_idle_service;
 #endif /* HAVE_PSI_IDLE_INTERFACE */
 
 /** @} (end of group psi_abi_idle) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_IDLE_H */

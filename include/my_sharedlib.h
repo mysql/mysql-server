@@ -31,23 +31,20 @@
 */
 
 #if defined(_WIN32)
-#define dlsym(lib, name) (void*)GetProcAddress((HMODULE)lib, name)
+#define dlsym(lib, name) (void *)GetProcAddress((HMODULE)lib, name)
 #define dlopen(libname, unused) LoadLibraryEx(libname, NULL, 0)
 #define dlclose(lib) FreeLibrary((HMODULE)lib)
-#define DLERROR_GENERATE(errmsg, error_number) \
-  char win_errormsg[2048]; \
-  if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, \
-                   0, error_number, 0, win_errormsg, 2048, NULL)) \
-  { \
-    char *ptr; \
-    for (ptr= &win_errormsg[0] + strlen(win_errormsg) - 1; \
-         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); \
-         ptr--) \
-      *ptr= 0; \
-    errmsg= win_errormsg; \
-  } \
-  else \
-    errmsg= ""
+#define DLERROR_GENERATE(errmsg, error_number)                          \
+  char win_errormsg[2048];                                              \
+  if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, error_number, 0,     \
+                    win_errormsg, 2048, NULL)) {                        \
+    char *ptr;                                                          \
+    for (ptr = &win_errormsg[0] + strlen(win_errormsg) - 1;             \
+         ptr >= &win_errormsg[0] && strchr("\r\n\t\0x20", *ptr); ptr--) \
+      *ptr = 0;                                                         \
+    errmsg = win_errormsg;                                              \
+  } else                                                                \
+    errmsg = ""
 #define dlerror() ""
 #define dlopen_errno GetLastError()
 
@@ -58,11 +55,11 @@
 #include <errno.h>
 #endif
 
-#define DLERROR_GENERATE(errmsg, error_number) errmsg= dlerror()
+#define DLERROR_GENERATE(errmsg, error_number) errmsg = dlerror()
 #define dlopen_errno errno
 #endif /* _WIN32 */
 
-/* 
+/*
   MYSQL_PLUGIN_IMPORT macro is used to export mysqld data
   (i.e variables) for usage in storage engine loadable plugins.
   Outside of Windows, it is dummy.

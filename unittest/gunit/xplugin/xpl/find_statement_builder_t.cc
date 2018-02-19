@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,40 +34,34 @@ class Find_statement_builder_stub : public Find_statement_builder {
  public:
   explicit Find_statement_builder_stub(Expression_generator *gen)
       : Find_statement_builder(*gen) {}
-  using Find_statement_builder::add_table_projection;
   using Find_statement_builder::add_document_projection;
   using Find_statement_builder::add_grouping;
   using Find_statement_builder::add_grouping_criteria;
   using Find_statement_builder::add_row_locking;
+  using Find_statement_builder::add_table_projection;
 };
 
 class Find_statement_builder_test : public ::testing::Test {
  public:
   Find_statement_builder_test()
-      : args(*msg.mutable_args()), expr_gen(0), stub(0) {}
+      : args(*msg.mutable_args()), expr_gen(nullptr) {}
 
-  ~Find_statement_builder_test() {
-    delete stub;
-    delete expr_gen;
-  }
+  std::unique_ptr<Find_statement_builder_stub> builder() {
+    expr_gen.reset(new Expression_generator(&query, args, schema,
+                                            is_table_data_model(msg)));
 
-  Find_statement_builder_stub *builder() {
-    expr_gen =
-        new Expression_generator(&query, args, schema, is_table_data_model(msg));
-    return stub = new Find_statement_builder_stub(expr_gen);
+    std::unique_ptr<Find_statement_builder_stub> stub(
+        new Find_statement_builder_stub(expr_gen.get()));
+    return std::move(stub);
   }
 
   Find_statement_builder::Find msg;
   Expression_generator::Args &args;
   Query_string_builder query;
   std::string schema;
-  Expression_generator *expr_gen;
-  Find_statement_builder_stub *stub;
+  std::unique_ptr<Expression_generator> expr_gen;
 
-  enum {
-    DM_DOCUMENT = 0,
-    DM_TABLE = 1
-  };
+  enum { DM_DOCUMENT = 0, DM_TABLE = 1 };
 };
 
 TEST_F(Find_statement_builder_test, add_projection_table_empty) {
@@ -132,14 +126,14 @@ TEST_F(Find_statement_builder_test, add_projection_document_one_item_no_alias) {
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
-      {ColumnIdentifier("alpha", "xtable"), "beta"}}));
+  ASSERT_NO_THROW(builder()->add_document_projection(
+      Projection_list{{ColumnIdentifier("alpha", "xtable"), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', `xtable`.`alpha`) AS doc", query.get());
 }
 
 TEST_F(Find_statement_builder_test, add_projection_document_one_member_item) {
-  ASSERT_NO_THROW(builder()->add_document_projection(Projection_list{
-      {ColumnIdentifier(Document_path{"alpha"}), "beta"}}));
+  ASSERT_NO_THROW(builder()->add_document_projection(
+      Projection_list{{ColumnIdentifier(Document_path{"alpha"}), "beta"}}));
   EXPECT_EQ("JSON_OBJECT('beta', JSON_EXTRACT(doc,'$.alpha')) AS doc",
             query.get());
 }
@@ -210,11 +204,73 @@ TEST_F(Find_statement_builder_test, add_row_lock_shared) {
   EXPECT_EQ(" FOR SHARE", query.get());
 }
 
+TEST_F(Find_statement_builder_test, add_row_lock_shared_with_grouping) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  ASSERT_NO_THROW(
+      builder()->add_grouping(Grouping_list{ColumnIdentifier("alpha")}));
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" GROUP BY `alpha` FOR SHARE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_shared_nowait) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR SHARE NOWAIT", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_shared_skip_locked) {
+  msg.set_locking(Mysqlx::Crud::Find::SHARED_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR SHARE SKIP LOCKED", query.get());
+}
+
 TEST_F(Find_statement_builder_test, add_row_lock_exclusive) {
   msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
 
   ASSERT_NO_THROW(builder()->add_row_locking(msg));
   EXPECT_EQ(" FOR UPDATE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_with_grouping) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  ASSERT_NO_THROW(
+      builder()->add_grouping(Grouping_list{ColumnIdentifier("alpha")}));
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" GROUP BY `alpha` FOR UPDATE", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_nowait) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR UPDATE NOWAIT", query.get());
+}
+
+TEST_F(Find_statement_builder_test, add_row_lock_exclusive_skip_locked) {
+  msg.set_locking(Mysqlx::Crud::Find::EXCLUSIVE_LOCK);
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_NO_THROW(builder()->add_row_locking(msg));
+  EXPECT_EQ(" FOR UPDATE SKIP LOCKED", query.get());
+}
+
+TEST_F(Find_statement_builder_test, skip_locked_set_but_no_locking) {
+  msg.set_locking_options(Mysqlx::Crud::Find::SKIP_LOCKED);
+
+  ASSERT_THROW(builder()->add_row_locking(msg), ngs::Error_code);
+}
+
+TEST_F(Find_statement_builder_test, nowait_set_but_no_locking) {
+  msg.set_locking_options(Mysqlx::Crud::Find::NOWAIT);
+
+  ASSERT_THROW(builder()->add_row_locking(msg), ngs::Error_code);
 }
 
 TEST_F(Find_statement_builder_test, build_table) {

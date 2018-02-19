@@ -27,6 +27,7 @@
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
+#include "my_alloc.h"
 
 static int opt_loop = 25;
 static int opt_sleep = 25;

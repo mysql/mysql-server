@@ -29,47 +29,42 @@
 
 #include "my_thread.h"
 
-namespace my_boost{
+namespace my_boost {
 
-class thread
-{
-public:
-  template <typename TCallable> thread(TCallable start)
-  {
-    context<TCallable>* new_context= new context<TCallable>(start);
+class thread {
+ public:
+  template <typename TCallable>
+  thread(TCallable start) {
+    context<TCallable> *new_context = new context<TCallable>(start);
 
-    if (my_thread_create(
-      &m_thread, NULL, context<TCallable>::entry_point, new_context))
-    {
+    if (my_thread_create(&m_thread, NULL, context<TCallable>::entry_point,
+                         new_context)) {
       throw std::exception();
     }
   }
 
   void join();
 
-private:
+ private:
   my_thread_handle m_thread;
 
-  template <typename TCallable> class context
-  {
-  public:
-    context(TCallable callable)
-      : m_callable(callable)
-    {}
+  template <typename TCallable>
+  class context {
+   public:
+    context(TCallable callable) : m_callable(callable) {}
 
-    static void* entry_point(void* context_raw)
-    {
-      context* this_context= (context*)context_raw;
+    static void *entry_point(void *context_raw) {
+      context *this_context = (context *)context_raw;
       this_context->m_callable();
       delete this_context;
       return 0;
     }
 
-  private:
+   private:
     TCallable m_callable;
   };
 };
 
-}
+}  // namespace my_boost
 
 #endif

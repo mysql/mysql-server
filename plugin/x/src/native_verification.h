@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,9 +34,10 @@ namespace xpl {
 class Native_verification : public Challenge_response_verification {
  public:
   explicit Native_verification(ngs::SHA256_password_cache_interface *cache)
-    : Challenge_response_verification(cache) {}
-  bool verify_authentication_string(const std::string &user,
-      const std::string &host, const std::string &client_string,
+      : Challenge_response_verification(cache) {}
+  bool verify_authentication_string(
+      const std::string &user, const std::string &host,
+      const std::string &client_string,
       const std::string &db_string) const override;
 };
 

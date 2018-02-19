@@ -23,8 +23,8 @@
 #ifndef DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED
 #define DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED
 
-#include "sql_string.h"                     // String
-#include "sql/handler.h"                    // ha_tablespace_statistics
+#include "sql/handler.h"  // ha_tablespace_statistics
+#include "sql_string.h"   // String
 
 class THD;
 struct TABLE_LIST;
@@ -33,8 +33,7 @@ namespace dd {
 namespace info_schema {
 
 // Tablespace statistics that are cached.
-enum class enum_tablespace_stats_type
-{
+enum class enum_tablespace_stats_type {
   TS_ID,
   TS_TYPE,
   TS_LOGFILE_GROUP_NAME,
@@ -51,7 +50,6 @@ enum class enum_tablespace_stats_type
   TS_STATUS
 };
 
-
 /**
   The class hold dynamic table statistics for a table.
   This cache is used by internal UDF's defined for the purpose
@@ -62,12 +60,9 @@ enum class enum_tablespace_stats_type
   multiple calls to same SE API to retrieve the statistics.
 */
 
-class Tablespace_statistics
-{
-public:
-  Tablespace_statistics()
-    : m_found_error(false)
-  {}
+class Tablespace_statistics {
+ public:
+  Tablespace_statistics() : m_found_error(false) {}
 
   /**
     Check if the stats are cached for given tablespace_name and file_name.
@@ -77,12 +72,9 @@ public:
 
     @return true if stats are cached, else false.
   */
-  bool is_stat_cached(const String &tablespace_name,
-                      const String &file_name)
-  {
+  bool is_stat_cached(const String &tablespace_name, const String &file_name) {
     return (m_key == form_key(tablespace_name, file_name));
   }
-
 
   /**
     Store the statistics form the given handler
@@ -93,15 +85,12 @@ public:
 
     @return void
   */
-  void cache_stats(const String &tablespace_name,
-                   const String &file_name,
-                   ha_tablespace_statistics &stats)
-  {
-    m_stats= stats;
-    m_found_error= false;
+  void cache_stats(const String &tablespace_name, const String &file_name,
+                   ha_tablespace_statistics &stats) {
+    m_stats = stats;
+    m_found_error = false;
     set_stat_cached(tablespace_name, file_name);
   }
-
 
   /**
     Read dynamic tablespace statistics from SE API OR by reading cached
@@ -115,19 +104,15 @@ public:
 
     @return true if statistics were not fetched from SE, otherwise false.
   */
-  bool read_stat(THD *thd,
-                 const String &tablespace_name_ptr,
-                 const String &file_name_ptr,
-                 const String &engine_name_ptr,
-                 const char* ts_se_private_data);
+  bool read_stat(THD *thd, const String &tablespace_name_ptr,
+                 const String &file_name_ptr, const String &engine_name_ptr,
+                 const char *ts_se_private_data);
 
   // Invalidate the cache.
-  void invalidate_cache(void)
-  {
+  void invalidate_cache(void) {
     m_key.clear();
-    m_found_error= false;
+    m_found_error = false;
   }
-
 
   /**
     Mark that error was found for the given key. The combination of
@@ -139,13 +124,11 @@ public:
     @return void
   */
   void mark_as_error_found(const String &tablespace_name,
-                           const String &file_name)
-  {
-    m_stats= {};
-    m_found_error= true;
-    m_key= form_key(tablespace_name, file_name);
+                           const String &file_name) {
+    m_stats = {};
+    m_found_error = true;
+    m_key = form_key(tablespace_name, file_name);
   }
-
 
   /**
     Return statistics of the a given type.
@@ -155,14 +138,11 @@ public:
 
     @returns void
   */
-  void get_stat(enum_tablespace_stats_type stype,
-                ulonglong *result);
+  void get_stat(enum_tablespace_stats_type stype, ulonglong *result);
 
-  void get_stat(enum_tablespace_stats_type stype,
-                dd::String_type *result);
+  void get_stat(enum_tablespace_stats_type stype, dd::String_type *result);
 
-private:
-
+ private:
   /**
     Mark the cache as valid for a given table. This creates a key for the
     cache element. We store just a single table statistics in this cache.
@@ -172,10 +152,9 @@ private:
 
     @returns void.
   */
-  void set_stat_cached(const String &tablespace_name,
-                       const String &file_name)
-  { m_key= form_key(tablespace_name, file_name); }
-
+  void set_stat_cached(const String &tablespace_name, const String &file_name) {
+    m_key = form_key(tablespace_name, file_name);
+  }
 
   /**
     Build a key representating the table for which stats are cached.
@@ -185,11 +164,8 @@ private:
 
     @returns String_type representing the key.
   */
-  String_type form_key(const String &tablespace_name,
-                       const String &file_name)
-  {
-    return String_type(tablespace_name.ptr()) +
-      String_type(file_name.ptr());
+  String_type form_key(const String &tablespace_name, const String &file_name) {
+    return String_type(tablespace_name.ptr()) + String_type(file_name.ptr());
   }
 
   /**
@@ -202,8 +178,7 @@ private:
              false if not.
   */
   inline bool check_error_for_key(const String &tablespace_name,
-                                  const String &file_name)
-  {
+                                  const String &file_name) {
     if (is_stat_cached(tablespace_name, file_name) && m_found_error)
       return true;
 
@@ -221,28 +196,24 @@ private:
 
     @return true if statistics were not fetched from SE, otherwise false.
   */
-  bool read_stat_from_SE(THD *thd,
-                         const String &tablespace_name_ptr,
+  bool read_stat_from_SE(THD *thd, const String &tablespace_name_ptr,
                          const String &file_name_ptr,
                          const String &engine_name_ptr,
-                         const char* ts_se_private_data);
+                         const char *ts_se_private_data);
 
-private:
-
+ private:
   // The cache key
-  String_type m_key; // Format '<tablespace_name>'
+  String_type m_key;  // Format '<tablespace_name>'
 
   // Error found when reading statistics.
   bool m_found_error;
 
-public:
-
+ public:
   // Cached statistics.
   ha_tablespace_statistics m_stats;
 };
 
+}  // namespace info_schema
+}  // namespace dd
 
-} // namespace info_schema
-} // namespace dd
-
-#endif // DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED
+#endif  // DD_INFO_SCHEMA_TABLESPACE_STATS_INCLUDED

@@ -22,5 +22,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *mysql_keyring_service= (void*)VERSION_mysql_keyring_service;
-
+SERVICE_VERSION *mysql_keyring_service = (void **)VERSION_mysql_keyring_service;

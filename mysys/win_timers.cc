@@ -24,27 +24,26 @@
   @file mysys/win_timers.cc
 */
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 #include <errno.h>
-#include <windows.h>        /* Timer Queue and IO completion port functions */
+#include <windows.h> /* Timer Queue and IO completion port functions */
 
 #include "my_dbug.h"
-#include "my_sys.h"         /* my_message_local */
-#include "my_thread.h"      /* my_thread_init, my_thread_end */
-#include "my_timer.h"       /* my_timer_t */
-#include "mysys_priv.h"     /* key_thread_timer_notifier */
+#include "my_sys.h"     /* my_message_local */
+#include "my_thread.h"  /* my_thread_init, my_thread_end */
+#include "my_timer.h"   /* my_timer_t */
+#include "mysys_priv.h" /* key_thread_timer_notifier */
 
-
-enum enum_timer_state { TIMER_SET=FALSE, TIMER_EXPIRED=TRUE };
+enum enum_timer_state { TIMER_SET = false, TIMER_EXPIRED = true };
 
 // Timer notifier thread id.
 static my_thread_handle timer_notify_thread;
 
 // IO completion port handle
-HANDLE io_compl_port= 0;
+HANDLE io_compl_port = 0;
 
 // Timer queue handle
-HANDLE timer_queue= 0;
+HANDLE timer_queue = 0;
 
 /**
   Callback function registered to execute on timer expiration.
@@ -55,24 +54,20 @@ HANDLE timer_queue= 0;
   @remark this function is executed in timer owner thread when timer
           expires.
 */
-static void CALLBACK
-timer_callback_function(PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused)))
-{
-  my_timer_t *timer= (my_timer_t *)timer_data;
+static void CALLBACK timer_callback_function(
+    PVOID timer_data, BOOLEAN timer_or_wait_fired MY_ATTRIBUTE((unused))) {
+  my_timer_t *timer = (my_timer_t *)timer_data;
   DBUG_ASSERT(timer != NULL);
-  timer->id.timer_state= TIMER_EXPIRED;
+  timer->id.timer_state = TIMER_EXPIRED;
   PostQueuedCompletionStatus(io_compl_port, 0, (ULONG_PTR)timer, 0);
 }
-
 
 /**
   Timer expiration notification thread.
 
   @param arg  Unused.
 */
-static void*
-timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
-{
+static void *timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused))) {
   DWORD bytes_transferred;
   ULONG_PTR compl_key;
   LPOVERLAPPED overlapped;
@@ -80,14 +75,13 @@ timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
 
   my_thread_init();
 
-  while(1)
-  {
+  while (1) {
     // Get IO Completion status.
     if (GetQueuedCompletionStatus(io_compl_port, &bytes_transferred, &compl_key,
                                   &overlapped, INFINITE) == 0)
       break;
 
-    timer= (my_timer_t*)compl_key;
+    timer = (my_timer_t *)compl_key;
     timer->notify_function(timer);
   }
 
@@ -95,7 +89,6 @@ timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
 
   return NULL;
 }
-
 
 /**
   Delete a timer.
@@ -107,25 +100,21 @@ timer_notify_thread_func(void *arg MY_ATTRIBUTE((unused)))
   @return  0 On Success
           -1 On error.
 */
-static int
-delete_timer(my_timer_t *timer, int *state)
-{
+static int delete_timer(my_timer_t *timer, int *state) {
   int ret_val;
-  int retry_count= 3;
+  int retry_count = 3;
 
   DBUG_ASSERT(timer != 0);
   DBUG_ASSERT(timer_queue != 0);
 
-  if (state != NULL)
-    *state= 0;
+  if (state != NULL) *state = 0;
 
-  if (timer->id.timer_handle)
-  {
+  if (timer->id.timer_handle) {
     do {
-      ret_val= DeleteTimerQueueTimer(timer_queue, timer->id.timer_handle, NULL);
+      ret_val =
+          DeleteTimerQueueTimer(timer_queue, timer->id.timer_handle, NULL);
 
-      if (ret_val != 0)
-      {
+      if (ret_val != 0) {
         /**
           From MSDN documentation of DeleteTimerQueueTimer:
 
@@ -177,13 +166,10 @@ delete_timer(my_timer_t *timer, int *state)
           Setting state to 1(non-signaled) if timer_state is not set to
           "TIMER_EXPIRED"
         */
-        if (timer->id.timer_state != TIMER_EXPIRED && state != NULL)
-          *state= 1;
+        if (timer->id.timer_state != TIMER_EXPIRED && state != NULL) *state = 1;
 
-        timer->id.timer_handle= 0;
-      }
-      else if (GetLastError() == ERROR_IO_PENDING)
-      {
+        timer->id.timer_handle = 0;
+      } else if (GetLastError() == ERROR_IO_PENDING) {
         /**
           Timer is expired and timer callback function execution is not
           yet completed.
@@ -194,17 +180,14 @@ delete_timer(my_timer_t *timer, int *state)
                 Currently we are not accessing timer->id.timer_state
                 here so not using any synchronization mechanism.
         */
-        timer->id.timer_handle= 0;
-        ret_val= 1;
-      }
-      else
-      {
+        timer->id.timer_handle = 0;
+        ret_val = 1;
+      } else {
         /**
           Timer deletion from queue failed and there are no outstanding
           callback functions for this timer.
         */
-        if (--retry_count == 0)
-        {
+        if (--retry_count == 0) {
           my_message_local(ERROR_LEVEL, "Failed to delete timer (errno= %d).",
                            errno);
           return -1;
@@ -216,38 +199,31 @@ delete_timer(my_timer_t *timer, int *state)
   return 0;
 }
 
-
 /**
   Initialize internal components.
 
   @return 0 On success
           -1 On error.
 */
-int
-my_timer_initialize(void)
-{
+int my_timer_initialize(void) {
   // Create timer queue.
-  timer_queue= CreateTimerQueue();
-  if (!timer_queue)
-  {
+  timer_queue = CreateTimerQueue();
+  if (!timer_queue) {
     my_message_local(ERROR_LEVEL, "Failed to create Timer Queue (errno= %d)",
                      errno);
     goto err;
   }
 
   // Create IO completion port.
-  io_compl_port= CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
-  if (!io_compl_port)
-  {
+  io_compl_port = CreateIoCompletionPort(INVALID_HANDLE_VALUE, 0, 0, 0);
+  if (!io_compl_port) {
     my_message_local(ERROR_LEVEL,
-                     "Failed to create IO completion port (errno= %d)",
-                     errno);
+                     "Failed to create IO completion port (errno= %d)", errno);
     goto err;
   }
 
   if (mysql_thread_create(key_thread_timer_notifier, &timer_notify_thread, 0,
-                          timer_notify_thread_func, 0))
-  {
+                          timer_notify_thread_func, 0)) {
     my_message_local(ERROR_LEVEL,
                      "Failed to create timer notify thread (errno= %d).",
                      errno);
@@ -257,43 +233,35 @@ my_timer_initialize(void)
   return 0;
 
 err:
-  if (timer_queue)
-  {
+  if (timer_queue) {
     DeleteTimerQueueEx(timer_queue, NULL);
-    timer_queue= 0;
+    timer_queue = 0;
   }
 
-  if (io_compl_port)
-  {
+  if (io_compl_port) {
     CloseHandle(io_compl_port);
-    io_compl_port= 0;
+    io_compl_port = 0;
   }
 
   return -1;
 }
 
-
 /**
   Release any resources that were allocated as part of initialization.
 */
-void
-my_timer_deinitialize()
-{
-  if (timer_queue)
-  {
+void my_timer_deinitialize() {
+  if (timer_queue) {
     DeleteTimerQueueEx(timer_queue, NULL);
-    timer_queue= 0;
+    timer_queue = 0;
   }
 
-  if (io_compl_port)
-  {
+  if (io_compl_port) {
     CloseHandle(io_compl_port);
-    io_compl_port= 0;
+    io_compl_port = 0;
   }
 
   my_thread_join(&timer_notify_thread, NULL);
 }
-
 
 /**
   Create a timer object.
@@ -302,14 +270,11 @@ my_timer_deinitialize()
 
   @return On success, 0.
 */
-int
-my_timer_create(my_timer_t *timer)
-{
+int my_timer_create(my_timer_t *timer) {
   DBUG_ASSERT(timer_queue != 0);
-  timer->id.timer_handle= 0;
+  timer->id.timer_handle = 0;
   return 0;
 }
-
 
 /**
   Set the time until the next expiration of the timer.
@@ -320,9 +285,7 @@ my_timer_create(my_timer_t *timer)
   @return On success, 0.
           On error, -1.
 */
-int
-my_timer_set(my_timer_t *timer, unsigned long time)
-{
+int my_timer_set(my_timer_t *timer, unsigned long time) {
   DBUG_ASSERT(timer != NULL);
   DBUG_ASSERT(timer_queue != 0);
 
@@ -331,10 +294,9 @@ my_timer_set(my_timer_t *timer, unsigned long time)
     removed from the timer queue. Removing it before creating
     a new timer queue timer.
   */
-  if (timer->id.timer_handle != 0)
-    my_timer_delete(timer);
+  if (timer->id.timer_handle != 0) my_timer_delete(timer);
 
-  timer->id.timer_state= TIMER_SET;
+  timer->id.timer_state = TIMER_SET;
 
   if (CreateTimerQueueTimer(&timer->id.timer_handle, timer_queue,
                             timer_callback_function, timer, time, 0,
@@ -343,7 +305,6 @@ my_timer_set(my_timer_t *timer, unsigned long time)
 
   return 0;
 }
-
 
 /**
   Cancel the timer.
@@ -355,23 +316,16 @@ my_timer_set(my_timer_t *timer, unsigned long time)
   @return On success, 0.
           On error,  -1.
 */
-int
-my_timer_cancel(my_timer_t *timer, int *state)
-{
+int my_timer_cancel(my_timer_t *timer, int *state) {
   DBUG_ASSERT(state != NULL);
 
   return delete_timer(timer, state);
 }
-
 
 /**
   Delete a timer object.
 
   @param  timer   Timer Object.
 */
-void
-my_timer_delete(my_timer_t *timer)
-{
-  delete_timer(timer, NULL);
-}
+void my_timer_delete(my_timer_t *timer) { delete_timer(timer, NULL); }
 #endif

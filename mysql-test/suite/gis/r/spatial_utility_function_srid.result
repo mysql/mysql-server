@@ -1326,8 +1326,6 @@ DROP TABLE gis_multi_polygon_srid;
 DROP TABLE gis_geometrycollection_srid;
 # Bug 23857035 Test case
 SET @@sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (g GEOMETRY);
 INSERT INTO t1 VALUES (POINT(10, 10)), (NULL);
 SELECT ST_AsText(ST_SRID(g, 4326)) FROM t1;

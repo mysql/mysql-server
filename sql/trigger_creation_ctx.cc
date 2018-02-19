@@ -31,74 +31,57 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/log.h"
 #include "sql/sql_class.h"
-#include "sql/sql_db.h" // get_default_db_collation()
+#include "sql/sql_db.h"  // get_default_db_collation()
 #include "sql/sql_error.h"
 #include "sql/system_variables.h"
 
-Trigger_creation_ctx *
-Trigger_creation_ctx::create(THD *thd,
-                             const LEX_CSTRING &db_name,
-                             const LEX_CSTRING &table_name,
-                             const LEX_CSTRING &client_cs_name,
-                             const LEX_CSTRING &connection_cl_name,
-                             const LEX_CSTRING &db_cl_name)
-{
+Trigger_creation_ctx *Trigger_creation_ctx::create(
+    THD *thd, const LEX_CSTRING &db_name, const LEX_CSTRING &table_name,
+    const LEX_CSTRING &client_cs_name, const LEX_CSTRING &connection_cl_name,
+    const LEX_CSTRING &db_cl_name) {
   const CHARSET_INFO *client_cs;
   const CHARSET_INFO *connection_cl;
-  const CHARSET_INFO *db_cl= NULL;
+  const CHARSET_INFO *db_cl = NULL;
 
-  bool invalid_creation_ctx= FALSE;
+  bool invalid_creation_ctx = false;
 
-  if (resolve_charset(client_cs_name.str,
-                      thd->variables.character_set_client,
-                      &client_cs))
-  {
-    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
-           (const char *) db_name.str,
-           (const char *) table_name.str,
-           "character_set_client",
-           (const char *) client_cs_name.str);
+  if (resolve_charset(client_cs_name.str, thd->variables.character_set_client,
+                      &client_cs)) {
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,
+           (const char *)table_name.str, "character_set_client",
+           (const char *)client_cs_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx = true;
   }
 
   if (resolve_collation(connection_cl_name.str,
-                        thd->variables.collation_connection,
-                        &connection_cl))
-  {
-    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
-           (const char *) db_name.str,
-           (const char *) table_name.str,
-           "collation_connection",
-           (const char *) connection_cl_name.str);
+                        thd->variables.collation_connection, &connection_cl)) {
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,
+           (const char *)table_name.str, "collation_connection",
+           (const char *)connection_cl_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx = true;
   }
 
-  if (resolve_collation(db_cl_name.str, NULL, &db_cl))
-  {
-    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE,
-           (const char *) db_name.str,
-           (const char *) table_name.str,
-           "database_collation",
-           (const char *) db_cl_name.str);
+  if (resolve_collation(db_cl_name.str, NULL, &db_cl)) {
+    LogErr(WARNING_LEVEL, ER_TRIGGER_INVALID_VALUE, (const char *)db_name.str,
+           (const char *)table_name.str, "database_collation",
+           (const char *)db_cl_name.str);
 
-    invalid_creation_ctx= TRUE;
+    invalid_creation_ctx = true;
   }
 
-  if (invalid_creation_ctx)
-  {
-    push_warning_printf(thd,
-                        Sql_condition::SL_WARNING,
-                        ER_TRG_INVALID_CREATION_CTX,
-                        ER_THD(thd, ER_TRG_INVALID_CREATION_CTX),
-                        (const char *) db_name.str,
-                        (const char *) table_name.str);
+  if (invalid_creation_ctx) {
+    push_warning_printf(
+        thd, Sql_condition::SL_WARNING, ER_TRG_INVALID_CREATION_CTX,
+        ER_THD(thd, ER_TRG_INVALID_CREATION_CTX), (const char *)db_name.str,
+        (const char *)table_name.str);
   }
 
   /*
@@ -106,14 +89,13 @@ Trigger_creation_ctx::create(THD *thd,
     from the disk.
   */
 
-  if (db_cl == NULL &&
-      get_default_db_collation(thd, db_name.str, &db_cl))
-  {
+  if (db_cl == NULL && get_default_db_collation(thd, db_name.str, &db_cl)) {
     DBUG_ASSERT(thd->is_error() || thd->killed);
     return NULL;
   }
 
-  db_cl= db_cl ? db_cl : thd->collation();
+  db_cl = db_cl ? db_cl : thd->collation();
 
-  return new (*THR_MALLOC) Trigger_creation_ctx(client_cs, connection_cl, db_cl);
+  return new (*THR_MALLOC)
+      Trigger_creation_ctx(client_cs, connection_cl, db_cl);
 }

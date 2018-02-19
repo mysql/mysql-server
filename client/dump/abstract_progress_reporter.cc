@@ -29,62 +29,54 @@
 using namespace Mysql::Tools::Dump;
 
 void Abstract_progress_reporter::register_progress_watcher(
-  I_progress_watcher* new_progress_watcher)
-{
+    I_progress_watcher *new_progress_watcher) {
   m_progress_watchers.push_back(new_progress_watcher);
 }
 
-bool Abstract_progress_reporter::have_progress_watcher()
-{
+bool Abstract_progress_reporter::have_progress_watcher() {
   return m_progress_watchers.size() > 0;
 }
 
 void Abstract_progress_reporter::report_new_chain_created(
-  Item_processing_data* new_chain_creator)
-{
-  for (std::vector<I_progress_watcher*>::iterator
-    it= m_progress_watchers.begin(); it != m_progress_watchers.end(); ++it)
-  {
+    Item_processing_data *new_chain_creator) {
+  for (std::vector<I_progress_watcher *>::iterator it =
+           m_progress_watchers.begin();
+       it != m_progress_watchers.end(); ++it) {
     (*it)->new_chain_created(new_chain_creator);
   }
 }
 
 void Abstract_progress_reporter::report_object_processing_started(
-  Item_processing_data* process_data)
-{
-  for (std::vector<I_progress_watcher*>::iterator
-    it= m_progress_watchers.begin(); it != m_progress_watchers.end(); ++it)
-  {
+    Item_processing_data *process_data) {
+  for (std::vector<I_progress_watcher *>::iterator it =
+           m_progress_watchers.begin();
+       it != m_progress_watchers.end(); ++it) {
     (*it)->object_processing_started(process_data);
   }
 }
 
 void Abstract_progress_reporter::report_object_processing_ended(
-  Item_processing_data* finished_process_data)
-{
-  for (std::vector<I_progress_watcher*>::iterator
-    it= m_progress_watchers.begin(); it != m_progress_watchers.end(); ++it)
-  {
+    Item_processing_data *finished_process_data) {
+  for (std::vector<I_progress_watcher *>::iterator it =
+           m_progress_watchers.begin();
+       it != m_progress_watchers.end(); ++it) {
     (*it)->object_processing_ended(finished_process_data);
   }
 }
 
-void Abstract_progress_reporter::report_crawler_completed(
-  I_crawler* crawler)
-{
-  for (std::vector<I_progress_watcher*>::iterator
-    it= m_progress_watchers.begin(); it != m_progress_watchers.end(); ++it)
-  {
+void Abstract_progress_reporter::report_crawler_completed(I_crawler *crawler) {
+  for (std::vector<I_progress_watcher *>::iterator it =
+           m_progress_watchers.begin();
+       it != m_progress_watchers.end(); ++it) {
     (*it)->crawler_completed(crawler);
   }
 }
 
 void Abstract_progress_reporter::register_progress_watchers_in_child(
-  I_progress_reporter* reporter)
-{
-  for (std::vector<I_progress_watcher*>::iterator
-    it= m_progress_watchers.begin(); it != m_progress_watchers.end(); ++it)
-  {
+    I_progress_reporter *reporter) {
+  for (std::vector<I_progress_watcher *>::iterator it =
+           m_progress_watchers.begin();
+       it != m_progress_watchers.end(); ++it) {
     reporter->register_progress_watcher(*it);
   }
 }

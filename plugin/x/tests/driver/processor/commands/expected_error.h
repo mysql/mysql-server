@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,11 +31,9 @@
 #include "plugin/x/tests/driver/formatters/console.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
 
-
 class Expected_error {
  public:
-  Expected_error(const bool &fatal_errors,
-                 const Console &console,
+  Expected_error(const bool &fatal_errors, const Console &console,
                  Script_stack *stack)
       : m_fatal_errors(fatal_errors), m_console(console), m_stack(stack) {}
 
@@ -48,10 +46,10 @@ class Expected_error {
   void print_unexpected_error(const xcl::XError &err);
   void print_expected_error(const xcl::XError &err);
 
-  std::set<int>  m_expect_errno;
-  const bool    &m_fatal_errors;
+  std::set<int> m_expect_errno;
+  const bool &m_fatal_errors;
   const Console &m_console;
-  Script_stack  *m_stack;
+  Script_stack *m_stack;
 };
 
 #endif  // X_TESTS_DRIVER_PROCESSOR_COMMANDS_EXPECTED_ERROR_H_

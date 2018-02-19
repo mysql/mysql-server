@@ -31,7 +31,7 @@
 /**
   @page EXAMPLE_PLUGIN An example plugin
 
-  Plugin Name     : pfs_example_plugin_employee \n 
+  Plugin Name     : pfs_example_plugin_employee \n
   Source location : plugin/pfs_table_plugin
 
   This file contains a definition of the pfs_example_plugin_employee.

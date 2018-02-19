@@ -141,77 +141,72 @@
 #include "template_utils.h"
 #include "thr_mutex.h"
 
-#define STRUCT_PTR(TYPE, MEMBER, a)                                           \
-          (TYPE *) ((char *) (a) - offsetof(TYPE, MEMBER))
+#define STRUCT_PTR(TYPE, MEMBER, a) (TYPE *)((char *)(a)-offsetof(TYPE, MEMBER))
 
 /* types of condition variables */
-#define  COND_FOR_REQUESTED 0
-#define  COND_FOR_SAVED     1
+#define COND_FOR_REQUESTED 0
+#define COND_FOR_SAVED 1
 
 typedef mysql_cond_t KEYCACHE_CONDVAR;
 
 /* descriptor of the page in the key cache block buffer */
-struct st_keycache_page
-{
-  int file;               /* file to which the page belongs to  */
-  my_off_t filepos;       /* position of the page in the file   */
+struct KEYCACHE_PAGE {
+  int file;         /* file to which the page belongs to  */
+  my_off_t filepos; /* position of the page in the file   */
 };
-typedef struct st_keycache_page KEYCACHE_PAGE;
 
 /* element in the chain of a hash table bucket */
-struct st_hash_link
-{
-  struct st_hash_link *next, **prev; /* to connect links in the same bucket  */
-  struct st_block_link *block;       /* reference to the block for the page: */
-  File file;                         /* from such a file                     */
-  my_off_t diskpos;                  /* with such an offset                  */
-  uint requests;                     /* number of requests for the page      */
+struct HASH_LINK {
+  HASH_LINK *next, **prev; /* to connect links in the same bucket  */
+  BLOCK_LINK *block;       /* reference to the block for the page: */
+  File file;               /* from such a file                     */
+  my_off_t diskpos;        /* with such an offset                  */
+  uint requests;           /* number of requests for the page      */
 };
 
 /* simple states of a block */
-#define BLOCK_ERROR           1 /* an error occured when performing file i/o */
-#define BLOCK_READ            2 /* file block is in the block buffer         */
-#define BLOCK_IN_SWITCH       4 /* block is preparing to read new page       */
-#define BLOCK_REASSIGNED      8 /* blk does not accept requests for old page */
-#define BLOCK_IN_FLUSH       16 /* block is selected for flush               */
-#define BLOCK_CHANGED        32 /* block buffer contains a dirty page        */
-#define BLOCK_IN_USE         64 /* block is not free                         */
-#define BLOCK_IN_EVICTION   128 /* block is selected for eviction            */
-#define BLOCK_IN_FLUSHWRITE 256 /* block is in write to file                 */
-#define BLOCK_FOR_UPDATE    512 /* block is selected for buffer modification */
+#define BLOCK_ERROR 1           /* an error occured when performing file i/o */
+#define BLOCK_READ 2            /* file block is in the block buffer         */
+#define BLOCK_IN_SWITCH 4       /* block is preparing to read new page       */
+#define BLOCK_REASSIGNED 8      /* blk does not accept requests for old page */
+#define BLOCK_IN_FLUSH 16       /* block is selected for flush               */
+#define BLOCK_CHANGED 32        /* block buffer contains a dirty page        */
+#define BLOCK_IN_USE 64         /* block is not free                         */
+#define BLOCK_IN_EVICTION 128   /* block is selected for eviction            */
+#define BLOCK_IN_FLUSHWRITE 256 /* block is in write to file */
+#define BLOCK_FOR_UPDATE 512    /* block is selected for buffer modification */
 
 /* page status, returned by find_key_block */
-#define PAGE_READ               0
-#define PAGE_TO_BE_READ         1
-#define PAGE_WAIT_TO_BE_READ    2
+#define PAGE_READ 0
+#define PAGE_TO_BE_READ 1
+#define PAGE_WAIT_TO_BE_READ 2
 
 /* block temperature determines in which (sub-)chain the block currently is */
-enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/ , BLOCK_WARM , BLOCK_HOT };
+enum BLOCK_TEMPERATURE { BLOCK_COLD /*free*/, BLOCK_WARM, BLOCK_HOT };
 
 /* key cache block */
-struct st_block_link
-{
-  struct st_block_link
-    *next_used, **prev_used;   /* to connect links in the LRU chain (ring)   */
-  struct st_block_link
-    *next_changed, **prev_changed; /* for lists of file dirty/clean blocks   */
-  struct st_hash_link *hash_link; /* backward ptr to referring hash_link     */
+struct BLOCK_LINK {
+  BLOCK_LINK
+  *next_used, **prev_used; /* to connect links in the LRU chain (ring)   */
+  BLOCK_LINK
+  *next_changed, **prev_changed; /* for lists of file dirty/clean blocks   */
+  HASH_LINK *hash_link;          /* backward ptr to referring hash_link     */
   KEYCACHE_WQUEUE wqueue[2]; /* queues on waiting requests for new/old pages */
-  uint requests;          /* number of requests for the block                */
-  uchar *buffer;           /* buffer for the block page                       */
-  uint offset;            /* beginning of modified data in the buffer        */
-  uint length;            /* end of data in the buffer                       */
-  uint status;            /* state of the block                              */
+  uint requests; /* number of requests for the block                */
+  uchar *buffer; /* buffer for the block page                       */
+  uint offset;   /* beginning of modified data in the buffer        */
+  uint length;   /* end of data in the buffer                       */
+  uint status;   /* state of the block                              */
   enum BLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot */
-  uint hits_left;         /* number of hits left until promotion             */
+  uint hits_left;          /* number of hits left until promotion             */
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
 };
 
 KEY_CACHE dflt_key_cache_var;
-KEY_CACHE *dflt_key_cache= &dflt_key_cache_var;
+KEY_CACHE *dflt_key_cache = &dflt_key_cache_var;
 
-#define FLUSH_CACHE         2000            /* sort this many blocks at once */
+#define FLUSH_CACHE 2000 /* sort this many blocks at once */
 
 static void change_key_cache_param(KEY_CACHE *keycache,
                                    ulonglong division_limit,
@@ -219,25 +214,23 @@ static void change_key_cache_param(KEY_CACHE *keycache,
 static int flush_all_key_blocks(KEY_CACHE *keycache,
                                 st_keycache_thread_var *thread_var);
 
-static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
-                          mysql_mutex_t *mutex,
+static void wait_on_queue(KEYCACHE_WQUEUE *wqueue, mysql_mutex_t *mutex,
                           st_keycache_thread_var *thread);
 static void release_whole_queue(KEYCACHE_WQUEUE *wqueue);
 
-static void free_block(KEY_CACHE *keycache,
-                       st_keycache_thread_var *thread_var,
+static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                        BLOCK_LINK *block);
 
-#define KEYCACHE_HASH(f, pos)                                                 \
-(((ulong) ((pos) / keycache->key_cache_block_size) +                          \
-                                     (ulong) (f)) & (keycache->hash_entries-1))
-#define FILE_HASH(f)                 ((uint) (f) & (CHANGED_BLOCKS_HASH-1))
+#define KEYCACHE_HASH(f, pos)                                       \
+  (((ulong)((pos) / keycache->key_cache_block_size) + (ulong)(f)) & \
+   (keycache->hash_entries - 1))
+#define FILE_HASH(f) ((uint)(f) & (CHANGED_BLOCKS_HASH - 1))
 
-#define BLOCK_NUMBER(b)                                                       \
-  ((uint) (((char*)(b)-(char *) keycache->block_root)/sizeof(BLOCK_LINK)))
+#define BLOCK_NUMBER(b) \
+  ((uint)(((char *)(b) - (char *)keycache->block_root) / sizeof(BLOCK_LINK)))
 #ifdef KEYCACHE_TIMEOUT
-#define HASH_LINK_NUMBER(h)                                                   \
-  ((uint) (((char*)(h)-(char *) keycache->hash_link_root)/sizeof(HASH_LINK)))
+#define HASH_LINK_NUMBER(h) \
+  ((uint)(((char *)(h) - (char *)keycache->hash_link_root) / sizeof(HASH_LINK)))
 #endif
 
 #if !defined(DBUG_OFF)
@@ -246,11 +239,9 @@ static int fail_hlink(HASH_LINK *hlink);
 static int cache_empty(KEY_CACHE *keycache);
 #endif
 
-static inline uint next_power(uint value)
-{
-  return (uint) my_round_up_to_next_power((uint32) value) << 1;
+static inline uint next_power(uint value) {
+  return (uint)my_round_up_to_next_power((uint32)value) << 1;
 }
-
 
 /*
   Initialize a key cache
@@ -279,165 +270,150 @@ static inline uint next_power(uint value)
 
 int init_key_cache(KEY_CACHE *keycache, ulonglong key_cache_block_size,
                    size_t use_mem, ulonglong division_limit,
-                   ulonglong age_threshold)
-{
+                   ulonglong age_threshold) {
   ulong blocks, hash_links;
   size_t length;
   int error;
   DBUG_ENTER("init_key_cache");
   DBUG_ASSERT(key_cache_block_size >= 512);
 
-  if (keycache->key_cache_inited && keycache->disk_blocks > 0)
-  {
-    DBUG_PRINT("warning",("key cache already in use"));
+  if (keycache->key_cache_inited && keycache->disk_blocks > 0) {
+    DBUG_PRINT("warning", ("key cache already in use"));
     DBUG_RETURN(0);
   }
 
-  keycache->global_cache_w_requests= keycache->global_cache_r_requests= 0;
-  keycache->global_cache_read= keycache->global_cache_write= 0;
-  keycache->disk_blocks= -1;
-  if (! keycache->key_cache_inited)
-  {
-    keycache->key_cache_inited= 1;
+  keycache->global_cache_w_requests = keycache->global_cache_r_requests = 0;
+  keycache->global_cache_read = keycache->global_cache_write = 0;
+  keycache->disk_blocks = -1;
+  if (!keycache->key_cache_inited) {
+    keycache->key_cache_inited = 1;
     /*
       Initialize these variables once only.
       Their value must survive re-initialization during resizing.
     */
-    keycache->in_resize= 0;
-    keycache->resize_in_flush= 0;
-    keycache->cnt_for_resize_op= 0;
-    keycache->waiting_for_resize_cnt.last_thread= NULL;
-    keycache->in_init= 0;
-    mysql_mutex_init(key_KEY_CACHE_cache_lock,
-                     &keycache->cache_lock, MY_MUTEX_INIT_FAST);
-    keycache->resize_queue.last_thread= NULL;
+    keycache->in_resize = 0;
+    keycache->resize_in_flush = 0;
+    keycache->cnt_for_resize_op = 0;
+    keycache->waiting_for_resize_cnt.last_thread = NULL;
+    keycache->in_init = 0;
+    mysql_mutex_init(key_KEY_CACHE_cache_lock, &keycache->cache_lock,
+                     MY_MUTEX_INIT_FAST);
+    keycache->resize_queue.last_thread = NULL;
   }
 
-  keycache->key_cache_mem_size= use_mem;
-  keycache->key_cache_block_size= (uint)key_cache_block_size;
-  DBUG_PRINT("info", ("key_cache_block_size: %llu",
-		      key_cache_block_size));
+  keycache->key_cache_mem_size = use_mem;
+  keycache->key_cache_block_size = (uint)key_cache_block_size;
+  DBUG_PRINT("info", ("key_cache_block_size: %llu", key_cache_block_size));
 
-  blocks= (ulong) (use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
-                              sizeof(HASH_LINK*) * 5/4 + key_cache_block_size));
+  blocks =
+      (ulong)(use_mem / (sizeof(BLOCK_LINK) + 2 * sizeof(HASH_LINK) +
+                         sizeof(HASH_LINK *) * 5 / 4 + key_cache_block_size));
   /* It doesn't make sense to have too few blocks (less than 8) */
-  if (blocks >= 8)
-  {
-    for ( ; ; )
-    {
+  if (blocks >= 8) {
+    for (;;) {
       /* Set my_hash_entries to the next bigger 2 power */
-      if ((keycache->hash_entries= next_power(blocks)) < blocks * 5/4)
-        keycache->hash_entries<<= 1;
-      hash_links= 2 * blocks;
-      while ((length= (ALIGN_SIZE(blocks * sizeof(BLOCK_LINK)) +
-		       ALIGN_SIZE(hash_links * sizeof(HASH_LINK)) +
-		       ALIGN_SIZE(sizeof(HASH_LINK*) *
-                                  keycache->hash_entries))) +
-	     ((size_t) blocks * keycache->key_cache_block_size) > use_mem)
+      if ((keycache->hash_entries = next_power(blocks)) < blocks * 5 / 4)
+        keycache->hash_entries <<= 1;
+      hash_links = 2 * blocks;
+      while ((length =
+                  (ALIGN_SIZE(blocks * sizeof(BLOCK_LINK)) +
+                   ALIGN_SIZE(hash_links * sizeof(HASH_LINK)) +
+                   ALIGN_SIZE(sizeof(HASH_LINK *) * keycache->hash_entries))) +
+                 ((size_t)blocks * keycache->key_cache_block_size) >
+             use_mem)
         blocks--;
       /* Allocate memory for cache page buffers */
-      if ((keycache->block_mem=
-	   static_cast<uchar*>(my_large_malloc(key_memory_KEY_CACHE,
-                           (size_t) blocks * keycache->key_cache_block_size,
-                                               MYF(0)))))
-      {
+      if ((keycache->block_mem = static_cast<uchar *>(my_malloc(
+               key_memory_KEY_CACHE,
+               (size_t)blocks * keycache->key_cache_block_size, MYF(0))))) {
         /*
-	  Allocate memory for blocks, hash_links and hash entries;
-	  For each block 2 hash links are allocated
+          Allocate memory for blocks, hash_links and hash entries;
+          For each block 2 hash links are allocated
         */
-        if ((keycache->block_root= (BLOCK_LINK*) my_malloc(key_memory_KEY_CACHE,
-                                                           length,
-                                                           MYF(0))))
+        if ((keycache->block_root =
+                 (BLOCK_LINK *)my_malloc(key_memory_KEY_CACHE, length, MYF(0))))
           break;
-        my_large_free(keycache->block_mem);
-        keycache->block_mem= 0;
+        my_free(keycache->block_mem);
+        keycache->block_mem = 0;
       }
-      if (blocks < 8)
-      {
+      if (blocks < 8) {
         set_my_errno(ENOMEM);
         my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
                  blocks * keycache->key_cache_block_size);
         goto err;
       }
-      blocks= blocks / 4*3;
+      blocks = blocks / 4 * 3;
     }
-    keycache->blocks_unused= blocks;
-    keycache->disk_blocks= (int) blocks;
-    keycache->hash_links= hash_links;
-    keycache->hash_root= (HASH_LINK**) ((char*) keycache->block_root +
-				        ALIGN_SIZE(blocks*sizeof(BLOCK_LINK)));
-    keycache->hash_link_root= (HASH_LINK*) ((char*) keycache->hash_root +
-				            ALIGN_SIZE((sizeof(HASH_LINK*) *
-							keycache->hash_entries)));
-    memset(keycache->block_root, 0,
-	  keycache->disk_blocks * sizeof(BLOCK_LINK));
+    keycache->blocks_unused = blocks;
+    keycache->disk_blocks = (int)blocks;
+    keycache->hash_links = hash_links;
+    keycache->hash_root =
+        (HASH_LINK **)((char *)keycache->block_root +
+                       ALIGN_SIZE(blocks * sizeof(BLOCK_LINK)));
+    keycache->hash_link_root =
+        (HASH_LINK *)((char *)keycache->hash_root +
+                      ALIGN_SIZE(
+                          (sizeof(HASH_LINK *) * keycache->hash_entries)));
+    memset(keycache->block_root, 0, keycache->disk_blocks * sizeof(BLOCK_LINK));
     memset(keycache->hash_root, 0,
-          keycache->hash_entries * sizeof(HASH_LINK*));
+           keycache->hash_entries * sizeof(HASH_LINK *));
     memset(keycache->hash_link_root, 0,
-	  keycache->hash_links * sizeof(HASH_LINK));
-    keycache->hash_links_used= 0;
-    keycache->free_hash_list= NULL;
-    keycache->blocks_used= keycache->blocks_changed= 0;
+           keycache->hash_links * sizeof(HASH_LINK));
+    keycache->hash_links_used = 0;
+    keycache->free_hash_list = NULL;
+    keycache->blocks_used = keycache->blocks_changed = 0;
 
-    keycache->global_blocks_changed= 0;
-    keycache->blocks_available=0;		/* For debugging */
+    keycache->global_blocks_changed = 0;
+    keycache->blocks_available = 0; /* For debugging */
 
     /* The LRU chain is empty after initialization */
-    keycache->used_last= NULL;
-    keycache->used_ins= NULL;
-    keycache->free_block_list= NULL;
-    keycache->keycache_time= 0;
-    keycache->warm_blocks= 0;
-    keycache->min_warm_blocks= (division_limit ?
-				blocks * division_limit / 100 + 1 :
-				blocks);
-    keycache->age_threshold= (age_threshold ?
-			      blocks * age_threshold / 100 :
-			      blocks);
+    keycache->used_last = NULL;
+    keycache->used_ins = NULL;
+    keycache->free_block_list = NULL;
+    keycache->keycache_time = 0;
+    keycache->warm_blocks = 0;
+    keycache->min_warm_blocks =
+        (division_limit ? blocks * division_limit / 100 + 1 : blocks);
+    keycache->age_threshold =
+        (age_threshold ? blocks * age_threshold / 100 : blocks);
 
-    keycache->can_be_used= 1;
+    keycache->can_be_used = 1;
 
-    keycache->waiting_for_hash_link.last_thread= NULL;
-    keycache->waiting_for_block.last_thread= NULL;
-    DBUG_PRINT("exit",
-	       ("disk_blocks: %d  block_root: %p  hash_entries: %d\
+    keycache->waiting_for_hash_link.last_thread = NULL;
+    keycache->waiting_for_block.last_thread = NULL;
+    DBUG_PRINT("exit", ("disk_blocks: %d  block_root: %p  hash_entries: %d\
  hash_root: %p  hash_links: %d  hash_link_root: %p",
-		keycache->disk_blocks,  keycache->block_root,
-		keycache->hash_entries, keycache->hash_root,
-		keycache->hash_links,   keycache->hash_link_root));
+                        keycache->disk_blocks, keycache->block_root,
+                        keycache->hash_entries, keycache->hash_root,
+                        keycache->hash_links, keycache->hash_link_root));
     memset(keycache->changed_blocks, 0,
-	  sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
+           sizeof(keycache->changed_blocks[0]) * CHANGED_BLOCKS_HASH);
     memset(keycache->file_blocks, 0,
-	  sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
-  }
-  else
-  {
+           sizeof(keycache->file_blocks[0]) * CHANGED_BLOCKS_HASH);
+  } else {
     /* key_buffer_size is specified too small. Disable the cache. */
-    keycache->can_be_used= 0;
+    keycache->can_be_used = 0;
   }
 
-  keycache->blocks= keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
-  DBUG_RETURN((int) keycache->disk_blocks);
+  keycache->blocks = keycache->disk_blocks > 0 ? keycache->disk_blocks : 0;
+  DBUG_RETURN((int)keycache->disk_blocks);
 
 err:
-  error= my_errno();
-  keycache->disk_blocks= 0;
-  keycache->blocks=  0;
-  if (keycache->block_mem)
-  {
-    my_large_free((uchar*) keycache->block_mem);
-    keycache->block_mem= NULL;
+  error = my_errno();
+  keycache->disk_blocks = 0;
+  keycache->blocks = 0;
+  if (keycache->block_mem) {
+    my_free((uchar *)keycache->block_mem);
+    keycache->block_mem = NULL;
   }
-  if (keycache->block_root)
-  {
+  if (keycache->block_root) {
     my_free(keycache->block_root);
-    keycache->block_root= NULL;
+    keycache->block_root = NULL;
   }
   set_my_errno(error);
-  keycache->can_be_used= 0;
+  keycache->can_be_used = 0;
   DBUG_RETURN(0);
 }
-
 
 /*
   Resize a key cache
@@ -469,21 +445,16 @@ err:
     (when cnt_for_resize=0).
 */
 
-int resize_key_cache(KEY_CACHE *keycache,
-                     st_keycache_thread_var *thread_var,
-                     ulonglong key_cache_block_size,
-                     size_t use_mem, ulonglong division_limit,
-                     ulonglong age_threshold)
-{
+int resize_key_cache(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                     ulonglong key_cache_block_size, size_t use_mem,
+                     ulonglong division_limit, ulonglong age_threshold) {
   int blocks;
   DBUG_ENTER("resize_key_cache");
 
-  if (!keycache->key_cache_inited)
-    DBUG_RETURN(keycache->disk_blocks);
+  if (!keycache->key_cache_inited) DBUG_RETURN(keycache->disk_blocks);
 
-  if(key_cache_block_size == keycache->key_cache_block_size &&
-     use_mem == keycache->key_cache_mem_size)
-  {
+  if (key_cache_block_size == keycache->key_cache_block_size &&
+      use_mem == keycache->key_cache_mem_size) {
     change_key_cache_param(keycache, division_limit, age_threshold);
     DBUG_RETURN(keycache->disk_blocks);
   }
@@ -496,11 +467,9 @@ int resize_key_cache(KEY_CACHE *keycache,
     one resizer only. In set_var.cc keycache->in_init is used to block
     multiple attempts.
   */
-  while (keycache->in_resize)
-  {
+  while (keycache->in_resize) {
     /* purecov: begin inspected */
-    wait_on_queue(&keycache->resize_queue, &keycache->cache_lock,
-                  thread_var);
+    wait_on_queue(&keycache->resize_queue, &keycache->cache_lock, thread_var);
     /* purecov: end */
   }
 
@@ -509,26 +478,24 @@ int resize_key_cache(KEY_CACHE *keycache,
     a resize in parallel. It prohibits new blocks to enter the cache.
     Read/write requests can bypass the cache during the flush phase.
   */
-  keycache->in_resize= 1;
+  keycache->in_resize = 1;
 
   /* Need to flush only if keycache is enabled. */
-  if (keycache->can_be_used)
-  {
+  if (keycache->can_be_used) {
     /* Start the flush phase. */
-    keycache->resize_in_flush= 1;
+    keycache->resize_in_flush = 1;
 
-    if (flush_all_key_blocks(keycache, thread_var))
-    {
+    if (flush_all_key_blocks(keycache, thread_var)) {
       /* TODO: if this happens, we should write a warning in the log file ! */
-      keycache->resize_in_flush= 0;
-      blocks= 0;
-      keycache->can_be_used= 0;
+      keycache->resize_in_flush = 0;
+      blocks = 0;
+      keycache->can_be_used = 0;
       goto finish;
     }
     DBUG_ASSERT(cache_empty(keycache));
 
     /* End the flush phase. */
-    keycache->resize_in_flush= 0;
+    keycache->resize_in_flush = 0;
   }
 
   /*
@@ -552,17 +519,17 @@ int resize_key_cache(KEY_CACHE *keycache,
     untouched. We do not lose the cache_lock and will release it only at
     the end of this function.
   */
-  end_key_cache(keycache, 0);			/* Don't free mutex */
+  end_key_cache(keycache, 0); /* Don't free mutex */
   /* The following will work even if use_mem is 0 */
-  blocks= init_key_cache(keycache, key_cache_block_size, use_mem,
-			 division_limit, age_threshold);
+  blocks = init_key_cache(keycache, key_cache_block_size, use_mem,
+                          division_limit, age_threshold);
 
 finish:
   /*
     Mark the resize finished. This allows other threads to start a
     resize or to request new cache blocks.
   */
-  keycache->in_resize= 0;
+  keycache->in_resize = 0;
 
   /* Signal waiting threads. */
   release_whole_queue(&keycache->resize_queue);
@@ -571,22 +538,18 @@ finish:
   DBUG_RETURN(blocks);
 }
 
-
 /*
   Increment counter blocking resize key cache operation
 */
-static inline void inc_counter_for_resize_op(KEY_CACHE *keycache)
-{
+static inline void inc_counter_for_resize_op(KEY_CACHE *keycache) {
   keycache->cnt_for_resize_op++;
 }
-
 
 /*
   Decrement counter blocking resize key cache operation;
   Signal the operation to proceed when counter becomes equal zero
 */
-static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
-{
+static inline void dec_counter_for_resize_op(KEY_CACHE *keycache) {
   if (!--keycache->cnt_for_resize_op)
     release_whole_queue(&keycache->waiting_for_resize_cnt);
 }
@@ -611,21 +574,18 @@ static inline void dec_counter_for_resize_op(KEY_CACHE *keycache)
 
 static void change_key_cache_param(KEY_CACHE *keycache,
                                    ulonglong division_limit,
-                                   ulonglong age_threshold)
-{
+                                   ulonglong age_threshold) {
   DBUG_ENTER("change_key_cache_param");
 
   mysql_mutex_lock(&keycache->cache_lock);
   if (division_limit)
-    keycache->min_warm_blocks= (keycache->disk_blocks *
-				division_limit / 100 + 1);
+    keycache->min_warm_blocks =
+        (keycache->disk_blocks * division_limit / 100 + 1);
   if (age_threshold)
-    keycache->age_threshold=   (keycache->disk_blocks *
-				age_threshold / 100);
+    keycache->age_threshold = (keycache->disk_blocks * age_threshold / 100);
   mysql_mutex_unlock(&keycache->cache_lock);
   DBUG_VOID_RETURN;
 }
-
 
 /*
   Remove key_cache from memory
@@ -639,51 +599,45 @@ static void change_key_cache_param(KEY_CACHE *keycache,
     none
 */
 
-void end_key_cache(KEY_CACHE *keycache, bool cleanup)
-{
+void end_key_cache(KEY_CACHE *keycache, bool cleanup) {
   DBUG_ENTER("end_key_cache");
   DBUG_PRINT("enter", ("key_cache: %p", keycache));
 
-  if (!keycache->key_cache_inited)
-    DBUG_VOID_RETURN;
+  if (!keycache->key_cache_inited) DBUG_VOID_RETURN;
 
-  if (keycache->disk_blocks > 0)
-  {
-    if (keycache->block_mem)
-    {
-      my_large_free((uchar*) keycache->block_mem);
-      keycache->block_mem= NULL;
+  if (keycache->disk_blocks > 0) {
+    if (keycache->block_mem) {
+      my_free((uchar *)keycache->block_mem);
+      keycache->block_mem = NULL;
       my_free(keycache->block_root);
-      keycache->block_root= NULL;
+      keycache->block_root = NULL;
     }
-    keycache->disk_blocks= -1;
+    keycache->disk_blocks = -1;
     /* Reset blocks_changed to be safe if flush_all_key_blocks is called */
-    keycache->blocks_changed= 0;
+    keycache->blocks_changed = 0;
   }
 
   DBUG_PRINT("status", ("used: %lu  changed: %lu  w_requests: %lu  "
                         "writes: %lu  r_requests: %lu  reads: %lu",
                         keycache->blocks_used, keycache->global_blocks_changed,
-                        (ulong) keycache->global_cache_w_requests,
-                        (ulong) keycache->global_cache_write,
-                        (ulong) keycache->global_cache_r_requests,
-                        (ulong) keycache->global_cache_read));
+                        (ulong)keycache->global_cache_w_requests,
+                        (ulong)keycache->global_cache_write,
+                        (ulong)keycache->global_cache_r_requests,
+                        (ulong)keycache->global_cache_read));
 
   /*
     Reset these values to be able to detect a disabled key cache.
     See Bug#44068 (RESTORE can disable the MyISAM Key Cache).
   */
-  keycache->blocks_used= 0;
-  keycache->blocks_unused= 0;
+  keycache->blocks_used = 0;
+  keycache->blocks_unused = 0;
 
-  if (cleanup)
-  {
+  if (cleanup) {
     mysql_mutex_destroy(&keycache->cache_lock);
-    keycache->key_cache_inited= keycache->can_be_used= 0;
+    keycache->key_cache_inited = keycache->can_be_used = 0;
   }
   DBUG_VOID_RETURN;
 } /* end_key_cache */
-
 
 /**
   Link a thread into double-linked queue of waiting threads.
@@ -699,27 +653,22 @@ void end_key_cache(KEY_CACHE *keycache, bool cleanup)
 */
 
 static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
-                            st_keycache_thread_var *thread)
-{
+                            st_keycache_thread_var *thread) {
   st_keycache_thread_var *last;
 
   DBUG_ASSERT(!thread->next && !thread->prev);
-  if (! (last= wqueue->last_thread))
-  {
+  if (!(last = wqueue->last_thread)) {
     /* Queue is empty */
-    thread->next= thread;
-    thread->prev= &thread->next;
+    thread->next = thread;
+    thread->prev = &thread->next;
+  } else {
+    thread->prev = last->next->prev;
+    last->next->prev = &thread->next;
+    thread->next = last->next;
+    last->next = thread;
   }
-  else
-  {
-    thread->prev= last->next->prev;
-    last->next->prev= &thread->next;
-    thread->next= last->next;
-    last->next= thread;
-  }
-  wqueue->last_thread= thread;
+  wqueue->last_thread = thread;
 }
-
 
 /**
   Unlink a thread from double-linked queue of waiting threads
@@ -732,30 +681,26 @@ static void link_into_queue(KEYCACHE_WQUEUE *wqueue,
 */
 
 static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
-                              st_keycache_thread_var *thread)
-{
+                              st_keycache_thread_var *thread) {
   DBUG_ASSERT(thread->next && thread->prev);
-  if (thread->next == thread)
-    /* The queue contains only one member */
-    wqueue->last_thread= NULL;
-  else
-  {
-    thread->next->prev= thread->prev;
-    *thread->prev=thread->next;
+  if (thread->next == thread) /* The queue contains only one member */
+    wqueue->last_thread = NULL;
+  else {
+    thread->next->prev = thread->prev;
+    *thread->prev = thread->next;
     if (wqueue->last_thread == thread)
-      wqueue->last_thread= STRUCT_PTR(st_keycache_thread_var, next,
-                                      thread->prev);
+      wqueue->last_thread =
+          STRUCT_PTR(st_keycache_thread_var, next, thread->prev);
   }
-  thread->next= NULL;
+  thread->next = NULL;
 #if !defined(DBUG_OFF)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some DBUG_ASSERT() rely on it.
   */
-  thread->prev= NULL;
+  thread->prev = NULL;
 #endif
 }
-
 
 /*
   Add a thread to single-linked queue of waiting threads
@@ -781,35 +726,29 @@ static void unlink_from_queue(KEYCACHE_WQUEUE *wqueue,
     condition for awake is indeed matched.
 */
 
-static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
-                          mysql_mutex_t *mutex,
-                          st_keycache_thread_var *thread)
-{
+static void wait_on_queue(KEYCACHE_WQUEUE *wqueue, mysql_mutex_t *mutex,
+                          st_keycache_thread_var *thread) {
   st_keycache_thread_var *last;
 
   /* Add to queue. */
   DBUG_ASSERT(!thread->next);
   DBUG_ASSERT(!thread->prev); /* Not required, but must be true anyway. */
-  if (! (last= wqueue->last_thread))
-    thread->next= thread;
-  else
-  {
-    thread->next= last->next;
-    last->next= thread;
+  if (!(last = wqueue->last_thread))
+    thread->next = thread;
+  else {
+    thread->next = last->next;
+    last->next = thread;
   }
-  wqueue->last_thread= thread;
+  wqueue->last_thread = thread;
 
   /*
     Wait until thread is removed from queue by the signalling thread.
     The loop protects against stray signals.
   */
-  do
-  {
+  do {
     mysql_cond_wait(&thread->suspend, mutex);
-  }
-  while (thread->next);
+  } while (thread->next);
 }
-
 
 /*
   Remove all threads from queue signaling them to proceed
@@ -827,69 +766,60 @@ static void wait_on_queue(KEYCACHE_WQUEUE *wqueue,
     variable thread->suspend.
 */
 
-static void release_whole_queue(KEYCACHE_WQUEUE *wqueue)
-{
+static void release_whole_queue(KEYCACHE_WQUEUE *wqueue) {
   st_keycache_thread_var *last;
   st_keycache_thread_var *next;
   st_keycache_thread_var *thread;
 
   /* Queue may be empty. */
-  if (!(last= wqueue->last_thread))
-    return;
+  if (!(last = wqueue->last_thread)) return;
 
-  next= last->next;
-  do
-  {
-    thread=next;
+  next = last->next;
+  do {
+    thread = next;
     /* Signal the thread. */
     mysql_cond_signal(&thread->suspend);
     /* Take thread from queue. */
-    next=thread->next;
-    thread->next= NULL;
-  }
-  while (thread != last);
+    next = thread->next;
+    thread->next = NULL;
+  } while (thread != last);
 
   /* Now queue is definitely empty. */
-  wqueue->last_thread= NULL;
+  wqueue->last_thread = NULL;
 }
-
 
 /*
   Unlink a block from the chain of dirty/clean blocks
 */
 
-static inline void unlink_changed(BLOCK_LINK *block)
-{
+static inline void unlink_changed(BLOCK_LINK *block) {
   DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
   if (block->next_changed)
-    block->next_changed->prev_changed= block->prev_changed;
-  *block->prev_changed= block->next_changed;
+    block->next_changed->prev_changed = block->prev_changed;
+  *block->prev_changed = block->next_changed;
 
 #if !defined(DBUG_OFF)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some DBUG_ASSERT() rely on it.
   */
-  block->next_changed= NULL;
-  block->prev_changed= NULL;
+  block->next_changed = NULL;
+  block->prev_changed = NULL;
 #endif
 }
-
 
 /*
   Link a block into the chain of dirty/clean blocks
 */
 
-static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
-{
+static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead) {
   DBUG_ASSERT(!block->next_changed);
   DBUG_ASSERT(!block->prev_changed);
-  block->prev_changed= phead;
-  if ((block->next_changed= *phead))
-    (*phead)->prev_changed= &block->next_changed;
-  *phead= block;
+  block->prev_changed = phead;
+  if ((block->next_changed = *phead))
+    (*phead)->prev_changed = &block->next_changed;
+  *phead = block;
 }
-
 
 /*
   Link a block in a chain of clean blocks of a file.
@@ -916,24 +846,19 @@ static inline void link_changed(BLOCK_LINK *block, BLOCK_LINK **phead)
     void
 */
 
-static void link_to_file_list(KEY_CACHE *keycache,
-                              BLOCK_LINK *block, int file,
-                              bool unlink_block)
-{
+static void link_to_file_list(KEY_CACHE *keycache, BLOCK_LINK *block, int file,
+                              bool unlink_block) {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
   DBUG_ASSERT(block->hash_link->file == file);
-  if (unlink_block)
-    unlink_changed(block);
+  if (unlink_block) unlink_changed(block);
   link_changed(block, &keycache->file_blocks[FILE_HASH(file)]);
-  if (block->status & BLOCK_CHANGED)
-  {
-    block->status&= ~BLOCK_CHANGED;
+  if (block->status & BLOCK_CHANGED) {
+    block->status &= ~BLOCK_CHANGED;
     keycache->blocks_changed--;
     keycache->global_blocks_changed--;
   }
 }
-
 
 /*
   Re-link a block from the clean chain to the dirty chain of a file.
@@ -957,9 +882,7 @@ static void link_to_file_list(KEY_CACHE *keycache,
     void
 */
 
-static void link_to_changed_list(KEY_CACHE *keycache,
-                                 BLOCK_LINK *block)
-{
+static void link_to_changed_list(KEY_CACHE *keycache, BLOCK_LINK *block) {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(!(block->status & BLOCK_CHANGED));
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
@@ -967,11 +890,10 @@ static void link_to_changed_list(KEY_CACHE *keycache,
   unlink_changed(block);
   link_changed(block,
                &keycache->changed_blocks[FILE_HASH(block->hash_link->file)]);
-  block->status|=BLOCK_CHANGED;
+  block->status |= BLOCK_CHANGED;
   keycache->blocks_changed++;
   keycache->global_blocks_changed++;
 }
-
 
 /*
   Link a block to the LRU chain at the beginning or at the end of
@@ -1013,8 +935,7 @@ static void link_to_changed_list(KEY_CACHE *keycache,
 */
 
 static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
-                       bool at_end)
-{
+                       bool at_end) {
   BLOCK_LINK *ins;
   BLOCK_LINK **pins;
 
@@ -1025,32 +946,28 @@ static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
   DBUG_ASSERT(!block->next_used);
   DBUG_ASSERT(!block->prev_used);
 
-  if (!hot && keycache->waiting_for_block.last_thread)
-  {
+  if (!hot && keycache->waiting_for_block.last_thread) {
     /* Signal that in the LRU warm sub-chain an available block has appeared */
-    st_keycache_thread_var *last_thread=
-      keycache->waiting_for_block.last_thread;
-    st_keycache_thread_var *first_thread= last_thread->next;
-    st_keycache_thread_var *next_thread= first_thread;
-    HASH_LINK *hash_link= (HASH_LINK *) first_thread->opt_info;
+    st_keycache_thread_var *last_thread =
+        keycache->waiting_for_block.last_thread;
+    st_keycache_thread_var *first_thread = last_thread->next;
+    st_keycache_thread_var *next_thread = first_thread;
+    HASH_LINK *hash_link = (HASH_LINK *)first_thread->opt_info;
     st_keycache_thread_var *thread;
-    do
-    {
-      thread= next_thread;
-      next_thread= thread->next;
+    do {
+      thread = next_thread;
+      next_thread = thread->next;
       /*
          We notify about the event all threads that ask
          for the same page as the first thread in the queue
       */
-      if ((HASH_LINK *) thread->opt_info == hash_link)
-      {
+      if ((HASH_LINK *)thread->opt_info == hash_link) {
         mysql_cond_signal(&thread->suspend);
         unlink_from_queue(&keycache->waiting_for_block, thread);
         block->requests++;
       }
-    }
-    while (thread != last_thread);
-    hash_link->block= block;
+    } while (thread != last_thread);
+    hash_link->block = block;
     /*
       NOTE: We assigned the block to the hash_link and signalled the
       requesting thread(s). But it is possible that other threads runs
@@ -1073,31 +990,25 @@ static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
       in the check of block->status is slightly more efficient and
       probably easier to read.
     */
-    block->status|= BLOCK_IN_EVICTION;
+    block->status |= BLOCK_IN_EVICTION;
     return;
   }
 
-  pins= hot ? &keycache->used_ins : &keycache->used_last;
-  ins= *pins;
-  if (ins)
-  {
-    ins->next_used->prev_used= &block->next_used;
-    block->next_used= ins->next_used;
-    block->prev_used= &ins->next_used;
-    ins->next_used= block;
-    if (at_end)
-      *pins= block;
-  }
-  else
-  {
+  pins = hot ? &keycache->used_ins : &keycache->used_last;
+  ins = *pins;
+  if (ins) {
+    ins->next_used->prev_used = &block->next_used;
+    block->next_used = ins->next_used;
+    block->prev_used = &ins->next_used;
+    ins->next_used = block;
+    if (at_end) *pins = block;
+  } else {
     /* The LRU ring is empty. Let the block point to itself. */
-    keycache->used_last= keycache->used_ins= block->next_used= block;
-    block->prev_used= &block->next_used;
+    keycache->used_last = keycache->used_ins = block->next_used = block;
+    block->prev_used = &block->next_used;
   }
-  DBUG_ASSERT((ulong) keycache->blocks_available <=
-              keycache->blocks_used);
+  DBUG_ASSERT((ulong)keycache->blocks_available <= keycache->blocks_used);
 }
-
 
 /*
   Unlink a block from the LRU chain
@@ -1114,8 +1025,7 @@ static void link_block(KEY_CACHE *keycache, BLOCK_LINK *block, bool hot,
     See NOTES for link_block
 */
 
-static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
-{
+static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block) {
   DBUG_ASSERT((block->status & ~BLOCK_CHANGED) == (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(block->hash_link); /*backptr to block NULL from free_block()*/
   DBUG_ASSERT(!block->requests);
@@ -1123,28 +1033,25 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
   DBUG_ASSERT(block->next_used && block->prev_used &&
               (block->next_used->prev_used == &block->next_used) &&
               (*block->prev_used == block));
-  if (block->next_used == block)
-    /* The list contains only one member */
-    keycache->used_last= keycache->used_ins= NULL;
-  else
-  {
-    block->next_used->prev_used= block->prev_used;
-    *block->prev_used= block->next_used;
+  if (block->next_used == block) /* The list contains only one member */
+    keycache->used_last = keycache->used_ins = NULL;
+  else {
+    block->next_used->prev_used = block->prev_used;
+    *block->prev_used = block->next_used;
     if (keycache->used_last == block)
-      keycache->used_last= STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
+      keycache->used_last = STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
     if (keycache->used_ins == block)
-      keycache->used_ins=STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
+      keycache->used_ins = STRUCT_PTR(BLOCK_LINK, next_used, block->prev_used);
   }
-  block->next_used= NULL;
+  block->next_used = NULL;
 #if !defined(DBUG_OFF)
   /*
     This makes it easier to see it's not in a chain during debugging.
     And some DBUG_ASSERT() rely on it.
   */
-  block->prev_used= NULL;
+  block->prev_used = NULL;
 #endif
 }
-
 
 /*
   Register requests for a block.
@@ -1162,16 +1069,13 @@ static void unlink_block(KEY_CACHE *keycache, BLOCK_LINK *block)
   RETURN
     void
 */
-static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
-{
+static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count) {
   DBUG_ASSERT(block->status & BLOCK_IN_USE);
   DBUG_ASSERT(block->hash_link);
 
-  if (!block->requests)
-    unlink_block(keycache, block);
-  block->requests+=count;
+  if (!block->requests) unlink_block(keycache, block);
+  block->requests += count;
 }
-
 
 /*
   Unregister request for a block
@@ -1188,12 +1092,12 @@ static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
 
   NOTES.
     Every linking to the LRU ring decrements by one a special block
-    counter (if it's positive). If the at_end parameter is TRUE the block is
+    counter (if it's positive). If the at_end parameter is true the block is
     added either at the end of warm sub-chain or at the end of hot sub-chain.
     It is added to the hot subchain if its counter is zero and number of
     blocks in warm sub-chain is not less than some low limit (determined by
     the division_limit parameter). Otherwise the block is added to the warm
-    sub-chain. If the at_end parameter is FALSE the block is always added
+    sub-chain. If the at_end parameter is false the block is always added
     at beginning of the warm sub-chain.
     Thus a warm block can be promoted to the hot sub-chain when its counter
     becomes zero for the first time.
@@ -1205,9 +1109,7 @@ static void reg_requests(KEY_CACHE *keycache, BLOCK_LINK *block, int count)
     not linked in the LRU ring.
 */
 
-static void unreg_request(KEY_CACHE *keycache,
-                          BLOCK_LINK *block, int at_end)
-{
+static void unreg_request(KEY_CACHE *keycache, BLOCK_LINK *block, int at_end) {
   DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(block->hash_link); /*backptr to block NULL from free_block()*/
   DBUG_ASSERT(block->requests);
@@ -1218,21 +1120,17 @@ static void unreg_request(KEY_CACHE *keycache,
     Unregister the request, but do not link erroneous blocks into the
     LRU ring.
   */
-  if (!--block->requests && !(block->status & BLOCK_ERROR))
-  {
+  if (!--block->requests && !(block->status & BLOCK_ERROR)) {
     bool hot;
-    if (block->hits_left)
-      block->hits_left--;
-    hot= !block->hits_left && at_end &&
-      keycache->warm_blocks > keycache->min_warm_blocks;
-    if (hot)
-    {
-      if (block->temperature == BLOCK_WARM)
-        keycache->warm_blocks--;
-      block->temperature= BLOCK_HOT;
+    if (block->hits_left) block->hits_left--;
+    hot = !block->hits_left && at_end &&
+          keycache->warm_blocks > keycache->min_warm_blocks;
+    if (hot) {
+      if (block->temperature == BLOCK_WARM) keycache->warm_blocks--;
+      block->temperature = BLOCK_HOT;
     }
     link_block(keycache, block, hot, at_end);
-    block->last_hit_time= keycache->keycache_time;
+    block->last_hit_time = keycache->keycache_time;
     keycache->keycache_time++;
     /*
       At this place, the block might be in the LRU ring or not. If an
@@ -1249,16 +1147,14 @@ static void unreg_request(KEY_CACHE *keycache,
       happens only if the LRU ring is empty, the block selected below
       would be NULL and the rest of the function skipped.
     */
-    block= keycache->used_ins;
+    block = keycache->used_ins;
     if (block && keycache->keycache_time - block->last_hit_time >
-	keycache->age_threshold)
-    {
+                     keycache->age_threshold) {
       unlink_block(keycache, block);
       link_block(keycache, block, 0, 0);
-      if (block->temperature != BLOCK_WARM)
-      {
+      if (block->temperature != BLOCK_WARM) {
         keycache->warm_blocks++;
-        block->temperature= BLOCK_WARM;
+        block->temperature = BLOCK_WARM;
       }
     }
   }
@@ -1268,8 +1164,7 @@ static void unreg_request(KEY_CACHE *keycache,
   Remove a reader of the page in block
 */
 
-static void remove_reader(BLOCK_LINK *block)
-{
+static void remove_reader(BLOCK_LINK *block) {
   DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
   DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
@@ -1277,20 +1172,17 @@ static void remove_reader(BLOCK_LINK *block)
   DBUG_ASSERT(!block->prev_used);
   DBUG_ASSERT(block->hash_link->requests);
 
-  if (! --block->hash_link->requests && block->condvar)
+  if (!--block->hash_link->requests && block->condvar)
     mysql_cond_signal(block->condvar);
 }
-
 
 /*
   Wait until the last reader of the page in block
   signals on its termination
 */
 
-static void wait_for_readers(KEY_CACHE *keycache,
-                             BLOCK_LINK *block,
-                             st_keycache_thread_var *thread)
-{
+static void wait_for_readers(KEY_CACHE *keycache, BLOCK_LINK *block,
+                             st_keycache_thread_var *thread) {
   DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
   DBUG_ASSERT(!(block->status & (BLOCK_IN_FLUSH | BLOCK_CHANGED)));
   DBUG_ASSERT(block->hash_link);
@@ -1300,89 +1192,78 @@ static void wait_for_readers(KEY_CACHE *keycache,
   /* Not linked in LRU ring. */
   DBUG_ASSERT(!block->next_used);
   DBUG_ASSERT(!block->prev_used);
-  while (block->hash_link->requests)
-  {
+  while (block->hash_link->requests) {
     /* There must be no other waiter. We have no queue here. */
     DBUG_ASSERT(!block->condvar);
-    block->condvar= &thread->suspend;
+    block->condvar = &thread->suspend;
     mysql_cond_wait(&thread->suspend, &keycache->cache_lock);
-    block->condvar= NULL;
+    block->condvar = NULL;
   }
 }
-
 
 /*
   Add a hash link to a bucket in the hash_table
 */
 
-static inline void link_hash(HASH_LINK **start, HASH_LINK *hash_link)
-{
-  if (*start)
-    (*start)->prev= &hash_link->next;
-  hash_link->next= *start;
-  hash_link->prev= start;
-  *start= hash_link;
+static inline void link_hash(HASH_LINK **start, HASH_LINK *hash_link) {
+  if (*start) (*start)->prev = &hash_link->next;
+  hash_link->next = *start;
+  hash_link->prev = start;
+  *start = hash_link;
 }
-
 
 /*
   Remove a hash link from the hash table
 */
 
-static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
-{
+static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link) {
   DBUG_ASSERT(hash_link->requests == 0);
-  if ((*hash_link->prev= hash_link->next))
-    hash_link->next->prev= hash_link->prev;
-  hash_link->block= NULL;
+  if ((*hash_link->prev = hash_link->next))
+    hash_link->next->prev = hash_link->prev;
+  hash_link->block = NULL;
 
-  if (keycache->waiting_for_hash_link.last_thread)
-  {
+  if (keycache->waiting_for_hash_link.last_thread) {
     /* Signal that a free hash link has appeared */
-    st_keycache_thread_var *last_thread=
-                               keycache->waiting_for_hash_link.last_thread;
-    st_keycache_thread_var *first_thread= last_thread->next;
-    st_keycache_thread_var *next_thread= first_thread;
-    KEYCACHE_PAGE *first_page= (KEYCACHE_PAGE *) (first_thread->opt_info);
+    st_keycache_thread_var *last_thread =
+        keycache->waiting_for_hash_link.last_thread;
+    st_keycache_thread_var *first_thread = last_thread->next;
+    st_keycache_thread_var *next_thread = first_thread;
+    KEYCACHE_PAGE *first_page = (KEYCACHE_PAGE *)(first_thread->opt_info);
     st_keycache_thread_var *thread;
 
-    hash_link->file= first_page->file;
-    hash_link->diskpos= first_page->filepos;
-    do
-    {
+    hash_link->file = first_page->file;
+    hash_link->diskpos = first_page->filepos;
+    do {
       KEYCACHE_PAGE *page;
-      thread= next_thread;
-      page= (KEYCACHE_PAGE *) thread->opt_info;
-      next_thread= thread->next;
+      thread = next_thread;
+      page = (KEYCACHE_PAGE *)thread->opt_info;
+      next_thread = thread->next;
       /*
          We notify about the event all threads that ask
          for the same page as the first thread in the queue
       */
-      if (page->file == hash_link->file && page->filepos == hash_link->diskpos)
-      {
+      if (page->file == hash_link->file &&
+          page->filepos == hash_link->diskpos) {
         mysql_cond_signal(&thread->suspend);
         unlink_from_queue(&keycache->waiting_for_hash_link, thread);
       }
-    }
-    while (thread != last_thread);
-    link_hash(&keycache->hash_root[KEYCACHE_HASH(hash_link->file,
-					         hash_link->diskpos)],
-              hash_link);
+    } while (thread != last_thread);
+    link_hash(
+        &keycache
+             ->hash_root[KEYCACHE_HASH(hash_link->file, hash_link->diskpos)],
+        hash_link);
     return;
   }
-  hash_link->next= keycache->free_hash_list;
-  keycache->free_hash_list= hash_link;
+  hash_link->next = keycache->free_hash_list;
+  keycache->free_hash_list = hash_link;
 }
-
 
 /*
   Get the hash link for a page
 */
 
-static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
-                                int file, my_off_t filepos,
-                                st_keycache_thread_var *thread)
-{
+static HASH_LINK *get_hash_link(KEY_CACHE *keycache, int file, my_off_t filepos,
+                                st_keycache_thread_var *thread) {
   HASH_LINK *hash_link, **start;
 #ifndef DBUG_OFF
   int cnt;
@@ -1394,47 +1275,39 @@ restart:
      start contains the head of the bucket list,
      hash_link points to the first member of the list
   */
-  hash_link= *(start= &keycache->hash_root[KEYCACHE_HASH(file, filepos)]);
+  hash_link = *(start = &keycache->hash_root[KEYCACHE_HASH(file, filepos)]);
 #ifndef DBUG_OFF
-  cnt= 0;
+  cnt = 0;
 #endif
   /* Look for an element for the pair (file, filepos) in the bucket chain */
   while (hash_link &&
-         (hash_link->diskpos != filepos || hash_link->file != file))
-  {
-    hash_link= hash_link->next;
+         (hash_link->diskpos != filepos || hash_link->file != file)) {
+    hash_link = hash_link->next;
 #ifndef DBUG_OFF
     cnt++;
     DBUG_ASSERT(cnt <= keycache->hash_links_used);
 #endif
   }
-  if (! hash_link)
-  {
+  if (!hash_link) {
     /* There is no hash link in the hash table for the pair (file, filepos) */
-    if (keycache->free_hash_list)
-    {
-      hash_link= keycache->free_hash_list;
-      keycache->free_hash_list= hash_link->next;
-    }
-    else if (keycache->hash_links_used < keycache->hash_links)
-    {
-      hash_link= &keycache->hash_link_root[keycache->hash_links_used++];
-    }
-    else
-    {
+    if (keycache->free_hash_list) {
+      hash_link = keycache->free_hash_list;
+      keycache->free_hash_list = hash_link->next;
+    } else if (keycache->hash_links_used < keycache->hash_links) {
+      hash_link = &keycache->hash_link_root[keycache->hash_links_used++];
+    } else {
       /* Wait for a free hash link */
       KEYCACHE_PAGE page;
-      page.file= file;
-      page.filepos= filepos;
-      thread->opt_info= (void *) &page;
+      page.file = file;
+      page.filepos = filepos;
+      thread->opt_info = (void *)&page;
       link_into_queue(&keycache->waiting_for_hash_link, thread);
-      mysql_cond_wait(&thread->suspend,
-                                 &keycache->cache_lock);
-      thread->opt_info= NULL;
+      mysql_cond_wait(&thread->suspend, &keycache->cache_lock);
+      thread->opt_info = NULL;
       goto restart;
     }
-    hash_link->file= file;
-    hash_link->diskpos= filepos;
+    hash_link->file = file;
+    hash_link->diskpos = filepos;
     link_hash(start, hash_link);
   }
   /* Register the request for the page */
@@ -1442,7 +1315,6 @@ restart:
 
   return hash_link;
 }
-
 
 /*
   Get a block for the file page requested by a keycache read/write operation;
@@ -1482,27 +1354,24 @@ restart:
 */
 
 static BLOCK_LINK *find_key_block(KEY_CACHE *keycache,
-                                  st_keycache_thread_var *thread,
-                                  File file, my_off_t filepos,
-                                  int init_hits_left,
-                                  int wrmode, int *page_st)
-{
+                                  st_keycache_thread_var *thread, File file,
+                                  my_off_t filepos, int init_hits_left,
+                                  int wrmode, int *page_st) {
   HASH_LINK *hash_link;
   BLOCK_LINK *block;
-  int error= 0;
+  int error = 0;
   int page_status;
 
   DBUG_ENTER("find_key_block");
-  DBUG_PRINT("enter", ("fd: %d  pos: %lu  wrmode: %d",
-                       file, (ulong) filepos, wrmode));
+  DBUG_PRINT("enter",
+             ("fd: %d  pos: %lu  wrmode: %d", file, (ulong)filepos, wrmode));
 
 restart:
   /*
     If the flush phase of a resize operation fails, the cache is left
     unusable. This will be detected only after "goto restart".
   */
-  if (!keycache->can_be_used)
-    DBUG_RETURN(0);
+  if (!keycache->can_be_used) DBUG_RETURN(0);
 
   /*
     Find the hash_link for the requested file block (file, filepos). We
@@ -1527,15 +1396,14 @@ restart:
           - changed over the file contents (dirty) or
           - not changed (clean).
   */
-  hash_link= get_hash_link(keycache, file, filepos, thread);
+  hash_link = get_hash_link(keycache, file, filepos, thread);
   DBUG_ASSERT((hash_link->file == file) && (hash_link->diskpos == filepos));
 
-  page_status= -1;
-  if ((block= hash_link->block) &&
-      block->hash_link == hash_link && (block->status & BLOCK_READ))
-  {
+  page_status = -1;
+  if ((block = hash_link->block) && block->hash_link == hash_link &&
+      (block->status & BLOCK_READ)) {
     /* Assigned block with valid (changed or unchanged) contents. */
-    page_status= PAGE_READ;
+    page_status = PAGE_READ;
   }
   /*
     else (page_status == -1)
@@ -1544,12 +1412,10 @@ restart:
       - block assigned but not yet read from file (invalid data).
   */
 
-  if (keycache->in_resize)
-  {
+  if (keycache->in_resize) {
     /* This is a request during a resize operation */
 
-    if (!block)
-    {
+    if (!block) {
       /*
         The file block is not in the cache. We don't need it in the
         cache: we are going to read or write directly to file. Cancel
@@ -1557,8 +1423,7 @@ restart:
         we did not release cache_lock since increasing it. So no other
         thread can wait for our request to become released.
       */
-      if (hash_link->requests == 1)
-      {
+      if (hash_link->requests == 1) {
         /*
           We are the only one to request this hash_link (this file/pos).
           Free the hash_link.
@@ -1579,14 +1444,12 @@ restart:
         Refresh the request on the hash-link so that it cannot be reused
         for another file/pos.
       */
-      thread->opt_info= (void *) hash_link;
+      thread->opt_info = (void *)hash_link;
       link_into_queue(&keycache->waiting_for_block, thread);
-      do
-      {
-        mysql_cond_wait(&thread->suspend,
-                                   &keycache->cache_lock);
+      do {
+        mysql_cond_wait(&thread->suspend, &keycache->cache_lock);
       } while (thread->next);
-      thread->opt_info= NULL;
+      thread->opt_info = NULL;
       /*
         A block should now be assigned to the hash_link. But it may
         still need to be evicted. Anyway, we should re-check the
@@ -1608,8 +1471,7 @@ restart:
     */
     reg_requests(keycache, block, 1);
 
-    if (page_status != PAGE_READ)
-    {
+    if (page_status != PAGE_READ) {
       /*
         - block not assigned to this hash_link or
         - block assigned but not yet read from file (invalid data).
@@ -1629,10 +1491,10 @@ restart:
         only. Waiting here on COND_FOR_REQUESTED works in all
         situations.
       */
-      DBUG_ASSERT(((block->hash_link != hash_link) &&
-                   (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
-                  ((block->hash_link == hash_link) &&
-                   !(block->status & BLOCK_READ)));
+      DBUG_ASSERT(
+          ((block->hash_link != hash_link) &&
+           (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
+          ((block->hash_link == hash_link) && !(block->status & BLOCK_READ)));
       wait_on_queue(&block->wqueue[COND_FOR_REQUESTED], &keycache->cache_lock,
                     thread);
       /*
@@ -1655,10 +1517,9 @@ restart:
       for eviction. In any case it can be marked for freeing.
     */
 
-    if (!wrmode)
-    {
+    if (!wrmode) {
       /* A reader can just read the block. */
-      *page_st= PAGE_READ;
+      *page_st = PAGE_READ;
       DBUG_ASSERT((hash_link->file == file) &&
                   (hash_link->diskpos == filepos) &&
                   (block->hash_link == hash_link));
@@ -1671,8 +1532,7 @@ restart:
     */
     DBUG_ASSERT(!(block->status & BLOCK_FOR_UPDATE) || fail_block(block));
 
-    while (block->status & BLOCK_IN_FLUSH)
-    {
+    while (block->status & BLOCK_IN_FLUSH) {
       /*
         Wait until the block is flushed to file. Do not release the
         request on the hash_link yet to prevent that the block is freed
@@ -1688,8 +1548,7 @@ restart:
         If the flush phase failed, the resize could have finished while
         we waited here.
       */
-      if (!keycache->in_resize)
-      {
+      if (!keycache->in_resize) {
         remove_reader(block);
         unreg_request(keycache, block, 1);
         goto restart;
@@ -1699,8 +1558,7 @@ restart:
       DBUG_ASSERT(block->hash_link == hash_link);
     }
 
-    if (block->status & BLOCK_CHANGED)
-    {
+    if (block->status & BLOCK_CHANGED) {
       /*
         We want to write a block with changed contents. If the cache
         block size is bigger than the callers block size (e.g. MyISAM),
@@ -1708,7 +1566,7 @@ restart:
         other part of the block must be preserved. Since the block has
         not yet been selected for flush, we can still add our changes.
       */
-      *page_st= PAGE_READ;
+      *page_st = PAGE_READ;
       DBUG_ASSERT((hash_link->file == file) &&
                   (hash_link->diskpos == filepos) &&
                   (block->hash_link == hash_link));
@@ -1729,9 +1587,8 @@ restart:
     remove_reader(block);
 
     /* If the block is not in eviction and not in free, we can free it. */
-    if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                           BLOCK_REASSIGNED)))
-    {
+    if (!(block->status &
+          (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED))) {
       /*
         Free block as we are going to write directly to file.
         Although we have an exlusive lock for the updated key part,
@@ -1743,9 +1600,7 @@ restart:
         flag (see the code below that handles reading requests).
       */
       free_block(keycache, thread, block);
-    }
-    else
-    {
+    } else {
       /*
         The block will be evicted/freed soon. Don't touch it in any way.
         Unregister the request that we registered above.
@@ -1766,27 +1621,23 @@ restart:
         again. So we can terminate the loop when the block is no longer
         assigned to this file/pos.
       */
-      do
-      {
-        wait_on_queue(&block->wqueue[COND_FOR_SAVED],
-                      &keycache->cache_lock, thread);
+      do {
+        wait_on_queue(&block->wqueue[COND_FOR_SAVED], &keycache->cache_lock,
+                      thread);
         /*
           If the flush phase failed, the resize could have finished
           while we waited here.
         */
-        if (!keycache->in_resize)
-          goto restart;
-      } while (block->hash_link &&
-               (block->hash_link->file == file) &&
+        if (!keycache->in_resize) goto restart;
+      } while (block->hash_link && (block->hash_link->file == file) &&
                (block->hash_link->diskpos == filepos));
     }
     DBUG_RETURN(0);
   }
 
   if (page_status == PAGE_READ &&
-      (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                        BLOCK_REASSIGNED)))
-  {
+      (block->status &
+       (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED))) {
     /*
       This is a request for a block to be removed from cache. The block
       is assigned to this hash_link and contains valid data, but is
@@ -1801,17 +1652,14 @@ restart:
        Only reading requests can proceed until the old dirty page is flushed,
        all others are to be suspended, then resubmitted
     */
-    if (!wrmode && !(block->status & BLOCK_REASSIGNED))
-    {
+    if (!wrmode && !(block->status & BLOCK_REASSIGNED)) {
       /*
         This is a read request and the block not yet reassigned. We can
         register our request and proceed. This unlinks the block from
         the LRU ring and protects it against eviction.
       */
       reg_requests(keycache, block, 1);
-    }
-    else
-    {
+    } else {
       /*
         Either this is a write request for a block that is in eviction
         or in free. We must not use it any more. Instead we must evict
@@ -1835,9 +1683,7 @@ restart:
       */
       goto restart;
     }
-  }
-  else
-  {
+  } else {
     /*
       This is a request for a new block or for a block not to be removed.
       Either
@@ -1848,28 +1694,22 @@ restart:
       - block assigned with valid (changed or unchanged) data and
       - it will not be reassigned/freed.
     */
-    if (! block)
-    {
+    if (!block) {
       /* No block is assigned to the hash_link yet. */
-      if (keycache->blocks_unused)
-      {
-        if (keycache->free_block_list)
-        {
+      if (keycache->blocks_unused) {
+        if (keycache->free_block_list) {
           /* There is a block in the free list. */
-          block= keycache->free_block_list;
-          keycache->free_block_list= block->next_used;
-          block->next_used= NULL;
-        }
-        else
-        {
+          block = keycache->free_block_list;
+          keycache->free_block_list = block->next_used;
+          block->next_used = NULL;
+        } else {
           size_t block_mem_offset;
           /* There are some never used blocks, take first of them */
-          DBUG_ASSERT(keycache->blocks_used <
-                      (ulong) keycache->disk_blocks);
-          block= &keycache->block_root[keycache->blocks_used];
-          block_mem_offset= 
-           ((size_t) keycache->blocks_used) * keycache->key_cache_block_size;
-          block->buffer= keycache->block_mem + block_mem_offset;
+          DBUG_ASSERT(keycache->blocks_used < (ulong)keycache->disk_blocks);
+          block = &keycache->block_root[keycache->blocks_used];
+          block_mem_offset =
+              ((size_t)keycache->blocks_used) * keycache->key_cache_block_size;
+          block->buffer = keycache->block_mem + block_mem_offset;
           keycache->blocks_used++;
           DBUG_ASSERT(!block->next_used);
         }
@@ -1880,27 +1720,24 @@ restart:
         DBUG_ASSERT(!block->status);
         DBUG_ASSERT(!block->requests);
         keycache->blocks_unused--;
-        block->status= BLOCK_IN_USE;
-        block->length= 0;
-        block->offset= keycache->key_cache_block_size;
-        block->requests= 1;
-        block->temperature= BLOCK_COLD;
-        block->hits_left= init_hits_left;
-        block->last_hit_time= 0;
-        block->hash_link= hash_link;
-        hash_link->block= block;
+        block->status = BLOCK_IN_USE;
+        block->length = 0;
+        block->offset = keycache->key_cache_block_size;
+        block->requests = 1;
+        block->temperature = BLOCK_COLD;
+        block->hits_left = init_hits_left;
+        block->last_hit_time = 0;
+        block->hash_link = hash_link;
+        hash_link->block = block;
         link_to_file_list(keycache, block, file, 0);
-        page_status= PAGE_TO_BE_READ;
-      }
-      else
-      {
-	/*
+        page_status = PAGE_TO_BE_READ;
+      } else {
+        /*
           There are no free blocks and no never used blocks, use a block
           from the LRU ring.
         */
 
-        if (! keycache->used_last)
-        {
+        if (!keycache->used_last) {
           /*
             The LRU ring is empty. Wait until a new block is added to
             it. Several threads might wait here for the same hash_link,
@@ -1913,15 +1750,12 @@ restart:
             it is marked BLOCK_IN_EVICTION.
           */
 
-          thread->opt_info= (void *) hash_link;
+          thread->opt_info = (void *)hash_link;
           link_into_queue(&keycache->waiting_for_block, thread);
-          do
-          {
-            mysql_cond_wait(&thread->suspend,
-                                       &keycache->cache_lock);
-          }
-          while (thread->next);
-          thread->opt_info= NULL;
+          do {
+            mysql_cond_wait(&thread->suspend, &keycache->cache_lock);
+          } while (thread->next);
+          thread->opt_info = NULL;
           /* Assert that block has a request registered. */
           DBUG_ASSERT(hash_link->block->requests);
           /* Assert that block is not in LRU ring. */
@@ -1934,20 +1768,19 @@ restart:
           link_block(). Otherwise it is still NULL. In the latter case
           we need to grab a block from the LRU ring ourselves.
         */
-        block= hash_link->block;
-        if (! block)
-        {
+        block = hash_link->block;
+        if (!block) {
           /* Select the last block from the LRU ring. */
-          block= keycache->used_last->next_used;
-          block->hits_left= init_hits_left;
-          block->last_hit_time= 0;
-          hash_link->block= block;
+          block = keycache->used_last->next_used;
+          block->hits_left = init_hits_left;
+          block->last_hit_time = 0;
+          hash_link->block = block;
           /*
             Register a request on the block. This unlinks it from the
             LRU ring and protects it against eviction.
           */
           DBUG_ASSERT(!block->requests);
-          reg_requests(keycache, block,1);
+          reg_requests(keycache, block, 1);
           /*
             We do not need to set block->status|= BLOCK_IN_EVICTION here
             because we will set block->status|= BLOCK_IN_SWITCH
@@ -1965,17 +1798,14 @@ restart:
           in most cases the first condition is true.
         */
         if (block->hash_link != hash_link &&
-	    ! (block->status & BLOCK_IN_SWITCH) )
-        {
-	  /* this is a primary request for a new page */
-          block->status|= BLOCK_IN_SWITCH;
+            !(block->status & BLOCK_IN_SWITCH)) {
+          /* this is a primary request for a new page */
+          block->status |= BLOCK_IN_SWITCH;
 
-          if (block->status & BLOCK_CHANGED)
-          {
-	    /* The block contains a dirty page - push it out of the cache */
+          if (block->status & BLOCK_CHANGED) {
+            /* The block contains a dirty page - push it out of the cache */
 
-            if (block->status & BLOCK_IN_FLUSH)
-            {
+            if (block->status & BLOCK_IN_FLUSH) {
               /*
                 The block is marked for flush. If we do not wait here,
                 it could happen that we write the block, reassign it to
@@ -1990,21 +1820,17 @@ restart:
                 alone except for reading. No free, no write.
               */
               DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
-              DBUG_ASSERT(!(block->status & (BLOCK_REASSIGNED |
-                                             BLOCK_CHANGED |
+              DBUG_ASSERT(!(block->status & (BLOCK_REASSIGNED | BLOCK_CHANGED |
                                              BLOCK_FOR_UPDATE)));
-            }
-            else
-            {
-              block->status|= BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE;
+            } else {
+              block->status |= BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE;
               /*
                 BLOCK_IN_EVICTION may be true or not. Other flags must
                 have a fixed value.
               */
               DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
-                          (BLOCK_READ | BLOCK_IN_SWITCH |
-                           BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE |
-                           BLOCK_CHANGED | BLOCK_IN_USE));
+                          (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
+                           BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED | BLOCK_IN_USE));
               DBUG_ASSERT(block->hash_link);
 
               mysql_mutex_unlock(&keycache->cache_lock);
@@ -2012,30 +1838,30 @@ restart:
                 The call is thread safe because only the current
                 thread might change the block->hash_link value
               */
-              error= (int)my_pwrite(block->hash_link->file,
-                                    block->buffer + block->offset,
-                                    block->length - block->offset,
-                                    block->hash_link->diskpos + block->offset,
-                                    MYF(MY_NABP | MY_WAIT_IF_FULL));
+              error = (int)my_pwrite(block->hash_link->file,
+                                     block->buffer + block->offset,
+                                     block->length - block->offset,
+                                     block->hash_link->diskpos + block->offset,
+                                     MYF(MY_NABP | MY_WAIT_IF_FULL));
               mysql_mutex_lock(&keycache->cache_lock);
 
               /* Block status must not have changed. */
               DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
-                          (BLOCK_READ | BLOCK_IN_SWITCH |
-                           BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE |
-                           BLOCK_CHANGED | BLOCK_IN_USE) || fail_block(block));
+                              (BLOCK_READ | BLOCK_IN_SWITCH | BLOCK_IN_FLUSH |
+                               BLOCK_IN_FLUSHWRITE | BLOCK_CHANGED |
+                               BLOCK_IN_USE) ||
+                          fail_block(block));
               keycache->global_cache_write++;
             }
           }
 
-          block->status|= BLOCK_REASSIGNED;
+          block->status |= BLOCK_REASSIGNED;
           /*
             The block comes from the LRU ring. It must have a hash_link
             assigned.
           */
           DBUG_ASSERT(block->hash_link);
-          if (block->hash_link)
-          {
+          if (block->hash_link) {
             /*
               All pending requests for this page must be resubmitted.
               This must be done before waiting for readers. They could
@@ -2049,15 +1875,15 @@ restart:
               correct queue and the *blocks_changed counters are
               correct.
             */
-            block->status&= ~(BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE);
+            block->status &= ~(BLOCK_IN_FLUSH | BLOCK_IN_FLUSHWRITE);
             link_to_file_list(keycache, block, block->hash_link->file, 1);
             release_whole_queue(&block->wqueue[COND_FOR_SAVED]);
             /*
               The block is still assigned to its old hash_link.
-	      Wait until all pending read requests
-	      for this page are executed
-	      (we could have avoided this waiting, if we had read
-	      a page in the cache in a sweep, without yielding control)
+              Wait until all pending read requests
+              for this page are executed
+              (we could have avoided this waiting, if we had read
+              a page in the cache in a sweep, without yielding control)
             */
             wait_for_readers(keycache, block, thread);
             DBUG_ASSERT(block->hash_link && block->hash_link->block == block &&
@@ -2076,25 +1902,23 @@ restart:
               and hash_link refer to each other. Hence we need to assign
               the hash_link first, but then we would not know if it was
               linked before. Hence we would not know if to unlink it. So
-              unlink it here and call link_to_file_list(..., FALSE).
+              unlink it here and call link_to_file_list(..., false).
             */
             unlink_changed(block);
           }
-          block->status= error ? BLOCK_ERROR : BLOCK_IN_USE ;
-          block->length= 0;
-          block->offset= keycache->key_cache_block_size;
-          block->hash_link= hash_link;
+          block->status = error ? BLOCK_ERROR : BLOCK_IN_USE;
+          block->length = 0;
+          block->offset = keycache->key_cache_block_size;
+          block->hash_link = hash_link;
           link_to_file_list(keycache, block, file, 0);
-          page_status= PAGE_TO_BE_READ;
+          page_status = PAGE_TO_BE_READ;
 
           DBUG_ASSERT(block->hash_link->block == block);
           DBUG_ASSERT(hash_link->block->hash_link == hash_link);
-        }
-        else
-        {
+        } else {
           /*
             Either (block->hash_link == hash_link),
-	    or     (block->status & BLOCK_IN_SWITCH).
+            or     (block->status & BLOCK_IN_SWITCH).
 
             This is for secondary requests for a new file block only.
             Either it is already assigned to the new hash_link meanwhile
@@ -2106,14 +1930,13 @@ restart:
             attached to the same hash_link and as such destined for the
             same file block.
           */
-          page_status= (((block->hash_link == hash_link) &&
-                         (block->status & BLOCK_READ)) ?
-                        PAGE_READ : PAGE_WAIT_TO_BE_READ);
+          page_status =
+              (((block->hash_link == hash_link) && (block->status & BLOCK_READ))
+                   ? PAGE_READ
+                   : PAGE_WAIT_TO_BE_READ);
         }
       }
-    }
-    else
-    {
+    } else {
       /*
         Block is not NULL. This hash_link points to a block.
         Either
@@ -2134,16 +1957,17 @@ restart:
         Register a request on the block. This is another protection
         against eviction.
       */
-      DBUG_ASSERT(((block->hash_link != hash_link) &&
-                   (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
-                  ((block->hash_link == hash_link) &&
-                   !(block->status & BLOCK_READ)) ||
-                  ((block->status & BLOCK_READ) &&
-                   !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))));
+      DBUG_ASSERT(
+          ((block->hash_link != hash_link) &&
+           (block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) ||
+          ((block->hash_link == hash_link) && !(block->status & BLOCK_READ)) ||
+          ((block->status & BLOCK_READ) &&
+           !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))));
       reg_requests(keycache, block, 1);
-      page_status= (((block->hash_link == hash_link) &&
-                     (block->status & BLOCK_READ)) ?
-                    PAGE_READ : PAGE_WAIT_TO_BE_READ);
+      page_status =
+          (((block->hash_link == hash_link) && (block->status & BLOCK_READ))
+               ? PAGE_READ
+               : PAGE_WAIT_TO_BE_READ);
     }
   }
 
@@ -2158,10 +1982,9 @@ restart:
   DBUG_ASSERT((page_status == PAGE_WAIT_TO_BE_READ) ||
               ((block->hash_link->file == file) &&
                (block->hash_link->diskpos == filepos)));
-  *page_st=page_status;
+  *page_st = page_status;
   DBUG_RETURN(block);
 }
-
 
 /*
   Read into a key cache block buffer from disk.
@@ -2188,17 +2011,14 @@ restart:
     portion is less than read_length, but not less than min_length.
 */
 
-static void read_block(KEY_CACHE *keycache,
-                       st_keycache_thread_var *thread_var,
-                       BLOCK_LINK *block, uint read_length,
-                       uint min_length, bool primary)
-{
+static void read_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                       BLOCK_LINK *block, uint read_length, uint min_length,
+                       bool primary) {
   size_t got_length;
 
   /* On entry cache_lock is locked */
 
-  if (primary)
-  {
+  if (primary) {
     /*
       This code is executed only by threads that submitted primary
       requests. Until block->status contains BLOCK_READ, all other
@@ -2219,15 +2039,15 @@ static void read_block(KEY_CACHE *keycache,
       Here other threads may step in and register as secondary readers.
       They will register in block->wqueue[COND_FOR_REQUESTED].
     */
-    got_length= my_pread(block->hash_link->file, block->buffer,
-                         read_length, block->hash_link->diskpos, MYF(0));
+    got_length = my_pread(block->hash_link->file, block->buffer, read_length,
+                          block->hash_link->diskpos, MYF(0));
     mysql_mutex_lock(&keycache->cache_lock);
     /*
       The block can now have been marked for free (in case of
       FLUSH_RELEASE). Otherwise the state must be unchanged.
     */
-    DBUG_ASSERT(((block->status & ~(BLOCK_REASSIGNED |
-                                    BLOCK_FOR_UPDATE)) == BLOCK_IN_USE) ||
+    DBUG_ASSERT(((block->status & ~(BLOCK_REASSIGNED | BLOCK_FOR_UPDATE)) ==
+                 BLOCK_IN_USE) ||
                 fail_block(block));
     DBUG_ASSERT((block->length == 0) || fail_block(block));
     DBUG_ASSERT((block->offset == keycache->key_cache_block_size) ||
@@ -2235,11 +2055,10 @@ static void read_block(KEY_CACHE *keycache,
     DBUG_ASSERT((block->requests > 0) || fail_block(block));
 
     if (got_length < min_length)
-      block->status|= BLOCK_ERROR;
-    else
-    {
-      block->status|= BLOCK_READ;
-      block->length= (int)got_length;
+      block->status |= BLOCK_ERROR;
+    else {
+      block->status |= BLOCK_READ;
+      block->length = (int)got_length;
       /*
         Do not set block->offset here. If this block is marked
         BLOCK_CHANGED later, we want to flush only the modified part. So
@@ -2249,9 +2068,7 @@ static void read_block(KEY_CACHE *keycache,
     }
     /* Signal that all pending requests for this page now can be processed */
     release_whole_queue(&block->wqueue[COND_FOR_REQUESTED]);
-  }
-  else
-  {
+  } else {
     /*
       This code is executed only by threads that submitted secondary
       requests. At this point it could happen that the cache block is
@@ -2265,7 +2082,6 @@ static void read_block(KEY_CACHE *keycache,
                   thread_var);
   }
 }
-
 
 /*
   Read a block of data from a cached file into a buffer;
@@ -2290,28 +2106,24 @@ static void read_block(KEY_CACHE *keycache,
     The function ensures that a block of data of size length from file
     positioned at filepos is in the buffers for some key cache blocks.
     Then the function either copies the data into the buffer buff, or,
-    if return_buffer is TRUE, it just returns the pointer to the key cache
+    if return_buffer is true, it just returns the pointer to the key cache
     buffer with the data.
     Filepos must be a multiple of 'block_length', but it doesn't
     have to be a multiple of key_cache_block_size;
 */
 
-uchar *key_cache_read(KEY_CACHE *keycache,
-                      st_keycache_thread_var *thread_var,
-                      File file, my_off_t filepos, int level,
-                      uchar *buff, uint length,
-                      uint block_length,
-                      int return_buffer MY_ATTRIBUTE((unused)))
-{
-  bool locked_and_incremented= FALSE;
-  int error=0;
-  uchar *start= buff;
+uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                      File file, my_off_t filepos, int level, uchar *buff,
+                      uint length, uint block_length,
+                      int return_buffer MY_ATTRIBUTE((unused))) {
+  bool locked_and_incremented = false;
+  int error = 0;
+  uchar *start = buff;
   DBUG_ENTER("key_cache_read");
-  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
-               (uint) file, (ulong) filepos, length));
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u", (uint)file,
+                       (ulong)filepos, length));
 
-  if (keycache->key_cache_inited)
-  {
+  if (keycache->key_cache_inited) {
     /* Key cache is used */
     BLOCK_LINK *block;
     uint read_length;
@@ -2340,38 +2152,34 @@ uchar *key_cache_read(KEY_CACHE *keycache,
       block could be missed and old data could be read.
     */
     while (keycache->in_resize && !keycache->resize_in_flush)
-      wait_on_queue(&keycache->resize_queue, &keycache->cache_lock,
-                    thread_var);
+      wait_on_queue(&keycache->resize_queue, &keycache->cache_lock, thread_var);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented = true;
     /* Requested data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos % keycache->key_cache_block_size);
+    offset = (uint)(filepos % keycache->key_cache_block_size);
     /* Read data in key_cache_block_size increments */
-    do
-    {
+    do {
       /* Cache could be disabled in a later iteration. */
-      if (!keycache->can_be_used)
-      {
+      if (!keycache->can_be_used) {
         goto no_key_cache;
       }
       /* Start reading at the beginning of the cache block. */
-      filepos-= offset;
+      filepos -= offset;
       /* Do not read beyond the end of the cache block. */
-      read_length= length;
-      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       if (block_length > keycache->key_cache_block_size || offset)
-	return_buffer=0;
+        return_buffer = 0;
 
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_r_requests++;
 
-      block= find_key_block(keycache, thread_var, file, filepos, level, 0,
-                            &page_st);
-      if (!block)
-      {
+      block = find_key_block(keycache, thread_var, file, filepos, level, 0,
+                             &page_st);
+      if (!block) {
         /*
           This happens only for requests submitted during key cache
           resize. The block is not in the cache and shall not go in.
@@ -2379,18 +2187,16 @@ uchar *key_cache_read(KEY_CACHE *keycache,
         */
         keycache->global_cache_read++;
         mysql_mutex_unlock(&keycache->cache_lock);
-        error= (my_pread(file, (uchar*) buff, read_length,
-                         filepos + offset, MYF(MY_NABP)) != 0);
+        error = (my_pread(file, (uchar *)buff, read_length, filepos + offset,
+                          MYF(MY_NABP)) != 0);
         mysql_mutex_lock(&keycache->cache_lock);
         goto next_block;
       }
-      if (!(block->status & BLOCK_ERROR))
-      {
-        if (page_st != PAGE_READ)
-        {
+      if (!(block->status & BLOCK_ERROR)) {
+        if (page_st != PAGE_READ) {
           /* The requested page is to be read into the block buffer */
           read_block(keycache, thread_var, block,
-                     keycache->key_cache_block_size, read_length+offset,
+                     keycache->key_cache_block_size, read_length + offset,
                      page_st == PAGE_TO_BE_READ);
           /*
             A secondary request must now have the block assigned to the
@@ -2401,28 +2207,25 @@ uchar *key_cache_read(KEY_CACHE *keycache,
           DBUG_ASSERT(block->hash_link->file == file);
           DBUG_ASSERT(block->hash_link->diskpos == filepos);
           DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
-        }
-        else if (block->length < read_length + offset)
-        {
+        } else if (block->length < read_length + offset) {
           /*
             Impossible if nothing goes wrong:
             this could only happen if we are using a file with
             small key blocks and are trying to read outside the file
           */
           set_my_errno(-1);
-          block->status|= BLOCK_ERROR;
+          block->status |= BLOCK_ERROR;
         }
       }
 
       /* block status may have added BLOCK_ERROR in the above 'if'. */
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         {
           DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
           mysql_mutex_unlock(&keycache->cache_lock);
 
           /* Copy data from the cache buffer */
-          memcpy(buff, block->buffer+offset, (size_t) read_length);
+          memcpy(buff, block->buffer + offset, (size_t)read_length);
 
           mysql_mutex_lock(&keycache->cache_lock);
           DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
@@ -2433,30 +2236,27 @@ uchar *key_cache_read(KEY_CACHE *keycache,
 
       /* Error injection for coverage testing. */
       DBUG_EXECUTE_IF("key_cache_read_block_error",
-                      block->status|= BLOCK_ERROR;);
+                      block->status |= BLOCK_ERROR;);
 
       /* Do not link erroneous blocks into the LRU ring, but free them. */
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         /*
           Link the block into the LRU ring if it's the last submitted
           request for the block. This enables eviction for the block.
         */
         unreg_request(keycache, block, 1);
-      }
-      else
-      {
+      } else {
         free_block(keycache, thread_var, block);
-        error= 1;
+        error = 1;
         break;
       }
 
     next_block:
-      buff+= read_length;
-      filepos+= read_length+offset;
-      offset= 0;
+      buff += read_length;
+      filepos += read_length + offset;
+      offset = 0;
 
-    } while ((length-= read_length));
+    } while ((length -= read_length));
     goto end;
   }
 
@@ -2466,23 +2266,18 @@ no_key_cache:
   keycache->global_cache_r_requests++;
   keycache->global_cache_read++;
 
-  if (locked_and_incremented)
-    mysql_mutex_unlock(&keycache->cache_lock);
-  if (my_pread(file, (uchar*) buff, length, filepos, MYF(MY_NABP)))
-    error= 1;
-  if (locked_and_incremented)
-    mysql_mutex_lock(&keycache->cache_lock);
+  if (locked_and_incremented) mysql_mutex_unlock(&keycache->cache_lock);
+  if (my_pread(file, (uchar *)buff, length, filepos, MYF(MY_NABP))) error = 1;
+  if (locked_and_incremented) mysql_mutex_lock(&keycache->cache_lock);
 
 end:
-  if (locked_and_incremented)
-  {
+  if (locked_and_incremented) {
     dec_counter_for_resize_op(keycache);
     mysql_mutex_unlock(&keycache->cache_lock);
   }
-  DBUG_PRINT("exit", ("error: %d", error ));
-  DBUG_RETURN(error ? (uchar*) 0 : start);
+  DBUG_PRINT("exit", ("error: %d", error));
+  DBUG_RETURN(error ? (uchar *)0 : start);
 }
-
 
 /*
   Insert a block of file data from a buffer into key cache
@@ -2505,24 +2300,21 @@ end:
     0 if a success, 1 - otherwise.
 */
 
-int key_cache_insert(KEY_CACHE *keycache,
-                     st_keycache_thread_var *thread_var,
-                     File file, my_off_t filepos, int level,
-                     uchar *buff, uint length)
-{
-  int error= 0;
+int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                     File file, my_off_t filepos, int level, uchar *buff,
+                     uint length) {
+  int error = 0;
   DBUG_ENTER("key_cache_insert");
-  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u",
-               (uint) file,(ulong) filepos, length));
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u", (uint)file,
+                       (ulong)filepos, length));
 
-  if (keycache->key_cache_inited)
-  {
+  if (keycache->key_cache_inited) {
     /* Key cache is used */
     BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;
-    bool locked_and_incremented= FALSE;
+    bool locked_and_incremented = false;
 
     /*
       When the keycache is once initialized, we use the cache_lock to
@@ -2535,34 +2327,30 @@ int key_cache_insert(KEY_CACHE *keycache,
       We do not load index data into a disabled cache nor into an
       ongoing resize.
     */
-    if (!keycache->can_be_used || keycache->in_resize)
-	goto no_key_cache;
+    if (!keycache->can_be_used || keycache->in_resize) goto no_key_cache;
     /* Register the pseudo I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented = true;
     /* Loaded data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos % keycache->key_cache_block_size);
+    offset = (uint)(filepos % keycache->key_cache_block_size);
     /* Load data in key_cache_block_size increments. */
-    do
-    {
+    do {
       /* Cache could be disabled or resizing in a later iteration. */
-      if (!keycache->can_be_used || keycache->in_resize)
-	goto no_key_cache;
+      if (!keycache->can_be_used || keycache->in_resize) goto no_key_cache;
       /* Start loading at the beginning of the cache block. */
-      filepos-= offset;
+      filepos -= offset;
       /* Do not load beyond the end of the cache block. */
-      read_length= length;
-      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* The block has been read by the caller already. */
       keycache->global_cache_read++;
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_r_requests++;
-      block= find_key_block(keycache, thread_var, file, filepos, level, 0,
-                            &page_st);
-      if (!block)
-      {
+      block = find_key_block(keycache, thread_var, file, filepos, level, 0,
+                             &page_st);
+      if (!block) {
         /*
           This happens only for requests submitted during key cache
           resize. The block is not in the cache and shall not go in.
@@ -2570,12 +2358,10 @@ int key_cache_insert(KEY_CACHE *keycache,
         */
         goto no_key_cache;
       }
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         if ((page_st == PAGE_WAIT_TO_BE_READ) ||
             ((page_st == PAGE_TO_BE_READ) &&
-             (offset || (read_length < keycache->key_cache_block_size))))
-        {
+             (offset || (read_length < keycache->key_cache_block_size)))) {
           /*
             Either
 
@@ -2585,7 +2371,7 @@ int key_cache_insert(KEY_CACHE *keycache,
             hash_link). So we cannot call remove_reader() on the block.
             And we cannot access the hash_link directly here. We need to
             wait until the assignment is complete. read_block() executes
-            the correct wait when called with primary == FALSE.
+            the correct wait when called with primary == false.
 
             Or
 
@@ -2604,8 +2390,8 @@ int key_cache_insert(KEY_CACHE *keycache,
             expensive operation, we need to do this for correctness.
           */
           read_block(keycache, thread_var, block,
-                     keycache->key_cache_block_size,
-                     read_length + offset, (page_st == PAGE_TO_BE_READ));
+                     keycache->key_cache_block_size, read_length + offset,
+                     (page_st == PAGE_TO_BE_READ));
           /*
             A secondary request must now have the block assigned to the
             requested file block. It does not hurt to check it for
@@ -2615,9 +2401,7 @@ int key_cache_insert(KEY_CACHE *keycache,
           DBUG_ASSERT(block->hash_link->file == file);
           DBUG_ASSERT(block->hash_link->diskpos == filepos);
           DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
-        }
-        else if (page_st == PAGE_TO_BE_READ)
-        {
+        } else if (page_st == PAGE_TO_BE_READ) {
           /*
             This is a new block in the cache. If we come here, we have
             data for the whole block.
@@ -2634,7 +2418,7 @@ int key_cache_insert(KEY_CACHE *keycache,
           */
 
           /* Copy data from buff */
-          memcpy(block->buffer+offset, buff, (size_t) read_length);
+          memcpy(block->buffer + offset, buff, (size_t)read_length);
 
           mysql_mutex_lock(&keycache->cache_lock);
           DBUG_ASSERT(block->status & BLOCK_IN_USE);
@@ -2646,8 +2430,8 @@ int key_cache_insert(KEY_CACHE *keycache,
             secondary readers any more. They can immediately access the
             block.
           */
-          block->status|= BLOCK_READ;
-          block->length= read_length+offset;
+          block->status |= BLOCK_READ;
+          block->length = read_length + offset;
           /*
             Do not set block->offset here. If this block is marked
             BLOCK_CHANGED later, we want to flush only the modified part. So
@@ -2656,9 +2440,7 @@ int key_cache_insert(KEY_CACHE *keycache,
           */
           /* Signal all pending requests. */
           release_whole_queue(&block->wqueue[COND_FOR_REQUESTED]);
-        }
-        else
-        {
+        } else {
           /*
             page_st == PAGE_READ. The block is in the buffer. All data
             must already be present. Blocks are always read with all
@@ -2687,38 +2469,34 @@ int key_cache_insert(KEY_CACHE *keycache,
 
       /* Error injection for coverage testing. */
       DBUG_EXECUTE_IF("key_cache_insert_block_error",
-                      block->status|= BLOCK_ERROR; errno=EIO;);
+                      block->status |= BLOCK_ERROR;
+                      errno = EIO;);
 
       /* Do not link erroneous blocks into the LRU ring, but free them. */
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         /*
           Link the block into the LRU ring if it's the last submitted
           request for the block. This enables eviction for the block.
         */
         unreg_request(keycache, block, 1);
-      }
-      else
-      {
+      } else {
         free_block(keycache, thread_var, block);
-        error= 1;
+        error = 1;
         break;
       }
 
-      buff+= read_length;
-      filepos+= read_length+offset;
-      offset= 0;
+      buff += read_length;
+      filepos += read_length + offset;
+      offset = 0;
 
-    } while ((length-= read_length));
+    } while ((length -= read_length));
 
   no_key_cache:
-    if (locked_and_incremented)
-      dec_counter_for_resize_op(keycache);
+    if (locked_and_incremented) dec_counter_for_resize_op(keycache);
     mysql_mutex_unlock(&keycache->cache_lock);
   }
   DBUG_RETURN(error);
 }
-
 
 /*
   Write a buffer into a cached file.
@@ -2743,31 +2521,26 @@ int key_cache_insert(KEY_CACHE *keycache,
     The function copies the data of size length from buff into buffers
     for key cache blocks that are  assigned to contain the portion of
     the file starting with position filepos.
-    It ensures that this data is flushed to the file if dont_write is FALSE.
+    It ensures that this data is flushed to the file if dont_write is false.
     Filepos must be a multiple of 'block_length', but it doesn't
     have to be a multiple of key_cache_block_size;
 
-    dont_write is always TRUE in the server (info->lock_type is never F_UNLCK).
+    dont_write is always true in the server (info->lock_type is never F_UNLCK).
 */
 
-int key_cache_write(KEY_CACHE *keycache,
-                    st_keycache_thread_var *thread_var,
-                    File file, my_off_t filepos, int level,
-                    uchar *buff, uint length,
-                    uint block_length  MY_ATTRIBUTE((unused)),
-                    int dont_write)
-{
-  bool locked_and_incremented= FALSE;
-  int error=0;
+int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                    File file, my_off_t filepos, int level, uchar *buff,
+                    uint length, uint block_length MY_ATTRIBUTE((unused)),
+                    int dont_write) {
+  bool locked_and_incremented = false;
+  int error = 0;
   DBUG_ENTER("key_cache_write");
-  DBUG_PRINT("enter",
-             ("fd: %u  pos: %lu  length: %u  block_length: %u"
-              "  key_block_length: %u",
-              (uint) file, (ulong) filepos, length, block_length,
-              keycache ? keycache->key_cache_block_size : 0));
+  DBUG_PRINT("enter", ("fd: %u  pos: %lu  length: %u  block_length: %u"
+                       "  key_block_length: %u",
+                       (uint)file, (ulong)filepos, length, block_length,
+                       keycache ? keycache->key_cache_block_size : 0));
 
-  if (!dont_write)
-  {
+  if (!dont_write) {
     /* purecov: begin inspected */
     /* Not used in the server. */
     /* Force writing from buff into disk. */
@@ -2778,8 +2551,7 @@ int key_cache_write(KEY_CACHE *keycache,
     /* purecov: end */
   }
 
-  if (keycache->key_cache_inited)
-  {
+  if (keycache->key_cache_inited) {
     /* Key cache is used */
     BLOCK_LINK *block;
     uint read_length;
@@ -2809,46 +2581,41 @@ int key_cache_write(KEY_CACHE *keycache,
       could be missed and data could be written below a cached block.
     */
     while (keycache->in_resize && !keycache->resize_in_flush)
-      wait_on_queue(&keycache->resize_queue, &keycache->cache_lock,
-                    thread_var);
+      wait_on_queue(&keycache->resize_queue, &keycache->cache_lock, thread_var);
     /* Register the I/O for the next resize. */
     inc_counter_for_resize_op(keycache);
-    locked_and_incremented= TRUE;
+    locked_and_incremented = true;
     /* Requested data may not always be aligned to cache blocks. */
-    offset= (uint) (filepos % keycache->key_cache_block_size);
+    offset = (uint)(filepos % keycache->key_cache_block_size);
     /* Write data in key_cache_block_size increments. */
-    do
-    {
+    do {
       /* Cache could be disabled in a later iteration. */
-      if (!keycache->can_be_used)
-	goto no_key_cache;
+      if (!keycache->can_be_used) goto no_key_cache;
 
       /* Start writing at the beginning of the cache block. */
-      filepos-= offset;
+      filepos -= offset;
       /* Do not write beyond the end of the cache block. */
-      read_length= length;
-      set_if_smaller(read_length, keycache->key_cache_block_size-offset);
+      read_length = length;
+      set_if_smaller(read_length, keycache->key_cache_block_size - offset);
       DBUG_ASSERT(read_length > 0);
 
       /* Request the cache block that matches file/pos. */
       keycache->global_cache_w_requests++;
-      block= find_key_block(keycache, thread_var, file, filepos, level, 1,
-                            &page_st);
-      if (!block)
-      {
+      block = find_key_block(keycache, thread_var, file, filepos, level, 1,
+                             &page_st);
+      if (!block) {
         /*
           This happens only for requests submitted during key cache
           resize. The block is not in the cache and shall not go in.
           Write directly to file.
         */
-        if (dont_write)
-        {
+        if (dont_write) {
           /* Used in the server. */
           keycache->global_cache_write++;
           mysql_mutex_unlock(&keycache->cache_lock);
-          if (my_pwrite(file, (uchar*) buff, read_length, filepos + offset,
+          if (my_pwrite(file, (uchar *)buff, read_length, filepos + offset,
                         MYF(MY_NABP | MY_WAIT_IF_FULL)))
-            error=1;
+            error = 1;
           mysql_mutex_lock(&keycache->cache_lock);
         }
         goto next_block;
@@ -2859,8 +2626,7 @@ int key_cache_write(KEY_CACHE *keycache,
         However, we must not set the status of the block before it is
         assigned to this file/pos.
       */
-      if (page_st != PAGE_WAIT_TO_BE_READ)
-        block->status|= BLOCK_FOR_UPDATE;
+      if (page_st != PAGE_WAIT_TO_BE_READ) block->status |= BLOCK_FOR_UPDATE;
       /*
         We must read the file block first if it is not yet in the cache
         and we do not replace all of its contents.
@@ -2876,11 +2642,11 @@ int key_cache_write(KEY_CACHE *keycache,
       if (!(block->status & BLOCK_ERROR) &&
           ((page_st == PAGE_TO_BE_READ &&
             (offset || read_length < keycache->key_cache_block_size)) ||
-           (page_st == PAGE_WAIT_TO_BE_READ)))
-      {
+           (page_st == PAGE_WAIT_TO_BE_READ))) {
         read_block(keycache, thread_var, block,
-                   offset + read_length >= keycache->key_cache_block_size?
-                   offset : keycache->key_cache_block_size,
+                   offset + read_length >= keycache->key_cache_block_size
+                       ? offset
+                       : keycache->key_cache_block_size,
                    offset, (page_st == PAGE_TO_BE_READ));
         DBUG_ASSERT(keycache->can_be_used);
         DBUG_ASSERT(block->status & (BLOCK_READ | BLOCK_IN_USE));
@@ -2889,7 +2655,7 @@ int key_cache_write(KEY_CACHE *keycache,
           freed. This must be set when we release the cache_lock.
           Here we set it in case we could not set it above.
         */
-        block->status|= BLOCK_FOR_UPDATE;
+        block->status |= BLOCK_FOR_UPDATE;
       }
       /*
         The block should always be assigned to the requested file block
@@ -2909,8 +2675,7 @@ int key_cache_write(KEY_CACHE *keycache,
       */
       DBUG_ASSERT(!(block->status & BLOCK_REASSIGNED));
 
-      while (block->status & BLOCK_IN_FLUSHWRITE)
-      {
+      while (block->status & BLOCK_IN_FLUSHWRITE) {
         /*
           Another thread is flushing the block. It was dirty already.
           Wait until the block is flushed to file. Otherwise we could
@@ -2938,32 +2703,29 @@ int key_cache_write(KEY_CACHE *keycache,
         the buffer would be read/written. An attempt to flush during
         memcpy() is prevented with BLOCK_FOR_UPDATE.
       */
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         mysql_mutex_unlock(&keycache->cache_lock);
-        memcpy(block->buffer+offset, buff, (size_t) read_length);
+        memcpy(block->buffer + offset, buff, (size_t)read_length);
 
         mysql_mutex_lock(&keycache->cache_lock);
       }
 
-      if (!dont_write)
-      {
+      if (!dont_write) {
         /* Not used in the server. buff has been written to disk at start. */
         if ((block->status & BLOCK_CHANGED) &&
             (!offset && read_length >= keycache->key_cache_block_size))
-             link_to_file_list(keycache, block, block->hash_link->file, 1);
-      }
-      else if (! (block->status & BLOCK_CHANGED))
+          link_to_file_list(keycache, block, block->hash_link->file, 1);
+      } else if (!(block->status & BLOCK_CHANGED))
         link_to_changed_list(keycache, block);
-      block->status|=BLOCK_READ;
+      block->status |= BLOCK_READ;
       /*
         Allow block to be selected for to be freed. Since it is marked
         BLOCK_CHANGED too, it won't be selected for to be freed without
         a flush.
       */
-      block->status&= ~BLOCK_FOR_UPDATE;
+      block->status &= ~BLOCK_FOR_UPDATE;
       set_if_smaller(block->offset, offset);
-      set_if_bigger(block->length, read_length+offset);
+      set_if_bigger(block->length, read_length + offset);
 
       /* Threads may be waiting for the changes to be complete. */
       release_whole_queue(&block->wqueue[COND_FOR_REQUESTED]);
@@ -2980,61 +2742,53 @@ int key_cache_write(KEY_CACHE *keycache,
 
       /* Error injection for coverage testing. */
       DBUG_EXECUTE_IF("key_cache_write_block_error",
-                      block->status|= BLOCK_ERROR;);
+                      block->status |= BLOCK_ERROR;);
 
       /* Do not link erroneous blocks into the LRU ring, but free them. */
-      if (!(block->status & BLOCK_ERROR))
-      {
+      if (!(block->status & BLOCK_ERROR)) {
         /*
           Link the block into the LRU ring if it's the last submitted
           request for the block. This enables eviction for the block.
         */
         unreg_request(keycache, block, 1);
-      }
-      else
-      {
+      } else {
         /* Pretend a "clean" block to avoid complications. */
-        block->status&= ~(BLOCK_CHANGED);
+        block->status &= ~(BLOCK_CHANGED);
         free_block(keycache, thread_var, block);
-        error= 1;
+        error = 1;
         break;
       }
 
     next_block:
-      buff+= read_length;
-      filepos+= read_length+offset;
-      offset= 0;
+      buff += read_length;
+      filepos += read_length + offset;
+      offset = 0;
 
-    } while ((length-= read_length));
+    } while ((length -= read_length));
     goto end;
   }
 
 no_key_cache:
   /* Key cache is not used */
-  if (dont_write)
-  {
+  if (dont_write) {
     /* Used in the server. */
     keycache->global_cache_w_requests++;
     keycache->global_cache_write++;
-    if (locked_and_incremented)
-      mysql_mutex_unlock(&keycache->cache_lock);
-    if (my_pwrite(file, (uchar*) buff, length, filepos,
-		  MYF(MY_NABP | MY_WAIT_IF_FULL)))
-      error=1;
-    if (locked_and_incremented)
-      mysql_mutex_lock(&keycache->cache_lock);
+    if (locked_and_incremented) mysql_mutex_unlock(&keycache->cache_lock);
+    if (my_pwrite(file, (uchar *)buff, length, filepos,
+                  MYF(MY_NABP | MY_WAIT_IF_FULL)))
+      error = 1;
+    if (locked_and_incremented) mysql_mutex_lock(&keycache->cache_lock);
   }
 
 end:
-  if (locked_and_incremented)
-  {
+  if (locked_and_incremented) {
     dec_counter_for_resize_op(keycache);
     mysql_mutex_unlock(&keycache->cache_lock);
   }
-  
+
   DBUG_RETURN(error);
 }
-
 
 /*
   Free block.
@@ -3064,10 +2818,8 @@ end:
     Block must have a request registered on it.
 */
 
-static void free_block(KEY_CACHE *keycache,
-                       st_keycache_thread_var *thread_var,
-                       BLOCK_LINK *block)
-{
+static void free_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                       BLOCK_LINK *block) {
   /*
     Assert that the block is not free already. And that it is in a clean
     state. Note that the block might just be assigned to a hash_link and
@@ -3076,9 +2828,9 @@ static void free_block(KEY_CACHE *keycache,
     below.
   */
   DBUG_ASSERT((block->status & BLOCK_IN_USE) &&
-              !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                                 BLOCK_REASSIGNED | BLOCK_IN_FLUSH |
-                                 BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
+              !(block->status &
+                (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED |
+                 BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
   /* Assert that the block is in a file_blocks chain. */
   DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
   /* Assert that the block is not in the LRU ring. */
@@ -3093,15 +2845,14 @@ static void free_block(KEY_CACHE *keycache,
     condition (if()) can be removed.
   */
   DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
-  if (block->hash_link)
-  {
+  if (block->hash_link) {
     /*
       While waiting for readers to finish, new readers might request the
       block. But since we set block->status|= BLOCK_REASSIGNED, they
       will wait on block->wqueue[COND_FOR_SAVED]. They must be signalled
       later.
     */
-    block->status|= BLOCK_REASSIGNED;
+    block->status |= BLOCK_REASSIGNED;
     wait_for_readers(keycache, block, thread_var);
     /*
       The block must not have been freed by another thread. Repeat some
@@ -3109,11 +2860,10 @@ static void free_block(KEY_CACHE *keycache,
       (BLOCK_READ).
     */
     DBUG_ASSERT(block->hash_link && block->hash_link->block == block);
-    DBUG_ASSERT((block->status & (BLOCK_READ | BLOCK_IN_USE |
-                                  BLOCK_REASSIGNED)) &&
-                !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                                   BLOCK_IN_FLUSH | BLOCK_CHANGED |
-                                   BLOCK_FOR_UPDATE)));
+    DBUG_ASSERT(
+        (block->status & (BLOCK_READ | BLOCK_IN_USE | BLOCK_REASSIGNED)) &&
+        !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
+                           BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_FOR_UPDATE)));
     DBUG_ASSERT(block->prev_changed && *block->prev_changed == block);
     DBUG_ASSERT(!block->prev_used);
     /*
@@ -3121,7 +2871,7 @@ static void free_block(KEY_CACHE *keycache,
       thread (through unreg_request() below), other threads must not see
       this flag. They could become confused.
     */
-    block->status&= ~BLOCK_REASSIGNED;
+    block->status &= ~BLOCK_REASSIGNED;
     /*
       Do not release the hash_link until the block is off all lists.
       At least not if we hand it over for eviction in unreg_request().
@@ -3146,39 +2896,36 @@ static void free_block(KEY_CACHE *keycache,
     thus not added to the LRU ring. In this case we must not touch the
     block any more.
   */
-  if (block->status & BLOCK_IN_EVICTION)
-    return;
+  if (block->status & BLOCK_IN_EVICTION) return;
 
   /* Error blocks are not put into the LRU ring. */
-  if (!(block->status & BLOCK_ERROR))
-  {
+  if (!(block->status & BLOCK_ERROR)) {
     /* Here the block must be in the LRU ring. Unlink it again. */
     DBUG_ASSERT(block->next_used && block->prev_used &&
                 *block->prev_used == block);
     unlink_block(keycache, block);
   }
-  if (block->temperature == BLOCK_WARM)
-    keycache->warm_blocks--;
-  block->temperature= BLOCK_COLD;
+  if (block->temperature == BLOCK_WARM) keycache->warm_blocks--;
+  block->temperature = BLOCK_COLD;
 
   /* Remove from file_blocks hash. */
   unlink_changed(block);
 
   /* Remove reference to block from hash table. */
   unlink_hash(keycache, block->hash_link);
-  block->hash_link= NULL;
+  block->hash_link = NULL;
 
-  block->status= 0;
-  block->length= 0;
-  block->offset= keycache->key_cache_block_size;
+  block->status = 0;
+  block->length = 0;
+  block->offset = keycache->key_cache_block_size;
 
   /* Enforced by unlink_changed(), but just to be sure. */
   DBUG_ASSERT(!block->next_changed && !block->prev_changed);
   /* Enforced by unlink_block(): not in LRU ring nor in free_block_list. */
   DBUG_ASSERT(!block->next_used && !block->prev_used);
   /* Insert the free block in the free list. */
-  block->next_used= keycache->free_block_list;
-  keycache->free_block_list= block;
+  block->next_used = keycache->free_block_list;
+  keycache->free_block_list = block;
   /* Keep track of the number of currently unused blocks. */
   keycache->blocks_unused++;
 
@@ -3186,21 +2933,18 @@ static void free_block(KEY_CACHE *keycache,
   release_whole_queue(&block->wqueue[COND_FOR_SAVED]);
 }
 
-
 /*
   Flush a portion of changed blocks to disk,
   free used blocks if requested
 */
 
 static int flush_cached_blocks(KEY_CACHE *keycache,
-                               st_keycache_thread_var *thread_var,
-                               File file, BLOCK_LINK **cache,
-                               BLOCK_LINK **end,
-                               enum flush_type type)
-{
+                               st_keycache_thread_var *thread_var, File file,
+                               BLOCK_LINK **cache, BLOCK_LINK **end,
+                               enum flush_type type) {
   int error;
-  int last_errno= 0;
-  uint count= (uint) (end-cache);
+  int last_errno = 0;
+  uint count = (uint)(end - cache);
 
   /* Don't lock the cache during the flush */
   mysql_mutex_unlock(&keycache->cache_lock);
@@ -3208,11 +2952,9 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
      As all blocks referred in 'cache' are marked by BLOCK_IN_FLUSH
      we are guarunteed no thread will change them
   */
-  std::sort(cache, cache + count,
-    [](const BLOCK_LINK *a, const BLOCK_LINK *b)
-    {
-      return a->hash_link->diskpos < b->hash_link->diskpos;
-    });
+  std::sort(cache, cache + count, [](const BLOCK_LINK *a, const BLOCK_LINK *b) {
+    return a->hash_link->diskpos < b->hash_link->diskpos;
+  });
 
   mysql_mutex_lock(&keycache->cache_lock);
   /*
@@ -3220,38 +2962,34 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
     block in 'cache'. These must be unregistered by free_block() or
     unreg_request().
   */
-  for ( ; cache != end ; cache++)
-  {
-    BLOCK_LINK *block= *cache;
+  for (; cache != end; cache++) {
+    BLOCK_LINK *block = *cache;
 
     /*
       If the block contents is going to be changed, we abandon the flush
       for this block. flush_key_blocks_int() will restart its search and
       handle the block properly.
     */
-    if (!(block->status & BLOCK_FOR_UPDATE))
-    {
+    if (!(block->status & BLOCK_FOR_UPDATE)) {
       /* Blocks coming here must have a certain status. */
       DBUG_ASSERT(block->hash_link);
       DBUG_ASSERT(block->hash_link->block == block);
       DBUG_ASSERT(block->hash_link->file == file);
       DBUG_ASSERT((block->status & ~BLOCK_IN_EVICTION) ==
                   (BLOCK_READ | BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_IN_USE));
-      block->status|= BLOCK_IN_FLUSHWRITE;
+      block->status |= BLOCK_IN_FLUSHWRITE;
       mysql_mutex_unlock(&keycache->cache_lock);
-      error= (int)my_pwrite(file, block->buffer+block->offset,
-                            block->length - block->offset,
-                            block->hash_link->diskpos+ block->offset,
-                            MYF(MY_NABP | MY_WAIT_IF_FULL));
+      error = (int)my_pwrite(file, block->buffer + block->offset,
+                             block->length - block->offset,
+                             block->hash_link->diskpos + block->offset,
+                             MYF(MY_NABP | MY_WAIT_IF_FULL));
       mysql_mutex_lock(&keycache->cache_lock);
       keycache->global_cache_write++;
-      if (error)
-      {
-        block->status|= BLOCK_ERROR;
-        if (!last_errno)
-          last_errno= errno ? errno : -1;
+      if (error) {
+        block->status |= BLOCK_ERROR;
+        if (!last_errno) last_errno = errno ? errno : -1;
       }
-      block->status&= ~BLOCK_IN_FLUSHWRITE;
+      block->status &= ~BLOCK_IN_FLUSHWRITE;
       /* Block must not have changed status except BLOCK_FOR_UPDATE. */
       DBUG_ASSERT(block->hash_link);
       DBUG_ASSERT(block->hash_link->block == block);
@@ -3267,7 +3005,7 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
       */
       link_to_file_list(keycache, block, file, 1);
     }
-    block->status&= ~BLOCK_IN_FLUSH;
+    block->status &= ~BLOCK_IN_FLUSH;
     /*
       Let to proceed for possible waiting requests to write to the block page.
       It might happen only during an operation to resize the key cache.
@@ -3275,17 +3013,14 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
     release_whole_queue(&block->wqueue[COND_FOR_SAVED]);
     /* type will never be FLUSH_IGNORE_CHANGED here */
     if (!(type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE) &&
-        !(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                           BLOCK_FOR_UPDATE)))
-    {
+        !(block->status &
+          (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_FOR_UPDATE))) {
       /*
         Note that a request has been registered against the block in
         flush_key_blocks_int().
       */
       free_block(keycache, thread_var, block);
-    }
-    else
-    {
+    } else {
       /*
         Link the block into the LRU ring if it's the last submitted
         request for the block. This enables eviction for the block.
@@ -3298,7 +3033,6 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
   } /* end of for ( ; cache != end ; cache++) */
   return last_errno;
 }
-
 
 /*
   Flush all key blocks for a file to disk, but don't do any mutex locks.
@@ -3325,47 +3059,41 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
 */
 
 static int flush_key_blocks_int(KEY_CACHE *keycache,
-                                st_keycache_thread_var *thread_var,
-				File file, enum flush_type type)
-{
-  BLOCK_LINK *cache_buff[FLUSH_CACHE],**cache;
-  int last_errno= 0;
-  int last_errcnt= 0;
+                                st_keycache_thread_var *thread_var, File file,
+                                enum flush_type type) {
+  BLOCK_LINK *cache_buff[FLUSH_CACHE], **cache;
+  int last_errno = 0;
+  int last_errcnt = 0;
   DBUG_ENTER("flush_key_blocks_int");
-  DBUG_PRINT("enter",("file: %d  blocks_used: %lu  blocks_changed: %lu",
-              file, keycache->blocks_used, keycache->blocks_changed));
+  DBUG_PRINT("enter", ("file: %d  blocks_used: %lu  blocks_changed: %lu", file,
+                       keycache->blocks_used, keycache->blocks_changed));
 
-  cache= cache_buff;
-  if (keycache->disk_blocks > 0)
-  {
+  cache = cache_buff;
+  if (keycache->disk_blocks > 0) {
     /* Key cache exists and flush is not disabled */
-    int error= 0;
-    uint count= FLUSH_CACHE;
-    BLOCK_LINK **pos,**end;
-    BLOCK_LINK *first_in_switch= NULL;
+    int error = 0;
+    uint count = FLUSH_CACHE;
+    BLOCK_LINK **pos, **end;
+    BLOCK_LINK *first_in_switch = NULL;
     BLOCK_LINK *last_in_flush;
     BLOCK_LINK *last_for_update;
     BLOCK_LINK *block, *next;
 #ifndef DBUG_OFF
-    uint cnt=0;
+    uint cnt = 0;
 #endif
 
-    if (type != FLUSH_IGNORE_CHANGED)
-    {
+    if (type != FLUSH_IGNORE_CHANGED) {
       /*
          Count how many key blocks we have to cache to be able
          to flush all dirty pages with minimum seek moves
       */
-      count= 0;
-      for (block= keycache->changed_blocks[FILE_HASH(file)] ;
-           block ;
-           block= block->next_changed)
-      {
+      count = 0;
+      for (block = keycache->changed_blocks[FILE_HASH(file)]; block;
+           block = block->next_changed) {
         if ((block->hash_link->file == file) &&
-            !(block->status & BLOCK_IN_FLUSH))
-        {
+            !(block->status & BLOCK_IN_FLUSH)) {
           count++;
-          DBUG_ASSERT(count<= keycache->blocks_used);
+          DBUG_ASSERT(count <= keycache->blocks_used);
         }
       }
       /*
@@ -3374,43 +3102,36 @@ static int flush_key_blocks_int(KEY_CACHE *keycache,
         changed blocks appear while we need to wait for something.
       */
       if ((count > FLUSH_CACHE) &&
-          !(cache= (BLOCK_LINK**) my_malloc(key_memory_KEY_CACHE,
-                                            sizeof(BLOCK_LINK*)*count,
-                                            MYF(0))))
-        cache= cache_buff;
+          !(cache = (BLOCK_LINK **)my_malloc(
+                key_memory_KEY_CACHE, sizeof(BLOCK_LINK *) * count, MYF(0))))
+        cache = cache_buff;
       /*
         After a restart there could be more changed blocks than now.
         So we should not let count become smaller than the fixed buffer.
       */
-      if (cache == cache_buff)
-        count= FLUSH_CACHE;
+      if (cache == cache_buff) count = FLUSH_CACHE;
     }
 
     /* Retrieve the blocks and write them to a buffer to be flushed */
-restart:
-    last_in_flush= NULL;
-    last_for_update= NULL;
-    end= (pos= cache)+count;
-    for (block= keycache->changed_blocks[FILE_HASH(file)] ;
-         block ;
-         block= next)
-    {
+  restart:
+    last_in_flush = NULL;
+    last_for_update = NULL;
+    end = (pos = cache) + count;
+    for (block = keycache->changed_blocks[FILE_HASH(file)]; block;
+         block = next) {
 #ifndef DBUG_OFF
       cnt++;
       DBUG_ASSERT(cnt <= keycache->blocks_used);
 #endif
-      next= block->next_changed;
-      if (block->hash_link->file == file)
-      {
-        if (!(block->status & (BLOCK_IN_FLUSH | BLOCK_FOR_UPDATE)))
-        {
+      next = block->next_changed;
+      if (block->hash_link->file == file) {
+        if (!(block->status & (BLOCK_IN_FLUSH | BLOCK_FOR_UPDATE))) {
           /*
             Note: The special handling of BLOCK_IN_SWITCH is obsolete
             since we set BLOCK_IN_FLUSH if the eviction includes a
             flush. It can be removed in a later version.
           */
-          if (!(block->status & BLOCK_IN_SWITCH))
-          {
+          if (!(block->status & BLOCK_IN_SWITCH)) {
             /*
               We care only for the blocks for which flushing was not
               initiated by another thread and which are not in eviction.
@@ -3418,11 +3139,9 @@ restart:
               ring and protects against eviction.
             */
             reg_requests(keycache, block, 1);
-            if (type != FLUSH_IGNORE_CHANGED)
-            {
+            if (type != FLUSH_IGNORE_CHANGED) {
               /* It's not a temporary file */
-              if (pos == end)
-              {
+              if (pos == end) {
                 /*
                   This should happen relatively seldom. Remove the
                   request because we won't do anything with the block
@@ -3433,13 +3152,11 @@ restart:
                   This happens only if there is not enough
                   memory for the big block
                 */
-                if ((error= flush_cached_blocks(keycache, thread_var, file,
-                                                cache, end, type)))
-                {
+                if ((error = flush_cached_blocks(keycache, thread_var, file,
+                                                 cache, end, type))) {
                   /* Do not loop infinitely trying to flush in vain. */
-                  if ((last_errno == error) && (++last_errcnt > 5))
-                    goto err;
-                  last_errno= error;
+                  if ((last_errno == error) && (++last_errcnt > 5)) goto err;
+                  last_errno = error;
                 }
                 /*
                   Restart the scan as some other thread might have changed
@@ -3455,12 +3172,10 @@ restart:
                 set this flag before actually putting the block on the
                 write burst array called 'cache'.
               */
-              block->status|= BLOCK_IN_FLUSH;
+              block->status |= BLOCK_IN_FLUSH;
               /* Add block to the array for a write burst. */
-              *pos++= block;
-            }
-            else
-            {
+              *pos++ = block;
+            } else {
               /* It's a temporary file */
               DBUG_ASSERT(!(block->status & BLOCK_REASSIGNED));
               /*
@@ -3470,13 +3185,10 @@ restart:
                 queue and the *blocks_changed counters are correct.
               */
               link_to_file_list(keycache, block, file, 1);
-              if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH)))
-              {
+              if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH))) {
                 /* A request has been registered against the block above. */
                 free_block(keycache, thread_var, block);
-              }
-              else
-              {
+              } else {
                 /*
                   Link the block into the LRU ring if it's the last
                   submitted request for the block. This enables eviction
@@ -3486,9 +3198,7 @@ restart:
                 unreg_request(keycache, block, 1);
               }
             }
-          }
-          else
-          {
+          } else {
             /*
               Link the block into a list of blocks 'in switch'.
 
@@ -3501,9 +3211,7 @@ restart:
             unlink_changed(block);
             link_changed(block, &first_in_switch);
           }
-        }
-        else if (type != FLUSH_KEEP)
-        {
+        } else if (type != FLUSH_KEEP) {
           /*
             During the normal flush at end of statement (FLUSH_KEEP) we
             do not need to ensure that blocks in flush or update by
@@ -3512,28 +3220,22 @@ restart:
             any changed block of this file in the cache when this
             function returns.
           */
-          if (block->status & BLOCK_IN_FLUSH)
-          {
+          if (block->status & BLOCK_IN_FLUSH) {
             /* Remember the last block found to be in flush. */
-            last_in_flush= block;
-          }
-          else
-          {
+            last_in_flush = block;
+          } else {
             /* Remember the last block found to be selected for update. */
-            last_for_update= block;
+            last_for_update = block;
           }
         }
       }
     }
-    if (pos != cache)
-    {
-      if ((error=
-           flush_cached_blocks(keycache, thread_var, file, cache, pos, type)))
-      {
+    if (pos != cache) {
+      if ((error = flush_cached_blocks(keycache, thread_var, file, cache, pos,
+                                       type))) {
         /* Do not loop inifnitely trying to flush in vain. */
-        if ((last_errno == error) && (++last_errcnt > 5))
-          goto err;
-        last_errno= error;
+        if ((last_errno == error) && (++last_errcnt > 5)) goto err;
+        last_errno = error;
       }
       /*
         Do not restart here during the normal flush at end of statement
@@ -3542,11 +3244,9 @@ restart:
         assure that we do not have any changed block of this file in the
         cache when this function returns.
       */
-      if (type != FLUSH_KEEP)
-        goto restart;
+      if (type != FLUSH_KEEP) goto restart;
     }
-    if (last_in_flush)
-    {
+    if (last_in_flush) {
       /*
         There are no blocks to be flushed by this thread, but blocks in
         flush by other threads. Wait until one of the blocks is flushed.
@@ -3560,8 +3260,7 @@ restart:
       /* Be sure not to lose a block. They may be flushed in random order. */
       goto restart;
     }
-    if (last_for_update)
-    {
+    if (last_for_update) {
       /*
         There are no blocks to be flushed by this thread, but blocks for
         update by other threads. Wait until one of the blocks is updated.
@@ -3581,10 +3280,9 @@ restart:
       are switching these blocks will relink them to clean file chains
       while we wait and thus empty the 'first_in_switch' chain.
     */
-    while (first_in_switch)
-    {
+    while (first_in_switch) {
 #ifndef DBUG_OFF
-      cnt= 0;
+      cnt = 0;
 #endif
       wait_on_queue(&first_in_switch->wqueue[COND_FOR_SAVED],
                     &keycache->cache_lock, thread_var);
@@ -3600,35 +3298,29 @@ restart:
       */
     }
 
-    if (! (type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE))
-    {
-      BLOCK_LINK *last_for_update= NULL;
-      BLOCK_LINK *last_in_switch= NULL;
-      uint total_found= 0;
+    if (!(type == FLUSH_KEEP || type == FLUSH_FORCE_WRITE)) {
+      BLOCK_LINK *last_for_update = NULL;
+      BLOCK_LINK *last_in_switch = NULL;
+      uint total_found = 0;
       uint found;
 
       /*
         Finally free all clean blocks for this file.
         During resize this may be run by two threads in parallel.
       */
-      do
-      {
-        found= 0;
-        for (block= keycache->file_blocks[FILE_HASH(file)] ;
-             block ;
-             block= next)
-        {
+      do {
+        found = 0;
+        for (block = keycache->file_blocks[FILE_HASH(file)]; block;
+             block = next) {
           /* Remember the next block. After freeing we cannot get at it. */
-          next= block->next_changed;
+          next = block->next_changed;
 
           /* Changed blocks cannot appear in the file_blocks hash. */
           DBUG_ASSERT(!(block->status & BLOCK_CHANGED));
-          if (block->hash_link->file == file)
-          {
+          if (block->hash_link->file == file) {
             /* We must skip blocks that will be changed. */
-            if (block->status & BLOCK_FOR_UPDATE)
-            {
-              last_for_update= block;
+            if (block->status & BLOCK_FOR_UPDATE) {
+              last_for_update = block;
               continue;
             }
 
@@ -3637,14 +3329,13 @@ restart:
               BLOCK_IN_SWITCH) or blocks intended to be freed
               (BLOCK_REASSIGNED).
             */
-            if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
-                                   BLOCK_REASSIGNED)))
-            {
-              struct st_hash_link *next_hash_link= NULL;
-              my_off_t next_diskpos= 0;
-              File next_file= 0;
-              uint next_status= 0;
-              uint hash_requests= 0;
+            if (!(block->status &
+                  (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED))) {
+              HASH_LINK *next_hash_link = NULL;
+              my_off_t next_diskpos = 0;
+              File next_file = 0;
+              uint next_status = 0;
+              uint hash_requests = 0;
 
               total_found++;
               found++;
@@ -3663,13 +3354,12 @@ restart:
                 'next' block from the chain. free_block() needs to wait
                 if there are requests for the block pending.
               */
-              if (next && (hash_requests= block->hash_link->requests))
-              {
+              if (next && (hash_requests = block->hash_link->requests)) {
                 /* Copy values from the 'next' block and its hash_link. */
-                next_status=    next->status;
-                next_hash_link= next->hash_link;
-                next_diskpos=   next_hash_link->diskpos;
-                next_file=      next_hash_link->file;
+                next_status = next->status;
+                next_hash_link = next->hash_link;
+                next_diskpos = next_hash_link->diskpos;
+                next_file = next_hash_link->file;
                 DBUG_ASSERT(next == next_hash_link->block);
               }
 
@@ -3686,16 +3376,14 @@ restart:
                 inefficient.
               */
               if (next && hash_requests &&
-                  ((next_status    != next->status) ||
+                  ((next_status != next->status) ||
                    (next_hash_link != next->hash_link) ||
-                   (next_file      != next_hash_link->file) ||
-                   (next_diskpos   != next_hash_link->diskpos) ||
-                   (next           != next_hash_link->block)))
+                   (next_file != next_hash_link->file) ||
+                   (next_diskpos != next_hash_link->diskpos) ||
+                   (next != next_hash_link->block)))
                 break;
-            }
-            else
-            {
-              last_in_switch= block;
+            } else {
+              last_in_switch = block;
             }
           }
         } /* end for block in file_blocks */
@@ -3707,15 +3395,13 @@ restart:
         block became dirty. This is possible if the write request existed
         before the flush started (BLOCK_FOR_UPDATE). Re-check the hashes.
       */
-      if (total_found)
-        goto restart;
+      if (total_found) goto restart;
 
       /*
         To avoid an infinite loop, wait until one of the blocks marked
         for update is updated.
       */
-      if (last_for_update)
-      {
+      if (last_for_update) {
         /* We did not wait. Block must not have changed status. */
         DBUG_ASSERT(last_for_update->status & BLOCK_FOR_UPDATE);
         wait_on_queue(&last_for_update->wqueue[COND_FOR_REQUESTED],
@@ -3727,12 +3413,10 @@ restart:
         To avoid an infinite loop wait until one of the blocks marked
         for eviction is switched.
       */
-      if (last_in_switch)
-      {
+      if (last_in_switch) {
         /* We did not wait. Block must not have changed status. */
-        DBUG_ASSERT(last_in_switch->status & (BLOCK_IN_EVICTION |
-                                              BLOCK_IN_SWITCH |
-                                              BLOCK_REASSIGNED));
+        DBUG_ASSERT(last_in_switch->status &
+                    (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH | BLOCK_REASSIGNED));
         wait_on_queue(&last_in_switch->wqueue[COND_FOR_SAVED],
                       &keycache->cache_lock, thread_var);
         goto restart;
@@ -3743,13 +3427,10 @@ restart:
   } /* if (keycache->disk_blocks > 0 */
 
 err:
-  if (cache != cache_buff)
-    my_free(cache);
-  if (last_errno)
-    errno=last_errno;                /* Return first error */
+  if (cache != cache_buff) my_free(cache);
+  if (last_errno) errno = last_errno; /* Return first error */
   DBUG_RETURN(last_errno != 0);
 }
-
 
 /*
   Flush all blocks for a file to disk
@@ -3767,29 +3448,24 @@ err:
     1  error
 */
 
-int flush_key_blocks(KEY_CACHE *keycache,
-                     st_keycache_thread_var *thread_var,
-                     File file, enum flush_type type)
-{
-  int res= 0;
+int flush_key_blocks(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
+                     File file, enum flush_type type) {
+  int res = 0;
   DBUG_ENTER("flush_key_blocks");
   DBUG_PRINT("enter", ("keycache: %p", keycache));
 
-  if (!keycache->key_cache_inited)
-    DBUG_RETURN(0);
+  if (!keycache->key_cache_inited) DBUG_RETURN(0);
 
   mysql_mutex_lock(&keycache->cache_lock);
   /* While waiting for lock, keycache could have been ended. */
-  if (keycache->disk_blocks > 0)
-  {
+  if (keycache->disk_blocks > 0) {
     inc_counter_for_resize_op(keycache);
-    res= flush_key_blocks_int(keycache, thread_var, file, type);
+    res = flush_key_blocks_int(keycache, thread_var, file, type);
     dec_counter_for_resize_op(keycache);
   }
   mysql_mutex_unlock(&keycache->cache_lock);
   DBUG_RETURN(res);
 }
-
 
 /*
   Flush all blocks in the key cache to disk.
@@ -3825,29 +3501,25 @@ int flush_key_blocks(KEY_CACHE *keycache,
 */
 
 static int flush_all_key_blocks(KEY_CACHE *keycache,
-                                st_keycache_thread_var *thread_var)
-{
-  BLOCK_LINK    *block;
-  uint          total_found;
-  uint          found;
-  uint          idx;
+                                st_keycache_thread_var *thread_var) {
+  BLOCK_LINK *block;
+  uint total_found;
+  uint found;
+  uint idx;
   DBUG_ENTER("flush_all_key_blocks");
 
-  do
-  {
+  do {
     mysql_mutex_assert_owner(&keycache->cache_lock);
-    total_found= 0;
+    total_found = 0;
 
     /*
       Phase1: Flush all changed blocks, waiting for them if necessary.
       Loop until there is no changed block left in the cache.
     */
-    do
-    {
-      found= 0;
+    do {
+      found = 0;
       /* Step over the whole changed_blocks hash array. */
-      for (idx= 0; idx < CHANGED_BLOCKS_HASH; idx++)
-      {
+      for (idx = 0; idx < CHANGED_BLOCKS_HASH; idx++) {
         /*
           If an array element is non-empty, use the first block from its
           chain to find a file for flush. All changed blocks for this
@@ -3857,15 +3529,13 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
           same hash bucket, one of them will be flushed per iteration
           of the outer loop of phase 1.
         */
-        if ((block= keycache->changed_blocks[idx]))
-        {
+        if ((block = keycache->changed_blocks[idx])) {
           found++;
           /*
             Flush dirty blocks but do not free them yet. They can be used
             for reading until all other blocks are flushed too.
           */
-          if (flush_key_blocks_int(keycache, thread_var,
-                                   block->hash_link->file,
+          if (flush_key_blocks_int(keycache, thread_var, block->hash_link->file,
                                    FLUSH_FORCE_WRITE))
             DBUG_RETURN(1);
         }
@@ -3881,12 +3551,10 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
       if that operation started before the resize operation started. To
       be safe we must restart at phase 1.
     */
-    do
-    {
-      found= 0;
+    do {
+      found = 0;
       /* Step over the whole file_blocks hash array. */
-      for (idx= 0; idx < CHANGED_BLOCKS_HASH; idx++)
-      {
+      for (idx = 0; idx < CHANGED_BLOCKS_HASH; idx++) {
         /*
           If an array element is non-empty, use the first block from its
           chain to find a file for flush. All blocks for this file are
@@ -3895,12 +3563,10 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
           same hash bucket, one of them will be flushed per iteration
           of the outer loop of phase 2.
         */
-        if ((block= keycache->file_blocks[idx]))
-        {
+        if ((block = keycache->file_blocks[idx])) {
           total_found++;
           found++;
-          if (flush_key_blocks_int(keycache, thread_var,
-                                   block->hash_link->file,
+          if (flush_key_blocks_int(keycache, thread_var, block->hash_link->file,
                                    FLUSH_RELEASE))
             DBUG_RETURN(1);
         }
@@ -3918,8 +3584,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
 
 #ifndef DBUG_OFF
   /* Now there should not exist any block any more. */
-  for (idx= 0; idx < CHANGED_BLOCKS_HASH; idx++)
-  {
+  for (idx = 0; idx < CHANGED_BLOCKS_HASH; idx++) {
     DBUG_ASSERT(!keycache->changed_blocks[idx]);
     DBUG_ASSERT(!keycache->file_blocks[idx]);
   }
@@ -3927,7 +3592,6 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
 
   DBUG_RETURN(0);
 }
-
 
 /*
   Reset the counters of a key cache.
@@ -3946,30 +3610,26 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
 */
 
 int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
-                             KEY_CACHE *key_cache)
-{
+                             KEY_CACHE *key_cache) {
   DBUG_ENTER("reset_key_cache_counters");
-  if (!key_cache->key_cache_inited)
-  {
+  if (!key_cache->key_cache_inited) {
     DBUG_PRINT("info", ("Key cache %s not initialized.", name));
     DBUG_RETURN(0);
   }
   DBUG_PRINT("info", ("Resetting counters for key cache %s.", name));
 
-  key_cache->global_blocks_changed= 0;   /* Key_blocks_not_flushed */
-  key_cache->global_cache_r_requests= 0; /* Key_read_requests */
-  key_cache->global_cache_read= 0;       /* Key_reads */
-  key_cache->global_cache_w_requests= 0; /* Key_write_requests */
-  key_cache->global_cache_write= 0;      /* Key_writes */
+  key_cache->global_blocks_changed = 0;   /* Key_blocks_not_flushed */
+  key_cache->global_cache_r_requests = 0; /* Key_read_requests */
+  key_cache->global_cache_read = 0;       /* Key_reads */
+  key_cache->global_cache_w_requests = 0; /* Key_write_requests */
+  key_cache->global_cache_write = 0;      /* Key_writes */
   DBUG_RETURN(0);
 }
-
 
 #if !defined(DBUG_OFF)
 #define F_B_PRT(_f_, _v_) DBUG_PRINT("assert_fail", (_f_, _v_))
 
-static int fail_block(BLOCK_LINK *block)
-{
+static int fail_block(BLOCK_LINK *block) {
   F_B_PRT("block->next_used:    %p\n", block->next_used);
   F_B_PRT("block->prev_used:    %p\n", block->prev_used);
   F_B_PRT("block->next_changed: %p\n", block->next_changed);
@@ -3983,44 +3643,36 @@ static int fail_block(BLOCK_LINK *block)
   return 0; /* Let the assert fail. */
 }
 
-static int fail_hlink(HASH_LINK *hlink)
-{
+static int fail_hlink(HASH_LINK *hlink) {
   F_B_PRT("hlink->next:    %p\n", hlink->next);
   F_B_PRT("hlink->prev:    %p\n", hlink->prev);
   F_B_PRT("hlink->block:   %p\n", hlink->block);
-  F_B_PRT("hlink->diskpos: %lu\n", (ulong) hlink->diskpos);
+  F_B_PRT("hlink->diskpos: %lu\n", (ulong)hlink->diskpos);
   F_B_PRT("hlink->file:    %d\n", hlink->file);
   return 0; /* Let the assert fail. */
 }
 
-static int cache_empty(KEY_CACHE *keycache)
-{
-  int errcnt= 0;
+static int cache_empty(KEY_CACHE *keycache) {
+  int errcnt = 0;
   int idx;
-  if (keycache->disk_blocks <= 0)
-    return 1;
-  for (idx= 0; idx < keycache->disk_blocks; idx++)
-  {
-    BLOCK_LINK *block= keycache->block_root + idx;
-    if (block->status || block->requests || block->hash_link)
-    {
+  if (keycache->disk_blocks <= 0) return 1;
+  for (idx = 0; idx < keycache->disk_blocks; idx++) {
+    BLOCK_LINK *block = keycache->block_root + idx;
+    if (block->status || block->requests || block->hash_link) {
       my_message_local(INFORMATION_LEVEL, "block index: %u", idx);
       fail_block(block);
       errcnt++;
     }
   }
-  for (idx= 0; idx < keycache->hash_links; idx++)
-  {
-    HASH_LINK *hash_link= keycache->hash_link_root + idx;
-    if (hash_link->requests || hash_link->block)
-    {
+  for (idx = 0; idx < keycache->hash_links; idx++) {
+    HASH_LINK *hash_link = keycache->hash_link_root + idx;
+    if (hash_link->requests || hash_link->block) {
       my_message_local(INFORMATION_LEVEL, "hash_link index: %u", idx);
       fail_hlink(hash_link);
       errcnt++;
     }
   }
-  if (errcnt)
-  {
+  if (errcnt) {
     my_message_local(INFORMATION_LEVEL, "blocks: %d  used: %lu",
                      keycache->disk_blocks, keycache->blocks_used);
     my_message_local(INFORMATION_LEVEL, "hash_links: %d  used: %d",
@@ -4029,4 +3681,3 @@ static int cache_empty(KEY_CACHE *keycache)
   return !errcnt;
 }
 #endif
-

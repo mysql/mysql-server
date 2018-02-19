@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,11 +25,10 @@
 #ifndef X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
 #define X_TESTS_DRIVER_PROCESSOR_SCRIPT_STACK_H_
 
+#include <stdio.h>
 #include <list>
 #include <ostream>
 #include <string>
-
-#include "mysql/service_my_snprintf.h"
 
 class Script_stack {
  public:
@@ -37,7 +36,7 @@ class Script_stack {
     int m_line_number;
     std::string m_context;
   };
-  using Stack                  = std::list<Frame>;
+  using Stack = std::list<Frame>;
   using const_reverse_iterator = Stack::const_reverse_iterator;
 
  public:
@@ -51,15 +50,13 @@ class Script_stack {
   Stack m_stack;
 };
 
-inline std::ostream &operator<<(std::ostream &os, const Script_stack& stack) {
+inline std::ostream &operator<<(std::ostream &os, const Script_stack &stack) {
   std::string context;
 
-  for (auto it = stack.rbegin();
-       it != stack.rend();
-       ++it) {
+  for (auto it = stack.rbegin(); it != stack.rend(); ++it) {
     char tmp[1024];
-    my_snprintf(tmp, sizeof(tmp), "in %s, line %i:", it->m_context.c_str(),
-                it->m_line_number);
+    snprintf(tmp, sizeof(tmp), "in %s, line %i:", it->m_context.c_str(),
+             it->m_line_number);
     context.append(tmp);
   }
   return os << context << "ERROR: ";

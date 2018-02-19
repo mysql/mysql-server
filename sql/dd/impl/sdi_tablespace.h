@@ -23,7 +23,7 @@
 #ifndef DD__SDI_TABLESPACE_INCLUDED
 #define DD__SDI_TABLESPACE_INCLUDED
 
-#include "sql/dd/impl/sdi.h" // dd::Sdi_type
+#include "sql/dd/impl/sdi.h"  // dd::Sdi_type
 #include "sql/dd/object_id.h"
 
 class THD;
@@ -50,7 +50,6 @@ namespace sdi_tablespace {
 
   @{
 */
-
 
 /**
   Looks up the relevant tablespaces for the table and stores the
@@ -89,11 +88,10 @@ bool store_tsp_sdi(const handlerton &hton, const Sdi_type &sdi,
   @param table
   @param schema
  */
-bool drop_tbl_sdi(THD *thd, const handlerton &hton,
-                  const Table &table,
+bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
                   const Schema &schema MY_ATTRIBUTE((unused)));
 
 /** @} End of group sdi_tablespace */
-}
-}
-#endif // !DD__SDI_TABLESPACE_INCLUDED
+}  // namespace sdi_tablespace
+}  // namespace dd
+#endif  // !DD__SDI_TABLESPACE_INCLUDED

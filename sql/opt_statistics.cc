@@ -29,8 +29,8 @@
 #include "my_dbug.h"
 #include "my_macros.h"
 #include "sql/handler.h"
-#include "sql/key.h"                            // rec_per_key_t, KEY
-#include "sql/table.h"                          // TABLE
+#include "sql/key.h"    // rec_per_key_t, KEY
+#include "sql/table.h"  // TABLE
 
 using std::max;
 
@@ -57,14 +57,13 @@ using std::max;
 */
 
 rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
-                                uint used_keyparts)
-{
+                                uint used_keyparts) {
   DBUG_ASSERT(used_keyparts >= 1);
   DBUG_ASSERT(used_keyparts <= key->actual_key_parts);
   DBUG_ASSERT(!key->has_records_per_key(used_keyparts - 1));
 
-  const ha_rows table_rows= table->file->stats.records;
-  
+  const ha_rows table_rows = table->file->stats.records;
+
   /*
     Make an estimates for how many records the whole key will match.
     If there exists index statistics for the whole key we use this.
@@ -73,52 +72,45 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
   */
   rec_per_key_t rec_per_key_all;
   if (key->has_records_per_key(key->user_defined_key_parts - 1))
-    rec_per_key_all= key->records_per_key(key->user_defined_key_parts - 1);
-  else
-  {
+    rec_per_key_all = key->records_per_key(key->user_defined_key_parts - 1);
+  else {
     if (key->actual_flags & HA_NOSAME)
-      rec_per_key_all= 1.0f;                     // Unique index
-    else
-    {
-      rec_per_key_all= 10.0f;                    // Non-unique index
+      rec_per_key_all = 1.0f;  // Unique index
+    else {
+      rec_per_key_all = 10.0f;  // Non-unique index
 
       /*
         Assume the index contains at least ten unique values. Need to
         adjust the records per key estimate for small tables. For an
         empty table we assume records per key is 1.
       */
-      set_if_smaller(rec_per_key_all, max(rec_per_key_t(table_rows)/10, 1.0f));
+      set_if_smaller(rec_per_key_all,
+                     max(rec_per_key_t(table_rows) / 10, 1.0f));
     }
   }
 
   rec_per_key_t rec_per_key;
 
   // rec_per_key estimate for first key part (1% of records)
-  const rec_per_key_t rec_per_key_first= table_rows * 0.01f;
-    
-  if (rec_per_key_first < rec_per_key_all)
-  {
-    rec_per_key= rec_per_key_all;
-  }
-  else
-  {
-    if (key->user_defined_key_parts > 1)
-    {
+  const rec_per_key_t rec_per_key_first = table_rows * 0.01f;
+
+  if (rec_per_key_first < rec_per_key_all) {
+    rec_per_key = rec_per_key_all;
+  } else {
+    if (key->user_defined_key_parts > 1) {
       // See formula above
-      rec_per_key= rec_per_key_first - 
-                   (rec_per_key_t(used_keyparts - 1) / 
-                    (key->user_defined_key_parts - 1)) * 
-                   (rec_per_key_first - rec_per_key_all);
-    }
-    else
-    {
+      rec_per_key =
+          rec_per_key_first - (rec_per_key_t(used_keyparts - 1) /
+                               (key->user_defined_key_parts - 1)) *
+                                  (rec_per_key_first - rec_per_key_all);
+    } else {
       // Single column index
       if (key->actual_flags & HA_NOSAME)
-        rec_per_key= 1.0f;                      // Unique index
+        rec_per_key = 1.0f;  // Unique index
       else
-        rec_per_key= rec_per_key_first;         // Non-unique index
+        rec_per_key = rec_per_key_first;  // Non-unique index
     }
-      
+
     DBUG_ASSERT(rec_per_key >= rec_per_key_all);
   }
 

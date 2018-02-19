@@ -2,9 +2,6 @@ include/master-slave.inc
 Warnings:
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
 #
 # WL#6409: CREATE/ALTER USER
 #
@@ -1084,7 +1081,7 @@ GRANT ALL ON *.* TO u2@localhost;
 ALTER USER USER() IDENTIFIED WITH 'sha256_password';
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''sha256_password'' at line 1
 ALTER USER USER() IDENTIFIED BY 'def', u2@localhost PASSWORD EXPIRE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' u2@localhost PASSWORD EXPIRE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', u2@localhost PASSWORD EXPIRE' at line 1
 ALTER USER USER() IDENTIFIED BY 'def' PASSWORD EXPIRE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'PASSWORD EXPIRE' at line 1
 ALTER USER ;
@@ -1234,13 +1231,12 @@ Grants for user1@localhost
 GRANT SELECT ON *.* TO `user1`@`localhost`
 GRANT SELECT ON `mysql`.* TO `user1`@`localhost`
 
-GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
+GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost;
+ALTER USER user2@localhost IDENTIFIED BY 'admin'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
       ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
       WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 SELECT user,plugin,ssl_type,ssl_cipher,
 x509_issuer,x509_subject,max_user_connections,
 max_questions,max_updates,max_connections FROM mysql.user WHERE USER='user2';
@@ -1255,14 +1251,6 @@ max_questions	60
 max_updates	100
 max_connections	1000
 CREATE USER user3@localhost IDENTIFIED BY 'auth_string';
-GRANT SELECT ON mysql.* TO user3@localhost
-IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-      REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
-      ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
-      WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
-MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
 # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost;
 
@@ -1270,17 +1258,8 @@ DROP USER user1@localhost,user2@localhost,user3@localhost;
 
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
 CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
-SELECT PASSWORD('plaintext_pwd');
-PASSWORD('plaintext_pwd')
-*F42EC6870C44E0E26316EC1D4A953A4B9C2D8958
-Warnings:
-Warning	1681	'PASSWORD' is deprecated and will be removed in a future release.
-SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
-SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
-Warnings:
-Warning	1287	'SET PASSWORD FOR <user> = PASSWORD('<plaintext_password>')' is deprecated and will be removed in a future release. Please use SET PASSWORD FOR <user> = '<plaintext_password>' instead
+SET PASSWORD FOR user1@localhost='auth_xyz@';
+SET PASSWORD FOR user2@localhost='gd636@gj';
 
 CREATE USER user4@localhost;
 ALTER USER user4@localhost PASSWORD EXPIRE;
@@ -1343,49 +1322,6 @@ user6@localhost
 # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost,
 user4@localhost,user5@localhost,user6@localhost;
-
-# Testing log_builtin_as_identified_by_password variable scope GLOBAL Dynamic
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-
-SET GLOBAL log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	ON
-
-SET GLOBAL log_builtin_as_identified_by_password = OFF;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-
-SET SESSION log_builtin_as_identified_by_password = ON;
-ERROR HY000: Variable 'log_builtin_as_identified_by_password' is a GLOBAL variable and should be set with SET GLOBAL
-SHOW  VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-
-SET @@log_builtin_as_identified_by_password = OFF;
-ERROR HY000: Variable 'log_builtin_as_identified_by_password' is a GLOBAL variable and should be set with SET GLOBAL
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
-
-SET @@global.log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	ON
-
-SET @@session.log_builtin_as_identified_by_password = ON;
-ERROR HY000: Variable 'log_builtin_as_identified_by_password' is a GLOBAL variable and should be set with SET GLOBAL
-# GLOBAL variable value
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	ON
-SET GLOBAL log_builtin_as_identified_by_password=OFF;
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
-Variable_name	Value
-log_builtin_as_identified_by_password	OFF
 include/sync_slave_sql_with_master.inc
 [On Slave]
 include/show_binlog_events.inc
@@ -1510,9 +1446,9 @@ slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIF
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON *.* TO 'user1'@'localhost'
 slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON `mysql`.* TO 'user1'@'localhost'
 slave-bin.000001	#	Query	#	#	use `test`; REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost
-slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON *.* TO 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4ACFE3202A5FF5CF467898FC58AAB1D615029441' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
+slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT, INSERT, UPDATE ON *.* TO 'user2'@'localhost'
+slave-bin.000001	#	Query	#	#	use `test`; ALTER USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*4ACFE3202A5FF5CF467898FC58AAB1D615029441' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user3'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
-slave-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `mysql`.* TO 'user3'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*67092806AE91BFB6BE72DE6C7BE2B7CCA8CFA9DF' REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client' ISSUER '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA' WITH MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100 MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
 slave-bin.000001	#	Query	#	#	use `test`; DROP USER user1@localhost,user2@localhost,user3@localhost
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user1'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
 slave-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED WITH 'mysql_native_password' AS '*BB2A6C4B68EBE1B781C294D655785971401FB13B'

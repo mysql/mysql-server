@@ -30,17 +30,11 @@ using namespace Mysql::Tools::Dump;
 using std::placeholders::_1;
 
 bool Composite_message_handler::pass_message(
-  const Mysql::Tools::Base::Message_data& message_data)
-{
-  for (
-    std::vector<std::function<
-      bool(const Mysql::Tools::Base::Message_data&)>*>
-    ::reverse_iterator it= m_message_handlers.rbegin();
-  it != m_message_handlers.rend(); ++it
-    )
-  {
-    if ((**it)(message_data))
-    {
+    const Mysql::Tools::Base::Message_data &message_data) {
+  for (std::vector<std::function<bool(const Mysql::Tools::Base::Message_data &)>
+                       *>::reverse_iterator it = m_message_handlers.rbegin();
+       it != m_message_handlers.rend(); ++it) {
+    if ((**it)(message_data)) {
       return true;
     }
   }
@@ -48,19 +42,17 @@ bool Composite_message_handler::pass_message(
 }
 
 Composite_message_handler::Composite_message_handler(
-  const std::vector<std::function<
-    bool(const Mysql::Tools::Base::Message_data&)>*>& message_handlers)
-  : m_message_handlers(message_handlers)
-{}
+    const std::vector<
+        std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
+        &message_handlers)
+    : m_message_handlers(message_handlers) {}
 
-std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-  Composite_message_handler::create_composite_handler(
-    const std::vector<std::function<
-      bool(const Mysql::Tools::Base::Message_data&)>*>& message_handlers)
-{
-  return new std::function<bool(const Mysql::Tools::Base::Message_data&)>(
-    std::bind(
-      &Composite_message_handler::pass_message,
-      new Composite_message_handler(message_handlers),
-      _1));
+std::function<bool(const Mysql::Tools::Base::Message_data &)>
+    *Composite_message_handler::create_composite_handler(
+        const std::vector<
+            std::function<bool(const Mysql::Tools::Base::Message_data &)> *>
+            &message_handlers) {
+  return new std::function<bool(const Mysql::Tools::Base::Message_data &)>(
+      std::bind(&Composite_message_handler::pass_message,
+                new Composite_message_handler(message_handlers), _1));
 }

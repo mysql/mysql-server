@@ -30,44 +30,44 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_account.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_account;
+struct PFS_instr_class;
+struct PFS_memory_class;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-class PFS_index_mems_by_account_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_mems_by_account_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_mems_by_account_by_event_name()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("USER"),
-      m_key_2("HOST"),
-      m_key_3("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("USER"),
+        m_key_2("HOST"),
+        m_key_3("EVENT_NAME") {}
 
-  ~PFS_index_mems_by_account_by_event_name()
-  {
-  }
+  ~PFS_index_mems_by_account_by_event_name() {}
 
   virtual bool match(PFS_account *pfs);
   virtual bool match(PFS_instr_class *instr_class);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_host m_key_2;
   PFS_key_event_name m_key_3;
 };
 
 /** A row of PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME. */
-struct row_mems_by_account_by_event_name
-{
+struct row_mems_by_account_by_event_name {
   /** Column USER, HOST. */
   PFS_account_row m_account;
   /** Column EVENT_NAME. */
@@ -82,37 +82,25 @@ struct row_mems_by_account_by_event_name
   Index 1 on account (0 based)
   Index 2 on memory class (1 based)
 */
-struct pos_mems_by_account_by_event_name : public PFS_double_index
-{
-  pos_mems_by_account_by_event_name() : PFS_double_index(0, 1)
-  {
-  }
+struct pos_mems_by_account_by_event_name : public PFS_double_index {
+  pos_mems_by_account_by_event_name() : PFS_double_index(0, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 1;
   }
 
-  inline void
-  next_account(void)
-  {
+  inline void next_account(void) {
     m_index_1++;
     m_index_2 = 1;
   }
 
-  inline void
-  next_class(void)
-  {
-    m_index_2++;
-  }
+  inline void next_class(void) { m_index_2++; }
 };
 
 /** Table PERFORMANCE_SCHEMA.MEMORY_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME. */
-class table_mems_by_account_by_event_name : public PFS_engine_table
-{
-public:
+class table_mems_by_account_by_event_name : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -127,20 +115,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_mems_by_account_by_event_name();
 
-public:
-  ~table_mems_by_account_by_event_name()
-  {
-  }
+ public:
+  ~table_mems_by_account_by_event_name() {}
 
-private:
+ private:
   int make_row(PFS_account *account, PFS_memory_class *klass);
 
   /** Table share lock. */

@@ -27,8 +27,6 @@ c1	c2
 120	NULL
 120	NULL
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -75,7 +73,6 @@ INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -157,8 +154,6 @@ c1	c2
 10	11
 4294967295	2147483647
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t2 SET c1=0,c2=-2147483648 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
@@ -1131,8 +1126,6 @@ c1	c2
 120	NULL
 120	NULL
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1181,7 +1174,6 @@ INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -1263,8 +1255,6 @@ c1	c2
 10	11
 255	127
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t2 SET c1=0,c2=-128 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
@@ -1672,8 +1662,6 @@ a	b
 108	8
 109	9
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 update mt1,mt2 set mt1.a=mt1.a+100 where mt1.a=101;
 Warnings:
 Warning	1264	Out of range value for column 'a' at row 1
@@ -1913,8 +1901,6 @@ c1	c2
 120	NULL
 120	NULL
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1936,8 +1922,6 @@ c1	c2	c3
 2	0	2
 INSERT INTO t1 VALUES(106,-106,9),(107,-107,10),(108,-108,11),(109,-109,12),(255,127,13);
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=65536,c2=32768 WHERE c2 BETWEEN -108 AND -106;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -1965,7 +1949,6 @@ INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -2047,8 +2030,6 @@ c1	c2
 10	11
 65535	32767
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t2 SET c1=0,c2=-32768 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
@@ -2669,8 +2650,6 @@ c1	c2
 120	NULL
 120	NULL
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -2717,7 +2696,6 @@ INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -2799,8 +2777,6 @@ c1	c2
 10	11
 16777215	8388607
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t2 SET c1=0,c2=-8388608 WHERE c2=2;
 Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
@@ -3421,8 +3397,6 @@ c1	c2
 120	NULL
 120	NULL
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=-120 WHERE c2=-102;
 Warnings:
 Warning	1264	Out of range value for column 'c1' at row 1
@@ -3469,7 +3443,6 @@ INSERT INTO t1 VALUES(110,-110,14),(111,-111,15);
 SET SQL_MODE=STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=NULL WHERE c2=-110;
 ERROR 23000: Column 'c1' cannot be null
 UPDATE IGNORE t1 SET c1=NULL WHERE c2=-110 /* updates to default value 0 */;
@@ -3543,8 +3516,6 @@ SELECT c1 FROM t2 WHERE c2=13;
 c1
 11
 SET SQL_MODE='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE t1 SET c1=18446744073709551615,c2=9223372036854775807 WHERE c2=13;
 SELECT c1,c2 FROM t1 ORDER BY c1;
 c1	c2

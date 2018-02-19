@@ -26,55 +26,46 @@
 #include "plugin/connection_control/connection_control_interfaces.h" /* Connection_event_coordinator_services */
 #include "plugin/connection_control/connection_control_memory.h" /* Connection_control_alloc */
 
-namespace connection_control
-{
-  /**
-    Connection event coordinator.
-    This class will keep list of subscribers for different  subevents
-    and notify them based on their preference.
-  */
+namespace connection_control {
+/**
+  Connection event coordinator.
+  This class will keep list of subscribers for different  subevents
+  and notify them based on their preference.
+*/
 
-  class Connection_event_coordinator : public Connection_event_coordinator_services,
-                                       public Connection_control_alloc
-  {
-  public:
-    Connection_event_coordinator()
-    {
-      reset();
-    }
-    ~Connection_event_coordinator()
-    {
-      reset();
-    }
+class Connection_event_coordinator
+    : public Connection_event_coordinator_services,
+      public Connection_control_alloc {
+ public:
+  Connection_event_coordinator() { reset(); }
+  ~Connection_event_coordinator() { reset(); }
 
-    /* Functions to receive notification from server */
-    void notify_event(MYSQL_THD thd,
-                      Error_handler * error_handler,
-                      const mysql_event_connection *connection_event);
-    void notify_sys_var(Error_handler * error_handler,
-                        opt_connection_control variable,
-                        void *new_value);
+  /* Functions to receive notification from server */
+  void notify_event(MYSQL_THD thd, Error_handler *error_handler,
+                    const mysql_event_connection *connection_event);
+  void notify_sys_var(Error_handler *error_handler,
+                      opt_connection_control variable, void *new_value);
 
-    /* Services provided to observers */
-    bool register_event_subscriber(Connection_event_observer **subscriber,
-                                   std::vector<opt_connection_control> *sys_vars,
-                                   std::vector<stats_connection_control> *status_vars);
+  /* Services provided to observers */
+  bool register_event_subscriber(
+      Connection_event_observer **subscriber,
+      std::vector<opt_connection_control> *sys_vars,
+      std::vector<stats_connection_control> *status_vars);
 
-    bool notify_status_var(Connection_event_observer **observer,
-                           stats_connection_control status_var,
-                           status_var_action action);
+  bool notify_status_var(Connection_event_observer **observer,
+                         stats_connection_control status_var,
+                         status_var_action action);
 
-  private:
-    void reset();
-    class Connection_event_subscriber
-    {
-    public:
-      Connection_event_observer * m_subscriber;
-      bool m_sys_vars[OPT_LAST];
-    };
-
-    std::vector<Connection_event_subscriber> m_subscribers;
-    Connection_event_observer *m_status_vars_subscription[STAT_LAST];
+ private:
+  void reset();
+  class Connection_event_subscriber {
+   public:
+    Connection_event_observer *m_subscriber;
+    bool m_sys_vars[OPT_LAST];
   };
-}
-#endif // !CONNECTION_CONTROL_COORDINATOR_H
+
+  std::vector<Connection_event_subscriber> m_subscribers;
+  Connection_event_observer *m_status_vars_subscription[STAT_LAST];
+};
+}  // namespace connection_control
+#endif  // !CONNECTION_CONTROL_COORDINATOR_H

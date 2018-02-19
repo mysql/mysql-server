@@ -50,6 +50,7 @@ Mysqlx.Expect.Close {
 -->varlet %ALL_COND%
 -->callmacro Verify_feature_existence	Mysqlx.Crud.Insert::upsert	18.6
 -->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking	17.12
+-->callmacro Verify_feature_existence	Mysqlx.Crud.Find::locking_options	17.13
 -->callmacro Verify_expect_open	all features in single request	%ALL_COND%
 EOF
 

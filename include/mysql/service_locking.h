@@ -33,13 +33,9 @@
 
 #ifdef __cplusplus
 class THD;
-#define MYSQL_THD THD*
+#define MYSQL_THD THD *
 #else
-#define MYSQL_THD void*
-#endif
-
-#ifdef __cplusplus
-extern "C" {
+#define MYSQL_THD void *
 #endif
 
 /**
@@ -47,18 +43,18 @@ extern "C" {
   LOCKING_SERVICE_READ is compatible with LOCKING_SERVICE_READ.
   All other combinations are incompatible.
 */
-enum enum_locking_service_lock_type
-{ LOCKING_SERVICE_READ, LOCKING_SERVICE_WRITE };
+enum enum_locking_service_lock_type {
+  LOCKING_SERVICE_READ,
+  LOCKING_SERVICE_WRITE
+};
 
-typedef int (*mysql_acquire_locks_t)(MYSQL_THD opaque_thd,
-                                     const char* lock_namespace,
-                                     const char**lock_names,
-                                     size_t lock_num,
-                                     enum enum_locking_service_lock_type lock_type,
-                                     unsigned long lock_timeout);
+typedef int (*mysql_acquire_locks_t)(
+    MYSQL_THD opaque_thd, const char *lock_namespace, const char **lock_names,
+    size_t lock_num, enum enum_locking_service_lock_type lock_type,
+    unsigned long lock_timeout);
 
 typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
-                                     const char* lock_namespace);
+                                     const char *lock_namespace);
 
 /**
   @ingroup group_ext_plugin_services
@@ -73,7 +69,7 @@ typedef int (*mysql_release_locks_t)(MYSQL_THD opaque_thd,
   and thus deadlocks involving locking service locks and other types
   of metadata will be detected using the MDL deadlock detector.
 */
-extern struct mysql_locking_service_st {
+extern "C" struct mysql_locking_service_st {
   /**
     Acquire locking service locks.
 
@@ -106,12 +102,12 @@ extern struct mysql_locking_service_st {
     @sa release_locking_service_locks, MDL_context::release_locks
   */
   mysql_release_locks_t mysql_release_locks;
-} *mysql_locking_service;
+} * mysql_locking_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
-#define mysql_acquire_locking_service_locks(_THD, _NAMESPACE, _NAMES, _NUM, \
-                                            _TYPE, _TIMEOUT)            \
+#define mysql_acquire_locking_service_locks(_THD, _NAMESPACE, _NAMES, _NUM,  \
+                                            _TYPE, _TIMEOUT)                 \
   mysql_locking_service->mysql_acquire_locks(_THD, _NAMESPACE, _NAMES, _NUM, \
                                              _TYPE, _TIMEOUT)
 #define mysql_release_locking_service_locks(_THD, _NAMESPACE) \
@@ -119,20 +115,14 @@ extern struct mysql_locking_service_st {
 
 #else
 
-int mysql_acquire_locking_service_locks(MYSQL_THD opaque_thd,
-                                        const char* lock_namespace,
-                                        const char**lock_names,
-                                        size_t lock_num,
-                                        enum enum_locking_service_lock_type lock_type,
-                                        unsigned long lock_timeout);
+int mysql_acquire_locking_service_locks(
+    MYSQL_THD opaque_thd, const char *lock_namespace, const char **lock_names,
+    size_t lock_num, enum enum_locking_service_lock_type lock_type,
+    unsigned long lock_timeout);
 
 int mysql_release_locking_service_locks(MYSQL_THD opaque_thd,
-                                        const char* lock_namespace);
+                                        const char *lock_namespace);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* SERVICE_LOCKING_INCLUDED */

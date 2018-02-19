@@ -34,7 +34,7 @@ namespace gis_srs {
 // EPSG 4326, but with long-lat axes (E-N).
 std::unique_ptr<dd::Spatial_reference_system_impl> swapped_epsg4326() {
   auto srs = std::unique_ptr<dd::Spatial_reference_system_impl>{
-      dynamic_cast<dd::Spatial_reference_system_impl*>(
+      dynamic_cast<dd::Spatial_reference_system_impl *>(
           dd::create_object<dd::Spatial_reference_system>())};
 
   srs->set_id(4326);

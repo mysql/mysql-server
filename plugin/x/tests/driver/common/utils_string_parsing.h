@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,10 +25,9 @@
 #ifndef X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 #define X_TESTS_DRIVER_COMMON_UTILS_STRING_PARSING_H_
 
+#include <stdio.h>
 #include <stdexcept>
 #include <string>
-
-#include "mysql/service_my_snprintf.h"
 
 namespace aux {
 
@@ -50,14 +49,13 @@ void unhex(const Input_type &input, Output_type &output) {
 
       if (std::string::npos == pos) {
         char tmp[1024];
-        my_snprintf(tmp, sizeof(tmp),
-                    "Invalid hexadecimal character %c at position %d", data,
-                    pos);
+        snprintf(tmp, sizeof(tmp),
+                 "Invalid hexadecimal character %c at position %zu", data, pos);
         throw std::logic_error(tmp);
       }
 
       decimal_value = static_cast<unsigned char>(decimal_value << 4) |
-          static_cast<unsigned char>(pos);
+                      static_cast<unsigned char>(pos);
     }
 
     output.push_back(decimal_value);

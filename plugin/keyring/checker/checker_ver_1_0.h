@@ -29,18 +29,16 @@
 
 namespace keyring {
 
-class CheckerVer_1_0 : public Checker
-{
-public:
-  CheckerVer_1_0() : Checker(keyring_file_version_1_0)
-  {}
-protected:
+class CheckerVer_1_0 : public Checker {
+ public:
+  CheckerVer_1_0() : Checker(keyring_file_version_1_0) {}
+
+ protected:
   bool is_file_size_correct(size_t file_size);
   bool file_seek_to_tag(File file);
   bool is_dgst_correct(File file, Digest *digest);
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_CHECKER_VER_1_0_H
-
+#endif  // MYSQL_CHECKER_VER_1_0_H

@@ -29,23 +29,23 @@
 #include "client/dump/table.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Column_statistic : public Abstract_plain_sql_object_dump_task
-{
-public:
-  Column_statistic(uint64 id, const std::string& schema,
-    const std::string& sql_formatted_definition, const Table* defined_table);
+class Column_statistic : public Abstract_plain_sql_object_dump_task {
+ public:
+  Column_statistic(uint64 id, const std::string &schema,
+                   const std::string &sql_formatted_definition,
+                   const Table *defined_table);
 
-private:
+ private:
   /* Holds table object based on which this trigger is defined. */
-  const Table* m_defined_table;
+  const Table *m_defined_table;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

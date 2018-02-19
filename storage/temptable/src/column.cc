@@ -25,13 +25,14 @@ TempTable Column implementation. */
 
 #include "storage/temptable/include/temptable/column.h" /* temptable::Column */
 
-#include "my_dbug.h"       /* DBUG_ASSERT() */
-#include "sql/field.h"     /* Field */
-#include "sql/key.h"       /* KEY */
+#include "my_dbug.h"   /* DBUG_ASSERT() */
+#include "sql/field.h" /* Field */
+#include "sql/key.h"   /* KEY */
+#include "sql/table.h"
 
 namespace temptable {
 
-Column::Column(const TABLE& mysql_table, const Field& mysql_field) {
+Column::Column(const TABLE &mysql_table, const Field &mysql_field) {
   m_nullable = mysql_field.real_maybe_null();
 
   m_null_bitmask = mysql_field.null_bit;
@@ -42,10 +43,10 @@ Column::Column(const TABLE& mysql_table, const Field& mysql_field) {
    * don't look at it, we just measure the offset of the user data and use the
    * same offset to get the user data inside our own copy of a row in
    * `m_mysql_row` which is neither record[0] nor record[1]. */
-  unsigned char* ptr;
-  const_cast<Field&>(mysql_field).get_ptr(&ptr);
+  unsigned char *ptr;
+  const_cast<Field &>(mysql_field).get_ptr(&ptr);
 
-  unsigned char* mysql_row = mysql_table.record[0];
+  unsigned char *mysql_row = mysql_table.record[0];
   const size_t mysql_row_length = mysql_table.s->rec_buff_length;
 
   size_t user_data_offset = static_cast<size_t>(ptr - mysql_row);
@@ -76,7 +77,7 @@ Column::Column(const TABLE& mysql_table, const Field& mysql_field) {
       m_length_bytes_size = ptr - (mysql_row + m_length);
       break;
     default:
-      m_length = const_cast<Field&>(mysql_field).data_length();
+      m_length = const_cast<Field &>(mysql_field).data_length();
       m_length_bytes_size = 0;
       break;
   }
@@ -88,4 +89,4 @@ Column::Column(const TABLE& mysql_table, const Field& mysql_field) {
     m_null_byte_offset = 0;
   }
 }
-}
+}  // namespace temptable

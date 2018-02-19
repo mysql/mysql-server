@@ -31,6 +31,7 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dd.h"
 #include "sql/dd/dd_table.h"
+#include "sql/dd/properties.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/schema.h"
 #include "sql/mdl.h"            // MDL_*
@@ -294,7 +295,8 @@ Ndb_dd_client::rename_table(const char* old_schema_name,
                                          new_table_id, new_table_version);
 
   // Rename foreign keys
-  if (dd::rename_foreign_keys(old_table_name, to_table_def))
+  if (dd::rename_foreign_keys(m_thd, old_schema_name, old_table_name,
+                              new_schema_name, to_table_def))
   {
     // Failed to rename foreign keys or commit/rollback, unexpected
     DBUG_ASSERT(false);

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,12 +27,10 @@
 
 #include "plugin/x/src/statement_builder.h"
 
-namespace xpl
-{
+namespace xpl {
 
-class Find_statement_builder: public Crud_statement_builder
-{
-public:
+class Find_statement_builder : public Crud_statement_builder {
+ public:
   typedef ::Mysqlx::Crud::Find Find;
 
   explicit Find_statement_builder(const Expression_generator &gen)
@@ -40,12 +38,14 @@ public:
 
   void build(const Find &msg) const;
 
-protected:
+ protected:
   typedef ::Mysqlx::Crud::Projection Projection;
-  typedef ::google::protobuf::RepeatedPtrField< Projection > Projection_list;
-  typedef ::google::protobuf::RepeatedPtrField< ::Mysqlx::Expr::Expr > Grouping_list;
+  typedef ::google::protobuf::RepeatedPtrField<Projection> Projection_list;
+  typedef ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::Expr>
+      Grouping_list;
   typedef ::Mysqlx::Expr::Expr Grouping_criteria;
-  typedef void (Find_statement_builder::*Object_item_adder)(const Projection &item) const;
+  typedef void (Find_statement_builder::*Object_item_adder)(
+      const Projection &item) const;
 
   void add_statement_common(const Find &msg) const;
   void add_document_statement_with_grouping(const Find &msg) const;
@@ -57,12 +57,13 @@ protected:
   void add_document_projection(const Projection_list &projection) const;
   void add_document_projection_item(const Projection &item) const;
 
-  void add_document_object(const Projection_list &projection, const Object_item_adder &adder) const;
+  void add_document_object(const Projection_list &projection,
+                           const Object_item_adder &adder) const;
   void add_document_primary_projection_item(const Projection &item) const;
 
   void add_row_locking(const Find &msg) const;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
-#endif // FIND_STATEMENT_BUILDER_H_
+#endif  // FIND_STATEMENT_BUILDER_H_

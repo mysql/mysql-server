@@ -26,7 +26,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
  Specific type for the service status return values.
 
- 0 is FALSE, non-zero is TRUE. Corresponds to C++ bool.
+ 0 is false, non-zero is true. Corresponds to C++ bool.
 
  @sa DEFINE_BOOL_METHOD, DECLARE_BOOL_METHOD
 */
@@ -67,32 +67,29 @@ typedef int mysql_service_status_t;
   Generates the standard Service type name. It does not have const specifier,
   it should be used only when really necessary.
 */
-#define SERVICE_TYPE_NO_CONST(name) \
-  mysql_service_ ## name ## _t
+#define SERVICE_TYPE_NO_CONST(name) mysql_service_##name##_t
 
 /**
   Generates the standard Service type name.
 */
-#define SERVICE_TYPE(name) \
-  const SERVICE_TYPE_NO_CONST(name)
+#define SERVICE_TYPE(name) const SERVICE_TYPE_NO_CONST(name)
 
 /**
   Declares a new Service. It creates a structure for pointers to Service
-  methods. A list of methods defined using DECLARE_METHOD and DECLARE_BOOL_METHOD
-  macros must follow this macro, with a closing END_SERVICE_DEFINITION macro
-  usage.
+  methods. A list of methods defined using DECLARE_METHOD and
+  DECLARE_BOOL_METHOD macros must follow this macro, with a closing
+  END_SERVICE_DEFINITION macro usage.
 
   @param name Service name, must be a valid C name.
 */
-#define BEGIN_SERVICE_DEFINITION(name) \
-  typedef struct s_mysql_ ## name {
-
+#define BEGIN_SERVICE_DEFINITION(name) typedef struct s_mysql_##name {
 /**
   A macro to end the last Service definition started with the
   BEGIN_SERVICE_DEFINITION macro.
 */
 #define END_SERVICE_DEFINITION(name) \
-} SERVICE_TYPE_NO_CONST(name);
+  }                                  \
+  SERVICE_TYPE_NO_CONST(name);
 /**
   Declares a method as a part of the Service definition. To be used within the
   SERVICE_DEFINITION macro.
@@ -102,8 +99,7 @@ typedef int mysql_service_status_t;
   @param name Name of the method, must be a valid C name.
   @param args The list of arguments of the method taken in parentheses.
 */
-#define DECLARE_METHOD(retval, name, args) \
-  retval (*name) args
+#define DECLARE_METHOD(retval, name, args) retval(*name) args
 
 /**
   Declares a method that returns bool as a part of the Service definition. To be
@@ -129,8 +125,6 @@ typedef int mysql_service_status_t;
 
   @param name Handle name, must be a valid C name.
 */
-#define DEFINE_SERVICE_HANDLE(name) \
-  typedef struct name ## _imp* name
+#define DEFINE_SERVICE_HANDLE(name) typedef struct name##_imp *name
 
 #endif /* SERVICE_H */
-

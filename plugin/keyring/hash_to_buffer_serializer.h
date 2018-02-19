@@ -32,29 +32,27 @@
 #include "plugin/keyring/common/i_keyring_key.h"
 #include "plugin/keyring/common/i_serializer.h"
 
-namespace keyring
-{
-  class Hash_to_buffer_serializer : public ISerializer
-  {
-  public:
-    ISerialized_object* serialize
-      (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-         &keys_hash,
-       IKey *key, const Key_operation operation);
+namespace keyring {
+class Hash_to_buffer_serializer : public ISerializer {
+ public:
+  ISerialized_object *serialize(
+      const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+          &keys_hash,
+      IKey *key, const Key_operation operation);
 
-    void set_memory_needed_for_buffer(size_t memory_needed_for_buffer)
-    {
-      this->memory_needed_for_buffer= memory_needed_for_buffer;
-    }
-  protected:
-    size_t memory_needed_for_buffer;
+  void set_memory_needed_for_buffer(size_t memory_needed_for_buffer) {
+    this->memory_needed_for_buffer = memory_needed_for_buffer;
+  }
 
-    bool store_keys_in_buffer
-      (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-         &keys_hash,
-       Buffer *buffer);
-    bool store_key_in_buffer(const IKey* key, Buffer *buffer);
-  };
-}
+ protected:
+  size_t memory_needed_for_buffer;
 
-#endif //MYSQL_HASH_TO_BUFFER_SERIALIZER_H
+  bool store_keys_in_buffer(
+      const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+          &keys_hash,
+      Buffer *buffer);
+  bool store_key_in_buffer(const IKey *key, Buffer *buffer);
+};
+}  // namespace keyring
+
+#endif  // MYSQL_HASH_TO_BUFFER_SERIALIZER_H

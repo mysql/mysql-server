@@ -28,12 +28,22 @@
   Table SOCKET_INSTANCES (declarations).
 */
 
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#endif
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "mysql/components/services/psi_socket_bits.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_socket;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -41,8 +51,7 @@
 */
 
 /** A row of PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */
-struct row_socket_instances
-{
+struct row_socket_instances {
   /** Column EVENT_NAME. */
   const char *m_event_name;
   /** Length in bytes of @c m_event_name. */
@@ -64,110 +73,81 @@ struct row_socket_instances
   /** Socket state: ACTIVE or IDLE */
   PSI_socket_state m_state;
 
-  row_socket_instances()
-  {
-    m_thread_id_set = false;
-  }
+  row_socket_instances() { m_thread_id_set = false; }
 };
 
-class PFS_index_socket_instances : public PFS_engine_index
-{
-public:
-  PFS_index_socket_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1)
-  {
-  }
+class PFS_index_socket_instances : public PFS_engine_index {
+ public:
+  PFS_index_socket_instances(PFS_engine_key *key_1) : PFS_engine_index(key_1) {}
 
   PFS_index_socket_instances(PFS_engine_key *key_1, PFS_engine_key *key_2)
-    : PFS_engine_index(key_1, key_2)
-  {
-  }
+      : PFS_engine_index(key_1, key_2) {}
 
-  ~PFS_index_socket_instances()
-  {
-  }
+  ~PFS_index_socket_instances() {}
 
   virtual bool match(const PFS_socket *pfs) = 0;
 };
 
-class PFS_index_socket_instances_by_instance : public PFS_index_socket_instances
-{
-public:
+class PFS_index_socket_instances_by_instance
+    : public PFS_index_socket_instances {
+ public:
   PFS_index_socket_instances_by_instance()
-    : PFS_index_socket_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
-  {
-  }
+      : PFS_index_socket_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_socket_instances_by_instance()
-  {
-  }
+  ~PFS_index_socket_instances_by_instance() {}
 
   bool match(const PFS_socket *pfs);
 
-private:
+ private:
   PFS_key_object_instance m_key;
 };
 
-class PFS_index_socket_instances_by_thread : public PFS_index_socket_instances
-{
-public:
+class PFS_index_socket_instances_by_thread : public PFS_index_socket_instances {
+ public:
   PFS_index_socket_instances_by_thread()
-    : PFS_index_socket_instances(&m_key), m_key("THREAD_ID")
-  {
-  }
+      : PFS_index_socket_instances(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_socket_instances_by_thread()
-  {
-  }
+  ~PFS_index_socket_instances_by_thread() {}
 
   bool match(const PFS_socket *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key;
 };
 
-class PFS_index_socket_instances_by_socket : public PFS_index_socket_instances
-{
-public:
+class PFS_index_socket_instances_by_socket : public PFS_index_socket_instances {
+ public:
   PFS_index_socket_instances_by_socket()
-    : PFS_index_socket_instances(&m_key), m_key("SOCKET_ID")
-  {
-  }
+      : PFS_index_socket_instances(&m_key), m_key("SOCKET_ID") {}
 
-  ~PFS_index_socket_instances_by_socket()
-  {
-  }
+  ~PFS_index_socket_instances_by_socket() {}
 
   bool match(const PFS_socket *pfs);
 
-private:
+ private:
   PFS_key_socket_id m_key;
 };
 
-class PFS_index_socket_instances_by_ip_port : public PFS_index_socket_instances
-{
-public:
+class PFS_index_socket_instances_by_ip_port
+    : public PFS_index_socket_instances {
+ public:
   PFS_index_socket_instances_by_ip_port()
-    : PFS_index_socket_instances(&m_key_1, &m_key_2),
-      m_key_1("IP"),
-      m_key_2("PORT")
-  {
-  }
+      : PFS_index_socket_instances(&m_key_1, &m_key_2),
+        m_key_1("IP"),
+        m_key_2("PORT") {}
 
-  ~PFS_index_socket_instances_by_ip_port()
-  {
-  }
+  ~PFS_index_socket_instances_by_ip_port() {}
 
   bool match(const PFS_socket *pfs);
 
-private:
+ private:
   PFS_key_ip m_key_1;
   PFS_key_port m_key_2;
 };
 
 /** Table PERFORMANCE_SCHEMA.SOCKET_INSTANCES. */
-class table_socket_instances : public PFS_engine_table
-{
-public:
+class table_socket_instances : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -181,19 +161,15 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_socket_instances();
 
-public:
-  ~table_socket_instances()
-  {
-  }
+ public:
+  ~table_socket_instances() {}
 
-protected:
+ protected:
   int make_row(PFS_socket *pfs);
 
   /** Table share lock. */

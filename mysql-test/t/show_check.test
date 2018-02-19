@@ -343,12 +343,10 @@ create database mysqltest;
 show create database mysqltest;
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode=(select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_1@localhost, mysqltest_2@localhost, mysqltest_3@localhost;
 grant select on `mysqltest`.* to mysqltest_1@localhost;
 grant usage  on `mysqltest`.* to mysqltest_2@localhost;
 grant drop   on `mysqltest`.* to mysqltest_3@localhost;
-set sql_mode= @orig_sql_mode;
 
 connect (con1,localhost,mysqltest_1,,mysqltest);
 connection con1;
@@ -955,10 +953,8 @@ create database mysqltest;
 show create database mysqltest;
 create table mysqltest.t1(a int);
 insert into mysqltest.t1 values(1);
-set @orig_sql_mode = @@sql_mode;
-set sql_mode='';
+create user mysqltest_4@localhost;
 grant select on `mysqltest`.`t1` to mysqltest_4@localhost;
-set sql_mode= @orig_sql_mode;
 connect (con4,localhost,mysqltest_4,,mysqltest);
 connection con4;
 show create database mysqltest;
@@ -1514,6 +1510,36 @@ DESCRIBE t1 f2;
 SHOW COLUMNS FROM t1 LIKE 'f1';
 SHOW COLUMNS FROM t1 LIKE 'f2';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#11754608 MYSQL DOESN'T SHOW WHAT COLLATION WAS USED IF THAT
+--echo # COLLATION IS THE DEFAU
+--echo #
+
+CREATE TABLE t1 (f1 CHAR(1),
+                 f2 CHAR(1) COLLATE UTF8_BIN,
+                 f3 CHAR(1) CHARSET UTF8MB3,
+                 f4 CHAR(1) CHARSET UTF8MB4);
+
+--echo # The SHOW command should show the utf8mb4 charset for f4 after ALTER.
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN f5 CHAR(1);
+ALTER TABLE t1 ADD COLUMN f6 CHAR(1) CHARSET UTF8MB4;
+
+--echo # The SHOW command should show the utf8mb4 charset for f6 after ALTER.
+SHOW CREATE TABLE t1;
+
+--echo # Check if we retain the property after CREATE SELECT.
+CREATE TABLE t2 AS SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+
+--echo # Check if we retain the property after CREATE LIKE.
+CREATE TABLE t3 LIKE t1;
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

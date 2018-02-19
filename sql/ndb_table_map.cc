@@ -94,7 +94,7 @@ uint Ndb_table_map::get_field_for_column(uint colId) const
 }
 
 
-unsigned char * Ndb_table_map::get_column_mask(const st_bitmap *field_mask)
+unsigned char * Ndb_table_map::get_column_mask(const MY_BITMAP *field_mask)
 {
   unsigned char * map = 0;
   if(field_mask)

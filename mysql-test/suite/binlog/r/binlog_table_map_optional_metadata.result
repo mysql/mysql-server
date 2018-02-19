@@ -30,13 +30,13 @@ c_multi_linestring MULTILINESTRING, c_multi_polygon MULTIPOLYGON,
 c_geometrycollection GEOMETRYCOLLECTION, c_char CHAR(100));
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
-# Columns(GEOMETRY, POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMETRYCOLLECTION, CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(GEOMETRY, POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON, GEOMCOLLECTION, CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 RESET MASTER;
 SET GLOBAL binlog_row_metadata = FULL;
 INSERT INTO t1(c_point) VALUES(ST_PointFromText('POINT(10 10)'));
 Matching lines are:
-# Columns(`c_geo` GEOMETRY, `c_point` POINT, `c_linestring` LINESTRING, `c_polygon` POLYGON, `c_multi_point` MULTIPOINT, `c_multi_linestring` MULTILINESTRING, `c_multi_polygon` MULTIPOLYGON, `c_geometrycollection` GEOMETRYCOLLECTION, `c_char` CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
+# Columns(`c_geo` GEOMETRY, `c_point` POINT, `c_linestring` LINESTRING, `c_polygon` POLYGON, `c_multi_point` MULTIPOINT, `c_multi_linestring` MULTILINESTRING, `c_multi_polygon` MULTIPOLYGON, `c_geometrycollection` GEOMCOLLECTION, `c_char` CHAR(100)) DEFAULT CHARSET utf8mb4 COLLATE utf8mb4_0900_ai_ci
 Occurrences of '# Columns' in the input file: 1
 DROP TABLE t1;
 RESET MASTER;

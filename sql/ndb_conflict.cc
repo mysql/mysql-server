@@ -248,7 +248,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
     {
       if (m_extended && !has_prefix)
       {
-        my_snprintf(msg_buf, msg_buf_len,
+        snprintf(msg_buf, msg_buf_len,
                     "Exceptions table %s is extended, but mandatory column %s  doesn't have the \'%s\' prefix",
                     ex_tab_name,
                     col_name,
@@ -267,7 +267,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Char &&
           exceptionsTable->getColumn(i)->getType() != NDBCOL::Unsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$OP_TYPE",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -287,7 +287,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Char &&
           exceptionsTable->getColumn(i)->getType() != NDBCOL::Unsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$CFT_CAUSE",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -305,7 +305,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
     {
       if (exceptionsTable->getColumn(i)->getType() != NDBCOL::Bigunsigned)
       {
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Table %s has incorrect type %u for NDB$ORIG_TRANSID",
                     exceptionsTable->getName(),
                     exceptionsTable->getColumn(i)->getType());
@@ -380,7 +380,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         if ((! col->getNullable()) &&
             col->getDefaultValue() == NULL)
         {
-          my_snprintf(error_details, error_details_len,
+          snprintf(error_details, error_details_len,
                       "Old or new column reference %s in table %s is not nullable and doesn't have a default value",
                       col->getName(), exceptionsTable->getName());
           DBUG_PRINT("info", ("%s", error_details));
@@ -399,19 +399,19 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         if ((! col->getNullable()) &&
             col->getDefaultValue() == NULL)
         {
-          my_snprintf(error_details, error_details_len,
+          snprintf(error_details, error_details_len,
                       "Extra column %s in table %s is not nullable and doesn't have a default value",
                       col->getName(), exceptionsTable->getName());
           DBUG_PRINT("info", ("%s", error_details));
           ok= false;
           break;
         }
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Column %s in extension table %s not found in %s",
                     col->getName(), exceptionsTable->getName(),
                     mainTable->getName());
         DBUG_PRINT("info", ("%s", error_details));
-        my_snprintf(msg_buf, msg_buf_len,
+        snprintf(msg_buf, msg_buf_len,
                     "exceptions table %s has suspicious "
                     "definition ((column %d): %s",
                     ex_tab_name, fixed_cols + k, error_details);
@@ -443,7 +443,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
           }
           else
           {
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Data column %s in table %s is not nullable and doesn't have a default value",
                         col->getName(), exceptionsTable->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -456,7 +456,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
           /* Column is part of the primary key */
           if (column_version != DEFAULT)
           {
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column %s in table %s",
                         col->getName(), exceptionsTable->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -471,7 +471,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
             */
             if (m_key_data_pos[match_k] != -1)
             {
-              my_snprintf(error_details, error_details_len,
+              snprintf(error_details, error_details_len,
                           "Multiple references to the same key column %s in table %s",
                           col->getName(), exceptionsTable->getName());
               DBUG_PRINT("info", ("%s", error_details));
@@ -502,7 +502,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
                Column with this name is part of primary key,
                but both columns are not declared not null
             */ 
-            my_snprintf(error_details, error_details_len,
+            snprintf(error_details, error_details_len,
                         "Pk column %s not declared not null in both tables",
                         col->getName());
             DBUG_PRINT("info", ("%s", error_details));
@@ -516,7 +516,7 @@ ExceptionsTableWriter::check_optional_columns(const NdbDictionary::Table* mainTa
         /* 
            Columns have same name, but not the same type
         */ 
-        my_snprintf(error_details, error_details_len,
+        snprintf(error_details, error_details_len,
                     "Column %s has matching name to column %s for table %s, but wrong type, %u versus %u",
                     col->getName(), mcol->getName(),
                     mainTable->getName(),
@@ -604,13 +604,13 @@ ExceptionsTableWriter::init(const NdbDictionary::Table* mainTable,
       DBUG_RETURN(0);
     }
     else
-      my_snprintf(msg_buf, msg_buf_len,
+      snprintf(msg_buf, msg_buf_len,
                   "exceptions table %s has wrong "
                   "definition (column %d): %s",
                   ex_tab_name, fixed_cols + k, error_details);
   }
   else
-    my_snprintf(msg_buf, msg_buf_len,
+    snprintf(msg_buf, msg_buf_len,
                 "exceptions table %s has wrong "
                 "definition (initial %d columns)",
                 ex_tab_name, fixed_cols);
@@ -2564,7 +2564,7 @@ parse_conflict_fn_spec(const char* conflict_fn_spec,
     DBUG_RETURN(0);
   }
   /* parse error */
-  my_snprintf(msg, msg_len, "%s, %s at '%s'",
+  snprintf(msg, msg_len, "%s, %s at '%s'",
               conflict_fn_spec, error_str, ptr);
   DBUG_PRINT("info", ("%s", msg));
   DBUG_RETURN(-1);
@@ -2709,7 +2709,7 @@ setup_conflict_fn(Ndb* ndb,
 
   if(is_exceptions_table(tabName))
   {
-    my_snprintf(msg, msg_len, 
+    snprintf(msg, msg_len, 
                 "Table %s.%s is exceptions table: not using conflict function %s",
                 dbName,
                 tabName,
@@ -2727,7 +2727,7 @@ setup_conflict_fn(Ndb* ndb,
   {
     if (num_args != 1)
     {
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "Incorrect arguments to conflict function");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
@@ -2753,7 +2753,7 @@ setup_conflict_fn(Ndb* ndb,
     }
     if (colNum == -1)
     {
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "Could not find resolve column %s.",
                   resolveColName);
       DBUG_PRINT("info", ("%s", msg));
@@ -2765,7 +2765,7 @@ setup_conflict_fn(Ndb* ndb,
     {
       /* wrong data type */
       slave_reset_conflict_fn(*ppcfn_share);
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "Column '%s' has wrong datatype",
                   resolveColName);
       DBUG_PRINT("info", ("%s", msg));
@@ -2780,7 +2780,7 @@ setup_conflict_fn(Ndb* ndb,
                              colNum, resolve_col_sz,
                              conflict_fn, CFF_NONE))
     {
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "Unable to setup conflict resolution using column '%s'",
                   resolveColName);
       DBUG_PRINT("info", ("%s", msg));
@@ -2788,7 +2788,7 @@ setup_conflict_fn(Ndb* ndb,
     }
 
     /* Success, update message */
-    my_snprintf(msg, msg_len,
+    snprintf(msg, msg_len,
                 "Table %s.%s using conflict_fn %s on attribute %s.",
                 dbName,
                 tabName,
@@ -2802,10 +2802,10 @@ setup_conflict_fn(Ndb* ndb,
     /* Check how updates will be logged... */
     const bool log_update_as_write = (!tableBinlogUseUpdate);
     if (log_update_as_write) {
-      my_snprintf(msg, msg_len,
-                  "Table %s.%s configured to log updates as writes.  "
-                  "Not suitable for %s.",
-                  dbName, tabName, conflict_fn->name);
+      snprintf(msg, msg_len,
+               "Table %s.%s configured to log updates as writes.  "
+               "Not suitable for %s.",
+               dbName, tabName, conflict_fn->name);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
@@ -2816,7 +2816,7 @@ setup_conflict_fn(Ndb* ndb,
   {
     if (num_args > 1)
     {
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "Too many arguments to conflict function");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
@@ -2825,7 +2825,7 @@ setup_conflict_fn(Ndb* ndb,
     /* Check that table doesn't have Blobs as we don't support that */
     if (ndb_table_has_blobs(ndbtab))
     {
-      my_snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
+      snprintf(msg, msg_len, "Table has Blob column(s), not suitable for %s.",
                   conflict_fn->name);
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
@@ -2841,7 +2841,7 @@ setup_conflict_fn(Ndb* ndb,
 
     if (ndbtab->getExtraRowAuthorBits() == 0)
     {
-      my_snprintf(msg, msg_len, "No extra row author bits in table.");
+      snprintf(msg, msg_len, "No extra row author bits in table.");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
@@ -2855,13 +2855,13 @@ setup_conflict_fn(Ndb* ndb,
                              0, // resolve_col_sz
                              conflict_fn, CFF_REFRESH_ROWS))
     {
-      my_snprintf(msg, msg_len,
+      snprintf(msg, msg_len,
                   "unable to setup conflict resolution");
       DBUG_PRINT("info", ("%s", msg));
       DBUG_RETURN(-1);
     }
     /* Success, update message */
-    my_snprintf(msg, msg_len,
+    snprintf(msg, msg_len,
                 "Table %s.%s using conflict_fn %s.",
                 dbName,
                 tabName,
@@ -2931,7 +2931,7 @@ SHOW_VAR ndb_status_conflict_variables[]= {
 };
 
 int
-show_ndb_status_conflict(THD*, struct st_mysql_show_var* var, char*)
+show_ndb_status_conflict(THD*, SHOW_VAR* var, char*)
 {
   /* Just a function to allow moving array into this file */
   var->type = SHOW_ARRAY;

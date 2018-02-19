@@ -28,27 +28,26 @@
 #include <ostream>
 #include <string>
 
+#include "lex_string.h"
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/dd/collection.h"
-#include "sql/dd/properties.h"                 // Properties
-#include "sql/dd/string_type.h"                // dd::Stringstream_type
+#include "sql/dd/properties.h"   // Properties
+#include "sql/dd/string_type.h"  // dd::Stringstream_type
 #include "sql/dd/types/column.h"
-#include "sql/dd/types/parameter.h"            // dd::Parameter
-#include "sql/dd/types/parameter_type_element.h" // dd::Parameter_type_element
+#include "sql/dd/types/parameter.h"               // dd::Parameter
+#include "sql/dd/types/parameter_type_element.h"  // dd::Parameter_type_element
 #include "sql/dd/types/view.h"
-#include "sql/dd_table_share.h"                // dd_get_mysql_charset
+#include "sql/dd_table_share.h"  // dd_get_mysql_charset
 #include "sql/field.h"
-#include "sql/key.h"
-#include "sql/sp.h"                            // SP_DEFAULT_ACCESS_MAPPING
-#include "sql/sql_class.h"                     // THD
+#include "sql/gis/srid.h"
+#include "sql/sp.h"         // SP_DEFAULT_ACCESS_MAPPING
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_show.h"
 #include "sql/system_variables.h"
@@ -56,50 +55,44 @@
 #include "sql_string.h"
 #include "typelib.h"
 
-
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
-                                         st_sp_chistics *sp_chistics)
-{
+                                         st_sp_chistics *sp_chistics) {
   DBUG_ENTER("prepare_sp_chistics_from_dd_routine");
 
-  sp_chistics->detistic= routine->is_deterministic();
+  sp_chistics->detistic = routine->is_deterministic();
 
   // SQL Data access.
-  switch (routine->sql_data_access())
-  {
-  case dd::Routine::SDA_NO_SQL:
-    sp_chistics->daccess= SP_NO_SQL;
-    break;
-  case dd::Routine::SDA_CONTAINS_SQL:
-    sp_chistics->daccess= SP_CONTAINS_SQL;
-    break;
-  case dd::Routine::SDA_READS_SQL_DATA:
-    sp_chistics->daccess= SP_READS_SQL_DATA;
-    break;
-  case dd::Routine::SDA_MODIFIES_SQL_DATA:
-    sp_chistics->daccess= SP_MODIFIES_SQL_DATA;
-    break;
-  default:
-    sp_chistics->daccess= SP_DEFAULT_ACCESS_MAPPING; /* purecov: deadcode */
+  switch (routine->sql_data_access()) {
+    case dd::Routine::SDA_NO_SQL:
+      sp_chistics->daccess = SP_NO_SQL;
+      break;
+    case dd::Routine::SDA_CONTAINS_SQL:
+      sp_chistics->daccess = SP_CONTAINS_SQL;
+      break;
+    case dd::Routine::SDA_READS_SQL_DATA:
+      sp_chistics->daccess = SP_READS_SQL_DATA;
+      break;
+    case dd::Routine::SDA_MODIFIES_SQL_DATA:
+      sp_chistics->daccess = SP_MODIFIES_SQL_DATA;
+      break;
+    default:
+      sp_chistics->daccess = SP_DEFAULT_ACCESS_MAPPING; /* purecov: deadcode */
   }
 
   // Security type.
-  sp_chistics->suid=
-    (routine->security_type() == dd::View::ST_INVOKER) ? SP_IS_NOT_SUID :
-                                                         SP_IS_SUID;
+  sp_chistics->suid = (routine->security_type() == dd::View::ST_INVOKER)
+                          ? SP_IS_NOT_SUID
+                          : SP_IS_SUID;
 
   // comment string.
-  if (!routine->comment().empty())
-  {
-    sp_chistics->comment= { routine->comment().c_str(),
-                            routine->comment().length() };
-  }
-  else
-    sp_chistics->comment= EMPTY_CSTR;
+  if (!routine->comment().empty()) {
+    sp_chistics->comment = {routine->comment().c_str(),
+                            routine->comment().length()};
+  } else
+    sp_chistics->comment = EMPTY_CSTR;
 
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Helper method to prepare type in string format from the dd::Parameter's
@@ -115,92 +108,77 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
 
 static void prepare_type_string_from_dd_param(THD *thd,
                                               const dd::Parameter *param,
-                                              String *type_str)
-{
+                                              String *type_str) {
   DBUG_ENTER("prepare_type_string_from_dd_param");
 
   // Decimals
-  uint numeric_scale= 0;
+  uint numeric_scale = 0;
   if (param->data_type() == dd::enum_column_types::DECIMAL ||
       param->data_type() == dd::enum_column_types::NEWDECIMAL)
-    numeric_scale= param->numeric_scale();
+    numeric_scale = param->numeric_scale();
   else if (param->data_type() == dd::enum_column_types::FLOAT ||
            param->data_type() == dd::enum_column_types::DOUBLE)
-    numeric_scale= param->is_numeric_scale_null() ? NOT_FIXED_DEC :
-      param->numeric_scale();
+    numeric_scale =
+        param->is_numeric_scale_null() ? NOT_FIXED_DEC : param->numeric_scale();
 
   // ENUM/SET elements.
-  TYPELIB *interval= NULL;
+  TYPELIB *interval = NULL;
   if (param->data_type() == dd::enum_column_types::ENUM ||
-      param->data_type() == dd::enum_column_types::SET)
-  {
+      param->data_type() == dd::enum_column_types::SET) {
     // Allocate space for interval.
-    size_t interval_parts= param->elements_count();
+    size_t interval_parts = param->elements_count();
 
-    interval= static_cast<TYPELIB *>(alloc_root(thd->mem_root,
-                                                sizeof(TYPELIB)));
-    interval->type_names=
-      static_cast<const char **>(alloc_root(thd->mem_root,
-                                            (sizeof(char *) *
-                                             (interval_parts+1))));
-    interval->type_names[interval_parts]= 0;
+    interval =
+        static_cast<TYPELIB *>(alloc_root(thd->mem_root, sizeof(TYPELIB)));
+    interval->type_names = static_cast<const char **>(
+        alloc_root(thd->mem_root, (sizeof(char *) * (interval_parts + 1))));
+    interval->type_names[interval_parts] = 0;
 
-    interval->type_lengths=
-      static_cast<uint *>(alloc_root(thd->mem_root,
-                                     sizeof(uint) * interval_parts));
-    interval->count= interval_parts;
-    interval->name= NULL;
+    interval->type_lengths = static_cast<uint *>(
+        alloc_root(thd->mem_root, sizeof(uint) * interval_parts));
+    interval->count = interval_parts;
+    interval->name = NULL;
 
-    for (const dd::Parameter_type_element *pe : param->elements())
-    {
+    for (const dd::Parameter_type_element *pe : param->elements()) {
       // Read the enum/set element name
-      dd::String_type element_name= pe->name();
+      dd::String_type element_name = pe->name();
 
-      uint pos= pe->index() - 1;
-      interval->type_lengths[pos]=
-        static_cast<uint>(element_name.length());
-      interval->type_names[pos]= strmake_root(thd->mem_root,
-                                              element_name.c_str(),
-                                              element_name.length());
+      uint pos = pe->index() - 1;
+      interval->type_lengths[pos] = static_cast<uint>(element_name.length());
+      interval->type_names[pos] = strmake_root(
+          thd->mem_root, element_name.c_str(), element_name.length());
     }
   }
 
   // Geometry sub type
-  Field::geometry_type geom_type= Field::GEOM_GEOMETRY;
-  if (param->data_type() == dd::enum_column_types::GEOMETRY)
-  {
+  Field::geometry_type geom_type = Field::GEOM_GEOMETRY;
+  if (param->data_type() == dd::enum_column_types::GEOMETRY) {
     uint32 sub_type;
-    dd::Properties *options= const_cast<dd::Properties*>(&param->options());
+    dd::Properties *options = const_cast<dd::Properties *>(&param->options());
     options->get_uint32("geom_type", &sub_type);
-    geom_type= static_cast<Field::geometry_type>(sub_type);
+    geom_type = static_cast<Field::geometry_type>(sub_type);
   }
 
   // Get type in string format.
   TABLE table;
   TABLE_SHARE share;
-  memset(&table, 0, sizeof(table));
-  memset(&share, 0, sizeof(share));
-  table.in_use= thd;
-  table.s= &share;
+  table.in_use = thd;
+  table.s = &share;
 
-  std::unique_ptr<Field, Destroy_only<Field>>
-    field(::make_field(table.s, (uchar *)0, param->char_length(),
-                       (uchar *)"", 0,
-                       dd_get_old_field_type(param->data_type()),
-                       dd_get_mysql_charset(param->collation_id()),
-                       geom_type, Field::NONE, interval, "", false,
-                       param->is_zerofill(), param->is_unsigned(),
-                       numeric_scale, 0, 0, {}));
+  std::unique_ptr<Field, Destroy_only<Field>> field(
+      ::make_field(table.s, (uchar *)0, param->char_length(), (uchar *)"", 0,
+                   dd_get_old_field_type(param->data_type()),
+                   dd_get_mysql_charset(param->collation_id()), geom_type,
+                   Field::NONE, interval, "", false, param->is_zerofill(),
+                   param->is_unsigned(), numeric_scale, 0, 0, {}));
 
   field->init(&table);
   field->sql_type(*type_str);
 
-  if (field->has_charset())
-  {
+  if (field->has_charset()) {
     type_str->append(STRING_WITH_LEN(" CHARSET "));
     type_str->append(field->charset()->csname);
-    if (!(field->charset()->state & MY_CS_PRIMARY))
-    {
+    if (!(field->charset()->state & MY_CS_PRIMARY)) {
       type_str->append(STRING_WITH_LEN(" COLLATE "));
       type_str->append(field->charset()->name);
     }
@@ -209,14 +187,11 @@ static void prepare_type_string_from_dd_param(THD *thd,
   DBUG_VOID_RETURN;
 }
 
-
-void prepare_return_type_string_from_dd_routine(THD *thd,
-                                                const dd::Routine *routine,
-                                                dd::String_type *return_type_str)
-{
+void prepare_return_type_string_from_dd_routine(
+    THD *thd, const dd::Routine *routine, dd::String_type *return_type_str) {
   DBUG_ENTER("prepare_return_type_string_from_dd_routine");
 
-  *return_type_str= "";
+  *return_type_str = "";
 
   /*
     Return type of Stored function is stored as the first parameter in the data
@@ -224,39 +199,33 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
     Stored procedures do not have return type so nothing is done for the stored
     procedures.
   */
-  if (routine->type() == dd::Routine::RT_FUNCTION)
-  {
-    const dd::Routine::Parameter_collection &parameters= routine->parameters();
+  if (routine->type() == dd::Routine::RT_FUNCTION) {
+    const dd::Routine::Parameter_collection &parameters = routine->parameters();
 
-    if (!parameters.empty())
-    {
-      const dd::Parameter *param= *parameters.begin();
+    if (!parameters.empty()) {
+      const dd::Parameter *param = *parameters.begin();
       DBUG_ASSERT(param->ordinal_position() == 1);
 
       String type_str(64);
       type_str.set_charset(system_charset_info);
 
       prepare_type_string_from_dd_param(thd, param, &type_str);
-      *return_type_str= type_str.ptr();
+      *return_type_str = type_str.ptr();
     }
   }
 
   DBUG_VOID_RETURN;
 }
 
-
-void prepare_params_string_from_dd_routine(THD *thd,
-                                           const dd::Routine *routine,
-                                           dd::String_type *params_str)
-{
+void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
+                                           dd::String_type *params_str) {
   DBUG_ENTER("prepare_params_string_from_dd_routine");
 
-  *params_str= "";
+  *params_str = "";
 
   dd::Stringstream_type params_ss;
 
-  for (const dd::Parameter *param : routine->parameters())
-  {
+  for (const dd::Parameter *param : routine->parameters()) {
     /*
       Return type of stored function is stored as the first parameter. So skip
       it.
@@ -265,23 +234,20 @@ void prepare_params_string_from_dd_routine(THD *thd,
         param->ordinal_position() == 1)
       continue;
 
-    if (params_ss.str().length() > 0)
-      params_ss << ", ";
+    if (params_ss.str().length() > 0) params_ss << ", ";
 
     // PARAMETER MODE
-    if (routine->type() == dd::Routine::RT_PROCEDURE)
-    {
-      switch(param->mode())
-      {
-      case dd::Parameter::PM_IN:
-        params_ss << "IN ";
-        break;
-      case dd::Parameter::PM_OUT:
-        params_ss << "OUT ";
-        break;
-      case dd::Parameter::PM_INOUT:
-        params_ss << "INOUT ";
-        break;
+    if (routine->type() == dd::Routine::RT_PROCEDURE) {
+      switch (param->mode()) {
+        case dd::Parameter::PM_IN:
+          params_ss << "IN ";
+          break;
+        case dd::Parameter::PM_OUT:
+          params_ss << "OUT ";
+          break;
+        case dd::Parameter::PM_INOUT:
+          params_ss << "INOUT ";
+          break;
       }
     }
 
@@ -290,11 +256,11 @@ void prepare_params_string_from_dd_routine(THD *thd,
       Convert and quote the parameter name if needed.
     */
     String param_str(NAME_LEN + 1);
-    sql_mode_t sql_mode= thd->variables.sql_mode;
-    thd->variables.sql_mode= routine->sql_mode();
+    sql_mode_t sql_mode = thd->variables.sql_mode;
+    thd->variables.sql_mode = routine->sql_mode();
     append_identifier(thd, &param_str, param->name().c_str(),
                       param->name().length());
-    thd->variables.sql_mode= sql_mode;
+    thd->variables.sql_mode = sql_mode;
     params_ss << param_str.ptr() << " ";
 
     // PARAMETER TYPE
@@ -304,8 +270,7 @@ void prepare_params_string_from_dd_routine(THD *thd,
     params_ss << type_str.ptr();
   }
 
-  if (params_ss.str().length())
-    *params_str= params_ss.str();
+  if (params_ss.str().length()) *params_str = params_ss.str();
 
   DBUG_VOID_RETURN;
 }

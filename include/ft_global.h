@@ -38,51 +38,43 @@
 #include "my_base.h"
 #include "my_inttypes.h"
 
-#ifdef  __cplusplus
-extern "C" {
-#endif
-
 #define HA_FT_MAXBYTELEN 336
-#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/4)
+#define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN / 4)
 
 #define DEFAULT_FTB_SYNTAX "+ -><()~*:\"\"&|"
 
-typedef struct st_ft_info FT_INFO;
-struct _ft_vft
-{
-  int       (*read_next)(FT_INFO *, char *);
-  float     (*find_relevance)(FT_INFO *, uchar *, uint);
-  void      (*close_search)(FT_INFO *);
-  float     (*get_relevance)(FT_INFO *);
-  void      (*reinit_search)(FT_INFO *);
+struct FT_INFO;
+struct _ft_vft {
+  int (*read_next)(FT_INFO *, char *);
+  float (*find_relevance)(FT_INFO *, uchar *, uint);
+  void (*close_search)(FT_INFO *);
+  float (*get_relevance)(FT_INFO *);
+  void (*reinit_search)(FT_INFO *);
 };
 
-typedef struct st_ft_info_ext FT_INFO_EXT;
-struct _ft_vft_ext
-{
-  uint      (*get_version)();        // Extended API version
+struct FT_INFO_EXT;
+struct _ft_vft_ext {
+  uint (*get_version)();  // Extended API version
   ulonglong (*get_flags)();
   ulonglong (*get_docid)(FT_INFO_EXT *);
   ulonglong (*count_matches)(FT_INFO_EXT *);
 };
 
 /* Flags for extended FT API */
-#define FTS_ORDERED_RESULT                (1LL << 1)
-#define FTS_DOCID_IN_RESULT               (1LL << 2)
+#define FTS_ORDERED_RESULT (1LL << 1)
+#define FTS_DOCID_IN_RESULT (1LL << 2)
 
 #define FTS_DOC_ID_COL_NAME "FTS_DOC_ID"
 
 #define FTS_NGRAM_PARSER_NAME "ngram"
 
-struct st_ft_info
-{
+struct FT_INFO {
   struct _ft_vft *please; /* INTERCAL style :-) */
 };
 
 #ifndef FT_CORE
-struct st_ft_info_ext
-{
-  struct _ft_vft     *please; /* INTERCAL style :-) */
+struct FT_INFO_EXT {
+  struct _ft_vft *please; /* INTERCAL style :-) */
   struct _ft_vft_ext *could_you;
 };
 #endif
@@ -103,27 +95,25 @@ void ft_free_stopwords(void);
   Operation types, used in FT_HINTS.
 */
 
-enum ft_operation
-{
+enum ft_operation {
   FT_OP_UNDEFINED, /** Operation undefined, use of hints is impossible */
   FT_OP_NO,        /** No operation, single MATCH function */
   FT_OP_GT,        /** 'Greater than' operation */
   FT_OP_GE         /** 'Greater than or equal to' operation */
 };
 
-#define FT_NL              0   /** Normal mode  */
-#define FT_BOOL            1   /** Boolean mode */
-#define FT_SORTED          2   /** perform internal sorting by rank */
-#define FT_EXPAND          4   /** query expansion */
-#define FT_NO_RANKING      8   /** skip rank calculation */
+#define FT_NL 0         /** Normal mode  */
+#define FT_BOOL 1       /** Boolean mode */
+#define FT_SORTED 2     /** perform internal sorting by rank */
+#define FT_EXPAND 4     /** query expansion */
+#define FT_NO_RANKING 8 /** skip rank calculation */
 
 /**
   Info about FULLTEXT index hints,
   passed to the storage engine.
 */
 
-struct ft_hints
-{
+struct ft_hints {
   /** FULLTEXT flags, see FT_NL, etc */
   uint flags;
   /** Operation type */
@@ -134,11 +124,8 @@ struct ft_hints
   ha_rows limit;
 };
 
-FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
-                        const CHARSET_INFO *, uchar *);
+FT_INFO *ft_init_search(uint, void *, uint, uchar *, uint, const CHARSET_INFO *,
+                        uchar *);
 bool ft_boolean_check_syntax_string(const uchar *);
 
-#ifdef  __cplusplus
-}
-#endif
 #endif /* FT_GLOBAL_INCLUDED */

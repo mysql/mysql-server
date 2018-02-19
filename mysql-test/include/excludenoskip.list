@@ -190,9 +190,10 @@ statement_digest_long_query.test
 # few test cannot run on Solaris discover
 not_discover.inc
 
-# 17.0 Reason for inclusion: the extra JSON cause on ndb builds is hard to
+# 17.0 Reason for inclusion: the extra JSON cause on builds with other
+# storage engines than InnoDB is hard to
 # separate. see innodb.sdi test
-have_no_ndb.inc
+have_only_innodb.inc
 
 # 18.0 Test to be run on local machine
 # This file is used by test scenarios that depend on time and it isn't possible
@@ -210,3 +211,8 @@ have_mac_os.inc
 # This file skips test for certain features in versions of the library where
 # the feature is missing.
 require_icu_version.inc
+
+#21.0 fips realted test will be run only on system where opensssl fips module is installed
+# currently we are checking via this env $OPENSSL_FIPS_INSTALLED
+not_have_fips.inc
+have_fips.inc

@@ -26,11 +26,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-Table* Abstract_table_dump_task::get_related_table()
-{
-  return (Table*)this->get_related_db_object();
+Table *Abstract_table_dump_task::get_related_table() {
+  return (Table *)this->get_related_db_object();
 }
 
-Abstract_table_dump_task::Abstract_table_dump_task(Table* related_table)
-  : Abstract_dump_task(related_table)
-{}
+Abstract_table_dump_task::Abstract_table_dump_task(Table *related_table)
+    : Abstract_dump_task(related_table) {}

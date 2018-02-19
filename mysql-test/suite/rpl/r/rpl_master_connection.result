@@ -212,10 +212,8 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/check_slave_is_running.inc
-CREATE USER 'ssl_user' IDENTIFIED BY '';
-GRANT ALL ON *.* TO ssl_user REQUIRE SSL;
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+CREATE USER 'ssl_user' IDENTIFIED BY '' REQUIRE SSL;
+GRANT ALL ON *.* TO ssl_user;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_USER= 'root', MASTER_PASSWORD = '' , MASTER_SSL = 0;
 Warnings:

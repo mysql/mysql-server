@@ -33,8 +33,6 @@
 
 struct timeval;
 
-C_MODE_START
-
 extern ulonglong log_10_int[20];
 extern uchar days_in_month[];
 extern const char my_zero_datetime6[]; /* "0000-00-00 00:00:00.000000" */
@@ -61,38 +59,36 @@ typedef enum enum_mysql_timestamp_type timestamp_type;
 #define TIMESTAMP_MIN_VALUE 1
 
 /* two-digit years < this are 20..; >= this are 19.. */
-#define YY_PART_YEAR	   70
+#define YY_PART_YEAR 70
 
 /*
   check for valid times only if the range of time_t is greater than
   the range of my_time_t
 */
 #if SIZEOF_TIME_T > 4
-# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
-    ((x) <= TIMESTAMP_MAX_VALUE && \
-     (x) >= TIMESTAMP_MIN_VALUE)
+#define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
+  ((x) <= TIMESTAMP_MAX_VALUE && (x) >= TIMESTAMP_MIN_VALUE)
 #else
-# define IS_TIME_T_VALID_FOR_TIMESTAMP(x) \
-    ((x) >= TIMESTAMP_MIN_VALUE)
+#define IS_TIME_T_VALID_FOR_TIMESTAMP(x) ((x) >= TIMESTAMP_MIN_VALUE)
 #endif
 
 /* Flags to str_to_datetime and number_to_datetime */
 typedef uint my_time_flags_t;
-static const my_time_flags_t TIME_FUZZY_DATE=         1;
-static const my_time_flags_t TIME_DATETIME_ONLY=      2;
-static const my_time_flags_t TIME_FRAC_TRUNCATE=      4;
-static const my_time_flags_t TIME_NO_DATE_FRAC_WARN=  8;
-static const my_time_flags_t TIME_NO_ZERO_IN_DATE=   16;
-static const my_time_flags_t TIME_NO_ZERO_DATE=      32;
-static const my_time_flags_t TIME_INVALID_DATES=     64;
+static const my_time_flags_t TIME_FUZZY_DATE = 1;
+static const my_time_flags_t TIME_DATETIME_ONLY = 2;
+static const my_time_flags_t TIME_FRAC_TRUNCATE = 4;
+static const my_time_flags_t TIME_NO_DATE_FRAC_WARN = 8;
+static const my_time_flags_t TIME_NO_ZERO_IN_DATE = 16;
+static const my_time_flags_t TIME_NO_ZERO_DATE = 32;
+static const my_time_flags_t TIME_INVALID_DATES = 64;
 
 /* Conversion warnings */
-#define MYSQL_TIME_WARN_TRUNCATED         1
-#define MYSQL_TIME_WARN_OUT_OF_RANGE      2
+#define MYSQL_TIME_WARN_TRUNCATED 1
+#define MYSQL_TIME_WARN_OUT_OF_RANGE 2
 #define MYSQL_TIME_WARN_INVALID_TIMESTAMP 4
-#define MYSQL_TIME_WARN_ZERO_DATE         8
-#define MYSQL_TIME_NOTE_TRUNCATED        16
-#define MYSQL_TIME_WARN_ZERO_IN_DATE     32
+#define MYSQL_TIME_WARN_ZERO_DATE 8
+#define MYSQL_TIME_NOTE_TRUNCATED 16
+#define MYSQL_TIME_WARN_ZERO_IN_DATE 32
 
 /* Usefull constants */
 #define SECONDS_IN_24H 86400L
@@ -101,27 +97,24 @@ static const my_time_flags_t TIME_INVALID_DATES=     64;
 #define TIME_MAX_HOUR 838
 #define TIME_MAX_MINUTE 59
 #define TIME_MAX_SECOND 59
-#define TIME_MAX_VALUE (TIME_MAX_HOUR*10000 + TIME_MAX_MINUTE*100 + \
-                        TIME_MAX_SECOND)
-#define TIME_MAX_VALUE_SECONDS (TIME_MAX_HOUR * 3600L + \
-                                TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
+#define TIME_MAX_VALUE \
+  (TIME_MAX_HOUR * 10000 + TIME_MAX_MINUTE * 100 + TIME_MAX_SECOND)
+#define TIME_MAX_VALUE_SECONDS \
+  (TIME_MAX_HOUR * 3600L + TIME_MAX_MINUTE * 60L + TIME_MAX_SECOND)
 
 /*
   Structure to return status from
     str_to_datetime(), str_to_time(), number_to_datetime(), number_to_time()
 */
-typedef struct st_mysql_time_status
-{
+struct MYSQL_TIME_STATUS {
   int warnings;
   uint fractional_digits;
   uint nanoseconds;
-} MYSQL_TIME_STATUS;
+};
 
-static inline void my_time_status_init(MYSQL_TIME_STATUS *status)
-{
-  status->warnings= status->fractional_digits= status->nanoseconds= 0;
+static inline void my_time_status_init(MYSQL_TIME_STATUS *status) {
+  status->warnings = status->fractional_digits = status->nanoseconds = 0;
 }
-
 
 bool check_date(const MYSQL_TIME *ltime, bool not_zero_date,
                 my_time_flags_t flags, int *was_cut);
@@ -135,10 +128,10 @@ ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_time(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong(const MYSQL_TIME *);
 
-#define MY_PACKED_TIME_GET_INT_PART(x)     ((x) >> 24)
-#define MY_PACKED_TIME_GET_FRAC_PART(x)    ((x) % (1LL << 24))
-#define MY_PACKED_TIME_MAKE(i, f)          ((((ulonglong) (i)) << 24) + (f))
-#define MY_PACKED_TIME_MAKE_INT(i)         ((((ulonglong) (i)) << 24))
+#define MY_PACKED_TIME_GET_INT_PART(x) ((x) >> 24)
+#define MY_PACKED_TIME_GET_FRAC_PART(x) ((x) % (1LL << 24))
+#define MY_PACKED_TIME_MAKE(i, f) ((((ulonglong)(i)) << 24) + (f))
+#define MY_PACKED_TIME_MAKE_INT(i) ((((ulonglong)(i)) << 24))
 
 longlong year_to_longlong_datetime_packed(long year);
 longlong TIME_to_longlong_datetime_packed(const MYSQL_TIME *);
@@ -167,14 +160,13 @@ bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
 bool check_time_mmssff_range(const MYSQL_TIME *ltime);
 bool check_time_range_quick(const MYSQL_TIME *ltime);
 bool check_datetime_range(const MYSQL_TIME *ltime);
-void adjust_time_range(struct st_mysql_time *, int *warning);
+void adjust_time_range(MYSQL_TIME *, int *warning);
 
-long calc_daynr(uint year,uint month,uint day);
+long calc_daynr(uint year, uint month, uint day);
 uint calc_days_in_year(uint year);
 uint year_2000_handling(uint year);
 
 void my_init_time(void);
-
 
 /*
   Function to check sanity of a TIMESTAMP value
@@ -185,23 +177,21 @@ void my_init_time(void);
     estimate.
 
   RETURN VALUES
-    TRUE    The value seems sane
-    FALSE   The MYSQL_TIME value is definitely out of range
+    true    The value seems sane
+    false   The MYSQL_TIME value is definitely out of range
 */
 
-static inline bool validate_timestamp_range(const MYSQL_TIME *t)
-{
+static inline bool validate_timestamp_range(const MYSQL_TIME *t) {
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
       (t->year == TIMESTAMP_MIN_YEAR && (t->month < 12 || t->day < 31)))
-    return FALSE;
+    return false;
 
-  return TRUE;
+  return true;
 }
 
-my_time_t 
-my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
-                  bool *in_dst_time_gap);
+my_time_t my_system_gmt_sec(const MYSQL_TIME *t, long *my_timezone,
+                            bool *in_dst_time_gap);
 
 void set_zero_time(MYSQL_TIME *tm, enum enum_mysql_timestamp_type time_type);
 void set_max_time(MYSQL_TIME *tm, bool neg);
@@ -224,31 +214,43 @@ int my_TIME_to_str(const MYSQL_TIME *l_time, char *to, uint dec);
 
 int my_timeval_to_str(const struct timeval *tm, char *to, uint dec);
 
-/* 
+/*
   Available interval types used in any statement.
 
   'interval_type' must be sorted so that simple intervals comes first,
   ie year, quarter, month, week, day, hour, etc. The order based on
   interval size is also important and the intervals should be kept in a
   large to smaller order. (get_interval_value() depends on this)
- 
-  Note: If you change the order of elements in this enum you should fix 
-  order of elements in 'interval_type_to_name' and 'interval_names' 
-  arrays 
-  
+
+  Note: If you change the order of elements in this enum you should fix
+  order of elements in 'interval_type_to_name' and 'interval_names'
+  arrays
+
   See also interval_type_to_name, get_interval_value, interval_names
 */
 
-enum interval_type
-{
-  INTERVAL_YEAR, INTERVAL_QUARTER, INTERVAL_MONTH, INTERVAL_WEEK, INTERVAL_DAY,
-  INTERVAL_HOUR, INTERVAL_MINUTE, INTERVAL_SECOND, INTERVAL_MICROSECOND,
-  INTERVAL_YEAR_MONTH, INTERVAL_DAY_HOUR, INTERVAL_DAY_MINUTE,
-  INTERVAL_DAY_SECOND, INTERVAL_HOUR_MINUTE, INTERVAL_HOUR_SECOND,
-  INTERVAL_MINUTE_SECOND, INTERVAL_DAY_MICROSECOND, INTERVAL_HOUR_MICROSECOND,
-  INTERVAL_MINUTE_MICROSECOND, INTERVAL_SECOND_MICROSECOND, INTERVAL_LAST
+enum interval_type {
+  INTERVAL_YEAR,
+  INTERVAL_QUARTER,
+  INTERVAL_MONTH,
+  INTERVAL_WEEK,
+  INTERVAL_DAY,
+  INTERVAL_HOUR,
+  INTERVAL_MINUTE,
+  INTERVAL_SECOND,
+  INTERVAL_MICROSECOND,
+  INTERVAL_YEAR_MONTH,
+  INTERVAL_DAY_HOUR,
+  INTERVAL_DAY_MINUTE,
+  INTERVAL_DAY_SECOND,
+  INTERVAL_HOUR_MINUTE,
+  INTERVAL_HOUR_SECOND,
+  INTERVAL_MINUTE_SECOND,
+  INTERVAL_DAY_MICROSECOND,
+  INTERVAL_HOUR_MICROSECOND,
+  INTERVAL_MINUTE_MICROSECOND,
+  INTERVAL_SECOND_MICROSECOND,
+  INTERVAL_LAST
 };
-
-C_MODE_END
 
 #endif /* _my_time_h_ */

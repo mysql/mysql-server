@@ -24,4 +24,5 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *security_context_service= (void*)VERSION_security_context_service;
+SERVICE_VERSION *security_context_service =
+    (void **)VERSION_security_context_service;

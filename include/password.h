@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,16 +33,13 @@
 #include "my_macros.h"
 
 struct rand_struct *get_sql_rand();
-                           
-C_MODE_START
 
-void my_make_scrambled_password(char *to, const char *password,
-                                size_t pass_len);
+// extern "C" since it is an (undocumented) part of the libmysql ABI.
+extern "C" void my_make_scrambled_password(char *to, const char *password,
+                                           size_t pass_len);
 void my_make_scrambled_password_sha1(char *to, const char *password,
                                      size_t pass_len);
 
 void hash_password(ulong *result, const char *password, uint password_len);
-
-C_MODE_END
 
 #endif /* PASSWORD_INCLUDED */

@@ -56,33 +56,30 @@
   @param str      The message to print. Not trailing \n needed.
   @param MyFlags  ME_BELL to beep, or 0.
 */
-void my_message_stderr(uint error MY_ATTRIBUTE((unused)),
-                       const char *str, myf MyFlags)
-{
+void my_message_stderr(uint error MY_ATTRIBUTE((unused)), const char *str,
+                       myf MyFlags) {
   DBUG_ENTER("my_message_stderr");
-  DBUG_PRINT("enter",("message: %s",str));
-  (void) fflush(stdout);
-  if (MyFlags & ME_BELL)
-    (void) fputc('\007', stderr);
-  if (my_progname)
-  {
+  DBUG_PRINT("enter", ("message: %s", str));
+  (void)fflush(stdout);
+  if (MyFlags & ME_BELL) (void)fputc('\007', stderr);
+  if (my_progname) {
     size_t l;
     const char *r;
 
-    if ((r= strrchr(my_progname, FN_LIBCHAR)))
+    if ((r = strrchr(my_progname, FN_LIBCHAR)))
       r++;
     else
-      r= my_progname;
+      r = my_progname;
 
-    l= strlen(r);
- #ifdef _WIN32
+    l = strlen(r);
+#ifdef _WIN32
     if ((l > 4) && !strcmp(&r[l - 4], ".exe"))
-      l-= 4; /* purecov: inspected */  /* Windows-only */
- #endif
-    fprintf(stderr, "%.*s: ", (int) l, r);
+      l -= 4; /* purecov: inspected */ /* Windows-only */
+#endif
+    fprintf(stderr, "%.*s: ", (int)l, r);
   }
-  (void)fputs(str,stderr);
-  (void)fputc('\n',stderr);
+  (void)fputs(str, stderr);
+  (void)fputc('\n', stderr);
   (void)fflush(stderr);
   DBUG_VOID_RETURN;
 }

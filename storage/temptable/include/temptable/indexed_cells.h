@@ -30,11 +30,11 @@ TempTable Indexed Cells declaration. */
 #include <cstddef> /* size_t */
 #include <limits>  /* std::numeric_limits */
 
-#include "sql/key.h"        /* KEY */
-#include "sql/sql_const.h"  /* MAX_REF_PARTS */
-#include "storage/temptable/include/temptable/cell.h" /* temptable::Cell */
+#include "sql/key.h"                                    /* KEY */
+#include "sql/sql_const.h"                              /* MAX_REF_PARTS */
+#include "storage/temptable/include/temptable/cell.h"   /* temptable::Cell */
 #include "storage/temptable/include/temptable/column.h" /* temptable::Columns */
-#include "storage/temptable/include/temptable/row.h" /* temptable::Row */
+#include "storage/temptable/include/temptable/row.h"    /* temptable::Row */
 #include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
 
 namespace temptable {
@@ -48,33 +48,33 @@ class Indexed_cells {
   Indexed_cells(
       /** [in] Search cells in "index_read() input" format. These must remain
        * valid during the lifetime of the created `Indexed_cells` object. */
-      const unsigned char* mysql_search_cells,
+      const unsigned char *mysql_search_cells,
       /** [in] The length of `mysql_search_cells` in bytes. */
       uint16_t mysql_search_cells_length,
       /** [in] MySQL index, used for querying metadata. */
-      const Index& index);
+      const Index &index);
 
   /** Construct from a mysql row. The row must remain valid during the
    * lifetime of the created `Indexed_cells` object. */
   Indexed_cells(
       /** [in] MySQL row. */
-      const unsigned char* mysql_row,
+      const unsigned char *mysql_row,
       /** [in] MySQL index whose cells this `Indexed_cells` represents. */
-      const Index& index);
+      const Index &index);
 
   /** Construct from a row in a table. The row must remain valid during the
    * lifetime of the created `Indexed_cells` object. */
   Indexed_cells(
       /** [in] Row from which to create the indexed cells. */
-      const Row& row,
+      const Row &row,
       /** [in] MySQL index, used for querying metadata. */
-      const Index& index);
+      const Index &index);
 
   /** Get the row of these indexed cells. There is no row if this Indexed_cells
    * object has been created from a MySQL search cells (Handler::index_read()
    * input), so this method must not be called in this case.
    * @return row, an element of Table::m_rows */
-  Storage::Element* row() const;
+  Storage::Element *row() const;
 
   /** Export the row of these indexed cells in the mysql row format
    * (write_row()). As with the `row()` method, this one does not make sense
@@ -82,9 +82,9 @@ class Indexed_cells {
    * created from MySQL search cells. */
   void export_row_to_mysql(
       /** [in] Metadata for the columns that constitute the exported row. */
-      const Columns& columns,
+      const Columns &columns,
       /** [out] Buffer to write the MySQL row into. */
-      unsigned char* mysql_row,
+      unsigned char *mysql_row,
       /** [in] Presumed length of the mysql row in bytes. */
       size_t mysql_row_length) const;
 
@@ -105,7 +105,7 @@ class Indexed_cells {
       size_t i,
       /** [in] Index to which the current objects belongs, used for
        * querying metadata. */
-      const Index& index) const;
+      const Index &index) const;
 
   /** Compare to another indexed cells object. Each cell is compared
    * individually until a differing cells are found. If the compared
@@ -117,9 +117,9 @@ class Indexed_cells {
    * @retval >0 if this > rhs */
   int compare(
       /** [in] Indexed cells to compare with the current object. */
-      const Indexed_cells& rhs,
+      const Indexed_cells &rhs,
       /** [in] Index, used for querying metadata. */
-      const Index& index) const;
+      const Index &index) const;
 
  private:
   /** Enum that designates where the actual user data is stored. */
@@ -141,7 +141,7 @@ class Indexed_cells {
        * [0, number_of_cells()). */
       size_t i,
       /** [in] Index, for querying metadata via the MySQL index. */
-      const Index& index) const;
+      const Index &index) const;
 
   /** Flag indicating whether we are interpreting MySQL buffer or we
    * have references to a `temptable::Row` object. */
@@ -171,49 +171,49 @@ class Indexed_cells {
      *   used when m_data_location == MYSQL_BUF_INDEX_READ or
      * - MySQL row in write_row() format
      *   used when m_data_location == MYSQL_BUF_WRITE_ROW. */
-    const unsigned char* m_mysql_buf;
+    const unsigned char *m_mysql_buf;
 
     /** Pointer to the row, used when m_data_location == ROW. */
-    const Row* m_row;
+    const Row *m_row;
   };
 };
 
 /** Indexed cells comparator (a < b). */
 class Indexed_cells_less {
  public:
-  explicit Indexed_cells_less(const Index& index);
+  explicit Indexed_cells_less(const Index &index);
 
-  bool operator()(const Indexed_cells& lhs, const Indexed_cells& rhs) const;
+  bool operator()(const Indexed_cells &lhs, const Indexed_cells &rhs) const;
 
  private:
-  const Index& m_index;
+  const Index &m_index;
 };
 
 /** Indexed cells hasher. */
 class Indexed_cells_hash {
  public:
-  explicit Indexed_cells_hash(const Index& index);
+  explicit Indexed_cells_hash(const Index &index);
 
-  size_t operator()(const Indexed_cells& indexed_cells) const;
+  size_t operator()(const Indexed_cells &indexed_cells) const;
 
  private:
-  const Index& m_index;
+  const Index &m_index;
 };
 
 /** Indexed cells comparator (a == b). */
 class Indexed_cells_equal_to {
  public:
-  explicit Indexed_cells_equal_to(const Index& index);
+  explicit Indexed_cells_equal_to(const Index &index);
 
-  bool operator()(const Indexed_cells& lhs, const Indexed_cells& rhs) const;
+  bool operator()(const Indexed_cells &lhs, const Indexed_cells &rhs) const;
 
  private:
-  const Index& m_index;
+  const Index &m_index;
 };
 
 /* Implementation of inlined methods. */
 
-inline Storage::Element* Indexed_cells::row() const {
+inline Storage::Element *Indexed_cells::row() const {
   /*
   switch (m_data_location) {
     case Data_location::MYSQL_BUF_INDEX_READ:
@@ -230,17 +230,17 @@ inline Storage::Element* Indexed_cells::row() const {
   if (m_data_location == Data_location::MYSQL_BUF_INDEX_READ) {
     abort();
   } else if (m_data_location == Data_location::MYSQL_BUF_WRITE_ROW) {
-    return const_cast<unsigned char*>(m_mysql_buf);
+    return const_cast<unsigned char *>(m_mysql_buf);
   } else if (m_data_location == Data_location::ROW) {
-    return const_cast<Row*>(m_row);
+    return const_cast<Row *>(m_row);
   }
 
   /* Not reached. */
   abort();
 }
 
-inline void Indexed_cells::export_row_to_mysql(const Columns& columns,
-                                               unsigned char* mysql_row,
+inline void Indexed_cells::export_row_to_mysql(const Columns &columns,
+                                               unsigned char *mysql_row,
                                                size_t mysql_row_length) const {
   /*
   switch (m_data_location) {
@@ -281,22 +281,22 @@ inline void Indexed_cells::number_of_cells(size_t n) {
   m_number_of_cells = static_cast<decltype(m_number_of_cells)>(n);
 }
 
-inline Indexed_cells_less::Indexed_cells_less(const Index& index)
+inline Indexed_cells_less::Indexed_cells_less(const Index &index)
     : m_index(index) {}
 
-inline bool Indexed_cells_less::operator()(const Indexed_cells& lhs,
-                                           const Indexed_cells& rhs) const {
+inline bool Indexed_cells_less::operator()(const Indexed_cells &lhs,
+                                           const Indexed_cells &rhs) const {
   return lhs.compare(rhs, m_index) < 0;
 }
 
-inline Indexed_cells_hash::Indexed_cells_hash(const Index& index)
+inline Indexed_cells_hash::Indexed_cells_hash(const Index &index)
     : m_index(index) {}
 
-inline Indexed_cells_equal_to::Indexed_cells_equal_to(const Index& index)
+inline Indexed_cells_equal_to::Indexed_cells_equal_to(const Index &index)
     : m_index(index) {}
 
-inline bool Indexed_cells_equal_to::operator()(const Indexed_cells& lhs,
-                                               const Indexed_cells& rhs) const {
+inline bool Indexed_cells_equal_to::operator()(const Indexed_cells &lhs,
+                                               const Indexed_cells &rhs) const {
   return lhs.compare(rhs, m_index) == 0;
 }
 

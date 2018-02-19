@@ -4078,7 +4078,7 @@ begin;
 select count(*) from t0;
 count(*)
 0
-set @@session.sql_mode = MAXDB;
+set @@session.sql_mode = ANSI;
 set @@session.tmp_table_size = 0;
 Warnings:
 Warning	1292	Truncated incorrect tmp_table_size value: '0'

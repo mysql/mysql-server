@@ -23,30 +23,25 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "my_base.h"                            /* ha_rows */
-#include "sql/handler.h"                        /* UNDEF_NODEGROUP */
+#include "my_base.h"     /* ha_rows */
+#include "sql/handler.h" /* UNDEF_NODEGROUP */
 
 /**
  * An enum and a struct to handle partitioning and subpartitioning.
  */
-enum class partition_type {
-  NONE= 0,
-  RANGE,
-  HASH,
-  LIST
-};
+enum class partition_type { NONE = 0, RANGE, HASH, LIST };
 
 enum partition_state {
-  PART_NORMAL= 0,
-  PART_IS_DROPPED= 1,
-  PART_TO_BE_DROPPED= 2,
-  PART_TO_BE_ADDED= 3,
-  PART_TO_BE_REORGED= 4,
-  PART_REORGED_DROPPED= 5,
-  PART_CHANGED= 6,
-  PART_IS_CHANGED= 7,
-  PART_IS_ADDED= 8,
-  PART_ADMIN= 9
+  PART_NORMAL = 0,
+  PART_IS_DROPPED = 1,
+  PART_TO_BE_DROPPED = 2,
+  PART_TO_BE_ADDED = 3,
+  PART_TO_BE_REORGED = 4,
+  PART_REORGED_DROPPED = 5,
+  PART_CHANGED = 6,
+  PART_IS_CHANGED = 7,
+  PART_IS_ADDED = 8,
+  PART_ADMIN = 9
 };
 
 /*
@@ -66,26 +61,25 @@ enum partition_state {
   since the fixing in add_column_list_values isn't a complete fixing.
 */
 
-typedef struct p_column_list_val
-{
+typedef struct p_column_list_val {
   union column_value_union {
     /**
       When a table is opened this is set to the field image of the value
       from the item_expression below.
     */
-    const uchar* field_image;
+    const uchar *field_image;
     /**
       When the values are read from dd.Partition_value it is carried as
       a C-string.
     */
-    const char* value_str;
+    const char *value_str;
   } column_value;
   /**
     When partition clause is parsed this is set to the item expression
     for the value. Must be NULL if the value was not parsed, but
     read from dd.Partition_value instead.
   */
-  Item* item_expression;
+  Item *item_expression;
   partition_info *part_info;
   uint partition_id;
   /** MAXVALUE is set (only for RANGE COLUMNS) */
@@ -95,7 +89,6 @@ typedef struct p_column_list_val
   char fixed;
 } part_column_list_val;
 
-
 /*
   This struct is used to contain the value of an element
   in the VALUES IN struct. It needs to keep knowledge of
@@ -103,8 +96,7 @@ typedef struct p_column_list_val
   NULL or not.
 */
 
-typedef struct p_elem_val
-{
+typedef struct p_elem_val {
   longlong value;
   uint added_items;
   bool null_value;
@@ -112,8 +104,8 @@ typedef struct p_elem_val
   part_column_list_val *col_val_array;
 } part_elem_value;
 
-class partition_element :public Sql_alloc {
-public:
+class partition_element {
+ public:
   List<partition_element> subpartitions;
   List<part_elem_value> list_val_list;  // list of LIST values/column arrays
   // TODO: Handle options in a more general way, like dd::Properties
@@ -123,56 +115,60 @@ public:
   longlong range_value;
   const char *partition_name;
   const char *tablespace_name;
-  char* part_comment;
-  const char* data_file_name;
-  const char* index_file_name;
+  char *part_comment;
+  const char *data_file_name;
+  const char *index_file_name;
   handlerton *engine_type;
   enum partition_state part_state;
   uint16 nodegroup_id;
   bool has_null_value;
   /* TODO: Move this to partition_info?*/
-  bool signed_flag;                          // Range value signed
-  bool max_value;                            // MAXVALUE range
+  bool signed_flag;  // Range value signed
+  bool max_value;    // MAXVALUE range
 
   partition_element()
-  : part_max_rows(0), part_min_rows(0), range_value(0),
-    partition_name(NULL), tablespace_name(NULL),
-    part_comment(NULL),
-    data_file_name(NULL), index_file_name(NULL),
-    engine_type(NULL), part_state(PART_NORMAL),
-    nodegroup_id(UNDEF_NODEGROUP), has_null_value(FALSE),
-    signed_flag(FALSE), max_value(FALSE)
-  {
-  }
+      : part_max_rows(0),
+        part_min_rows(0),
+        range_value(0),
+        partition_name(NULL),
+        tablespace_name(NULL),
+        part_comment(NULL),
+        data_file_name(NULL),
+        index_file_name(NULL),
+        engine_type(NULL),
+        part_state(PART_NORMAL),
+        nodegroup_id(UNDEF_NODEGROUP),
+        has_null_value(false),
+        signed_flag(false),
+        max_value(false) {}
   partition_element(partition_element *part_elem)
-  : part_max_rows(part_elem->part_max_rows),
-    part_min_rows(part_elem->part_min_rows),
-    range_value(0), partition_name(NULL),
-    tablespace_name(part_elem->tablespace_name),
-    part_comment(part_elem->part_comment),
-    data_file_name(part_elem->data_file_name),
-    index_file_name(part_elem->index_file_name),
-    engine_type(part_elem->engine_type),
-    part_state(part_elem->part_state),
-    nodegroup_id(part_elem->nodegroup_id),
-    has_null_value(FALSE)
-  {
+      : part_max_rows(part_elem->part_max_rows),
+        part_min_rows(part_elem->part_min_rows),
+        range_value(0),
+        partition_name(NULL),
+        tablespace_name(part_elem->tablespace_name),
+        part_comment(part_elem->part_comment),
+        data_file_name(part_elem->data_file_name),
+        index_file_name(part_elem->index_file_name),
+        engine_type(part_elem->engine_type),
+        part_state(part_elem->part_state),
+        nodegroup_id(part_elem->nodegroup_id),
+        has_null_value(false),
+        signed_flag(false),
+        max_value(false) {}
+  inline void set_from_info(const HA_CREATE_INFO *info) {
+    data_file_name = info->data_file_name;
+    index_file_name = info->index_file_name;
+    tablespace_name = info->tablespace;
+    part_max_rows = info->max_rows;
+    part_min_rows = info->min_rows;
   }
-  inline void set_from_info(const HA_CREATE_INFO* info)
-  {
-    data_file_name= info->data_file_name;
-    index_file_name= info->index_file_name;
-    tablespace_name= info->tablespace;
-    part_max_rows= info->max_rows;
-    part_min_rows= info->min_rows;
-  }
-  inline void put_to_info(HA_CREATE_INFO* info) const
-  {
-    info->data_file_name= data_file_name;
-    info->index_file_name= index_file_name;
-    info->tablespace= tablespace_name;
-    info->max_rows= part_max_rows;
-    info->min_rows= part_min_rows;
+  inline void put_to_info(HA_CREATE_INFO *info) const {
+    info->data_file_name = data_file_name;
+    info->index_file_name = index_file_name;
+    info->tablespace = tablespace_name;
+    info->max_rows = part_max_rows;
+    info->min_rows = part_min_rows;
   }
   ~partition_element() {}
 };

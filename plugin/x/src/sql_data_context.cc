@@ -12,7 +12,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -61,7 +61,7 @@ ngs::Error_code Sql_data_context::init() {
   if (!m_mysql_session) {
     if (ER_SERVER_ISNT_AVAILABLE == m_last_sql_errno)
       return ngs::Error_code(ER_SERVER_ISNT_AVAILABLE, "Server API not ready");
-    log_error("Could not open internal MySQL session");
+    log_error(ER_XPLUGIN_FAILED_TO_OPEN_INTERNAL_SESSION);
     return ngs::Error_code(ER_X_SESSION, "Could not open session");
   }
   return ngs::Error_code();
@@ -86,9 +86,9 @@ void Sql_data_context::deinit() {
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 }
 
-static void kill_completion_handler(void*, unsigned int sql_errno,
+static void kill_completion_handler(void *, unsigned int sql_errno,
                                     const char *err_msg) {
-  log_warning("Kill client: %i %s", sql_errno, err_msg);
+  log_warning(ER_XPLUGIN_CLIENT_KILL_MSG, sql_errno, err_msg);
 }
 
 bool Sql_data_context::kill() {
@@ -103,12 +103,12 @@ bool Sql_data_context::kill() {
 
       if (thd_get_security_context(srv_session_info_get_thd(session),
                                    &scontext))
-        log_warning("Could not get security context for session");
+        log_warning(ER_XPLUGIN_FAILED_TO_GET_SECURITY_CTX);
       else {
         const char *user = MYSQL_SESSION_USER;
         const char *host = MYSQLXSYS_HOST;
         if (security_context_lookup(scontext, user, host, NULL, NULL))
-          log_warning("Unable to switch security context to root");
+          log_warning(ER_XPLUGIN_FAILED_TO_SWITCH_SECURITY_CTX_TO_ROOT);
         else {
           COM_DATA data;
           Callback_command_delegate deleg;
@@ -119,13 +119,13 @@ bool Sql_data_context::kill() {
           data.com_query.length = static_cast<unsigned int>(qb.get().length());
 
           if (!command_service_run_command(
-                   session, COM_QUERY, &data,
-                   mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
-                   deleg.representation(), &deleg)) {
+                  session, COM_QUERY, &data,
+                  mysqld::get_charset_utf8mb4_general_ci(), deleg.callbacks(),
+                  deleg.representation(), &deleg)) {
             if (!deleg.get_error())
               ok = true;
             else
-              log_info("Kill client: %i %s", deleg.get_error().error,
+              log_info(ER_XPLUGIN_CLIENT_KILL_MSG, deleg.get_error().error,
                        deleg.get_error().message.c_str());
           }
         }
@@ -164,13 +164,12 @@ bool Sql_data_context::wait_api_ready(ngs::function<bool()> exiting) {
   return result;
 }
 
-
 Sql_data_context::~Sql_data_context() {
   if (m_mysql_session)
     log_debug("sqlsession deinit~: %p [%i]", m_mysql_session,
               srv_session_info_get_session_id(m_mysql_session));
   if (m_mysql_session && srv_session_close(m_mysql_session))
-    log_warning("Error closing SQL session");
+    log_warning(ER_XPLUGIN_FAILED_TO_CLOSE_SQL_SESSION);
 }
 
 void Sql_data_context::switch_to_local_user(const std::string &user) {
@@ -193,7 +192,8 @@ ngs::Error_code Sql_data_context::authenticate(
   error = switch_to_user(MYSQL_SESSION_USER, MYSQLXSYS_HOST, NULL, NULL);
 
   if (error) {
-    log_error("Unable to switch context to user %s", MYSQL_SESSION_USER);
+    const char *session_user = MYSQL_SESSION_USER;
+    log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, session_user);
     return error;
   }
 
@@ -239,15 +239,15 @@ ngs::Error_code Sql_data_context::authenticate(
     std::string host_or_ip = get_host_or_ip();
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-    PSI_THREAD_CALL(set_thread_account)(
-        user_name.c_str(), static_cast<int>(user_name.length()),
-        host_or_ip.c_str(), static_cast<int>(host_or_ip.length()));
+    PSI_THREAD_CALL(set_thread_account)
+    (user_name.c_str(), static_cast<int>(user_name.length()),
+     host_or_ip.c_str(), static_cast<int>(host_or_ip.length()));
 #endif  // HAVE_PSI_THREAD_INTERFACE
 
     return error;
   }
 
-  log_error("Unable to switch context to user %s", user);
+  log_error(ER_XPLUGIN_FAILED_TO_SWITCH_CONTEXT, user);
 
   return error;
 }
@@ -259,7 +259,7 @@ bool get_security_context_value(MYSQL_THD thd, const char *option,
 
   if (thd_get_security_context(thd, &scontext)) return false;
 
-  return FALSE == security_context_get_option(scontext, option, &result);
+  return false == security_context_get_option(scontext, option, &result);
 }
 
 bool Sql_data_context::is_acl_disabled() {
@@ -334,17 +334,13 @@ ngs::Error_code Sql_data_context::switch_to_user(const char *username,
   m_address = address ? address : "";
   m_db = db ? db : "";
 
-  log_debug("Switching security context to user %s@%s [%s]",
-            username,
-            hostname,
+  log_debug("Switching security context to user %s@%s [%s]", username, hostname,
             address);
 
   if (security_context_lookup(scontext, m_username.c_str(), hostname,
                               m_address.c_str(), m_db.c_str())) {
-    log_debug("Unable to switch security context to user %s@%s [%s]",
-              username,
-              hostname,
-              address);
+    log_debug("Unable to switch security context to user %s@%s [%s]", username,
+              hostname, address);
     return ngs::Fatal(ER_X_SERVICE_ERROR, "Unable to switch context to user %s",
                       username);
   }
@@ -443,9 +439,7 @@ ngs::Error_code Sql_data_context::attach() {
 
   if (nullptr == m_mysql_session ||
       srv_session_attach(m_mysql_session, &previous_thd)) {
-    return ngs::Error_code(
-        ER_X_SERVICE_ERROR,
-        "Internal error attaching");
+    return ngs::Error_code(ER_X_SERVICE_ERROR, "Internal error attaching");
   }
 
   DBUG_ASSERT(nullptr == previous_thd);
@@ -454,15 +448,11 @@ ngs::Error_code Sql_data_context::attach() {
 }
 
 ngs::Error_code Sql_data_context::detach() {
-  if (nullptr == m_mysql_session ||
-      srv_session_detach(m_mysql_session)) {
-    return ngs::Error_code(
-        ER_X_SERVICE_ERROR,
-        "Internal error when detaching");
+  if (nullptr == m_mysql_session || srv_session_detach(m_mysql_session)) {
+    return ngs::Error_code(ER_X_SERVICE_ERROR, "Internal error when detaching");
   }
 
   return {};
 }
-
 
 }  // namespace xpl

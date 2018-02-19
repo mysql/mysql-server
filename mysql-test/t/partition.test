@@ -1667,18 +1667,6 @@ create index inx1 on t1(a);
 drop table t1;
 
 #
-# Bug 19695 Partitions: SHOW CREATE TABLE shows table options even when it
-#                       shouldn't
-#
-create table t1 (a int)
-PARTITION BY KEY (a)
-(PARTITION p0);
-set session sql_mode='no_table_options';
-show create table t1;
-set session sql_mode='';
-drop table t1;
-
-#
 # BUG 19304 Partitions: MERGE handler not allowed in partitioned tables
 #
 --error ER_PARTITION_MERGE_ERROR
@@ -1809,6 +1797,8 @@ drop table t1;
 #
 # Bug #24186 (nested query across partitions returns fewer records)
 #
+
+set session sql_mode='';
 
 CREATE TABLE t2 (
   taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
@@ -2766,3 +2756,12 @@ DROP TABLE t1;
 --replace_result $TOO_LONG_EXPR TOO_LONG_EXPR
 --error ER_PART_EXPR_TOO_LONG
 --eval CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH($TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1))
+
+--echo #
+--echo # Bug #27005020: UBSAN: GET_PART_ITER_FOR_INTERVAL_VIA_WALKING - SIGNED INTEGER OVERFLOW
+--echo #
+CREATE TABLE t (a BIGINT NOT NULL)
+  PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t VALUES(0);
+SELECT 1 FROM t WHERE a = 0x8000000000000000;
+DROP TABLE t;

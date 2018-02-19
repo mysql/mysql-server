@@ -25,15 +25,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <stddef.h>
 #include <vector>
 
-mysql_component::mysql_component(
-  mysql_component_t* component_data, my_string urn)
-  : m_component_data(component_data),
-  m_urn(urn)
-{
-  for (const mysql_metadata_ref_t* metadata_iterator= component_data->metadata;
-    metadata_iterator->key != NULL;
-    ++metadata_iterator)
-  {
+mysql_component::mysql_component(mysql_component_t *component_data,
+                                 my_string urn)
+    : m_component_data(component_data), m_urn(urn) {
+  for (const mysql_metadata_ref_t *metadata_iterator = component_data->metadata;
+       metadata_iterator->key != NULL; ++metadata_iterator) {
     this->set_value(metadata_iterator->key, metadata_iterator->value);
   }
 }
@@ -44,8 +40,7 @@ mysql_component::mysql_component(
   @return Pointer to component name. Pointer is valid till component is not
     unloaded.
 */
-const char* mysql_component::name_c_str() const
-{
+const char *mysql_component::name_c_str() const {
   return m_component_data->name;
 }
 
@@ -54,10 +49,7 @@ const char* mysql_component::name_c_str() const
 
   @return Pointer to URN. Pointer is valid till component is not unloaded.
 */
-const char* mysql_component::urn_c_str() const
-{
-  return m_urn.c_str();
-}
+const char *mysql_component::urn_c_str() const { return m_urn.c_str(); }
 
 /**
   Gets original URN used to load this component.
@@ -65,24 +57,18 @@ const char* mysql_component::urn_c_str() const
   @return Reference to string object with URN. Pointer is valid till component
     is not unloaded.
 */
-const my_string& mysql_component::get_urn() const
-{
-  return m_urn;
-}
+const my_string &mysql_component::get_urn() const { return m_urn; }
 
 /**
   Gets list of all service implementations provided by this component.
 
   @return List of service implementations.
 */
-std::vector<const mysql_service_ref_t*>
-  mysql_component::get_provided_services() const
-{
-  std::vector<const mysql_service_ref_t*> res;
-  for (mysql_service_ref_t* implementation_it= m_component_data->provides;
-    implementation_it->implementation != NULL;
-    ++implementation_it)
-  {
+std::vector<const mysql_service_ref_t *>
+mysql_component::get_provided_services() const {
+  std::vector<const mysql_service_ref_t *> res;
+  for (mysql_service_ref_t *implementation_it = m_component_data->provides;
+       implementation_it->implementation != NULL; ++implementation_it) {
     res.push_back(implementation_it);
   }
   return res;
@@ -93,15 +79,12 @@ std::vector<const mysql_service_ref_t*>
 
   @return List of service names.
 */
-std::vector<mysql_service_placeholder_ref_t*>
-  mysql_component::get_required_services() const
-{
-  std::vector<mysql_service_placeholder_ref_t*> res;
-  for (mysql_service_placeholder_ref_t* implementation_it=
-    m_component_data->requires;
-    implementation_it->name != NULL;
-    ++implementation_it)
-  {
+std::vector<mysql_service_placeholder_ref_t *>
+mysql_component::get_required_services() const {
+  std::vector<mysql_service_placeholder_ref_t *> res;
+  for (mysql_service_placeholder_ref_t *implementation_it =
+           m_component_data->requires;
+       implementation_it->name != NULL; ++implementation_it) {
     res.push_back(implementation_it);
   }
   return res;
@@ -112,7 +95,6 @@ std::vector<mysql_service_placeholder_ref_t*>
 
   @return Component data structure.
 */
-const mysql_component_t* mysql_component::get_data() const
-{
+const mysql_component_t *mysql_component::get_data() const {
   return m_component_data;
 }

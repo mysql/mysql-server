@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -56,9 +56,9 @@ class Admin_command_index {
                                      ngs::Error_code *error);
 
     bool is_column_exists(ngs::Sql_session_interface *sql_session,
-                           const std::string &schema,
-                           const std::string &collection,
-                           ngs::Error_code *error) const;
+                          const std::string &schema,
+                          const std::string &collection,
+                          ngs::Error_code *error) const;
     void add_column(Query_string_builder *qb) const;
     void add_field(Query_string_builder *qb) const;
     bool is_required() const { return m_is_required; }
@@ -109,12 +109,7 @@ class Admin_command_index {
   };
 
  protected:
-  enum class Index_type_id {
-    INDEX,
-    SPATIAL,
-    FULLTEXT,
-    UNSUPPORTED = 99
-  };
+  enum class Index_type_id { INDEX, SPATIAL, FULLTEXT, UNSUPPORTED = 99 };
 
   Index_type_id get_type_id(const std::string &type_name) const;
   std::string get_default_field_type(const Index_type_id id) const;
@@ -125,8 +120,8 @@ class Admin_command_index {
       std::vector<std::string> *column_names) const;
 
   bool is_table_support_virtual_columns(const std::string &schema_name,
-                                            const std::string &table_name,
-                                            ngs::Error_code *error) const;
+                                        const std::string &table_name,
+                                        ngs::Error_code *error) const;
 
   ngs::Session_interface *m_session;
 };

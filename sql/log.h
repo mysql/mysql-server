@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,6 @@
 #define LOG_H
 
 #include <mysql/components/services/log_shared.h>
-#include <mysql/service_my_snprintf.h>   // my_vsnprintf
 #include <stdarg.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -51,22 +50,16 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_psi_config.h"
-#include "my_sys.h"
 #include "my_thread_local.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_file_bits.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
-#include "sql/auth/sql_security_ctx.h" // Security_context
-#include "sql/derror.h"                  // get_server_errmsgs
-#include "sql/thr_malloc.h"
-#include "sql_string.h"
+#include "sql/auth/sql_security_ctx.h"  // Security_context
 
 class THD;
+struct CHARSET_INFO;
 struct TABLE_LIST;
 
 ////////////////////////////////////////////////////////////
@@ -121,11 +114,6 @@ struct TABLE_LIST;
     Number of queries not using indexes logged to the slow query log per min.
 */
 
-class Log_to_file_event_handler;
-class Query_logger;
-
-
-
 /**
   Write a message to a log (for now just used for error log).
   This is a variadic convenience interface to the logging components
@@ -144,9 +132,8 @@ class Query_logger;
 
   See log_shared.h for LOG_TYPEs as well as for allowed LOG_ITEM_ types.
 */
-int  log_vmessage(int log_type, va_list lili);
-int  log_message(int log_type, ...);
-
+int log_vmessage(int log_type, va_list lili);
+int log_message(int log_type, ...);
 
 /**
   A helper that we can stubify so we don't have to pull all of THD
@@ -157,132 +144,19 @@ int  log_message(int log_type, ...);
 */
 my_thread_id log_get_thread_id(THD *thd);
 
-
 /** Type of the log table */
-enum enum_log_table_type
-{
+enum enum_log_table_type {
   QUERY_LOG_NONE = 0,
   QUERY_LOG_SLOW = 1,
   QUERY_LOG_GENERAL = 2
 };
 
-class File_query_log
-{
-  File_query_log(enum_log_table_type log_type);
-
-  ~File_query_log()
-  {
-    DBUG_ASSERT(!is_open());
-    mysql_mutex_destroy(&LOCK_log);
-  }
-
-  /** @return true if the file log is open, false otherwise. */
-  bool is_open() const { return log_open; }
-
-  /**
-     Open a (new) log file.
-
-     Open the logfile, init IO_CACHE and write startup messages.
-
-     @return true if error, false otherwise.
-  */
-  bool open();
-
-  /**
-     Close the log file
-
-     @note One can do an open on the object at once after doing a close.
-     The internal structures are not freed until the destructor is called.
-  */
-  void close();
-
-  /**
-     Check if we have already printed ER_ERROR_ON_WRITE and if not,
-     do so.
-  */
-  void check_and_print_write_error();
-
-  /**
-     Write a command to traditional general log file.
-     Log given command to normal (not rotatable) log file.
-
-     @param event_utime       Command start timestamp in micro seconds
-     @param thread_id         Id of the thread that issued the query
-     @param command_type      The type of the command being logged
-     @param command_type_len  The length of the string above
-     @param sql_text          The very text of the query being executed
-     @param sql_text_len      The length of sql_text string
-
-     @return true if error, false otherwise.
-  */
-  bool write_general(ulonglong event_utime, my_thread_id thread_id,
-                     const char *command_type, size_t command_type_len,
-                     const char *sql_text, size_t sql_text_len);
-
-  /**
-     Log a query to the traditional slow log file.
-
-     @param thd               THD of the query
-     @param current_utime     Current timestamp in micro seconds
-     @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed once
-                              and passed to all general log event handlers
-     @param query_utime       Amount of time the query took to execute (in microseconds)
-     @param lock_utime        Amount of time the query was locked (in microseconds)
-     @param is_command        The flag which determines whether the sql_text is a
-                              query or an administrator command.
-     @param sql_text          The very text of the query or administrator command
-                              processed
-     @param sql_text_len      The length of sql_text string
-
-     @return true if error, false otherwise.
-*/
-  bool write_slow(THD *thd, ulonglong current_utime,
-                  const char *user_host, size_t user_host_len,
-                  ulonglong query_utime, ulonglong lock_utime, bool is_command,
-                  const char *sql_text, size_t sql_text_len);
-
-private:
-  /** Type of log file. */
-  const enum_log_table_type m_log_type;
-
-  /** Makes sure we only have one write at a time. */
-  mysql_mutex_t LOCK_log;
-
-  /** Log filename. */
-  char *name;
-
-  /** Path to log file. */
-  char log_file_name[FN_REFLEN];
-
-  /** Last seen current database. */
-  char db[NAME_LEN + 1];
-
-  /** Have we already printed ER_ERROR_ON_WRITE? */
-  bool write_error;
-
-  IO_CACHE log_file;
-
-  /** True if the file log is open, false otherwise. */
-  volatile bool log_open;
-
-#ifdef HAVE_PSI_INTERFACE
-  /** Instrumentation key to use for file io in @c log_file */
-  PSI_file_key m_log_file_key;
-#endif
-
-  friend class Log_to_file_event_handler;
-  friend class Query_logger;
-};
-
-
 /**
    Abstract superclass for handling logging to slow/general logs.
    Currently has two subclasses, for table and file based logging.
 */
-class Log_event_handler
-{
-public:
+class Log_event_handler {
+ public:
   Log_event_handler() {}
   virtual ~Log_event_handler() {}
 
@@ -293,15 +167,17 @@ public:
      @param current_utime     Current timestamp in micro seconds
      @param query_start_arg   Command start timestamp in micro seconds
      @param user_host         The pointer to the string with user\@host info
-     @param user_host_len     Length of the user_host string. this is computed once
-                              and passed to all general log event handlers
-     @param query_utime       Amount of time the query took to execute (in microseconds)
-     @param lock_utime        Amount of time the query was locked (in microseconds)
-     @param is_command        The flag which determines whether the sql_text is a
-                              query or an administrator command (these are treated
-                              differently by the old logging routines)
-     @param sql_text          The very text of the query or administrator command
-                              processed
+     @param user_host_len     Length of the user_host string. this is computed
+     once and passed to all general log event handlers
+     @param query_utime       Amount of time the query took to execute (in
+     microseconds)
+     @param lock_utime        Amount of time the query was locked (in
+     microseconds)
+     @param is_command        The flag which determines whether the sql_text is
+     a query or an administrator command (these are treated differently by the
+     old logging routines)
+     @param sql_text          The very text of the query or administrator
+     command processed
      @param sql_text_len      The length of sql_text string
 
      @retval  false   OK
@@ -311,7 +187,7 @@ public:
                         ulonglong query_start_arg, const char *user_host,
                         size_t user_host_len, ulonglong query_utime,
                         ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len)= 0;
+                        const char *sql_text, size_t sql_text_len) = 0;
 
   /**
      Log command to the general log.
@@ -341,18 +217,17 @@ public:
      @retval  false   OK
      @retval  true    error occured
   */
-  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
-                           size_t user_host_len, my_thread_id thread_id,
-                           const char *command_type, size_t command_type_len,
-                           const char *sql_text, size_t sql_text_len,
-                           const CHARSET_INFO *client_cs)= 0;
+  virtual bool log_general(THD *thd, ulonglong event_utime,
+                           const char *user_host, size_t user_host_len,
+                           my_thread_id thread_id, const char *command_type,
+                           size_t command_type_len, const char *sql_text,
+                           size_t sql_text_len,
+                           const CHARSET_INFO *client_cs) = 0;
 };
 
-
 /** Class responsible for table based logging. */
-class Log_to_csv_event_handler: public Log_event_handler
-{
-public:
+class Log_to_csv_event_handler : public Log_event_handler {
+ public:
   /** @see Log_event_handler::log_slow(). */
   virtual bool log_slow(THD *thd, ulonglong current_utime,
                         ulonglong query_start_arg, const char *user_host,
@@ -361,13 +236,13 @@ public:
                         const char *sql_text, size_t sql_text_len);
 
   /** @see Log_event_handler::log_general(). */
-  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
-                           size_t user_host_len, my_thread_id thread_id,
-                           const char *command_type, size_t command_type_len,
-                           const char *sql_text, size_t sql_text_len,
-                           const CHARSET_INFO *client_cs);
+  virtual bool log_general(THD *thd, ulonglong event_utime,
+                           const char *user_host, size_t user_host_len,
+                           my_thread_id thread_id, const char *command_type,
+                           size_t command_type_len, const char *sql_text,
+                           size_t sql_text_len, const CHARSET_INFO *client_cs);
 
-private:
+ private:
   /**
      Check if log table for given log type exists and can be opened.
 
@@ -381,77 +256,20 @@ private:
   friend class Query_logger;
 };
 
-
-/**
-   Class responsible for file based logging.
-   Basically a wrapper around File_query_log.
-*/
-class Log_to_file_event_handler: public Log_event_handler
-{
-  File_query_log mysql_general_log;
-  File_query_log mysql_slow_log;
-
-public:
-  /**
-     Wrapper around File_query_log::write_slow() for slow log.
-     @see Log_event_handler::log_slow().
-  */
-  virtual bool log_slow(THD *thd, ulonglong current_utime,
-                        ulonglong query_start_arg, const char *user_host,
-                        size_t user_host_len, ulonglong query_utime,
-                        ulonglong lock_utime, bool is_command,
-                        const char *sql_text, size_t sql_text_len);
-
-  /**
-     Wrapper around File_query_log::write_general() for general log.
-     @see Log_event_handler::log_general().
-  */
-  virtual bool log_general(THD *thd, ulonglong event_utime, const char *user_host,
-                           size_t user_host_len, my_thread_id thread_id,
-                           const char *command_type, size_t command_type_len,
-                           const char *sql_text, size_t sql_text_len,
-                           const CHARSET_INFO *client_cs);
-
-private:
-  Log_to_file_event_handler()
-    : mysql_general_log(QUERY_LOG_GENERAL),
-    mysql_slow_log(QUERY_LOG_SLOW)
-  { }
-
-  /** Close slow and general log files. */
-  void cleanup()
-  {
-    mysql_general_log.close();
-    mysql_slow_log.close();
-  }
-
-  /** @return File_query_log instance responsible for writing to slow/general log.*/
-  File_query_log *get_query_log(enum_log_table_type log_type)
-  {
-    if (log_type == QUERY_LOG_SLOW)
-      return &mysql_slow_log;
-    DBUG_ASSERT(log_type == QUERY_LOG_GENERAL);
-    return &mysql_general_log;
-  }
-
-  friend class Query_logger;
-};
-
-
 /* Log event handler flags */
-static const uint LOG_NONE= 1;
-static const uint LOG_FILE= 2;
-static const uint LOG_TABLE= 4;
+static const uint LOG_NONE = 1;
+static const uint LOG_FILE = 2;
+static const uint LOG_TABLE = 4;
 
+class Log_to_file_event_handler;
 
 /** Class which manages slow and general log event handlers. */
-class Query_logger
-{
+class Query_logger {
   /**
      Currently we have only 2 kinds of logging functions: old-fashioned
      file logs and csv logging routines.
   */
-  static const uint MAX_LOG_HANDLERS_NUM= 2;
+  static const uint MAX_LOG_HANDLERS_NUM = 2;
 
   /**
      RW-lock protecting Query_logger.
@@ -468,7 +286,7 @@ class Query_logger
   Log_event_handler *slow_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
   Log_event_handler *general_log_handler_list[MAX_LOG_HANDLERS_NUM + 1];
 
-private:
+ private:
   /**
      Setup log event handlers for the given log_type.
 
@@ -477,10 +295,8 @@ private:
   */
   void init_query_log(enum_log_table_type log_type, ulonglong log_printer);
 
-public:
-  Query_logger()
-    : file_log_handler(NULL)
-  { }
+ public:
+  Query_logger() : file_log_handler(nullptr) {}
 
   /**
      Check if table logging is turned on for the given log_type.
@@ -498,8 +314,7 @@ public:
 
      @return true if the file logging is on, false otherwise.
   */
-  bool is_log_file_enabled(enum_log_table_type log_type) const
-  { return file_log_handler->get_query_log(log_type)->is_open(); }
+  bool is_log_file_enabled(enum_log_table_type log_type) const;
 
   /**
      Perform basic log initialization: create file-based log handler.
@@ -536,7 +351,8 @@ public:
      @return true if error, false otherwise.
   */
   bool general_log_print(THD *thd, enum_server_command command,
-                         const char *format, ...);
+                         const char *format, ...)
+      MY_ATTRIBUTE((format(printf, 4, 5)));
 
   /**
      Write query to general query log.
@@ -583,6 +399,17 @@ public:
      @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
   */
   bool reopen_log_file(enum_log_table_type log_type);
+
+  /**
+     Read log file name from global variable opt_*_logname.
+     If called from a sys_var update function, the caller
+     must hold a lock protecting the sys_var
+     (LOCK_global_system_variables, a polylock for the
+     variable, etc.).
+
+     @param log_type  QUERY_LOG_SLOW or QUERY_LOG_GENERAL
+  */
+  bool set_log_file(enum_log_table_type log_type);
 
   /**
      Check if given TABLE_LIST has a query log table name and
@@ -663,8 +490,7 @@ void log_slow_statement(THD *thd);
   @brief Base class for rate-limiting a log (slow query log etc.)
 */
 
-class Log_throttle
-{
+class Log_throttle {
   /**
     When will/did current window end?
   */
@@ -684,7 +510,7 @@ class Log_throttle
   */
   ulong count;
 
-protected:
+ protected:
   /**
     Template for the summary line. Should contain %lu as the only
     conversion specification.
@@ -730,27 +556,26 @@ protected:
     @param msg           use this template containing %lu as only non-literal
   */
   Log_throttle(ulong window_usecs, const char *msg)
-              : window_end(0), window_size(window_usecs),
-                count(0), summary_template(msg)
-  {}
+      : window_end(0),
+        window_size(window_usecs),
+        count(0),
+        summary_template(msg) {}
 
-public:
+ public:
   /**
     We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
     Debugging is less tedious with a window in the region of 5000000
   */
-  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
+  static const ulong LOG_THROTTLE_WINDOW_SIZE = 60000000;
 };
-
 
 /**
   @class Slow_log_throttle
   @brief Used for rate-limiting the slow query log.
 */
 
-class Slow_log_throttle : public Log_throttle
-{
-private:
+class Slow_log_throttle : public Log_throttle {
+ private:
   /**
     We're using our own (empty) security context during summary generation.
     That way, the aggregate value of the suppressed queries isn't printed
@@ -796,12 +621,10 @@ private:
   /**
     Actually print the prepared summary to log.
   */
-  void print_summary(THD *thd, ulong suppressed,
-                     ulonglong print_lock_time,
+  void print_summary(THD *thd, ulong suppressed, ulonglong print_lock_time,
                      ulonglong print_exec_time);
 
-public:
-
+ public:
   /**
     @param threshold     suppress after this many queries ...
     @param lock          mutex to use for consistency of calculations
@@ -838,33 +661,28 @@ public:
   bool log(THD *thd, bool eligible);
 };
 
-
 /**
   @class Slow_log_throttle
   @brief Used for rate-limiting a error logs.
 */
 
-class Error_log_throttle : public Log_throttle
-{
-private:
-  loglevel    ll;
-  uint        err_code;
+class Error_log_throttle : public Log_throttle {
+ private:
+  loglevel ll;
+  uint err_code;
   const char *subsys;
 
   /**
     Actually print the prepared summary to log.
   */
-  void print_summary(ulong suppressed)
-  {
-    log_message(LOG_TYPE_ERROR,
-                LOG_ITEM_LOG_PRIO,    (longlong) ll,
-                LOG_ITEM_SQL_ERRCODE, (longlong) err_code,
-                LOG_ITEM_SRV_SUBSYS,  subsys,
-                LOG_ITEM_LOG_MESSAGE, summary_template,
-                                      (unsigned long) suppressed);
+  void print_summary(ulong suppressed) {
+    log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ll,
+                LOG_ITEM_SQL_ERRCODE, (longlong)err_code, LOG_ITEM_SRV_SUBSYS,
+                subsys, LOG_ITEM_LOG_MESSAGE, summary_template,
+                (unsigned long)suppressed);
   }
 
-public:
+ public:
   /**
     @param window_usecs  ... in this many micro-seconds (see Log_throttle)
     @param lvl           severity of the incident (error, warning, info)
@@ -874,12 +692,12 @@ public:
                          non-literal (for "number of suppressed events",
                          see Log_throttle)
   */
-  Error_log_throttle(ulong window_usecs,
-                     loglevel lvl, uint errcode, const char *subsystem,
-                     const char *msg)
-    : Log_throttle(window_usecs, msg),
-      ll(lvl), err_code(errcode), subsys(subsystem)
-  {}
+  Error_log_throttle(ulong window_usecs, loglevel lvl, uint errcode,
+                     const char *subsystem, const char *msg)
+      : Log_throttle(window_usecs, msg),
+        ll(lvl),
+        err_code(errcode),
+        subsys(subsystem) {}
 
   /**
     Prepare and print a summary of suppressed lines to log.
@@ -899,7 +717,6 @@ public:
   */
   bool log();
 };
-
 
 extern Slow_log_throttle log_throttle_qni;
 
@@ -921,14 +738,11 @@ extern Slow_log_throttle log_throttle_qni;
   call the new error stack.  A helper for the transition to the
   new stack.
 */
-#define log_errlog(level, errcode, ...)                \
-  log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, (longlong) level,     \
-              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
-              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
-              LOG_ITEM_LOG_LOOKUP, (longlong) errcode, \
-              ## __VA_ARGS__)
+#define log_errlog(level, errcode, ...)                                  \
+  log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)level,        \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG, LOG_ITEM_SRC_LINE, \
+              (longlong)__LINE__, LOG_ITEM_SRC_FILE, MY_BASENAME,        \
+              LOG_ITEM_LOG_LOOKUP, (longlong)errcode, ##__VA_ARGS__)
 
 /**
   Default tags + freeform message. A helper for re#defining sql_print_*()
@@ -941,26 +755,20 @@ extern Slow_log_throttle log_throttle_qni;
   OK:    LOG_ITEM_LOG_MESSAGE,  "%s", dodgy_message
   GOOD:  LOG_ITEM_LOG_VERBATIM, dodgy_message
 */
-#define log_errlog_formatted(level, ...)               \
-  log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, (longlong) level,     \
-              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
-              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
-              LOG_ITEM_LOG_MESSAGE, ## __VA_ARGS__)
+#define log_errlog_formatted(level, ...)                                 \
+  log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)level,        \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG, LOG_ITEM_SRC_LINE, \
+              (longlong)__LINE__, LOG_ITEM_SRC_FILE, MY_BASENAME,        \
+              LOG_ITEM_LOG_MESSAGE, ##__VA_ARGS__)
 
 /**
   Set up the default tags, then let us add/override any key/value we like,
   call the new error stack.  A helper for the transition to the new stack.
 */
-#define log_errlog_rich(level, ...)                    \
-  log_message(LOG_TYPE_ERROR,                          \
-              LOG_ITEM_LOG_PRIO, (longlong) level,     \
-              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG,  \
-              LOG_ITEM_SRC_LINE, (longlong) __LINE__,  \
-              LOG_ITEM_SRC_FILE, MY_BASENAME,          \
-              __VA_ARGS__)
-
+#define log_errlog_rich(level, ...)                                      \
+  log_message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)level,        \
+              LOG_ITEM_SRV_SUBSYS, LOG_SUBSYSTEM_TAG, LOG_ITEM_SRC_LINE, \
+              (longlong)__LINE__, LOG_ITEM_SRC_FILE, MY_BASENAME, __VA_ARGS__)
 
 /**
   Define sql_print_*() so they use the new log_message()
@@ -973,14 +781,12 @@ extern Slow_log_throttle log_throttle_qni;
   format string, and the arguments to same, if any.
 */
 #define sql_print_information(...) \
-  log_errlog_formatted(INFORMATION_LEVEL, ## __VA_ARGS__)
+  log_errlog_formatted(INFORMATION_LEVEL, ##__VA_ARGS__)
 
 #define sql_print_warning(...) \
-  log_errlog_formatted(WARNING_LEVEL, ## __VA_ARGS__)
+  log_errlog_formatted(WARNING_LEVEL, ##__VA_ARGS__)
 
-#define sql_print_error(...) \
-  log_errlog_formatted(ERROR_LEVEL, ## __VA_ARGS__)
-
+#define sql_print_error(...) log_errlog_formatted(ERROR_LEVEL, ##__VA_ARGS__)
 
 /**
   Prints a printf style message to the error log.
@@ -993,8 +799,7 @@ extern Slow_log_throttle log_throttle_qni;
   @param args           va_list list of arguments for the message
 */
 void error_log_printf(enum loglevel level, const char *format, va_list args)
-  MY_ATTRIBUTE((format(printf, 2, 0)));
-
+    MY_ATTRIBUTE((format(printf, 2, 0)));
 
 /**
   Initialize structures (e.g. mutex) needed by the error log.
@@ -1040,7 +845,6 @@ void destroy_error_log();
 */
 bool reopen_error_log();
 
-
 /**
   Discard all buffered messages and deallocate buffer without printing
   anything. Needed when terminating launching process after daemon
@@ -1064,13 +868,11 @@ void discard_error_log_messages();
 */
 void flush_error_log_messages();
 
-
 /**
   Modular logger: log line and key/value manipulation helpers.
   Server-internal.  External services should access these via
   the log_builtins service API (cf. preamble for this file).
 */
-
 
 /**
   Compare two NUL-terminated byte strings
@@ -1097,7 +899,6 @@ void flush_error_log_messages();
 int log_string_compare(const char *a, const char *b, size_t len,
                        bool case_insensitive);
 
-
 /**
   Predicate used to determine whether a type is generic
   (generic string, generic float, generic integer) rather
@@ -1108,7 +909,7 @@ int log_string_compare(const char *a, const char *b, size_t len,
   @retval  true     if generic type
   @retval  false    if wellknown type
 */
-bool             log_item_generic_type(log_item_type t);
+bool log_item_generic_type(log_item_type t);
 
 /**
   Predicate used to determine whether a class is a string
@@ -1119,7 +920,7 @@ bool             log_item_generic_type(log_item_type t);
   @retval   true    if of a string class
   @retval   false   if not of a string class
 */
-bool             log_item_string_class(log_item_class c);
+bool log_item_string_class(log_item_class c);
 
 /**
   Predicate used to determine whether a class is a numeric
@@ -1130,8 +931,7 @@ bool             log_item_string_class(log_item_class c);
   @retval   true   if of a numeric class
   @retval   false  if not of a numeric class
 */
-bool             log_item_numeric_class(log_item_class c);
-
+bool log_item_numeric_class(log_item_class c);
 
 /**
   Get an integer value from a log-item of float or integer type.
@@ -1139,7 +939,7 @@ bool             log_item_numeric_class(log_item_class c);
   @param li      log item to get the value from
   @param i       longlong to store  the value in
 */
-void             log_item_get_int(log_item *li, longlong *i);
+void log_item_get_int(log_item *li, longlong *i);
 
 /**
   Get a float value from a log-item of float or integer type.
@@ -1147,7 +947,7 @@ void             log_item_get_int(log_item *li, longlong *i);
   @param li      log item to get the value from
   @param f       float to store  the value in
 */
-void             log_item_get_float(log_item *li, double *f);
+void log_item_get_float(log_item *li, double *f);
 
 /**
   Get a string value from a log-item of C-string or Lex string type.
@@ -1156,7 +956,7 @@ void             log_item_get_float(log_item *li, double *f);
   @param str     char-pointer   to store the pointer to the value in
   @param len     size_t pointer to store the length of  the value in
 */
-void             log_item_get_string(log_item *li, char **str, size_t *len);
+void log_item_get_string(log_item *li, char **str, size_t *len);
 
 /**
   Set an integer value on a log_item.
@@ -1221,7 +1021,7 @@ bool log_item_set_cstring(log_item_data *lid, const char *s);
   @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
   @retval        >0:                      index in array of wellknowns
 */
-int              log_item_wellknown_by_name(const char *key, size_t len);
+int log_item_wellknown_by_name(const char *key, size_t len);
 
 /**
   See whether a type is wellknown.
@@ -1231,7 +1031,7 @@ int              log_item_wellknown_by_name(const char *key, size_t len);
   @retval        LOG_ITEM_TYPE_NOT_FOUND: key not found
   @retval        >0:                      index in array of wellknowns
 */
-int              log_item_wellknown_by_type(log_item_type t);
+int log_item_wellknown_by_type(log_item_type t);
 
 /**
   Accessor: from a record describing a wellknown key, get its name
@@ -1240,7 +1040,7 @@ int              log_item_wellknown_by_type(log_item_type t);
 
   @retval       name (NTBS)
 */
-const char      *log_item_wellknown_get_name(uint idx);
+const char *log_item_wellknown_get_name(uint idx);
 
 /**
   Accessor: from a record describing a wellknown key, get its type
@@ -1249,7 +1049,7 @@ const char      *log_item_wellknown_get_name(uint idx);
 
   @retval        the log item type for the wellknown key
 */
-log_item_type    log_item_wellknown_get_type(uint idx);
+log_item_type log_item_wellknown_get_type(uint idx);
 
 /**
   Accessor: from a record describing a wellknown key, get its class
@@ -1258,14 +1058,14 @@ log_item_type    log_item_wellknown_get_type(uint idx);
 
   @retval        the log item class for the wellknown key
 */
-log_item_class   log_item_wellknown_get_class(uint idx);
+log_item_class log_item_wellknown_get_class(uint idx);
 
 /**
   Release any of key and value on a log-item that were dynamically allocated.
 
   @param  li  log-item to release the payload of
 */
-void             log_item_free(log_item *li);
+void log_item_free(log_item *li);
 
 /**
   Predicate indicating whether a log line is "willing" to accept any more
@@ -1276,7 +1076,7 @@ void             log_item_free(log_item *li);
   @retval  false  if not full / if able to accept another log_item
   @retval  true   if full
 */
-bool             log_line_full(log_line *ll);
+bool log_line_full(log_line *ll);
 
 /**
   How many items are currently set on the given log_line?
@@ -1285,7 +1085,7 @@ bool             log_line_full(log_line *ll);
 
   @retval         the number of items set
 */
-int              log_line_item_count(log_line *ll);
+int log_line_item_count(log_line *ll);
 
 /**
   Test whether a given type is presumed present on the log line.
@@ -1304,8 +1104,7 @@ log_item_type_mask log_line_item_types_seen(log_line *ll, log_item_type_mask m);
   @retval nullptr  could not set up buffer (too small?)
   @retval other    address of the newly initialized log_line
 */
-log_line        *log_line_init();
-
+log_line *log_line_init();
 
 /**
   Release a log_line allocated with log_line_init.
@@ -1313,8 +1112,7 @@ log_line        *log_line_init();
   @retval nullptr  could not set up buffer (too small?)
   @retval other    address of the newly initialized log_line
 */
-void             log_line_exit(log_line *ll);
-
+void log_line_exit(log_line *ll);
 
 /**
   Release log line item (key/value pair) with the index elem in log line ll.
@@ -1326,7 +1124,7 @@ void             log_line_exit(log_line *ll);
   @param         ll    log_line
   @param         elem  index of the key/value pair to release
 */
-void             log_line_item_free(log_line *ll, size_t elem);
+void log_line_item_free(log_line *ll, size_t elem);
 
 /**
   Release all log line items (key/value pairs) in log line ll.
@@ -1334,7 +1132,7 @@ void             log_line_item_free(log_line *ll, size_t elem);
 
   @param         ll    log_line
 */
-void             log_line_item_free_all(log_line *ll);
+void log_line_item_free_all(log_line *ll);
 
 /**
   Release log line item (key/value pair) with the index elem in log line ll.
@@ -1347,7 +1145,7 @@ void             log_line_item_free_all(log_line *ll);
   @param         ll    log_line
   @param         elem  index of the key/value pair to release
 */
-void             log_line_item_remove(log_line *ll, int elem);
+void log_line_item_remove(log_line *ll, int elem);
 
 /**
   Find the (index of the) last key/value pair of the given name
@@ -1384,7 +1182,7 @@ log_item *log_line_item_by_name(log_line *ll, const char *key);
   @retval        <0:  none found
   @retval        >=0: index of the key/value pair in the log line
 */
-int              log_line_index_by_type(log_line *ll, log_item_type t);
+int log_line_index_by_type(log_line *ll, log_item_type t);
 
 /**
   Find the (index of the) first key/value pair of the given type
@@ -1401,7 +1199,7 @@ int              log_line_index_by_type(log_line *ll, log_item_type t);
   @retval        <0:  none found
   @retval        >=0: index of the key/value pair in the log line
 */
-int              log_line_index_by_item(log_line *ll, log_item *ref);
+int log_line_index_by_item(log_line *ll, log_item *ref);
 
 /**
   Initializes a log entry for use. This simply puts it in a defined
@@ -1409,7 +1207,7 @@ int              log_line_index_by_item(log_line *ll, log_item *ref);
 
   @param  li  the log-item to initialize
 */
-void             log_item_init(log_item *li);
+void log_item_init(log_item *li);
 
 /**
   Initializes an entry in a log line for use. This simply puts it in
@@ -1424,7 +1222,7 @@ void             log_item_init(log_item *li);
 
   @retval     the address of the cleared log_item
 */
-log_item        *log_line_item_init(log_line *ll);
+log_item *log_line_item_init(log_line *ll);
 
 /**
   Create new log item with key name "key", and allocation flags of
@@ -1461,8 +1259,8 @@ log_item        *log_line_item_init(log_line *ll);
   @retval        a pointer to the log_item's log_data, for easy chaining:
                  log_item_set_with_key(...)->data_integer= 1;
 */
-log_item_data   *log_item_set_with_key(log_item *li, log_item_type t,
-                                       const char *key, uint32 alloc);
+log_item_data *log_item_set_with_key(log_item *li, log_item_type t,
+                                     const char *key, uint32 alloc);
 
 /**
   Create new log item in log line "ll", with key name "key", and
@@ -1498,8 +1296,8 @@ log_item_data   *log_item_set_with_key(log_item *li, log_item_type t,
   @retval        a pointer to the log_item's log_data, for easy chaining:
                  log_line_item_set_with_key(...)->data_integer= 1;
 */
-log_item_data   *log_line_item_set_with_key(log_line *ll, log_item_type t,
-                                            const char *key, uint32 alloc);
+log_item_data *log_line_item_set_with_key(log_line *ll, log_item_type t,
+                                          const char *key, uint32 alloc);
 
 /**
   As log_item_set_with_key(), except that the key is automatically
@@ -1532,7 +1330,7 @@ log_item_data   *log_line_item_set_with_key(log_line *ll, log_item_type t,
   @retval        a pointer to the log_item's log_data, for easy chaining:
                  log_item_set_with_key(...)->data_integer= 1;
 */
-log_item_data   *log_item_set(log_item *li, log_item_type t);
+log_item_data *log_item_set(log_item *li, log_item_type t);
 
 /**
   Create a new log item of well-known type "t" in log line "ll".
@@ -1562,7 +1360,7 @@ log_item_data   *log_item_set(log_item *li, log_item_type t);
   @retval        a pointer to the log_item's log_data, for easy chaining:
                  log_line_item_set_with_key(...)->data_integer= 1;
 */
-log_item_data   *log_line_item_set(log_line *ll, log_item_type t);
+log_item_data *log_line_item_set(log_line *ll, log_item_type t);
 
 /**
   Convenience function: Derive a log label ("error", "warning",
@@ -1575,7 +1373,7 @@ log_item_data   *log_line_item_set(log_line *ll, log_item_type t);
   @retval  "Warning"  for prio of WARNING_LEVEL
   @retval  "Note"     otherwise
 */
-const char      *log_label_from_prio(int prio);
+const char *log_label_from_prio(int prio);
 
 /**
   Complete, filter, and write submitted log items.
@@ -1593,7 +1391,7 @@ const char      *log_label_from_prio(int prio);
 
   @retval          int                  number of fields in created log line
 */
-int              log_line_submit(log_line *ll);
+int log_line_submit(log_line *ll);
 
 /**
   Make and return an ISO 8601 / RFC 3339 compliant timestamp.
@@ -1606,8 +1404,7 @@ int              log_line_submit(log_line *ll);
 
   @retval                    length of timestamp (excluding \0)
 */
-int              make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
-
+int make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
 
 /**
   Set up custom error logging stack.
@@ -1623,7 +1420,7 @@ int              make_iso8601_timestamp(char *buf, ulonglong utime, int mode);
   @retval              <0   failure
   @retval              >=0  success
 */
-int              log_builtins_error_stack(const char *conf, bool check_only);
+int log_builtins_error_stack(const char *conf, bool check_only);
 
 /**
   Call flush() on all log_services.
@@ -1633,8 +1430,7 @@ int              log_builtins_error_stack(const char *conf, bool check_only);
   @retval   0   no problems
   @retval  -1   error
 */
-int              log_builtins_error_stack_flush();
-
+int log_builtins_error_stack_flush();
 
 /**
   Initialize the structured logging subsystem.
@@ -1644,15 +1440,14 @@ int              log_builtins_error_stack_flush();
   @retval -2  couldn't initialize built-in default filter
   @retval -3  couldn't set up service hash
 */
-int              log_builtins_init();
+int log_builtins_init();
 
 /**
   De-initialize the structured logging subsystem.
 
   @retval  0  no errors
 */
-int              log_builtins_exit();
-
+int log_builtins_exit();
 
 /**
   Interim helper: write to the default error stream
@@ -1660,40 +1455,30 @@ int              log_builtins_exit();
   @param         buffer       buffer containing serialized error message
   @param         length       number of bytes in buffer
 */
-void             log_write_errstream(const char *buffer, size_t length);
-
+void log_write_errstream(const char *buffer, size_t length);
 
 /**
    Temporary helper class to implement services' system variables
    handling against until the component framework supports
    per-component variables.
 */
-class LogVar
-{
-private:
-  log_item      lv;
-  const char   *service_group= "log_sink";
+class LogVar {
+ private:
+  log_item lv;
+  const char *service_group = "log_sink";
 
-public:
-  LogVar(LEX_CSTRING &s);         /**< constructor with variable name */
+ public:
+  LogVar(LEX_CSTRING &s); /**< constructor with variable name */
 
-  LogVar &val(LEX_STRING &s);     /**< set a  value from a lex string */
-  LogVar &val(const char *s);     /**< set a  value from a C-string */
-  LogVar &val(longlong i);        /**< set an integer value */
-  LogVar &val(double d);          /**< set a  float value */
+  LogVar &val(LEX_STRING &s); /**< set a  value from a lex string */
+  LogVar &val(const char *s); /**< set a  value from a C-string */
+  LogVar &val(longlong i);    /**< set an integer value */
+  LogVar &val(double d);      /**< set a  float value */
 
-  LogVar &group(const char *g);   /**< set non-default service group */
+  LogVar &group(const char *g); /**< set non-default service group */
 
-  int check();                    /**< check value. true: failure */
-  int update();                   /**< apply new value */
+  int check();  /**< check value. true: failure */
+  int update(); /**< apply new value */
 };
-
-
-/*
-  Include fluent C++ error logging API, LogErr(). It should
-  be readily available to make the bar to using the new system
-  as low possible.
-*/
-#include <mysql/components/services/log_builtins.h>
 
 #endif /* LOG_H */

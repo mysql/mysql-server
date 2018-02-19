@@ -34,12 +34,11 @@
 #include "sql/sql_const.h"
 #include "storage/perfschema/pfs_server.h"
 
-using std::min;
 using std::max;
+using std::min;
 
 /** Performance schema sizing heuristics. */
-struct PFS_sizing_data
-{
+struct PFS_sizing_data {
   /** Default value for @c PFS_param.m_events_waits_history_sizing. */
   ulong m_events_waits_history_sizing;
   /** Default value for @c PFS_param.m_events_waits_history_long_sizing. */
@@ -64,57 +63,33 @@ struct PFS_sizing_data
 };
 
 PFS_sizing_data small_data = {
-  /* History sizes */
-  5,
-  100,
-  5,
-  100,
-  5,
-  100,
-  5,
-  100,
-  /* Digests */
-  1000,
-  /* Session connect attrs. */
-  512};
+    /* History sizes */
+    5, 100, 5, 100, 5, 100, 5, 100,
+    /* Digests */
+    1000,
+    /* Session connect attrs. */
+    512};
 
 PFS_sizing_data medium_data = {
-  /* History sizes */
-  10,
-  1000,
-  10,
-  1000,
-  10,
-  1000,
-  10,
-  1000,
-  /* Digests */
-  5000,
-  /* Session connect attrs. */
-  512};
+    /* History sizes */
+    10, 1000, 10, 1000, 10, 1000, 10, 1000,
+    /* Digests */
+    5000,
+    /* Session connect attrs. */
+    512};
 
 PFS_sizing_data large_data = {
-  /* History sizes */
-  10,
-  10000,
-  10,
-  10000,
-  10,
-  10000,
-  10,
-  10000,
-  /* Digests */
-  10000,
-  /* Session connect attrs. */
-  512};
+    /* History sizes */
+    10, 10000, 10, 10000, 10, 10000, 10, 10000,
+    /* Digests */
+    10000,
+    /* Session connect attrs. */
+    512};
 
-static PFS_sizing_data *
-estimate_hints(PFS_global_param *param)
-{
+static PFS_sizing_data *estimate_hints(PFS_global_param *param) {
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
       (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
-      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
-  {
+      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT)) {
     /* The my.cnf used is either unchanged, or lower than factory defaults. */
     return &small_data;
   }
@@ -122,8 +97,7 @@ estimate_hints(PFS_global_param *param)
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT * 2) &&
       (param->m_hints.m_table_definition_cache <=
        TABLE_DEF_CACHE_DEFAULT * 2) &&
-      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT * 2))
-  {
+      (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT * 2)) {
     /* Some defaults have been increased, to "moderate" values. */
     return &medium_data;
   }
@@ -132,71 +106,56 @@ estimate_hints(PFS_global_param *param)
   return &large_data;
 }
 
-static void
-apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
-{
-  if (p->m_events_waits_history_sizing < 0)
-  {
+static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h) {
+  if (p->m_events_waits_history_sizing < 0) {
     p->m_events_waits_history_sizing = h->m_events_waits_history_sizing;
   }
 
-  if (p->m_events_waits_history_long_sizing < 0)
-  {
+  if (p->m_events_waits_history_long_sizing < 0) {
     p->m_events_waits_history_long_sizing =
-      h->m_events_waits_history_long_sizing;
+        h->m_events_waits_history_long_sizing;
   }
 
-  if (p->m_events_stages_history_sizing < 0)
-  {
+  if (p->m_events_stages_history_sizing < 0) {
     p->m_events_stages_history_sizing = h->m_events_stages_history_sizing;
   }
 
-  if (p->m_events_stages_history_long_sizing < 0)
-  {
+  if (p->m_events_stages_history_long_sizing < 0) {
     p->m_events_stages_history_long_sizing =
-      h->m_events_stages_history_long_sizing;
+        h->m_events_stages_history_long_sizing;
   }
 
-  if (p->m_events_statements_history_sizing < 0)
-  {
+  if (p->m_events_statements_history_sizing < 0) {
     p->m_events_statements_history_sizing =
-      h->m_events_statements_history_sizing;
+        h->m_events_statements_history_sizing;
   }
 
-  if (p->m_events_statements_history_long_sizing < 0)
-  {
+  if (p->m_events_statements_history_long_sizing < 0) {
     p->m_events_statements_history_long_sizing =
-      h->m_events_statements_history_long_sizing;
+        h->m_events_statements_history_long_sizing;
   }
 
-  if (p->m_digest_sizing < 0)
-  {
+  if (p->m_digest_sizing < 0) {
     p->m_digest_sizing = h->m_digest_sizing;
   }
 
-  if (p->m_events_transactions_history_sizing < 0)
-  {
+  if (p->m_events_transactions_history_sizing < 0) {
     p->m_events_transactions_history_sizing =
-      h->m_events_transactions_history_sizing;
+        h->m_events_transactions_history_sizing;
   }
 
-  if (p->m_events_transactions_history_long_sizing < 0)
-  {
+  if (p->m_events_transactions_history_long_sizing < 0) {
     p->m_events_transactions_history_long_sizing =
-      h->m_events_transactions_history_long_sizing;
+        h->m_events_transactions_history_long_sizing;
   }
 
-  if (p->m_session_connect_attrs_sizing < 0)
-  {
+  if (p->m_session_connect_attrs_sizing < 0) {
     p->m_session_connect_attrs_sizing = h->m_session_connect_attrs_sizing;
   }
 }
 
-void
-pfs_automated_sizing(PFS_global_param *param)
-{
-  if (param->m_enabled)
-  {
+void pfs_automated_sizing(PFS_global_param *param) {
+  if (param->m_enabled) {
 #ifndef HAVE_PSI_MUTEX_INTERFACE
     param->m_mutex_class_sizing = 0;
     param->m_mutex_sizing = 0;
@@ -244,8 +203,7 @@ pfs_automated_sizing(PFS_global_param *param)
 
 #ifndef HAVE_PSI_SP_INTERFACE
     param->m_program_sizing = 0;
-    if (param->m_statement_stack_sizing > 1)
-    {
+    if (param->m_statement_stack_sizing > 1) {
       param->m_statement_stack_sizing = 1;
     }
 #endif
@@ -279,9 +237,7 @@ pfs_automated_sizing(PFS_global_param *param)
     DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
     DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
     DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
-  }
-  else
-  {
+  } else {
     /*
       The Performance Schema is disabled. Set the instrument sizings to zero to
       disable all instrumentation while retaining support for the status and

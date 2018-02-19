@@ -33,32 +33,24 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.INNODB_FIELDS system view
   definition
 */
-class Innodb_fields :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
-    FIELD_INDEX_ID,
-    FIELD_NAME,
-    FIELD_POS
-  };
+class Innodb_fields
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields { FIELD_INDEX_ID, FIELD_NAME, FIELD_POS };
 
-  Innodb_fields ();
+  Innodb_fields();
 
   static const Innodb_fields &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("INNODB_FIELDS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Innodb_fields::view_name(); }
+  virtual const String_type &name() const { return Innodb_fields::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__INNODB_FIELDS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__INNODB_FIELDS_INCLUDED

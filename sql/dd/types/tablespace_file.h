@@ -24,8 +24,8 @@
 #define DD__TABLESPACE_FILES_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/sdi_fwd.h"         // dd::Sdi_wcontext
-#include "sql/dd/types/weak_object.h" // dd::Weak_object
+#include "sql/dd/sdi_fwd.h"            // dd::Sdi_wcontext
+#include "sql/dd/types/weak_object.h"  // dd::Weak_object
 
 namespace dd {
 
@@ -36,20 +36,18 @@ class Tablespace;
 class Tablespace_file_impl;
 
 namespace tables {
-  class Tablespace_files;
+class Tablespace_files;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace_file : virtual public Weak_object
-{
-public:
+class Tablespace_file : virtual public Weak_object {
+ public:
   typedef Tablespace_file_impl Impl;
   typedef tables::Tablespace_files DD_table;
 
-public:
-  virtual ~Tablespace_file()
-  { };
+ public:
+  virtual ~Tablespace_file(){};
 
   /////////////////////////////////////////////////////////////////////////
   // ordinal_position.
@@ -71,7 +69,8 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(
+      const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // tablespace.
@@ -80,7 +79,6 @@ public:
   virtual const Tablespace &tablespace() const = 0;
 
   virtual Tablespace &tablespace() = 0;
-
 
   /**
     Converts *this into json.
@@ -95,7 +93,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -116,6 +113,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TABLESPACE_FILES_INCLUDED
+#endif  // DD__TABLESPACE_FILES_INCLUDED

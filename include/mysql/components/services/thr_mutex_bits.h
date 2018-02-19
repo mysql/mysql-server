@@ -26,8 +26,8 @@
 #if defined(_WIN32)
 #include <windows.h>
 #else
-#include <pthread.h>                // IWYU pragma: export
-#include <sched.h>                  // IWYU pragma: export
+#include <pthread.h>  // IWYU pragma: export
+#include <sched.h>    // IWYU pragma: export
 #endif
 
 /**
@@ -55,14 +55,12 @@ typedef pthread_mutex_t native_mutex_t;
 typedef pthread_mutexattr_t native_mutexattr_t;
 #endif
 
-struct st_safe_mutex_t;
+struct safe_mutex_t;
 
-struct my_mutex_t
-{
-  union u
-  {
+struct my_mutex_t {
+  union u {
     native_mutex_t m_native;
-    struct st_safe_mutex_t *m_safe_ptr;
+    safe_mutex_t *m_safe_ptr;
   } m_u;
 };
 typedef struct my_mutex_t my_mutex_t;

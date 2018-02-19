@@ -28,11 +28,12 @@
   Statement Digest data structures (declarations).
 */
 
-#include <atomic>
 #include <sys/types.h>
+#include <atomic>
 
 #include "lf.h"
 #include "my_inttypes.h"
+#include "mysql_com.h"
 #include "sql/sql_digest.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_histogram.h"
@@ -47,16 +48,14 @@ struct PFS_thread;
 /**
   Structure to store a hash value (digest) for a statement.
 */
-struct PFS_digest_key
-{
+struct PFS_digest_key {
   unsigned char m_hash[DIGEST_HASH_SIZE];
   char m_schema_name[NAME_LEN];
   uint m_schema_name_length;
 };
 
 /** A statement digest stat record. */
-struct PFS_ALIGNED PFS_statements_digest_stat
-{
+struct PFS_ALIGNED PFS_statements_digest_stat {
   /** Internal lock. */
   pfs_lock m_lock;
 
@@ -92,46 +91,33 @@ struct PFS_ALIGNED PFS_statements_digest_stat
   PFS_histogram m_histogram;
 
   /** Reset data for this record. */
-  void reset_data(unsigned char *token_array,
-                  size_t token_array_length,
+  void reset_data(unsigned char *token_array, size_t token_array_length,
                   char *query_sample_array);
   /** Reset data and remove index for this record. */
   void reset_index(PFS_thread *thread);
 
   /** Get the age in micro seconds of the last query sample. */
-  ulonglong
-  get_sample_age()
-  {
+  ulonglong get_sample_age() {
     ulonglong age = m_last_seen - m_query_sample_seen;
     return age;
   }
 
   /** Set the query sample wait time. */
-  void
-  set_sample_timer_wait(ulonglong wait_time)
-  {
+  void set_sample_timer_wait(ulonglong wait_time) {
     m_query_sample_timer_wait.store(wait_time);
   }
 
   /** Get the query sample wait time. */
-  ulonglong
-  get_sample_timer_wait()
-  {
-    return m_query_sample_timer_wait.load();
-  }
+  ulonglong get_sample_timer_wait() { return m_query_sample_timer_wait.load(); }
 
   /** Increment the query sample reference count. */
-  uint
-  inc_sample_ref()
-  {
+  uint inc_sample_ref() {
     /* Return value prior to increment. */
     return (uint)m_query_sample_refs.fetch_add(1);
   }
 
   /** Decrement the query sample reference count. */
-  uint
-  dec_sample_ref()
-  {
+  uint dec_sample_ref() {
     /* Return value prior to decrement. */
     return (uint)m_query_sample_refs.fetch_sub(1);
   }
@@ -143,10 +129,8 @@ void cleanup_digest();
 int init_digest_hash(const PFS_global_param *param);
 void cleanup_digest_hash(void);
 PFS_statements_digest_stat *find_or_create_digest(
-  PFS_thread *thread,
-  const sql_digest_storage *digest_storage,
-  const char *schema_name,
-  uint schema_name_length);
+    PFS_thread *thread, const sql_digest_storage *digest_storage,
+    const char *schema_name, uint schema_name_length);
 
 void reset_esms_by_digest();
 void reset_histogram_by_digest();

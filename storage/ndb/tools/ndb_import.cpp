@@ -32,6 +32,8 @@
 // STL
 #include <string>
 
+#include "my_alloc.h"
+
 typedef NdbImport::OptCsv OptCsv;
 typedef NdbImport::JobStatus JobStatus;
 typedef NdbImport::JobStats JobStats;

@@ -71,13 +71,12 @@
 
 --disable_query_log
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user user1@localhost, user2@localhost,
+            user3@localhost, user4@localhost;
 grant ALL on *.* to user1@localhost;
 grant ALL on *.* to user2@localhost;
 grant ALL on *.* to user3@localhost;
 grant ALL on *.* to user4@localhost;
-set sql_mode= @orig_sql_mode;
 
 flush privileges;
 

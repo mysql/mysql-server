@@ -32,29 +32,25 @@
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "mem_root_fwd.h"
-#include "my_alloc.h"                   // MEM_ROOT
+#include "my_alloc.h"  // MEM_ROOT
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "my_time.h"                    // interval_type
+#include "my_time.h"  // interval_type
 #include "mysql/components/services/psi_statement_bits.h"
-#include "mysql/psi/psi_statement.h"
 
 class String;
 class THD;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-namespace dd
-{
-  class Event;
+namespace dd {
+class Event;
 }
 
 void init_scheduler_psi_keys(void);
 
-class Event_queue_element_for_exec
-{
-public:
+class Event_queue_element_for_exec {
+ public:
   Event_queue_element_for_exec(){};
   ~Event_queue_element_for_exec();
 
@@ -68,43 +64,34 @@ public:
   void claim_memory_ownership();
 
   /* Prevent use of these */
-  Event_queue_element_for_exec(const Event_queue_element_for_exec &)= delete;
-  void operator=(Event_queue_element_for_exec &)= delete;
+  Event_queue_element_for_exec(const Event_queue_element_for_exec &) = delete;
+  void operator=(Event_queue_element_for_exec &) = delete;
 
 #ifdef HAVE_PSI_INTERFACE
-  PSI_statement_info* get_psi_info()
-  {
-    return & psi_info;
-  }
+  PSI_statement_info *get_psi_info() { return &psi_info; }
 
   static PSI_statement_info psi_info;
 #endif
 };
 
-
-class Event_basic
-{
-protected:
+class Event_basic {
+ protected:
   MEM_ROOT mem_root;
 
-public:
-  LEX_STRING  m_schema_name;
-  LEX_STRING  m_event_name;
-  LEX_STRING  m_definer;
+ public:
+  LEX_STRING m_schema_name;
+  LEX_STRING m_event_name;
+  LEX_STRING m_definer;
 
-  Time_zone  *m_time_zone;
+  Time_zone *m_time_zone;
   Event_basic();
   virtual ~Event_basic();
-  virtual bool
-  fill_event_info(THD *thd, const dd::Event &ev_obj,
-                  const char *dbname) = 0;
+  virtual bool fill_event_info(THD *thd, const dd::Event &ev_obj,
+                               const char *dbname) = 0;
 };
 
-
-
-class Event_queue_element : public Event_basic
-{
-public:
+class Event_queue_element : public Event_basic {
+ public:
   int m_on_completion;
   int m_status;
   longlong m_originator;
@@ -134,10 +121,8 @@ public:
   void mark_last_executed(THD *thd);
 };
 
-
-class Event_timed : public Event_queue_element
-{
-public:
+class Event_timed : public Event_queue_element {
+ public:
   LEX_STRING m_definition;
 
   LEX_CSTRING m_definer_user;
@@ -157,25 +142,22 @@ public:
 
   void init();
 
-  virtual bool fill_event_info(THD* thd, const dd::Event &event,
+  virtual bool fill_event_info(THD *thd, const dd::Event &event,
                                const char *schema_name);
 
   int get_create_event(THD *thd, String *buf);
 
-  Event_timed(const Event_timed &)= delete;
-  void operator=(Event_timed &)= delete;
-
+  Event_timed(const Event_timed &) = delete;
+  void operator=(Event_timed &) = delete;
 };
 
-
-class Event_job_data : public Event_basic
-{
-public:
-  LEX_STRING  m_definition;
+class Event_job_data : public Event_basic {
+ public:
+  LEX_STRING m_definition;
   LEX_CSTRING m_definer_user;
   LEX_CSTRING m_definer_host;
 
-  sql_mode_t  m_sql_mode;
+  sql_mode_t m_sql_mode;
 
   class Stored_program_creation_ctx *m_creation_ctx;
 
@@ -183,10 +165,10 @@ public:
 
   bool execute(THD *thd, bool drop);
 
-  Event_job_data(const Event_job_data &)= delete;
-  void operator=(Event_job_data &)= delete;
+  Event_job_data(const Event_job_data &) = delete;
+  void operator=(Event_job_data &) = delete;
 
-private:
+ private:
   virtual bool fill_event_info(THD *thd, const dd::Event &event,
                                const char *schema_name);
   bool construct_sp_sql(THD *thd, String *sp_sql);
@@ -208,14 +190,12 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql,
                               const LEX_STRING &db_name,
                               const LEX_STRING &event_name);
 
-
 /* Compares only the schema part of the identifier */
-bool
-event_basic_db_equal(LEX_STRING db, Event_basic *et);
+bool event_basic_db_equal(LEX_STRING db, Event_basic *et);
 
 /* Compares the whole identifier*/
-bool
-event_basic_identifier_equal(LEX_STRING db, LEX_STRING name, Event_basic *b);
+bool event_basic_identifier_equal(LEX_STRING db, LEX_STRING name,
+                                  Event_basic *b);
 
 /**
   @} (End of group Event_Scheduler)

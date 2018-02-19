@@ -36,54 +36,55 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql_version.h"                    // MYSQL_VERSION_ID
+#include "mysql/components/services/log_builtins.h"
+#include "mysql_version.h"  // MYSQL_VERSION_ID
 #include "mysqld_error.h"
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/dd/cache/dictionary_client.h"   // dd::cache::Dictionary_client
-#include "sql/dd/dd.h"                        // dd::create_object
-#include "sql/dd/impl/bootstrap_ctx.h"         // DD_bootstrap_ctx
-#include "sql/dd/impl/cache/shared_dictionary_cache.h"// Shared_dictionary_cache
-#include "sql/dd/impl/cache/storage_adapter.h" // Storage_adapter
-#include "sql/dd/impl/dictionary_impl.h"      // dd::Dictionary_impl
+#include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
+#include "sql/dd/dd.h"                       // dd::create_object
+#include "sql/dd/impl/bootstrap_ctx.h"       // DD_bootstrap_ctx
+#include "sql/dd/impl/cache/shared_dictionary_cache.h"  // Shared_dictionary_cache
+#include "sql/dd/impl/cache/storage_adapter.h"          // Storage_adapter
+#include "sql/dd/impl/dictionary_impl.h"                // dd::Dictionary_impl
 #include "sql/dd/impl/raw/object_keys.h"
-#include "sql/dd/impl/sdi.h"                  // dd::sdi::store
-#include "sql/dd/impl/system_registry.h"      // dd::System_tables
-#include "sql/dd/impl/tables/character_sets.h" // dd::tables::Character_sets
-#include "sql/dd/impl/tables/collations.h"    // dd::tables::Collations
-#include "sql/dd/impl/tables/dd_properties.h" // dd::tables::DD_properties
-#include "sql/dd/impl/tables/foreign_key_column_usage.h" // dd::tables::Fore...
-#include "sql/dd/impl/tables/foreign_keys.h"  // dd::tables::Foreign_keys
-#include "sql/dd/impl/tables/tables.h"        // dd::tables::Tables
-#include "sql/dd/impl/types/schema_impl.h"    // dd::Schema_impl
-#include "sql/dd/impl/types/table_impl.h"     // dd::Table_impl
-#include "sql/dd/impl/types/tablespace_impl.h" // dd::Table_impl
+#include "sql/dd/impl/sdi.h"                    // dd::sdi::store
+#include "sql/dd/impl/system_registry.h"        // dd::System_tables
+#include "sql/dd/impl/tables/character_sets.h"  // dd::tables::Character_sets
+#include "sql/dd/impl/tables/collations.h"      // dd::tables::Collations
+#include "sql/dd/impl/tables/dd_properties.h"   // dd::tables::DD_properties
+#include "sql/dd/impl/tables/foreign_key_column_usage.h"  // dd::tables::Fore...
+#include "sql/dd/impl/tables/foreign_keys.h"    // dd::tables::Foreign_keys
+#include "sql/dd/impl/tables/tables.h"          // dd::tables::Tables
+#include "sql/dd/impl/types/schema_impl.h"      // dd::Schema_impl
+#include "sql/dd/impl/types/table_impl.h"       // dd::Table_impl
+#include "sql/dd/impl/types/tablespace_impl.h"  // dd::Table_impl
 #include "sql/dd/object_id.h"
 #include "sql/dd/types/abstract_table.h"
-#include "sql/dd/types/object_table.h"        // dd::Object_table
-#include "sql/dd/types/object_table_definition.h" // dd::Object_table_definition
+#include "sql/dd/types/object_table.h"             // dd::Object_table
+#include "sql/dd/types/object_table_definition.h"  // dd::Object_table_definition
 #include "sql/dd/types/schema.h"
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/tablespace.h"
-#include "sql/dd/types/tablespace_file.h"     // dd::Tablespace_file
-#include "sql/dd/upgrade/upgrade.h"           // dd::migrate_event_to_dd
-#include "sql/error_handler.h"                // No_such_table_error_handler
-#include "sql/handler.h"                      // dict_init_mode_t
+#include "sql/dd/types/tablespace_file.h"  // dd::Tablespace_file
+#include "sql/dd/upgrade/upgrade.h"        // dd::migrate_event_to_dd
+#include "sql/error_handler.h"             // No_such_table_error_handler
+#include "sql/handler.h"                   // dict_init_mode_t
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"
-#include "sql/sql_base.h"                     // close_thread_tables
-#include "sql/sql_class.h"                    // THD
+#include "sql/plugin_table.h"
+#include "sql/sql_base.h"   // close_thread_tables
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_list.h"
-#include "sql/sql_prepare.h"                  // Ed_connection
+#include "sql/sql_prepare.h"  // Ed_connection
 #include "sql/stateless_allocator.h"
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/transaction.h"                  // trans_rollback
-
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"  // trans_rollback
 
 // Execute a single SQL query.
-bool execute_query(THD *thd, const dd::String_type &q_buf)
-{
+bool execute_query(THD *thd, const dd::String_type &q_buf) {
   Ed_connection con(thd);
   LEX_STRING str;
   thd->make_lex_string(&str, q_buf.c_str(), q_buf.length(), false);
@@ -96,19 +97,14 @@ using namespace dd;
 
 namespace dd {
 
-
 // Helper function to do rollback or commit, depending on error.
-bool end_transaction(THD *thd, bool error)
-{
-  if (error)
-  {
+bool end_transaction(THD *thd, bool error) {
+  if (error) {
     // Rollback the statement before we can rollback the real transaction.
     trans_rollback_stmt(thd);
     trans_rollback(thd);
-  }
-  else if (trans_commit_stmt(thd) || trans_commit(thd))
-  {
-    error= true;
+  } else if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    error = true;
     trans_rollback(thd);
   }
 
@@ -118,21 +114,17 @@ bool end_transaction(THD *thd, bool error)
   return error;
 }
 
-} // end namespace dd
+}  // end namespace dd
 
 namespace {
 
-
 // Initialize recovery in the DDSE.
-bool DDSE_dict_recover(THD *thd,
-                       dict_recovery_mode_t dict_recovery_mode,
-                       uint version)
-{
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->dict_recover == nullptr)
-    return true;
+bool DDSE_dict_recover(THD *thd, dict_recovery_mode_t dict_recovery_mode,
+                       uint version) {
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_recover == nullptr) return true;
 
-  bool error= ddse->dict_recover(dict_recovery_mode, version);
+  bool error = ddse->dict_recover(dict_recovery_mode, version);
 
   /*
     Commit when tablespaces have been initialized, since in that
@@ -144,21 +136,18 @@ bool DDSE_dict_recover(THD *thd,
   return error;
 }
 
-
 // Create meta data of the predefined tablespaces.
-void store_predefined_tablespace_metadata(THD *thd)
-{
+void store_predefined_tablespace_metadata(THD *thd) {
   /*
     Create dd::Tablespace objects and store them (which will add their meta
     data to the storage adapter registry of DD entities). The tablespaces
     are already created physically in the DDSE, so we only need to create
     the corresponding meta data.
   */
-  for (System_tablespaces::Const_iterator it=
-         System_tablespaces::instance()->begin();
-       it != System_tablespaces::instance()->end(); ++it)
-  {
-    const Plugin_tablespace *tablespace_def= (*it)->entity();
+  for (System_tablespaces::Const_iterator it =
+           System_tablespaces::instance()->begin();
+       it != System_tablespaces::instance()->end(); ++it) {
+    const Plugin_tablespace *tablespace_def = (*it)->entity();
 
     // Create the dd::Tablespace object.
     std::unique_ptr<Tablespace> tablespace(dd::create_object<Tablespace>());
@@ -168,14 +157,13 @@ void store_predefined_tablespace_metadata(THD *thd)
     tablespace->set_engine(tablespace_def->get_engine());
 
     // Loop over the tablespace files, create dd::Tablespace_file objects.
-    List <const Plugin_tablespace::Plugin_tablespace_file> files=
-      tablespace_def->get_files();
-    List_iterator<const Plugin_tablespace::Plugin_tablespace_file>
-      file_it(files);
-    const Plugin_tablespace::Plugin_tablespace_file *file= NULL;
-    while ((file= file_it++))
-    {
-      Tablespace_file *space_file= tablespace->add_file();
+    List<const Plugin_tablespace::Plugin_tablespace_file> files =
+        tablespace_def->get_files();
+    List_iterator<const Plugin_tablespace::Plugin_tablespace_file> file_it(
+        files);
+    const Plugin_tablespace::Plugin_tablespace_file *file = NULL;
+    while ((file = file_it++)) {
+      Tablespace_file *space_file = tablespace->add_file();
       space_file->set_filename(file->get_name());
       space_file->set_se_private_data_raw(file->get_se_private_data());
     }
@@ -190,21 +178,19 @@ void store_predefined_tablespace_metadata(THD *thd)
     dd::cache::Storage_adapter::instance()->store(thd, tablespace.get());
   }
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::CREATED_TABLESPACES);
+      bootstrap::Stage::CREATED_TABLESPACES);
 }
-
 
 // Create and use the dictionary schema.
-bool create_dd_schema(THD *thd)
-{
+bool create_dd_schema(THD *thd) {
   return execute_query(thd, dd::String_type("CREATE SCHEMA ") +
-                            dd::String_type(MYSQL_SCHEMA_NAME.str) +
-                            dd::String_type(" DEFAULT COLLATE '") +
-                            dd::String_type(default_charset_info->name)+"'")
-  || execute_query(thd, dd::String_type("USE ") +
-                          dd::String_type(MYSQL_SCHEMA_NAME.str));
+                                dd::String_type(MYSQL_SCHEMA_NAME.str) +
+                                dd::String_type(" DEFAULT COLLATE '") +
+                                dd::String_type(default_charset_info->name) +
+                                "'") ||
+         execute_query(thd, dd::String_type("USE ") +
+                                dd::String_type(MYSQL_SCHEMA_NAME.str));
 }
-
 
 /*
   Update the System_tables registry with meta data from 'dd_properties'.
@@ -214,43 +200,34 @@ bool create_dd_schema(THD *thd)
   DD_properties indeed have a corresponding entry in the System_tables
   registry.
 */
-bool update_system_tables(THD *thd)
-{
+bool update_system_tables(THD *thd) {
   std::unique_ptr<dd::Properties> system_tables_props;
-  bool exists= false;
+  bool exists = false;
 
-  if (dd::tables::DD_properties::instance().get(thd,
-          "SYSTEM_TABLES", &system_tables_props, &exists) ||
-          !exists)
-  {
+  if (dd::tables::DD_properties::instance().get(
+          thd, "SYSTEM_TABLES", &system_tables_props, &exists) ||
+      !exists) {
     my_error(ER_DD_INIT_FAILED, MYF(0));
     return true;
   }
 
-  for (dd::Properties::Iterator it= system_tables_props->begin();
-          it != system_tables_props->end(); ++it)
-  {
+  for (dd::Properties::Iterator it = system_tables_props->begin();
+       it != system_tables_props->end(); ++it) {
     // Check if this is a CORE, INERT, SECOND or DDSE table.
     if (!dd::get_dictionary()->is_dd_table_name(MYSQL_SCHEMA_NAME.str,
-            it->first))
-    {
-      if (bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade())
-      {
+                                                it->first)) {
+      if (bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()) {
         /*
           Add tables as type CORE regardless of the actual type, which
           is irrelevant in this case.
         */
-        System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
-            it->first, System_tables::Types::CORE, nullptr);
-      }
-      else
-      {
+        System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, it->first,
+                                       System_tables::Types::CORE, nullptr);
+      } else {
         my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), it->first.c_str());
         return true;
       }
-    }
-    else
-    {
+    } else {
       /*
         The table is a known DD table. Then, we get its definition
         and add it to the Object_table instance. The definition might
@@ -262,22 +239,22 @@ bool update_system_tables(THD *thd)
           system_tables_props->get(it->first, tbl_prop_str))
         continue;
 
-      const Object_table *table_def= System_tables::instance()->find_table(
-        MYSQL_SCHEMA_NAME.str, it->first);
+      const Object_table *table_def = System_tables::instance()->find_table(
+          MYSQL_SCHEMA_NAME.str, it->first);
       DBUG_ASSERT(table_def);
 
       std::unique_ptr<dd::Properties> tbl_props(
-        Properties::parse_properties(tbl_prop_str));
+          Properties::parse_properties(tbl_prop_str));
 
       String_type def;
       if (tbl_props->get(dd::tables::DD_properties::dd_key(
-            dd::tables::DD_properties::DD_property::DEF), def))
-      {
+                             dd::tables::DD_properties::DD_property::DEF),
+                         def)) {
         my_error(ER_DD_METADATA_NOT_FOUND, MYF(0), it->first.c_str());
         return true;
       }
       std::unique_ptr<Properties> table_def_properties(
-        Properties::parse_properties(def));
+          Properties::parse_properties(def));
       table_def->set_actual_table_definition(*table_def_properties);
     }
   }
@@ -285,67 +262,57 @@ bool update_system_tables(THD *thd)
   return false;
 }
 
-
 /*
   During --initialize, we create the dd_properties table. During restart,
   create its meta data, and use it to open and read its contents.
 */
-bool initialize_dd_properties(THD *thd)
-{
+bool initialize_dd_properties(THD *thd) {
   // Create the dd_properties table.
-  const Object_table_definition *dd_properties_def=
-          dd::tables::DD_properties::instance().target_table_definition();
-  if (execute_query(thd, dd_properties_def->get_ddl()))
-    return true;
+  const Object_table_definition *dd_properties_def =
+      dd::tables::DD_properties::instance().target_table_definition();
+  if (execute_query(thd, dd_properties_def->get_ddl())) return true;
 
   /*
     We can now decide which version number we will use for the DD, and
     initialize the DD_bootstrap_ctx with the relevant version number.
   */
-  uint actual_version= dd::DD_VERSION;
+  uint actual_version = dd::DD_VERSION;
 
-  bootstrap::DD_bootstrap_ctx::instance().
-    set_actual_dd_version(actual_version);
+  bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(actual_version);
 
-  if (!opt_initialize)
-  {
-    bool exists= false;
+  if (!opt_initialize) {
+    bool exists = false;
     if (dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
-            &actual_version, &exists) || !exists)
-    {
+                                                  &actual_version, &exists) ||
+        !exists) {
       LogErr(ERROR_LEVEL, ER_DD_NO_VERSION_FOUND);
       return true;
     }
     /* purecov: begin inspected */
-    if (actual_version != dd::DD_VERSION)
-    {
-      bootstrap::DD_bootstrap_ctx::instance().
-          set_actual_dd_version(actual_version);
-      if (opt_no_dd_upgrade)
-      {
+    if (actual_version != dd::DD_VERSION) {
+      bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
+          actual_version);
+      if (opt_no_dd_upgrade) {
         LogErr(ERROR_LEVEL, ER_DD_UPGRADE_OFF);
         return true;
       }
 
-      if (!bootstrap::DD_bootstrap_ctx::instance().supported_dd_version())
-      {
+      if (!bootstrap::DD_bootstrap_ctx::instance().supported_dd_version()) {
         /*
           If we are attempting on minor downgrade, make sure this is
           supported.
         */
-        if (!bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade())
-        {
+        if (!bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()) {
           LogErr(ERROR_LEVEL, ER_DD_UPGRADE_VERSION_NOT_SUPPORTED,
-                  actual_version);
+                 actual_version);
           return true;
         }
 
-        uint minor_downgrade_threshold= 0;
-        if (dd::tables::DD_properties::instance().get(thd,
-                "MINOR_DOWNGRADE_THRESHOLD",
-                &minor_downgrade_threshold, &exists) || !exists ||
-                minor_downgrade_threshold > dd::DD_VERSION)
-        {
+        uint minor_downgrade_threshold = 0;
+        if (dd::tables::DD_properties::instance().get(
+                thd, "MINOR_DOWNGRADE_THRESHOLD", &minor_downgrade_threshold,
+                &exists) ||
+            !exists || minor_downgrade_threshold > dd::DD_VERSION) {
           LogErr(ERROR_LEVEL, ER_DD_MINOR_DOWNGRADE_VERSION_NOT_SUPPORTED,
                  actual_version);
           return true;
@@ -374,77 +341,67 @@ bool initialize_dd_properties(THD *thd)
   */
   if (!bootstrap::DD_bootstrap_ctx::instance().is_initialize() &&
       !bootstrap::DD_bootstrap_ctx::instance().is_restart() &&
-      update_system_tables(thd))
-  {
+      update_system_tables(thd)) {
     return true;
   }
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::FETCHED_PROPERTIES);
+      bootstrap::Stage::FETCHED_PROPERTIES);
 
   return false;
 }
 
-
 // Create a DD table using the target table definition.
-bool create_target_table(THD *thd, const Object_table *object_table)
-{
+bool create_target_table(THD *thd, const Object_table *object_table) {
   DBUG_ASSERT(object_table != nullptr);
 
   /*
    The target table definition may not be present if the table
    is abandoned. That's ok, not an error.
   */
-  if (object_table->is_abandoned())
-    return false;
+  if (object_table->is_abandoned()) return false;
 
   String_type target_ddl_statement("");
-  const Object_table_definition *target_table_def=
-            object_table->target_table_definition();
+  const Object_table_definition *target_table_def =
+      object_table->target_table_definition();
 
   DBUG_ASSERT(target_table_def != nullptr);
-  target_ddl_statement= target_table_def->get_ddl();
+  target_ddl_statement = target_table_def->get_ddl();
   DBUG_ASSERT(!target_ddl_statement.empty());
 
   return execute_query(thd, target_ddl_statement);
 }
 
-
 // Create a DD table using the actual table definition.
 /* purecov: begin inspected */
-bool create_actual_table(THD *thd, const Object_table *object_table)
-{
+bool create_actual_table(THD *thd, const Object_table *object_table) {
   /*
     For minor downgrade, tables might have been added in the upgraded
     server that we do not have any Object_table instance for. In that
     case, we just skip them.
   */
-  if (object_table == nullptr)
-  {
-    DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().
-            is_minor_downgrade());
+  if (object_table == nullptr) {
+    DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade());
     return false;
   }
 
   String_type actual_ddl_statement("");
-  const Object_table_definition *actual_table_def=
-            object_table->actual_table_definition();
+  const Object_table_definition *actual_table_def =
+      object_table->actual_table_definition();
 
   /*
     The actual definition may not be present. This will happen during
     upgrade if the new DD version adds a new DD table which was not
     present in the DD we are upgrading from. This is OK, not an error.
   */
-  if (actual_table_def == nullptr)
-    return false;
+  if (actual_table_def == nullptr) return false;
 
-  actual_ddl_statement= actual_table_def->get_ddl();
+  actual_ddl_statement = actual_table_def->get_ddl();
   DBUG_ASSERT(!actual_ddl_statement.empty());
 
   return execute_query(thd, actual_ddl_statement);
 }
 /* purecov: end */
-
 
 /**
   Execute SQL statements to create the DD tables.
@@ -496,11 +453,9 @@ bool create_actual_table(THD *thd, const Object_table *object_table)
 
   @returns false if success, otherwise true.
 */
-bool create_tables(THD *thd, const std::set<String_type> *create_set)
-{
+bool create_tables(THD *thd, const std::set<String_type> *create_set) {
   // Turn off FK checks, this is needed since we have cyclic FKs.
-  if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0"))
-    return true;
+  if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0")) return true;
 
   /*
     Decide whether we should create actual or target tables. For plain
@@ -509,12 +464,12 @@ bool create_tables(THD *thd, const std::set<String_type> *create_set)
     So we create the actual tables only during the first table creation
     stage for upgrade, and for minor downgrade.
   */
-  bool create_target_tables= true;
+  bool create_target_tables = true;
   if (bootstrap::DD_bootstrap_ctx::instance().get_stage() ==
-        bootstrap::Stage::FETCHED_PROPERTIES &&
+          bootstrap::Stage::FETCHED_PROPERTIES &&
       (bootstrap::DD_bootstrap_ctx::instance().is_upgrade() ||
        bootstrap::DD_bootstrap_ctx::instance().is_minor_downgrade()))
-    create_target_tables= false;
+    create_target_tables = false;
 
   /*
     Iterate over DD tables and create the tables. Note that we do not iterate
@@ -522,86 +477,69 @@ bool create_tables(THD *thd, const std::set<String_type> *create_set)
     'dd_properties'), and it is created in 'initialize_dd_properties' in
     order to get hold of e.g. version information.
   */
-  bool error= false;
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-          it != System_tables::instance()->end() && !error; ++it)
-  {
+  bool error = false;
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end() && !error; ++it) {
     if ((*it)->property() == System_tables::Types::CORE ||
-            (*it)->property() == System_tables::Types::SECOND ||
-            (*it)->property() == System_tables::Types::DDSE)
-    {
+        (*it)->property() == System_tables::Types::SECOND ||
+        (*it)->property() == System_tables::Types::DDSE) {
       /*
         If a create set is submitted, create only the target tables that
         are in the create set.
       */
       if (create_set == nullptr ||
-              create_set->find((*it)->entity()->name()) != create_set->end())
-      {
+          create_set->find((*it)->entity()->name()) != create_set->end()) {
         /*
           Use the actual or target definition to create the table depending
           on the context.
         */
         if (create_target_tables)
-          error= create_target_table(thd, (*it)->entity());
+          error = create_target_table(thd, (*it)->entity());
         else
-          error= create_actual_table(thd, (*it)->entity());
+          error = create_actual_table(thd, (*it)->entity());
       }
     }
   }
 
   // Turn FK checks back on.
-  if (error || execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1"))
-    return true;
+  if (error || execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1")) return true;
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::CREATED_TABLES);
+      bootstrap::Stage::CREATED_TABLES);
 
   return false;
 }
-
 
 /*
   Acquire exclusive meta data locks for the DD schema, tablespace and
   table names.
 */
-bool acquire_exclusive_mdl(THD *thd)
-{
+bool acquire_exclusive_mdl(THD *thd) {
   // All MDL requests.
   MDL_request_list mdl_requests;
 
   // Prepare MDL request for the schema name.
   MDL_request schema_request;
-  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA,
-                   MYSQL_SCHEMA_NAME.str,
-                   "",
-                   MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&schema_request, MDL_key::SCHEMA, MYSQL_SCHEMA_NAME.str, "",
+                   MDL_EXCLUSIVE, MDL_TRANSACTION);
   mdl_requests.push_front(&schema_request);
 
   // Prepare MDL request for the tablespace name.
   MDL_request tablespace_request;
-  MDL_REQUEST_INIT(&tablespace_request, MDL_key::TABLESPACE,
-                   "",
-                   MYSQL_TABLESPACE_NAME.str,
-                   MDL_EXCLUSIVE,
-                   MDL_TRANSACTION);
+  MDL_REQUEST_INIT(&tablespace_request, MDL_key::TABLESPACE, "",
+                   MYSQL_TABLESPACE_NAME.str, MDL_EXCLUSIVE, MDL_TRANSACTION);
   mdl_requests.push_front(&tablespace_request);
 
   // Prepare MDL requests for all tables names.
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     // Skip extraneous tables during minor downgrade.
-    if ((*it)->entity() == nullptr)
-      continue;
+    if ((*it)->entity() == nullptr) continue;
 
-    MDL_request *table_request= new (thd->mem_root) MDL_request;
-    if (table_request == NULL)
-      return true;
-    MDL_REQUEST_INIT(table_request, MDL_key::TABLE,
-                     MYSQL_SCHEMA_NAME.str,
-                     (*it)->entity()->name().c_str(),
-                     MDL_EXCLUSIVE,
+    MDL_request *table_request = new (thd->mem_root) MDL_request;
+    if (table_request == NULL) return true;
+    MDL_REQUEST_INIT(table_request, MDL_key::TABLE, MYSQL_SCHEMA_NAME.str,
+                     (*it)->entity()->name().c_str(), MDL_EXCLUSIVE,
                      MDL_TRANSACTION);
     mdl_requests.push_front(table_request);
   }
@@ -611,16 +549,13 @@ bool acquire_exclusive_mdl(THD *thd)
                                          thd->variables.lock_wait_timeout));
 }
 
-
 /*
   Acquire the DD schema, tablespace and table objects. Clone the objects,
   reset ID, store persistently, and update the storage adapter.
 */
-bool flush_meta_data(THD *thd)
-{
+bool flush_meta_data(THD *thd) {
   // Acquire exclusive meta data locks for the relevant DD objects.
-  if (acquire_exclusive_mdl(thd))
-    return true;
+  if (acquire_exclusive_mdl(thd)) return true;
 
   {
     /*
@@ -638,9 +573,9 @@ bool flush_meta_data(THD *thd)
       objects are not evicted. This must be ensured since we need to make
       sure the ids stay consistent across all objects in the shared cache.
     */
-    const Schema *dd_schema= nullptr;
-    const Tablespace *dd_tspace= nullptr;
-    std::vector<const Table_impl*> dd_tables; // Owned by the shared cache.
+    const Schema *dd_schema = nullptr;
+    const Tablespace *dd_tspace = nullptr;
+    std::vector<const Table_impl *> dd_tables;  // Owned by the shared cache.
     std::vector<std::unique_ptr<Table_impl>> dd_table_clones;
 
     if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
@@ -650,27 +585,26 @@ bool flush_meta_data(THD *thd)
       return dd::end_transaction(thd, true);
 
     std::unique_ptr<Schema_impl> dd_schema_clone(
-      dynamic_cast<Schema_impl*>(dd_schema->clone()));
+        dynamic_cast<Schema_impl *>(dd_schema->clone()));
 
     std::unique_ptr<Tablespace_impl> dd_tspace_clone(
-      dynamic_cast<Tablespace_impl*>(dd_tspace->clone()));
+        dynamic_cast<Tablespace_impl *>(dd_tspace->clone()));
 
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
-         it != System_tables::instance()->end(); ++it)
-    {
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it) {
       /*
         We add nullptr to the dd_tables vector for abandoned
         tables and system tables to have the same number of objects
         in the System_tables list, the dd_tables vector and the
         dd_table_clones vector.
       */
-      const dd::Table *dd_table= nullptr;
+      const dd::Table *dd_table = nullptr;
       if ((*it)->property() != System_tables::Types::SYSTEM &&
           thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
         return dd::end_transaction(thd, true);
 
-      dd_tables.push_back(dynamic_cast<const Table_impl*>(dd_table));
+      dd_tables.push_back(dynamic_cast<const Table_impl *>(dd_table));
 
       /*
         If this is an abandoned table, we can't clone it. Thus, we
@@ -678,13 +612,10 @@ bool flush_meta_data(THD *thd)
         elements in the dd_table_clones as in the System_tables.
       */
       std::unique_ptr<Table_impl> dd_table_clone;
-      if (dd_table != nullptr)
-      {
+      if (dd_table != nullptr) {
         dd_table_clones.push_back(std::unique_ptr<Table_impl>(
-          dynamic_cast<Table_impl*>(dd_table->clone())));
-      }
-      else
-      {
+            dynamic_cast<Table_impl *>(dd_table->clone())));
+      } else {
         dd_table_clones.push_back(nullptr);
       }
     }
@@ -722,10 +653,10 @@ bool flush_meta_data(THD *thd)
     */
     dd_schema_clone->set_id(INVALID_OBJECT_ID);
     dd_tspace_clone->set_id(INVALID_OBJECT_ID);
-    if (dd::cache::Storage_adapter::instance()->store(thd,
-            static_cast<Schema*>(dd_schema_clone.get())) ||
-        dd::cache::Storage_adapter::instance()->store(thd,
-            static_cast<Tablespace*>(dd_tspace_clone.get())))
+    if (dd::cache::Storage_adapter::instance()->store(
+            thd, static_cast<Schema *>(dd_schema_clone.get())) ||
+        dd::cache::Storage_adapter::instance()->store(
+            thd, static_cast<Tablespace *>(dd_tspace_clone.get())))
       return dd::end_transaction(thd, true);
 
     /*
@@ -735,14 +666,15 @@ bool flush_meta_data(THD *thd)
       and avoid using a partially update core registry for e.g. object
       acquisition.
     */
-    std::vector<std::unique_ptr<Table_impl>>::iterator clone_it=
-            dd_table_clones.begin();
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+    std::vector<std::unique_ptr<Table_impl>>::iterator clone_it =
+        dd_table_clones.begin();
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
          it != System_tables::instance()->end() &&
-         clone_it != dd_table_clones.end(); ++it, ++clone_it)
-    {
+         clone_it != dd_table_clones.end();
+         ++it, ++clone_it) {
       // Skip abandoned tables and system tables.
-      if ((*clone_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
+      if ((*clone_it) == nullptr ||
+          (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
       DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
@@ -758,8 +690,8 @@ bool flush_meta_data(THD *thd)
       */
       (*clone_it)->set_schema_id(dd_schema_clone->id());
       (*clone_it)->set_tablespace_id(dd_tspace_clone->id());
-      if (dd::cache::Storage_adapter::instance()->store(thd,
-            static_cast<Table*>((*clone_it).get())))
+      if (dd::cache::Storage_adapter::instance()->store(
+              thd, static_cast<Table *>((*clone_it).get())))
         return dd::end_transaction(thd, true);
     }
 
@@ -768,24 +700,23 @@ bool flush_meta_data(THD *thd)
       has already been stored above, so we iterate only over the tablespaces
       of type PREDEFINED_DDSE.
     */
-    for (System_tablespaces::Const_iterator it=
-           System_tablespaces::instance()->begin(
-             System_tablespaces::Types::PREDEFINED_DDSE);
+    for (System_tablespaces::Const_iterator it =
+             System_tablespaces::instance()->begin(
+                 System_tablespaces::Types::PREDEFINED_DDSE);
          it != System_tablespaces::instance()->end();
-         it= System_tablespaces::instance()->next(it,
-               System_tablespaces::Types::PREDEFINED_DDSE))
-    {
-      const dd::Tablespace *tspace= nullptr;
+         it = System_tablespaces::instance()->next(
+             it, System_tablespaces::Types::PREDEFINED_DDSE)) {
+      const dd::Tablespace *tspace = nullptr;
       if (thd->dd_client()->acquire((*it)->key().second, &tspace))
         return dd::end_transaction(thd, true);
 
       std::unique_ptr<Tablespace_impl> tspace_clone(
-              dynamic_cast<Tablespace_impl*>(tspace->clone()));
+          dynamic_cast<Tablespace_impl *>(tspace->clone()));
 
       // We must set the ID to INVALID to enable storing the object.
       tspace_clone->set_id(INVALID_OBJECT_ID);
-      if (dd::cache::Storage_adapter::instance()->store(thd,
-            static_cast<Tablespace*>(tspace_clone.get())))
+      if (dd::cache::Storage_adapter::instance()->store(
+              thd, static_cast<Tablespace *>(tspace_clone.get())))
         return dd::end_transaction(thd, true);
 
       /*
@@ -804,12 +735,12 @@ bool flush_meta_data(THD *thd)
       schema and tablespace.
      */
     dd::cache::Storage_adapter::instance()->core_drop(thd, dd_schema);
-    dd::cache::Storage_adapter::instance()->core_store(thd,
-      static_cast<Schema*>(dd_schema_clone.get()));
+    dd::cache::Storage_adapter::instance()->core_store(
+        thd, static_cast<Schema *>(dd_schema_clone.get()));
 
     dd::cache::Storage_adapter::instance()->core_drop(thd, dd_tspace);
-    dd::cache::Storage_adapter::instance()->core_store(thd,
-      static_cast<Tablespace*>(dd_tspace_clone.get()));
+    dd::cache::Storage_adapter::instance()->core_store(
+        thd, static_cast<Tablespace *>(dd_tspace_clone.get()));
 
     // Make sure the IDs after storing are as expected.
     DBUG_ASSERT(dd_schema_clone->id() == 1);
@@ -819,34 +750,35 @@ bool flush_meta_data(THD *thd)
       Finally, we update the core registry of the DD tables. This must be
       done in two loops to avoid issues related to overlapping ID sequences.
     */
-    std::vector<const Table_impl*>::const_iterator table_it= dd_tables.begin();
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
-         it != System_tables::instance()->end() &&
-         table_it != dd_tables.end(); ++it, ++table_it)
-    {
+    std::vector<const Table_impl *>::const_iterator table_it =
+        dd_tables.begin();
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
+         it != System_tables::instance()->end() && table_it != dd_tables.end();
+         ++it, ++table_it) {
       // Skip abandoned tables and system tables.
-      if ((*table_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
+      if ((*table_it) == nullptr ||
+          (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
       DBUG_ASSERT((*it)->entity()->name() == (*table_it)->name());
-      dd::cache::Storage_adapter::instance()->core_drop(thd,
-              static_cast<const Table*>(*table_it));
+      dd::cache::Storage_adapter::instance()->core_drop(
+          thd, static_cast<const Table *>(*table_it));
     }
 
-    clone_it= dd_table_clones.begin();
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+    clone_it = dd_table_clones.begin();
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
          it != System_tables::instance()->end() &&
-         clone_it != dd_table_clones.end(); ++it, ++clone_it)
-    {
+         clone_it != dd_table_clones.end();
+         ++it, ++clone_it) {
       // Skip abandoned tables and system tables.
-      if ((*clone_it) == nullptr || (*it)->property() == System_tables::Types::SYSTEM)
+      if ((*clone_it) == nullptr ||
+          (*it)->property() == System_tables::Types::SYSTEM)
         continue;
 
-      if ((*it)->property() == System_tables::Types::CORE)
-      {
+      if ((*it)->property() == System_tables::Types::CORE) {
         DBUG_ASSERT((*it)->entity()->name() == (*clone_it)->name());
-        dd::cache::Storage_adapter::instance()->core_store(thd,
-                static_cast<Table*>((*clone_it).get()));
+        dd::cache::Storage_adapter::instance()->core_store(
+            thd, static_cast<Table *>((*clone_it).get()));
       }
     }
   }
@@ -857,8 +789,7 @@ bool flush_meta_data(THD *thd)
   */
   dd::cache::Shared_dictionary_cache::instance()->reset(true);
 
-  if (dd::end_transaction(thd, false))
-  {
+  if (dd::end_transaction(thd, false)) {
     return true;
   }
 
@@ -870,20 +801,18 @@ bool flush_meta_data(THD *thd)
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   // Acquire the DD tablespace and write SDI
-  const Tablespace *dd_tspace= nullptr;
+  const Tablespace *dd_tspace = nullptr;
   if (thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                 &dd_tspace) ||
-      dd::sdi::store(thd, dd_tspace))
-  {
+      dd::sdi::store(thd, dd_tspace)) {
     return dd::end_transaction(thd, true);
   }
 
   // Acquire the DD schema and write SDI
-  const Schema *dd_schema= nullptr;
+  const Schema *dd_schema = nullptr;
   if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                 &dd_schema) ||
-      dd::sdi::store(thd, dd_schema))
-  {
+      dd::sdi::store(thd, dd_schema)) {
     return dd::end_transaction(thd, true);
   }
 
@@ -891,23 +820,19 @@ bool flush_meta_data(THD *thd)
     Acquire the DD table objects and write SDI for them. Also sync from
     the DD tables in order to get the FK parent information reloaded.
   */
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     // Skip system tables.
-    if ((*it)->property() == System_tables::Types::SYSTEM)
-      continue;
+    if ((*it)->property() == System_tables::Types::SYSTEM) continue;
 
-    const dd::Table *dd_table= nullptr;
+    const dd::Table *dd_table = nullptr;
     if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
-                                  (*it)->entity()->name(), &dd_table))
-    {
+                                  (*it)->entity()->name(), &dd_table)) {
       return dd::end_transaction(thd, true);
     }
 
     // Skip abandoned tables.
-    if (dd_table == nullptr)
-      continue;
+    if (dd_table == nullptr) continue;
 
     /*
       Make sure the registry of the core DD objects is updated with an
@@ -917,60 +842,52 @@ bool flush_meta_data(THD *thd)
     Abstract_table::Name_key table_key;
     Abstract_table::update_name_key(&table_key, dd_schema->id(),
                                     dd_table->name());
-    const dd::Abstract_table *persisted_dd_table= nullptr;
-    if (dd::cache::Storage_adapter::instance()->get(thd, table_key,
-            ISO_READ_COMMITTED, true, &persisted_dd_table) ||
+    const dd::Abstract_table *persisted_dd_table = nullptr;
+    if (dd::cache::Storage_adapter::instance()->get(
+            thd, table_key, ISO_READ_COMMITTED, true, &persisted_dd_table) ||
         persisted_dd_table == nullptr ||
-        dd::sdi::store(thd, dynamic_cast<const Table*>(persisted_dd_table)))
-    {
-      if (persisted_dd_table != nullptr)
-        delete persisted_dd_table;
+        dd::sdi::store(thd, dynamic_cast<const Table *>(persisted_dd_table))) {
+      if (persisted_dd_table != nullptr) delete persisted_dd_table;
       return dd::end_transaction(thd, true);
     }
 
-    if ((*it)->property() == System_tables::Types::CORE)
-    {
+    if ((*it)->property() == System_tables::Types::CORE) {
       dd::cache::Storage_adapter::instance()->core_drop(thd, dd_table);
-      dd::cache::Storage_adapter::instance()->core_store(thd,
-        dynamic_cast<Table*>(const_cast<Abstract_table*>(persisted_dd_table)));
+      dd::cache::Storage_adapter::instance()->core_store(
+          thd, dynamic_cast<Table *>(
+                   const_cast<Abstract_table *>(persisted_dd_table)));
     }
 
-    if (persisted_dd_table != nullptr)
-      delete persisted_dd_table;
+    if (persisted_dd_table != nullptr) delete persisted_dd_table;
   }
 
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::SYNCED);
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::SYNCED);
 
   return dd::end_transaction(thd, false);
 }
-
 
 /*
   Acquire the DD schema, tablespace and table objects. Read the persisted
   objects from the DD tables, and replace the contents of the core
   registry in the storage adapter.
 */
-bool sync_meta_data(THD *thd)
-{
+bool sync_meta_data(THD *thd) {
 #ifndef DBUG_OFF
   // Print information message only in DEBUG mode.
-  bool exists= false;
-  uint stored_lctn= 0;
-  DBUG_ASSERT(!dd::tables::DD_properties::instance().get(thd, "LCTN",
-          &stored_lctn, &exists));
+  bool exists = false;
+  uint stored_lctn = 0;
+  DBUG_ASSERT(!dd::tables::DD_properties::instance().get(
+      thd, "LCTN", &stored_lctn, &exists));
   DBUG_ASSERT(exists);
 
-  if (stored_lctn != lower_case_table_names)
-  {
+  if (stored_lctn != lower_case_table_names) {
     LogErr(INFORMATION_LEVEL, ER_LCTN_CHANGED, lower_case_table_names,
-            stored_lctn);
+           stored_lctn);
   }
 #endif
 
   // Acquire exclusive meta data locks for the relevant DD objects.
-  if (acquire_exclusive_mdl(thd))
-    return true;
+  if (acquire_exclusive_mdl(thd)) return true;
 
   {
     /*
@@ -990,80 +907,77 @@ bool sync_meta_data(THD *thd)
       all objects in the shared cache.
     */
 
-    const Schema *dd_schema= nullptr;
-    const Tablespace *dd_tspace= nullptr;
+    const Schema *dd_schema = nullptr;
+    const Tablespace *dd_tspace = nullptr;
     if (thd->dd_client()->acquire(dd::String_type(MYSQL_SCHEMA_NAME.str),
                                   &dd_schema) ||
         thd->dd_client()->acquire(dd::String_type(MYSQL_TABLESPACE_NAME.str),
                                   &dd_tspace))
       return dd::end_transaction(thd, true);
 
-    std::vector<Table*> dd_tables; // Owned by the shared cache.
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
-         it != System_tables::instance()->end(); ++it)
-    {
+    std::vector<Table *> dd_tables;  // Owned by the shared cache.
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it) {
       // Skip extraneous tables during minor downgrade.
-      if ((*it)->entity() == nullptr)
-        continue;
+      if ((*it)->entity() == nullptr) continue;
 
-      const dd::Table *dd_table= nullptr;
+      const dd::Table *dd_table = nullptr;
       if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str,
                                     (*it)->entity()->name(), &dd_table))
         return dd::end_transaction(thd, true);
-      dd_tables.push_back(const_cast<Table*>(dd_table));
+      dd_tables.push_back(const_cast<Table *>(dd_table));
     }
 
     // Get the persisted DD schema and tablespace.
     Schema::Name_key schema_key;
     dd_schema->update_name_key(&schema_key);
-    const Schema *tmp_schema= nullptr;
+    const Schema *tmp_schema = nullptr;
 
     Tablespace::Name_key tspace_key;
     dd_tspace->update_name_key(&tspace_key);
-    const Tablespace *tmp_tspace= nullptr;
+    const Tablespace *tmp_tspace = nullptr;
 
-    if (dd::cache::Storage_adapter::instance()->get(thd, schema_key,
-            ISO_READ_COMMITTED, true, &tmp_schema) ||
-        dd::cache::Storage_adapter::instance()->get(thd, tspace_key,
-            ISO_READ_COMMITTED, true, &tmp_tspace))
-        return dd::end_transaction(thd, true);
+    if (dd::cache::Storage_adapter::instance()->get(
+            thd, schema_key, ISO_READ_COMMITTED, true, &tmp_schema) ||
+        dd::cache::Storage_adapter::instance()->get(
+            thd, tspace_key, ISO_READ_COMMITTED, true, &tmp_tspace))
+      return dd::end_transaction(thd, true);
 
     DBUG_ASSERT(tmp_schema != nullptr && tmp_tspace != nullptr);
-    std::unique_ptr<Schema> persisted_dd_schema(const_cast<Schema*>(tmp_schema));
-    std::unique_ptr<Tablespace> persisted_dd_tspace(const_cast<Tablespace*>(tmp_tspace));
+    std::unique_ptr<Schema> persisted_dd_schema(
+        const_cast<Schema *>(tmp_schema));
+    std::unique_ptr<Tablespace> persisted_dd_tspace(
+        const_cast<Tablespace *>(tmp_tspace));
 
     // Get the persisted DD table objects into a vector.
     std::vector<std::unique_ptr<Table_impl>> persisted_dd_tables;
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
-         it != System_tables::instance()->end(); ++it)
-    {
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
+         it != System_tables::instance()->end(); ++it) {
       // Skip extraneous tables during minor downgrade.
-      if ((*it)->entity() == nullptr)
-        continue;
+      if ((*it)->entity() == nullptr) continue;
 
-      const dd::Abstract_table *dd_table= nullptr;
+      const dd::Abstract_table *dd_table = nullptr;
       dd::Abstract_table::Name_key table_key;
       Abstract_table::update_name_key(&table_key, persisted_dd_schema->id(),
-              (*it)->entity()->name());
+                                      (*it)->entity()->name());
 
-    if (dd::cache::Storage_adapter::instance()->get(thd, table_key,
-            ISO_READ_COMMITTED, true, &dd_table))
+      if (dd::cache::Storage_adapter::instance()->get(
+              thd, table_key, ISO_READ_COMMITTED, true, &dd_table))
         return dd::end_transaction(thd, true);
 
       std::unique_ptr<Table_impl> persisted_dd_table(
-            dynamic_cast<Table_impl*>(const_cast<Abstract_table*>(dd_table)));
+          dynamic_cast<Table_impl *>(const_cast<Abstract_table *>(dd_table)));
       persisted_dd_tables.push_back(std::move(persisted_dd_table));
     }
 
     // Drop the tablespaces with type PREDEFINED_DDSE from the storage adapter.
-    for (System_tablespaces::Const_iterator it=
-           System_tablespaces::instance()->begin(
-             System_tablespaces::Types::PREDEFINED_DDSE);
+    for (System_tablespaces::Const_iterator it =
+             System_tablespaces::instance()->begin(
+                 System_tablespaces::Types::PREDEFINED_DDSE);
          it != System_tablespaces::instance()->end();
-         it= System_tablespaces::instance()->next(it,
-               System_tablespaces::Types::PREDEFINED_DDSE))
-    {
-      const Tablespace *tspace= nullptr;
+         it = System_tablespaces::instance()->next(
+             it, System_tablespaces::Types::PREDEFINED_DDSE)) {
+      const Tablespace *tspace = nullptr;
       if (thd->dd_client()->acquire((*it)->entity()->get_name(), &tspace))
         return dd::end_transaction(thd, true);
 
@@ -1087,12 +1001,12 @@ bool sync_meta_data(THD *thd)
       the persisted DD schema and tablespace.
     */
     dd::cache::Storage_adapter::instance()->core_drop(thd, dd_schema);
-    dd::cache::Storage_adapter::instance()->core_store(thd,
-      persisted_dd_schema.get());
+    dd::cache::Storage_adapter::instance()->core_store(
+        thd, persisted_dd_schema.get());
 
     dd::cache::Storage_adapter::instance()->core_drop(thd, dd_tspace);
-    dd::cache::Storage_adapter::instance()->core_store(thd,
-      persisted_dd_tspace.get());
+    dd::cache::Storage_adapter::instance()->core_store(
+        thd, persisted_dd_tspace.get());
 
     // Make sure the IDs after storing are as expected.
     DBUG_ASSERT(persisted_dd_schema->id() == 1);
@@ -1102,34 +1016,31 @@ bool sync_meta_data(THD *thd)
       Finally, we update the core registry of the DD tables. This must be
       done in two loops to avoid issues related to overlapping ID sequences.
     */
-    std::vector<Table*>::const_iterator table_it= dd_tables.begin();
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
-         it != System_tables::instance()->end() &&
-         table_it != dd_tables.end(); ++it, ++table_it)
-    {
+    std::vector<Table *>::const_iterator table_it = dd_tables.begin();
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
+         it != System_tables::instance()->end() && table_it != dd_tables.end();
+         ++it, ++table_it) {
       /*
         If we are in the process of upgrading, there may not be an entry
         in the dd_tables for new tables that have been added after the
         version we are upgrading from.
       */
-      if ((*table_it) != nullptr)
-      {
+      if ((*table_it) != nullptr) {
         DBUG_ASSERT((*it)->entity()->name() == (*table_it)->name());
         dd::cache::Storage_adapter::instance()->core_drop(thd, *table_it);
       }
     }
 
-    std::vector<std::unique_ptr<Table_impl>>::const_iterator persisted_it=
-          persisted_dd_tables.begin();
-    for (System_tables::Const_iterator it= System_tables::instance()->begin();
+    std::vector<std::unique_ptr<Table_impl>>::const_iterator persisted_it =
+        persisted_dd_tables.begin();
+    for (System_tables::Const_iterator it = System_tables::instance()->begin();
          it != System_tables::instance()->end() &&
-         persisted_it != persisted_dd_tables.end(); ++it, ++persisted_it)
-    {
-      if ((*it)->property() == System_tables::Types::CORE)
-      {
+         persisted_it != persisted_dd_tables.end();
+         ++it, ++persisted_it) {
+      if ((*it)->property() == System_tables::Types::CORE) {
         DBUG_ASSERT((*it)->entity()->name() == (*persisted_it)->name());
-        dd::cache::Storage_adapter::instance()->core_store(thd,
-                static_cast<Table*>((*persisted_it).get()));
+        dd::cache::Storage_adapter::instance()->core_store(
+            thd, static_cast<Table *>((*persisted_it).get()));
       }
     }
   }
@@ -1139,28 +1050,25 @@ bool sync_meta_data(THD *thd)
     reset the shared cache.
   */
   dd::cache::Shared_dictionary_cache::instance()->reset(true);
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::SYNCED);
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::SYNCED);
 
   // Commit and flush tables to force re-opening using the refreshed meta data.
   if (dd::end_transaction(thd, false) || execute_query(thd, "FLUSH TABLES"))
     return true;
 
   // Reset the DDSE local dictionary cache.
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->dict_cache_reset == nullptr)
-    return true;
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_cache_reset == nullptr) return true;
 
-  for (System_tables::Const_iterator it=
-         System_tables::instance()->begin(System_tables::Types::CORE);
-       it != System_tables::instance()->end(); it=
-         System_tables::instance()->next(it, System_tables::Types::CORE))
-  {
+  for (System_tables::Const_iterator it =
+           System_tables::instance()->begin(System_tables::Types::CORE);
+       it != System_tables::instance()->end();
+       it = System_tables::instance()->next(it, System_tables::Types::CORE)) {
     // Skip extraneous tables during minor downgrade.
-    if ((*it)->entity() == nullptr)
-      continue;
+    if ((*it)->entity() == nullptr) continue;
 
-    ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str, (*it)->entity()->name().c_str());
+    ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str,
+                           (*it)->entity()->name().c_str());
   }
 
   /*
@@ -1168,29 +1076,25 @@ bool sync_meta_data(THD *thd)
     If there are leftover schema names from upgrade, delete them.
   */
   String_type schema_name;
-  bool schema_exists= false;
-  if (dd::tables::DD_properties::instance().get(thd,
-          "UPGRADE_ACTUAL_SCHEMA", &schema_name, &schema_exists))
+  bool schema_exists = false;
+  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_ACTUAL_SCHEMA",
+                                                &schema_name, &schema_exists))
     return true;
 
-  if (schema_exists && !schema_name.empty())
-  {
+  if (schema_exists && !schema_name.empty()) {
     std::stringstream ss;
     ss << "DROP SCHEMA IF EXISTS " << schema_name;
-    if (execute_query(thd, ss.str().c_str()))
-      return true;
+    if (execute_query(thd, ss.str().c_str())) return true;
   }
 
-  if (dd::tables::DD_properties::instance().get(thd,
-          "UPGRADE_TARGET_SCHEMA", &schema_name, &schema_exists))
+  if (dd::tables::DD_properties::instance().get(thd, "UPGRADE_TARGET_SCHEMA",
+                                                &schema_name, &schema_exists))
     return true;
 
-  if (schema_exists && !schema_name.empty())
-  {
+  if (schema_exists && !schema_name.empty()) {
     std::stringstream ss;
     ss << "DROP SCHEMA IF EXISTS " << schema_name;
-    if (execute_query(thd, ss.str().c_str()))
-      return true;
+    if (execute_query(thd, ss.str().c_str())) return true;
   }
   /*
    The statements above are auto committed, so there is nothing uncommitted
@@ -1200,37 +1104,31 @@ bool sync_meta_data(THD *thd)
   return false;
 }
 
-
 /*
   Create the temporary schemas needed during upgrade, and fetch their ids.
 */
 /* purecov: begin inspected */
-bool create_temporary_schemas(THD *thd,
-        Object_id *mysql_schema_id,
-        Object_id *target_table_schema_id,
-        String_type *target_table_schema_name,
-        Object_id *actual_table_schema_id)
-{
+bool create_temporary_schemas(THD *thd, Object_id *mysql_schema_id,
+                              Object_id *target_table_schema_id,
+                              String_type *target_table_schema_name,
+                              Object_id *actual_table_schema_id) {
   /*
     Find an unused target schema name. Prepare a base name, and append
     a counter, increment until a non-existing name is found
   */
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *schema= nullptr;
+  const dd::Schema *schema = nullptr;
   std::stringstream ss;
 
   DBUG_ASSERT(target_table_schema_name != nullptr);
-  *target_table_schema_name= String_type("");
+  *target_table_schema_name = String_type("");
   ss << "dd_upgrade_targets_" << MYSQL_VERSION_ID;
   String_type tmp_schema_name_base{ss.str().c_str()};
-  int count= 0;
-  do
-  {
-    if (thd->dd_client()->acquire(ss.str().c_str(), &schema))
-      return true;
-    if (schema == nullptr)
-    {
-      *target_table_schema_name= ss.str().c_str();
+  int count = 0;
+  do {
+    if (thd->dd_client()->acquire(ss.str().c_str(), &schema)) return true;
+    if (schema == nullptr) {
+      *target_table_schema_name = ss.str().c_str();
       break;
     }
     ss.str("");
@@ -1238,10 +1136,8 @@ bool create_temporary_schemas(THD *thd,
     ss << tmp_schema_name_base << "_" << count++;
   } while (count < 1000);
 
-  if (target_table_schema_name->empty())
-  {
-    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SCHEMA_UNAVAILABLE,
-            ss.str().c_str());
+  if (target_table_schema_name->empty()) {
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SCHEMA_UNAVAILABLE, ss.str().c_str());
     return true;
   }
 
@@ -1253,15 +1149,12 @@ bool create_temporary_schemas(THD *thd,
   ss.str("");
   ss.clear();
   ss << "dd_upgrade_garbage_" << MYSQL_VERSION_ID;
-  tmp_schema_name_base= String_type(ss.str().c_str());
-  count= 0;
-  do
-  {
-    if (thd->dd_client()->acquire(ss.str().c_str(), &schema))
-      return true;
-    if (schema == nullptr)
-    {
-      actual_table_schema_name= ss.str().c_str();
+  tmp_schema_name_base = String_type(ss.str().c_str());
+  count = 0;
+  do {
+    if (thd->dd_client()->acquire(ss.str().c_str(), &schema)) return true;
+    if (schema == nullptr) {
+      actual_table_schema_name = ss.str().c_str();
       break;
     }
     ss.str("");
@@ -1269,10 +1162,8 @@ bool create_temporary_schemas(THD *thd,
     ss << tmp_schema_name_base << "_" << count++;
   } while (count < 1000);
 
-  if (actual_table_schema_name.empty())
-  {
-    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SCHEMA_UNAVAILABLE,
-            ss.str().c_str());
+  if (actual_table_schema_name.empty()) {
+    LogErr(ERROR_LEVEL, ER_DD_UPGRADE_SCHEMA_UNAVAILABLE, ss.str().c_str());
     return true;
   }
 
@@ -1280,27 +1171,24 @@ bool create_temporary_schemas(THD *thd,
     Store the schema names in DD_properties and commit. The schemas will
     now be removed on next restart.
   */
-  if (dd::tables::DD_properties::instance().set(thd,
-            "UPGRADE_TARGET_SCHEMA", *target_table_schema_name) ||
-      dd::tables::DD_properties::instance().set(thd,
-            "UPGRADE_ACTUAL_SCHEMA", actual_table_schema_name))
-  {
+  if (dd::tables::DD_properties::instance().set(thd, "UPGRADE_TARGET_SCHEMA",
+                                                *target_table_schema_name) ||
+      dd::tables::DD_properties::instance().set(thd, "UPGRADE_ACTUAL_SCHEMA",
+                                                actual_table_schema_name)) {
     return dd::end_transaction(thd, true);
   }
 
-  if (dd::end_transaction(thd, false))
-    return true;
+  if (dd::end_transaction(thd, false)) return true;
 
-  if (execute_query(thd, dd::String_type("CREATE SCHEMA ") +
-            actual_table_schema_name +
-            dd::String_type(" DEFAULT COLLATE '") +
-            dd::String_type(default_charset_info->name)+"'") ||
-      execute_query(thd, dd::String_type("CREATE SCHEMA ") +
-            *target_table_schema_name +
-            dd::String_type(" DEFAULT COLLATE '") +
-            dd::String_type(default_charset_info->name)+"'") ||
-      execute_query(thd, dd::String_type("USE ") + *target_table_schema_name))
-  {
+  if (execute_query(
+          thd, dd::String_type("CREATE SCHEMA ") + actual_table_schema_name +
+                   dd::String_type(" DEFAULT COLLATE '") +
+                   dd::String_type(default_charset_info->name) + "'") ||
+      execute_query(
+          thd, dd::String_type("CREATE SCHEMA ") + *target_table_schema_name +
+                   dd::String_type(" DEFAULT COLLATE '") +
+                   dd::String_type(default_charset_info->name) + "'") ||
+      execute_query(thd, dd::String_type("USE ") + *target_table_schema_name)) {
     return true;
   }
 
@@ -1310,40 +1198,37 @@ bool create_temporary_schemas(THD *thd,
     later in various situations in the upgrade execution.
   */
   if (thd->dd_client()->acquire(MYSQL_SCHEMA_NAME.str, &schema) ||
-          schema == nullptr)
+      schema == nullptr)
     return true;
 
   DBUG_ASSERT(mysql_schema_id != nullptr);
-  *mysql_schema_id= schema->id();
+  *mysql_schema_id = schema->id();
   DBUG_ASSERT(*mysql_schema_id == 1);
 
   if (thd->dd_client()->acquire(*target_table_schema_name, &schema) ||
-          schema == nullptr)
+      schema == nullptr)
     return true;
 
   DBUG_ASSERT(target_table_schema_id != nullptr);
-  *target_table_schema_id= schema->id();
+  *target_table_schema_id = schema->id();
 
   if (thd->dd_client()->acquire(actual_table_schema_name, &schema) ||
-          schema == nullptr)
+      schema == nullptr)
     return true;
 
   DBUG_ASSERT(actual_table_schema_id != nullptr);
-  *actual_table_schema_id= schema->id();
+  *actual_table_schema_id = schema->id();
 
   return false;
 }
 /* purecov: end */
 
-
 /*
   Establish the sets of names of tables to be created and/or removed.
 */
 /* purecov: begin inspected */
-void establish_table_name_sets(
-        std::set<String_type> *create_set,
-        std::set<String_type> *remove_set)
-{
+void establish_table_name_sets(std::set<String_type> *create_set,
+                               std::set<String_type> *remove_set) {
   /*
     Establish the table change sets:
     - The 'remove' set contains the tables that will eventually be removed,
@@ -1353,15 +1238,13 @@ void establish_table_name_sets(
       are either new tables in the target version, or they replace an
       existing table in the actual version.
   */
-  DBUG_ASSERT (create_set != nullptr && create_set->empty());
-  DBUG_ASSERT (remove_set != nullptr && remove_set->empty());
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-          it != System_tables::instance()->end(); ++it)
-  {
+  DBUG_ASSERT(create_set != nullptr && create_set->empty());
+  DBUG_ASSERT(remove_set != nullptr && remove_set->empty());
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     if ((*it)->property() == System_tables::Types::CORE ||
-            (*it)->property() == System_tables::Types::SECOND ||
-            (*it)->property() == System_tables::Types::DDSE)
-    {
+        (*it)->property() == System_tables::Types::SECOND ||
+        (*it)->property() == System_tables::Types::DDSE) {
       /*
         In this context, all tables should have an Object_table. Minor
         downgrade is the only situation where an Object_table may not exist,
@@ -1370,27 +1253,25 @@ void establish_table_name_sets(
       DBUG_ASSERT((*it)->entity() != nullptr);
 
       String_type target_ddl_statement("");
-      const Object_table_definition *target_table_def=
-                (*it)->entity()->target_table_definition();
+      const Object_table_definition *target_table_def =
+          (*it)->entity()->target_table_definition();
       /*
          The target table definition may not be present if the table
          is abandoned.
       */
-      if (target_table_def)
-      {
-        target_ddl_statement= target_table_def->get_ddl();
+      if (target_table_def) {
+        target_ddl_statement = target_table_def->get_ddl();
       }
 
       String_type actual_ddl_statement("");
-      const Object_table_definition *actual_table_def=
-                (*it)->entity()->actual_table_definition();
+      const Object_table_definition *actual_table_def =
+          (*it)->entity()->actual_table_definition();
       /*
         The actual definition may not be present if this is a new table
         which has been added.
       */
-      if (actual_table_def)
-      {
-        actual_ddl_statement= actual_table_def->get_ddl();
+      if (actual_table_def) {
+        actual_ddl_statement = actual_table_def->get_ddl();
       }
 
       /*
@@ -1402,8 +1283,7 @@ void establish_table_name_sets(
         remove_set->insert((*it)->entity()->name());
       else if (target_table_def != nullptr && actual_table_def == nullptr)
         create_set->insert((*it)->entity()->name());
-      else if (target_ddl_statement != actual_ddl_statement)
-      {
+      else if (target_ddl_statement != actual_ddl_statement) {
         /*
           Abandoned tables that are not present will have target and actual
           statements == "", and will therefore not be added to the create
@@ -1416,7 +1296,6 @@ void establish_table_name_sets(
   }
 }
 /* purecov: end */
-
 
 /**
   Copy meta data from the actual tables to the target tables.
@@ -1446,9 +1325,8 @@ void establish_table_name_sets(
   @returns false if success. otherwise true.
 */
 /* purecov: begin inspected */
-bool migrate_meta_data(THD* thd, const std::set<String_type> &create_set,
-        const std::set<String_type> &remove_set)
-{
+bool migrate_meta_data(THD *thd, const std::set<String_type> &create_set,
+                       const std::set<String_type> &remove_set) {
   /*
     Turn off foreign key checks while migrating the meta data.
   */
@@ -1469,12 +1347,10 @@ bool migrate_meta_data(THD* thd, const std::set<String_type> &create_set,
     modified (i.e., all tables which are both in the remove- and create set),
     unless they were migrated explicitly above.
   */
-  for (std::set<String_type>::const_iterator it= create_set.begin();
-          it != create_set.end(); ++it)
-  {
+  for (std::set<String_type>::const_iterator it = create_set.begin();
+       it != create_set.end(); ++it) {
     if (migrated_set.find(*it) == migrated_set.end() &&
-        remove_set.find(*it) != remove_set.end())
-    {
+        remove_set.find(*it) != remove_set.end()) {
       std::stringstream ss;
       ss << "INSERT INTO " << (*it) << " SELECT * FROM "
          << MYSQL_SCHEMA_NAME.str << "." << (*it);
@@ -1493,42 +1369,36 @@ bool migrate_meta_data(THD* thd, const std::set<String_type> &create_set,
 }
 /* purecov: end */
 
-
 /*
   Update properties in the DD_properties table. Note that upon failure, we
   will rollback, whereas upon success, commit will be delayed.
 */
-bool update_properties(THD *thd,
-        const std::set<String_type> *create_set,
-        const std::set<String_type> *remove_set,
-        const String_type &target_table_schema_name)
-{
+bool update_properties(THD *thd, const std::set<String_type> *create_set,
+                       const std::set<String_type> *remove_set,
+                       const String_type &target_table_schema_name) {
   /*
     Populate the dd properties with the SQL DDL and SE private data.
     Store meta data of non-inert tables only.
   */
   std::unique_ptr<dd::Properties> system_tables_props(
-    dd::Properties::parse_properties(""));
+      dd::Properties::parse_properties(""));
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     if ((*it)->property() == System_tables::Types::CORE ||
-            (*it)->property() == System_tables::Types::SECOND ||
-            (*it)->property() == System_tables::Types::DDSE)
-    {
+        (*it)->property() == System_tables::Types::SECOND ||
+        (*it)->property() == System_tables::Types::DDSE) {
       /*
         This will not be called for minor downgrade, so all tables
         will have a corresponding Object_table.
       */
       DBUG_ASSERT((*it)->entity() != nullptr);
-      const Object_table_definition *table_def=
-                (*it)->entity()->target_table_definition();
+      const Object_table_definition *table_def =
+          (*it)->entity()->target_table_definition();
 
       // May be null for abandoned tables, which should be skipped.
-      if (table_def == nullptr)
-      {
+      if (table_def == nullptr) {
         continue;
       }
 
@@ -1537,9 +1407,8 @@ bool update_properties(THD *thd,
         should not be reflected in the DD properties.
       */
       if (remove_set != nullptr && create_set != nullptr &&
-              remove_set->find((*it)->entity()->name()) != remove_set->end() &&
-              create_set->find((*it)->entity()->name()) == create_set->end())
-      {
+          remove_set->find((*it)->entity()->name()) != remove_set->end() &&
+          create_set->find((*it)->entity()->name()) == create_set->end()) {
         continue;
       }
 
@@ -1550,82 +1419,75 @@ bool update_properties(THD *thd,
       */
       String_type table_schema_name{MYSQL_SCHEMA_NAME.str};
       if (create_set != nullptr &&
-              create_set->find((*it)->entity()->name()) != create_set->end())
-      {
-        table_schema_name= target_table_schema_name;
+          create_set->find((*it)->entity()->name()) != create_set->end()) {
+        table_schema_name = target_table_schema_name;
       }
 
       /*
         Acquire the table object to get hold of the se private data etc.
         Note that we must acquire it from the appropriate schema.
       */
-      const dd::Table *dd_table= nullptr;
-      if (thd->dd_client()->acquire(table_schema_name,
-                                    (*it)->entity()->name(), &dd_table))
+      const dd::Table *dd_table = nullptr;
+      if (thd->dd_client()->acquire(table_schema_name, (*it)->entity()->name(),
+                                    &dd_table))
         return dd::end_transaction(thd, true);
 
       // All non-abandoned tables should have a table object present.
       DBUG_ASSERT(dd_table != nullptr);
 
       std::unique_ptr<dd::Properties> tbl_props(
-        dd::Properties::parse_properties(""));
+          dd::Properties::parse_properties(""));
 
       using dd::tables::DD_properties;
       tbl_props->set_uint64(
-              DD_properties::dd_key(DD_properties::DD_property::ID),
-              dd_table->se_private_id());
-      tbl_props->set(
-              DD_properties::dd_key(DD_properties::DD_property::DATA),
-              dd_table->se_private_data().raw_string());
+          DD_properties::dd_key(DD_properties::DD_property::ID),
+          dd_table->se_private_id());
+      tbl_props->set(DD_properties::dd_key(DD_properties::DD_property::DATA),
+                     dd_table->se_private_data().raw_string());
       tbl_props->set_uint64(
-              DD_properties::dd_key(DD_properties::DD_property::SPACE_ID),
-              dd_table->tablespace_id());
+          DD_properties::dd_key(DD_properties::DD_property::SPACE_ID),
+          dd_table->tablespace_id());
 
       // Store the structured representation of the table definition.
-      std::unique_ptr<Properties> definition(
-        Properties::parse_properties(""));
+      std::unique_ptr<Properties> definition(Properties::parse_properties(""));
       table_def->store_into_properties(definition.get());
-      tbl_props->set(
-              DD_properties::dd_key(DD_properties::DD_property::DEF),
-              definition->raw_string());
+      tbl_props->set(DD_properties::dd_key(DD_properties::DD_property::DEF),
+                     definition->raw_string());
 
       // Store the se private data for each index.
       dd::Table::Index_collection::const_iterator idx(
-        dd_table->indexes().begin());
-      for (int count= 0; idx != dd_table->indexes().end(); ++idx, ++count)
-      {
+          dd_table->indexes().begin());
+      for (int count = 0; idx != dd_table->indexes().end(); ++idx, ++count) {
         std::stringstream ss;
         ss << DD_properties::dd_key(DD_properties::DD_property::IDX) << count;
         tbl_props->set(ss.str().c_str(),
-          (*idx)->se_private_data().raw_string());
+                       (*idx)->se_private_data().raw_string());
       }
 
       // Store the se private data for each column.
       dd::Table::Column_collection::const_iterator col(
-        dd_table->columns().begin());
-      for (int count= 0; col != dd_table->columns().end(); ++col, ++count)
-      {
+          dd_table->columns().begin());
+      for (int count = 0; col != dd_table->columns().end(); ++col, ++count) {
         std::stringstream ss;
         ss << DD_properties::dd_key(DD_properties::DD_property::COL) << count;
         tbl_props->set(ss.str().c_str(),
-          (*col)->se_private_data().raw_string());
+                       (*col)->se_private_data().raw_string());
       }
 
       // All tables should be reflected in the System tables list.
       system_tables_props->set(dd_table->name(), tbl_props->raw_string());
     }
   }
-  if (dd::tables::DD_properties::instance().set(thd,
-          "SYSTEM_TABLES", *system_tables_props.get()))
+  if (dd::tables::DD_properties::instance().set(thd, "SYSTEM_TABLES",
+                                                *system_tables_props.get()))
     return dd::end_transaction(thd, true);
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::STORED_DD_META_DATA);
+      bootstrap::Stage::STORED_DD_META_DATA);
 
   // Delay commit.
   return false;
 }
-
 
 /*
   Adjust the object ids to "move" tables between schemas by using DML.
@@ -1674,14 +1536,12 @@ bool update_properties(THD *thd,
   @returns false if success, true otherwise.
 */
 /* purecov: begin inspected */
-bool update_object_ids(THD *thd,
-        const std::set<String_type> &create_set,
-        const std::set<String_type> &remove_set,
-        Object_id mysql_schema_id,
-        Object_id target_table_schema_id,
-        const String_type &target_table_schema_name,
-        Object_id actual_table_schema_id)
-{
+bool update_object_ids(THD *thd, const std::set<String_type> &create_set,
+                       const std::set<String_type> &remove_set,
+                       Object_id mysql_schema_id,
+                       Object_id target_table_schema_id,
+                       const String_type &target_table_schema_name,
+                       Object_id actual_table_schema_id) {
   if (execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0"))
     return dd::end_transaction(thd, true);
 
@@ -1689,30 +1549,25 @@ bool update_object_ids(THD *thd,
     If mysql.tables has been modified, do the change on the copy, otherwise
     do the change on mysql.tables
   */
-  String_type tables_table= tables::Tables::instance().name();
-  if (create_set.find(tables_table) != create_set.end())
-  {
-    tables_table= target_table_schema_name +
-            String_type(".") + tables_table;
-  }
-  else
-  {
-    tables_table= String_type(MYSQL_SCHEMA_NAME.str) +
-            String_type(".") + tables_table;
+  String_type tables_table = tables::Tables::instance().name();
+  if (create_set.find(tables_table) != create_set.end()) {
+    tables_table = target_table_schema_name + String_type(".") + tables_table;
+  } else {
+    tables_table =
+        String_type(MYSQL_SCHEMA_NAME.str) + String_type(".") + tables_table;
   }
 
   /*
     For each actual table to be removed (i.e., modified or abandoned),
     change tables.schema_id to the actual table schema id.
   */
-  for (std::set<String_type>::const_iterator it= remove_set.begin();
-       it != remove_set.end(); ++it)
-  {
+  for (std::set<String_type>::const_iterator it = remove_set.begin();
+       it != remove_set.end(); ++it) {
     std::stringstream ss;
     ss << "UPDATE " << tables_table
        << " SET schema_id= " << actual_table_schema_id
-       << " WHERE schema_id= " << mysql_schema_id
-       << " AND name LIKE '" << (*it) << "'";
+       << " WHERE schema_id= " << mysql_schema_id << " AND name LIKE '" << (*it)
+       << "'";
 
     if (execute_query(thd, ss.str().c_str()))
       return dd::end_transaction(thd, true);
@@ -1723,19 +1578,18 @@ bool update_object_ids(THD *thd,
     change tables.schema_id to the mysql schema id, and set the hidden
     property according to the corresponding Object_table.
   */
-  for (std::set<String_type>::const_iterator it= create_set.begin();
-       it != create_set.end(); ++it)
-  {
+  for (std::set<String_type>::const_iterator it = create_set.begin();
+       it != create_set.end(); ++it) {
     // Get the corresponding Object_table instance.
     String_type hidden{""};
-    if (System_tables::instance()->find_table(MYSQL_SCHEMA_NAME.str,
-            (*it))->is_hidden())
-      hidden= String_type(", hidden= 'System'");
+    if (System_tables::instance()
+            ->find_table(MYSQL_SCHEMA_NAME.str, (*it))
+            ->is_hidden())
+      hidden = String_type(", hidden= 'System'");
 
     std::stringstream ss;
-    ss << "UPDATE " << tables_table
-       << " SET schema_id= " << mysql_schema_id << hidden
-       << " WHERE schema_id= " << target_table_schema_id
+    ss << "UPDATE " << tables_table << " SET schema_id= " << mysql_schema_id
+       << hidden << " WHERE schema_id= " << target_table_schema_id
        << " AND name LIKE '" << (*it) << "'";
 
     if (execute_query(thd, ss.str().c_str()))
@@ -1748,30 +1602,27 @@ bool update_object_ids(THD *thd,
     mysql.foreign_key_column_usage has been modified, do the change on
     the copy, otherwise do the change on mysql.foreign_key_column_usage.
   */
-  String_type foreign_keys_table=
-          tables::Foreign_keys::instance().name();;
-  if (create_set.find(foreign_keys_table) != create_set.end())
-  {
-    foreign_keys_table= target_table_schema_name +
-            String_type(".") + foreign_keys_table;
-  }
-  else
-  {
-    foreign_keys_table= String_type(MYSQL_SCHEMA_NAME.str) +
-            String_type(".") + foreign_keys_table;
+  String_type foreign_keys_table = tables::Foreign_keys::instance().name();
+  ;
+  if (create_set.find(foreign_keys_table) != create_set.end()) {
+    foreign_keys_table =
+        target_table_schema_name + String_type(".") + foreign_keys_table;
+  } else {
+    foreign_keys_table = String_type(MYSQL_SCHEMA_NAME.str) + String_type(".") +
+                         foreign_keys_table;
   }
 
-  String_type foreign_key_column_usage_table=
-          tables::Foreign_key_column_usage::instance().name();;
-  if (create_set.find(foreign_key_column_usage_table) != create_set.end())
-  {
-    foreign_key_column_usage_table= target_table_schema_name +
-            String_type(".") + foreign_key_column_usage_table;
-  }
-  else
-  {
-    foreign_key_column_usage_table= String_type(MYSQL_SCHEMA_NAME.str) +
-            String_type(".") + foreign_key_column_usage_table;
+  String_type foreign_key_column_usage_table =
+      tables::Foreign_key_column_usage::instance().name();
+  ;
+  if (create_set.find(foreign_key_column_usage_table) != create_set.end()) {
+    foreign_key_column_usage_table = target_table_schema_name +
+                                     String_type(".") +
+                                     foreign_key_column_usage_table;
+  } else {
+    foreign_key_column_usage_table = String_type(MYSQL_SCHEMA_NAME.str) +
+                                     String_type(".") +
+                                     foreign_key_column_usage_table;
   }
 
   /*
@@ -1780,16 +1631,15 @@ bool update_object_ids(THD *thd,
     table. There is no point in trying to maintain the foreign keys since
     the tables will be removed eventually anyway.
   */
-  for (std::set<String_type>::const_iterator it= remove_set.begin();
-       it != remove_set.end(); ++it)
-  {
+  for (std::set<String_type>::const_iterator it = remove_set.begin();
+       it != remove_set.end(); ++it) {
     std::stringstream ss;
     ss << "DELETE FROM " << foreign_key_column_usage_table
-            << " WHERE foreign_key_id IN ("
-            << "  SELECT id FROM " << foreign_keys_table
-            << "   WHERE table_id= (SELECT id FROM " << tables_table
-            << "     WHERE name LIKE '" << (*it) << "' AND "
-            << "     schema_id= " << actual_table_schema_id << "))";
+       << " WHERE foreign_key_id IN ("
+       << "  SELECT id FROM " << foreign_keys_table
+       << "   WHERE table_id= (SELECT id FROM " << tables_table
+       << "     WHERE name LIKE '" << (*it) << "' AND "
+       << "     schema_id= " << actual_table_schema_id << "))";
     if (execute_query(thd, ss.str().c_str()))
 
       return dd::end_transaction(thd, true);
@@ -1797,9 +1647,9 @@ bool update_object_ids(THD *thd,
     ss.str("");
     ss.clear();
     ss << "DELETE FROM " << foreign_keys_table
-            << "   WHERE table_id= (SELECT id FROM " << tables_table
-            << "     WHERE name LIKE '" << (*it) << "' AND "
-            << "     schema_id= " << actual_table_schema_id << ")";
+       << "   WHERE table_id= (SELECT id FROM " << tables_table
+       << "     WHERE name LIKE '" << (*it) << "' AND "
+       << "     schema_id= " << actual_table_schema_id << ")";
     if (execute_query(thd, ss.str().c_str()))
       return dd::end_transaction(thd, true);
   }
@@ -1812,12 +1662,12 @@ bool update_object_ids(THD *thd,
     subquery based on table names.
   */
   std::stringstream ss;
-  ss << "UPDATE " << foreign_keys_table
-          << " SET schema_id= " << mysql_schema_id << ", "
-          << "     referenced_table_schema= '" << MYSQL_SCHEMA_NAME.str << "'"
-          << " WHERE schema_id= " << target_table_schema_id
-          << "       AND referenced_table_schema= '"
-          <<                                  target_table_schema_name << "'";
+  ss << "UPDATE " << foreign_keys_table << " SET schema_id= " << mysql_schema_id
+     << ", "
+     << "     referenced_table_schema= '" << MYSQL_SCHEMA_NAME.str << "'"
+     << " WHERE schema_id= " << target_table_schema_id
+     << "       AND referenced_table_schema= '" << target_table_schema_name
+     << "'";
 
   if (execute_query(thd, ss.str().c_str()))
     return dd::end_transaction(thd, true);
@@ -1830,91 +1680,86 @@ bool update_object_ids(THD *thd,
 }
 /* purecov: end */
 
-
 /*
   Update the version numbers in the 'dd_properties' table.
 */
-bool update_versions(THD *thd)
-{
+bool update_versions(THD *thd) {
   /*
     During initialize, store the DD version number, the LCTN used, and the
     mysqld server version.
   */
-  if (opt_initialize)
-  {
-    if (dd::tables::DD_properties::instance().set(thd,
-            "DD_VERSION", dd::DD_VERSION) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "MINOR_DOWNGRADE_THRESHOLD",
+  if (opt_initialize) {
+    if (dd::tables::DD_properties::instance().set(thd, "DD_VERSION",
+                                                  dd::DD_VERSION) ||
+        dd::tables::DD_properties::instance().set(
+            thd, "MINOR_DOWNGRADE_THRESHOLD",
             dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "SDI_VERSION", dd::sdi_version) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "LCTN", lower_case_table_names) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "MYSQLD_VERSION_LO", MYSQL_VERSION_ID) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "MYSQLD_VERSION_HI", MYSQL_VERSION_ID) ||
-        dd::tables::DD_properties::instance().set(thd,
-            "MYSQLD_VERSION", MYSQL_VERSION_ID))
+        dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
+                                                  dd::sdi_version) ||
+        dd::tables::DD_properties::instance().set(thd, "LCTN",
+                                                  lower_case_table_names) ||
+        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_LO",
+                                                  MYSQL_VERSION_ID) ||
+        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_HI",
+                                                  MYSQL_VERSION_ID) ||
+        dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION",
+                                                  MYSQL_VERSION_ID))
       return dd::end_transaction(thd, true);
-  }
-  else
-  {
-    uint mysqld_version_lo= 0;
-    uint mysqld_version_hi= 0;
-    uint mysqld_version= 0;
-    bool exists_lo= false;
-    bool exists_hi= false;
-    bool exists= false;
-    if ((dd::tables::DD_properties::instance().get(thd,
-            "MYSQLD_VERSION_LO", &mysqld_version_lo, &exists_lo) ||
-            !exists_lo) ||
-        (dd::tables::DD_properties::instance().get(thd,
-            "MYSQLD_VERSION_HI", &mysqld_version_hi, &exists_hi) ||
-            !exists_hi) ||
-        (dd::tables::DD_properties::instance().get(thd,
-            "MYSQLD_VERSION", &mysqld_version, &exists) ||
-            !exists))
+  } else {
+    uint mysqld_version_lo = 0;
+    uint mysqld_version_hi = 0;
+    uint mysqld_version = 0;
+    bool exists_lo = false;
+    bool exists_hi = false;
+    bool exists = false;
+    if ((dd::tables::DD_properties::instance().get(
+             thd, "MYSQLD_VERSION_LO", &mysqld_version_lo, &exists_lo) ||
+         !exists_lo) ||
+        (dd::tables::DD_properties::instance().get(
+             thd, "MYSQLD_VERSION_HI", &mysqld_version_hi, &exists_hi) ||
+         !exists_hi) ||
+        (dd::tables::DD_properties::instance().get(thd, "MYSQLD_VERSION",
+                                                   &mysqld_version, &exists) ||
+         !exists))
       return dd::end_transaction(thd, true);
 
     if ((mysqld_version_lo > MYSQL_VERSION_ID &&
-            dd::tables::DD_properties::instance().set(thd,
-                "MYSQLD_VERSION_LO", MYSQL_VERSION_ID)) ||
+         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_LO",
+                                                   MYSQL_VERSION_ID)) ||
         (mysqld_version_hi < MYSQL_VERSION_ID &&
-            dd::tables::DD_properties::instance().set(thd,
-                "MYSQLD_VERSION_HI", MYSQL_VERSION_ID)) ||
+         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_HI",
+                                                   MYSQL_VERSION_ID)) ||
         (mysqld_version != MYSQL_VERSION_ID &&
-            dd::tables::DD_properties::instance().set(thd,
-                "MYSQLD_VERSION", MYSQL_VERSION_ID)))
+         dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION",
+                                                   MYSQL_VERSION_ID)))
       return dd::end_transaction(thd, true);
 
     /*
       Update the SDI version number in case of upgrade.
       Note that on downgrade, we keep the old SDI version.
     */
-    uint stored_sdi_version= 0;
-    bool exists_sdi= false;
-    if ((dd::tables::DD_properties::instance().get(thd,
-            "SDI_VERSION", &stored_sdi_version, &exists_sdi) ||
-            !exists_sdi) ||
+    uint stored_sdi_version = 0;
+    bool exists_sdi = false;
+    if ((dd::tables::DD_properties::instance().get(
+             thd, "SDI_VERSION", &stored_sdi_version, &exists_sdi) ||
+         !exists_sdi) ||
         (stored_sdi_version < dd::sdi_version &&
-         dd::tables::DD_properties::instance().set(thd,
-            "SDI_VERSION", dd::sdi_version)))
+         dd::tables::DD_properties::instance().set(thd, "SDI_VERSION",
+                                                   dd::sdi_version)))
       return dd::end_transaction(thd, true);
 
     /*
       Update the DD version number in case of upgrade.
       Note that on downgrade, we keep the old DD version.
     */
-    uint dd_version= 0;
-    bool exists_dd= false;
-    if ((dd::tables::DD_properties::instance().get(thd,
-            "DD_VERSION", &dd_version, &exists_dd) ||
-            !exists_dd) ||
+    uint dd_version = 0;
+    bool exists_dd = false;
+    if ((dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
+                                                   &dd_version, &exists_dd) ||
+         !exists_dd) ||
         (dd_version < dd::DD_VERSION &&
-         dd::tables::DD_properties::instance().set(thd,
-            "DD_VERSION", dd::DD_VERSION)))
+         dd::tables::DD_properties::instance().set(thd, "DD_VERSION",
+                                                   dd::DD_VERSION)))
       return dd::end_transaction(thd, true);
 
     /*
@@ -1923,14 +1768,14 @@ bool update_versions(THD *thd)
       already present.
     */
     if (dd_version < dd::DD_VERSION &&
-        dd::tables::DD_properties::instance().set(thd,
-           "MINOR_DOWNGRADE_THRESHOLD",
-           dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD))
+        dd::tables::DD_properties::instance().set(
+            thd, "MINOR_DOWNGRADE_THRESHOLD",
+            dd::DD_VERSION_MINOR_DOWNGRADE_THRESHOLD))
       return dd::end_transaction(thd, true);
   }
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::VERSION_UPDATED);
+      bootstrap::Stage::VERSION_UPDATED);
 
   /*
     During upgrade, this will commit the swap of the old and new DD tables.
@@ -1938,32 +1783,29 @@ bool update_versions(THD *thd)
   return dd::end_transaction(thd, false);
 }
 
-
 // Create the target tables for upgrade and migrate the meta data.
 /* purecov: begin inspected */
-bool upgrade_tables(THD *thd)
-{
-  if (!bootstrap::DD_bootstrap_ctx::instance().is_upgrade())
-    return false;
+bool upgrade_tables(THD *thd) {
+  if (!bootstrap::DD_bootstrap_ctx::instance().is_upgrade()) return false;
 
   /*
     Create the temporary schemas used for target and actual tables,
     and get hold of their ids.
   */
-  Object_id mysql_schema_id= INVALID_OBJECT_ID;
-  Object_id target_table_schema_id= INVALID_OBJECT_ID;
-  Object_id actual_table_schema_id= INVALID_OBJECT_ID;
+  Object_id mysql_schema_id = INVALID_OBJECT_ID;
+  Object_id target_table_schema_id = INVALID_OBJECT_ID;
+  Object_id actual_table_schema_id = INVALID_OBJECT_ID;
   String_type target_table_schema_name;
-  if (create_temporary_schemas(thd, &mysql_schema_id,
-          &target_table_schema_id, &target_table_schema_name,
-          &actual_table_schema_id))
+  if (create_temporary_schemas(thd, &mysql_schema_id, &target_table_schema_id,
+                               &target_table_schema_name,
+                               &actual_table_schema_id))
     return true;
 
   /*
     Establish the sets of table names to be removed and/or created.
   */
-  std::set<String_type> remove_set= {};
-  std::set<String_type> create_set= {};
+  std::set<String_type> remove_set = {};
+  std::set<String_type> create_set = {};
   establish_table_name_sets(&create_set, &remove_set);
 
   /*
@@ -1973,8 +1815,7 @@ bool upgrade_tables(THD *thd)
     table). The table creation is done by executing DDL statements that are
     auto committed.
   */
-  if (create_tables(thd, &create_set))
-    return true;
+  if (create_tables(thd, &create_set)) return true;
 
   /*
     Loop over all DD tables and migrate the meta data. We may do version
@@ -1982,8 +1823,7 @@ bool upgrade_tables(THD *thd)
     the actual to the target table, assuming the number and type of columns
     are the same (e.g. if an index is added). The data migration is committed.
   */
-  if (migrate_meta_data(thd, create_set, remove_set))
-    return true;
+  if (migrate_meta_data(thd, create_set, remove_set)) return true;
 
   /*
     We are now ready to do the atomic switch of the actual and target DD
@@ -2011,10 +1851,10 @@ bool upgrade_tables(THD *thd)
       the atomic switch will either be committed.
   */
   if (update_properties(thd, &create_set, &remove_set,
-          target_table_schema_name) ||
+                        target_table_schema_name) ||
       update_object_ids(thd, create_set, remove_set, mysql_schema_id,
-          target_table_schema_id, target_table_schema_name,
-          actual_table_schema_id) ||
+                        target_table_schema_id, target_table_schema_name,
+                        actual_table_schema_id) ||
       update_versions(thd))
     return true;
 
@@ -2022,25 +1862,22 @@ bool upgrade_tables(THD *thd)
     Flush tables, reset the shared dictionary cache and the storage adapter.
     Start over DD bootstrap from the beginning.
   */
-  if (execute_query(thd, "FLUSH TABLES"))
-    return true;
+  if (execute_query(thd, "FLUSH TABLES")) return true;
 
   dd::cache::Shared_dictionary_cache::instance()->reset(false);
 
   // Reset the DDSE local dictionary cache.
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->dict_cache_reset == nullptr)
-    return true;
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->dict_cache_reset == nullptr) return true;
 
-  for (System_tables::Const_iterator it=
-         System_tables::instance()->begin(System_tables::Types::CORE);
-       it != System_tables::instance()->end(); it=
-         System_tables::instance()->next(it, System_tables::Types::CORE))
-  {
+  for (System_tables::Const_iterator it =
+           System_tables::instance()->begin(System_tables::Types::CORE);
+       it != System_tables::instance()->end();
+       it = System_tables::instance()->next(it, System_tables::Types::CORE)) {
     ddse->dict_cache_reset(MYSQL_SCHEMA_NAME.str,
-            (*it)->entity()->name().c_str());
+                           (*it)->entity()->name().c_str());
     ddse->dict_cache_reset(target_table_schema_name.c_str(),
-            (*it)->entity()->name().c_str());
+                           (*it)->entity()->name().c_str());
   }
 
   /*
@@ -2049,77 +1886,63 @@ bool upgrade_tables(THD *thd)
     will see and use the newly upgraded DD that was created above. Cleanup
     of the temporary schemas is done at the end of 'sync_meta_data()'.
   */
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::STARTED);
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::STARTED);
 
   store_predefined_tablespace_metadata(thd);
-  if (create_dd_schema(thd) ||
-          initialize_dd_properties(thd) ||
-          create_tables(thd, nullptr) ||
-          sync_meta_data(thd))
-  {
+  if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
+      create_tables(thd, nullptr) || sync_meta_data(thd)) {
     return true;
   }
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::UPGRADED_TABLES);
+      bootstrap::Stage::UPGRADED_TABLES);
 
   return false;
 }
 /* purecov: end */
 
-
 // Insert additional data into the DD tables.
-bool populate_tables(THD *thd)
-{
+bool populate_tables(THD *thd) {
   // Iterate over DD tables, populate tables.
-  for (System_tables::Const_iterator it= System_tables::instance()->begin();
-       it != System_tables::instance()->end(); ++it)
-  {
+  for (System_tables::Const_iterator it = System_tables::instance()->begin();
+       it != System_tables::instance()->end(); ++it) {
     // Skip system tables.
-    if ((*it)->property() == System_tables::Types::SYSTEM)
-      continue;
+    if ((*it)->property() == System_tables::Types::SYSTEM) continue;
 
     // Retrieve list of SQL statements to execute.
-    const Object_table_definition *table_def=
-            (*it)->entity()->target_table_definition();
+    const Object_table_definition *table_def =
+        (*it)->entity()->target_table_definition();
 
     // Skip abandoned tables.
-    if (table_def == nullptr)
-      continue;
+    if (table_def == nullptr) continue;
 
-    bool error= false;
-    std::vector<dd::String_type> stmt= table_def->get_dml();
-    for (std::vector<dd::String_type>::iterator stmt_it= stmt.begin();
-           stmt_it != stmt.end() && !error; ++stmt_it)
-      error= execute_query(thd, *stmt_it);
+    bool error = false;
+    std::vector<dd::String_type> stmt = table_def->get_dml();
+    for (std::vector<dd::String_type>::iterator stmt_it = stmt.begin();
+         stmt_it != stmt.end() && !error; ++stmt_it)
+      error = execute_query(thd, *stmt_it);
 
     // Commit the statement based population.
-    if (dd::end_transaction(thd, error))
-      return true;
+    if (dd::end_transaction(thd, error)) return true;
 
     // If no error, call the low level table population method, and commit it.
-    error= (*it)->entity()->populate(thd);
-    if (dd::end_transaction(thd, error))
-      return true;
+    error = (*it)->entity()->populate(thd);
+    if (dd::end_transaction(thd, error)) return true;
   }
 
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::POPULATED);
+      bootstrap::Stage::POPULATED);
 
   return false;
 }
 
-
 // Re-populate character sets and collations upon normal restart.
-bool repopulate_charsets_and_collations(THD *thd)
-{
+bool repopulate_charsets_and_collations(THD *thd) {
   /*
     If we are in read-only mode, we skip re-populating. Here, 'opt_readonly'
     is the value of the '--read-only' option.
   */
-  if (opt_readonly)
-  {
+  if (opt_readonly) {
     LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "", "");
     return false;
   }
@@ -2130,9 +1953,8 @@ bool repopulate_charsets_and_collations(THD *thd)
     to retrieve the handlerton for the DDSE should be replaced by a more
     generic mechanism.
   */
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse->is_dict_readonly && ddse->is_dict_readonly())
-  {
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse->is_dict_readonly && ddse->is_dict_readonly()) {
     LogErr(WARNING_LEVEL, ER_DD_NO_WRITES_NO_REPOPULATION, "InnoDB", " ");
     return false;
   }
@@ -2142,98 +1964,87 @@ bool repopulate_charsets_and_collations(THD *thd)
     The FK checks must be turned off since the collations and
     character sets reference each other.
   */
-  bool error= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
-              tables::Collations::instance().populate(thd) ||
-              tables::Character_sets::instance().populate(thd);
+  bool error = execute_query(thd, "SET FOREIGN_KEY_CHECKS= 0") ||
+               tables::Collations::instance().populate(thd) ||
+               tables::Character_sets::instance().populate(thd);
 
   /*
     We must commit the re-population before executing a new query, which
     expects the transaction to be empty, and finally, turn FK checks back on.
   */
-  error|= dd::end_transaction(thd, error);
-  error|= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1");
+  error |= dd::end_transaction(thd, error);
+  error |= execute_query(thd, "SET FOREIGN_KEY_CHECKS= 1");
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::POPULATED);
+      bootstrap::Stage::POPULATED);
 
   return error;
 }
-
 
 /*
   Verify that the storage adapter contains the core DD objects and
   nothing else.
 */
-bool verify_contents(THD *thd)
-{
+bool verify_contents(THD *thd) {
   // Verify that the DD schema is present, and that its id == 1.
   Schema::Name_key schema_key;
   Schema::update_name_key(&schema_key, MYSQL_SCHEMA_NAME.str);
-  Object_id dd_schema_id= cache::Storage_adapter::instance()->
-    core_get_id<Schema>(schema_key);
+  Object_id dd_schema_id =
+      cache::Storage_adapter::instance()->core_get_id<Schema>(schema_key);
 
   DBUG_ASSERT(dd_schema_id == MYSQL_SCHEMA_DD_ID);
-  if (dd_schema_id == INVALID_OBJECT_ID)
-  {
+  if (dd_schema_id == INVALID_OBJECT_ID) {
     LogErr(ERROR_LEVEL, ER_DD_SCHEMA_NOT_FOUND, MYSQL_SCHEMA_NAME.str);
     return dd::end_transaction(thd, true);
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->
-          core_size<Schema>() == 1);
+  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Schema>() == 1);
 
   // Verify that the core DD tables are present.
 #ifndef DBUG_OFF
-  size_t n_core_tables= 0;
+  size_t n_core_tables = 0;
 #endif
-  for (System_tables::Const_iterator it= System_tables::instance()->begin(
-         System_tables::Types::CORE);
+  for (System_tables::Const_iterator it =
+           System_tables::instance()->begin(System_tables::Types::CORE);
        it != System_tables::instance()->end();
-       it= System_tables::instance()->next(it,
-             System_tables::Types::CORE))
-  {
+       it = System_tables::instance()->next(it, System_tables::Types::CORE)) {
     // Skip extraneous tables for minor downgrade.
-    if ((*it)->entity() == nullptr)
-      continue;
+    if ((*it)->entity() == nullptr) continue;
 
 #ifndef DBUG_OFF
     n_core_tables++;
 #endif
 
     Table::Name_key table_key;
-    Table::update_name_key(&table_key, dd_schema_id,
-                           (*it)->entity()->name());
-    Object_id dd_table_id= cache::Storage_adapter::instance()->
-      core_get_id<Table>(table_key);
+    Table::update_name_key(&table_key, dd_schema_id, (*it)->entity()->name());
+    Object_id dd_table_id =
+        cache::Storage_adapter::instance()->core_get_id<Table>(table_key);
 
     DBUG_ASSERT(dd_table_id != INVALID_OBJECT_ID);
-    if (dd_table_id == INVALID_OBJECT_ID)
-    {
+    if (dd_table_id == INVALID_OBJECT_ID) {
       LogErr(ERROR_LEVEL, ER_DD_TABLE_NOT_FOUND,
              (*it)->entity()->name().c_str());
       return dd::end_transaction(thd, true);
     }
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->
-          core_size<Abstract_table>() == n_core_tables);
+  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Abstract_table>() ==
+              n_core_tables);
 
   // Verify that the dictionary tablespace is present and that its id == 1.
   Tablespace::Name_key tspace_key;
   Tablespace::update_name_key(&tspace_key, MYSQL_TABLESPACE_NAME.str);
-  Object_id dd_tspace_id= cache::Storage_adapter::instance()->
-    core_get_id<Tablespace>(tspace_key);
+  Object_id dd_tspace_id =
+      cache::Storage_adapter::instance()->core_get_id<Tablespace>(tspace_key);
 
   DBUG_ASSERT(dd_tspace_id == MYSQL_TABLESPACE_DD_ID);
-  if (dd_tspace_id == INVALID_OBJECT_ID)
-  {
+  if (dd_tspace_id == INVALID_OBJECT_ID) {
     LogErr(ERROR_LEVEL, ER_DD_TABLESPACE_NOT_FOUND, MYSQL_TABLESPACE_NAME.str);
     return dd::end_transaction(thd, true);
   }
-  DBUG_ASSERT(cache::Storage_adapter::instance()->
-          core_size<Tablespace>() == 1);
+  DBUG_ASSERT(cache::Storage_adapter::instance()->core_size<Tablespace>() == 1);
 
   return dd::end_transaction(thd, false);
 }
 
-} // namespace anonymous
+}  // namespace
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -2243,11 +2054,8 @@ namespace bootstrap {
   Do the necessary DD-related initialization in the DDSE, and get the
   predefined tables and tablespaces.
 */
-bool DDSE_dict_init(THD *thd,
-                    dict_init_mode_t dict_init_mode,
-                    uint version)
-{
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
 
   /*
     The lists with element wrappers are mem root allocated. The wrapped
@@ -2257,8 +2065,8 @@ bool DDSE_dict_init(THD *thd,
   List<const Object_table> ddse_tables;
   List<const Plugin_tablespace> ddse_tablespaces;
   if (ddse->ddse_dict_init == nullptr ||
-      ddse->ddse_dict_init(dict_init_mode, version,
-                      &ddse_tables, &ddse_tablespaces))
+      ddse->ddse_dict_init(dict_init_mode, version, &ddse_tables,
+                           &ddse_tablespaces))
     return true;
 
   /*
@@ -2267,11 +2075,10 @@ bool DDSE_dict_init(THD *thd,
     CREATE TABLE statements to actually create the tables.
   */
   List_iterator<const Object_table> table_it(ddse_tables);
-  const Object_table *ddse_table= nullptr;
-  while ((ddse_table= table_it++))
-  {
-    System_tables::instance()->add(MYSQL_SCHEMA_NAME.str,
-            ddse_table->name(), System_tables::Types::DDSE, ddse_table);
+  const Object_table *ddse_table = nullptr;
+  while ((ddse_table = table_it++)) {
+    System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, ddse_table->name(),
+                                   System_tables::Types::DDSE, ddse_table);
   }
 
   /*
@@ -2288,64 +2095,54 @@ bool DDSE_dict_init(THD *thd,
     The Plugin_tablespace instances are owned by the DDSE.
   */
   List_iterator<const Plugin_tablespace> tablespace_it(ddse_tablespaces);
-  const Plugin_tablespace *tablespace= nullptr;
-  while ((tablespace= tablespace_it++))
-  {
+  const Plugin_tablespace *tablespace = nullptr;
+  while ((tablespace = tablespace_it++)) {
     // Add the name and the object instance to the registry with the
     // appropriate property.
     if (my_strcasecmp(system_charset_info, MYSQL_TABLESPACE_NAME.str,
                       tablespace->get_name()) == 0)
-      System_tablespaces::instance()->add(tablespace->get_name(),
-                                          System_tablespaces::Types::DD,
-                                          tablespace);
+      System_tablespaces::instance()->add(
+          tablespace->get_name(), System_tablespaces::Types::DD, tablespace);
     else
-      System_tablespaces::instance()->add(tablespace->get_name(),
-                            System_tablespaces::Types::PREDEFINED_DDSE,
-                            tablespace);
+      System_tablespaces::instance()->add(
+          tablespace->get_name(), System_tablespaces::Types::PREDEFINED_DDSE,
+          tablespace);
   }
 
   return false;
 }
 
-
 // Initialize the data dictionary.
 bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
-                           Dictionary_impl *d)
-{
+                           Dictionary_impl *d) {
   if (is_dd_upgrade_57)
     bootstrap::DD_bootstrap_ctx::instance().set_stage(
-          bootstrap::Stage::STARTED);
+        bootstrap::Stage::STARTED);
 
   store_predefined_tablespace_metadata(thd);
-  if (create_dd_schema(thd) ||
-      initialize_dd_properties(thd) ||
+  if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
       create_tables(thd, nullptr))
     return true;
 
-  if (is_dd_upgrade_57)
-  {
+  if (is_dd_upgrade_57) {
     // Add status to mark creation of dictionary in InnoDB.
     // Till this step, no new undo log is created by InnoDB.
     if (upgrade_57::Upgrade_status().update(
-          upgrade_57::Upgrade_status::enum_stage::DICT_TABLES_CREATED))
+            upgrade_57::Upgrade_status::enum_stage::DICT_TABLES_CREATED))
       return true;
   }
 
-  DBUG_EXECUTE_IF("dd_upgrade_stage_2",
-                  if (is_dd_upgrade_57)
-                  {
-                    /*
-                      Server will crash will upgrading 5.7 data directory.
-                      This will leave server is an inconsistent state.
-                      File tracking upgrade will have Stage 2 written in it.
-                      Next restart of server on same data directory should
-                      revert all changes done by upgrade and data directory
-                      should be reusable by 5.7 server.
-                    */
-                    DBUG_SUICIDE();
-                  }
-                 );
-
+  DBUG_EXECUTE_IF("dd_upgrade_stage_2", if (is_dd_upgrade_57) {
+    /*
+      Server will crash will upgrading 5.7 data directory.
+      This will leave server is an inconsistent state.
+      File tracking upgrade will have Stage 2 written in it.
+      Next restart of server on same data directory should
+      revert all changes done by upgrade and data directory
+      should be reusable by 5.7 server.
+    */
+    DBUG_SUICIDE();
+  });
 
   if (DDSE_dict_recover(thd, DICT_RECOVERY_INITIALIZE_SERVER,
                         d->get_target_dd_version()) ||
@@ -2354,36 +2151,30 @@ bool initialize_dictionary(THD *thd, bool is_dd_upgrade_57,
                         d->get_target_dd_version()) ||
       populate_tables(thd) ||
       update_properties(thd, nullptr, nullptr,
-          String_type(MYSQL_SCHEMA_NAME.str)) ||
-      verify_contents(thd) ||
-      update_versions(thd))
-  {
+                        String_type(MYSQL_SCHEMA_NAME.str)) ||
+      verify_contents(thd) || update_versions(thd)) {
     return true;
   }
 
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-      bootstrap::Stage::FINISHED);
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
 
   return false;
 }
 
-
 // First time server start and initialization of the data dictionary.
-bool initialize(THD *thd)
-{
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::STARTED);
+bool initialize(THD *thd) {
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::STARTED);
 
   /*
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
-  thd->tx_read_only= false;
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
-  Dictionary_impl *d= dd::Dictionary_impl::instance();
+  Dictionary_impl *d = dd::Dictionary_impl::instance();
   DBUG_ASSERT(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
@@ -2393,8 +2184,7 @@ bool initialize(THD *thd)
     operations in the "populate()" methods). Thus, there is no need to
     commit explicitly here.
   */
-  if (DDSE_dict_init(thd, DICT_INIT_CREATE_FILES,
-                     d->get_target_dd_version()) ||
+  if (DDSE_dict_init(thd, DICT_INIT_CREATE_FILES, d->get_target_dd_version()) ||
       initialize_dictionary(thd, false, d))
     return true;
 
@@ -2404,58 +2194,46 @@ bool initialize(THD *thd)
   return false;
 }
 
-
 // Normal server restart.
-bool restart(THD *thd)
-{
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::STARTED);
+bool restart(THD *thd) {
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::STARTED);
 
   /*
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
-  thd->tx_read_only= false;
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
 
   // Set explicit_defaults_for_timestamp variable for dictionary creation
-  thd->variables.explicit_defaults_for_timestamp= true;
+  thd->variables.explicit_defaults_for_timestamp = true;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
-  Dictionary_impl *d= dd::Dictionary_impl::instance();
+  Dictionary_impl *d = dd::Dictionary_impl::instance();
   DBUG_ASSERT(d);
   cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   store_predefined_tablespace_metadata(thd);
 
-  if (create_dd_schema(thd) ||
-      initialize_dd_properties(thd) ||
-      create_tables(thd, nullptr) ||
-      sync_meta_data(thd) ||
+  if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
+      create_tables(thd, nullptr) || sync_meta_data(thd) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
                         d->get_actual_dd_version(thd)) ||
-      upgrade_tables(thd) ||
-      repopulate_charsets_and_collations(thd) ||
-      verify_contents(thd) ||
-      update_versions(thd))
-  {
+      upgrade_tables(thd) || repopulate_charsets_and_collations(thd) ||
+      verify_contents(thd) || update_versions(thd)) {
     return true;
   }
 
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-      bootstrap::Stage::FINISHED);
-  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND,
-         d->get_actual_dd_version(thd));
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
+  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));
 
   return false;
 }
 
-
 // Initialize dictionary in case of server restart.
-void recover_innodb_upon_upgrade(THD *thd)
-{
-  Dictionary_impl *d= dd::Dictionary_impl::instance();
+void recover_innodb_upon_upgrade(THD *thd) {
+  Dictionary_impl *d = dd::Dictionary_impl::instance();
   store_predefined_tablespace_metadata(thd);
   // RAII to handle error in execution of CREATE TABLE.
   Key_length_error_handler key_error_handler;
@@ -2466,12 +2244,10 @@ void recover_innodb_upon_upgrade(THD *thd)
 TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
    */
   thd->push_internal_handler(&key_error_handler);
-  if (create_dd_schema(thd) ||
-      initialize_dd_properties(thd) ||
+  if (create_dd_schema(thd) || initialize_dd_properties(thd) ||
       create_tables(thd, nullptr) ||
       DDSE_dict_recover(thd, DICT_RECOVERY_RESTART_SERVER,
-                        d->get_actual_dd_version(thd)))
-  {
+                        d->get_actual_dd_version(thd))) {
     // Error is not be handled in this case as we are on cleanup code path.
     LogErr(WARNING_LEVEL, ER_DD_INIT_UPGRADE_FAILED);
   }
@@ -2479,23 +2255,21 @@ TODO: Workaround due to bug#20629014. Remove when the bug is fixed.
   return;
 }
 
-
-bool setup_dd_objects_and_collations(THD *thd)
-{
+bool setup_dd_objects_and_collations(THD *thd) {
   // Continue with server startup.
   bootstrap::DD_bootstrap_ctx::instance().set_stage(
-        bootstrap::Stage::CREATED_TABLES);
+      bootstrap::Stage::CREATED_TABLES);
 
   /*
     Set tx_read_only to false to allow installing DD tables even
     if the server is started with --transaction-read-only=true.
   */
-  thd->variables.transaction_read_only= false;
-  thd->tx_read_only= false;
+  thd->variables.transaction_read_only = false;
+  thd->tx_read_only = false;
 
   Disable_autocommit_guard autocommit_guard(thd);
 
-  Dictionary_impl *d= dd::Dictionary_impl::instance();
+  Dictionary_impl *d = dd::Dictionary_impl::instance();
   DBUG_ASSERT(d);
 
   DBUG_ASSERT(d->get_target_dd_version() == d->get_actual_dd_version(thd));
@@ -2505,22 +2279,16 @@ bool setup_dd_objects_and_collations(THD *thd)
     is a restart based on a pre-transactional-DD server, so ordinary
     upgrade does not need to be considered.
   */
-  if (sync_meta_data(thd) ||
-      repopulate_charsets_and_collations(thd) ||
-      verify_contents(thd) ||
-      update_versions(thd))
-  {
+  if (sync_meta_data(thd) || repopulate_charsets_and_collations(thd) ||
+      verify_contents(thd) || update_versions(thd)) {
     return true;
   }
 
-  bootstrap::DD_bootstrap_ctx::instance().set_stage(
-      bootstrap::Stage::FINISHED);
-  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND,
-         d->get_actual_dd_version(thd));
+  bootstrap::DD_bootstrap_ctx::instance().set_stage(bootstrap::Stage::FINISHED);
+  LogErr(INFORMATION_LEVEL, ER_DD_VERSION_FOUND, d->get_actual_dd_version(thd));
 
   return false;
 }
 
-
-} // namespace bootstrap
-} // namespace dd
+}  // namespace bootstrap
+}  // namespace dd

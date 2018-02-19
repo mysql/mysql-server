@@ -24,8 +24,6 @@ include/start_slave.inc
 # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
 # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = 'test,my_db2,my_db3'
 Replicate_Ignore_DB = 'db1,db11,my_db6'
 Replicate_Do_Table = 'test.t1,test.t2'
@@ -33,8 +31,6 @@ Replicate_Ignore_Table = 'test.t11,test.t22'
 Replicate_Wild_Do_Table = 'test.t%,test.s%'
 Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
 Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 2. Verify that performance_schema.replication_applier_filters can
 # display correct per-channel replication filters with
@@ -112,8 +108,6 @@ REPLICATE_IGNORE_DB = (my_initfiledb3) FOR CHANNEL '';
 # Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
 # Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
 #
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Replicate_Do_DB = ':test,my_db3,my_db4'
 Replicate_Ignore_DB = 'my_initfiledb3'
 Replicate_Do_Table = 'test.t1,test.t2'
@@ -121,8 +115,6 @@ Replicate_Ignore_Table = 'db3.initfilet3'
 Replicate_Wild_Do_Table = 'te%.t%'
 Replicate_Wild_Ignore_Table = 'test.m%,test.n%'
 Replicate_Rewrite_DB = '(my_db7,rewrite_db7),(my_db8,rewrite_db8)'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # 5. Verify that performance_schema.replication_applier_filters can
 # display correct per-channel replication filters with

@@ -28,30 +28,28 @@
 
 #include "my_inttypes.h"
 #include "my_io.h"
-#include "my_sys.h"              // IO_CACHE
-#include "mysql/udf_registration_types.h"
-#include "sql/rpl_info_handler.h" // Rpl_info_handler
+#include "my_sys.h"                // IO_CACHE
+#include "sql/rpl_info_handler.h"  // Rpl_info_handler
 
 class Server_ids;
 
 /**
   Defines a file hander.
 */
-class Rpl_info_file : public Rpl_info_handler
-{
+class Rpl_info_file : public Rpl_info_handler {
   friend class Rpl_info_factory;
 
-public:
+ public:
   virtual ~Rpl_info_file();
 
-private:
+ private:
   /**
     This uniquely identifies a file.
 
     When introducing multi-master replication one needs to ensure
     that files' names are unique. If tables are used, there is no
     issue at all. It is highly recommend to avoid using files as
-    they do not provide an atomic behavior. 
+    they do not provide an atomic behavior.
   */
   char info_fname[FN_REFLEN + 128];
 
@@ -97,19 +95,15 @@ private:
     @retval false Success
     @retval true  Error
   */
-  static bool do_count_info(const int nparam,
-                            const char* param_pattern_fname,
-                            bool indexed,
-                            uint* counter);
-  static int do_reset_info(int const nparam,
-                           const char* param_pattern_fname,
+  static bool do_count_info(const int nparam, const char *param_pattern_fname,
+                            bool indexed, uint *counter);
+  static int do_reset_info(int const nparam, const char *param_pattern_fname,
                            bool name_indexed);
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
   bool do_set_info(const int pos, const char *value);
-  bool do_set_info(const int pos, const uchar *value,
-                   const size_t size);
+  bool do_set_info(const int pos, const uchar *value, const size_t size);
   bool do_set_info(const int pos, const int value);
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
@@ -118,24 +112,21 @@ private:
                    const char *default_value);
   bool do_get_info(const int pos, uchar *value, const size_t size,
                    const uchar *default_value);
-  bool do_get_info(const int pos, int *value,
-                   const int default_value);
-  bool do_get_info(const int pos, ulong *value,
-                   const ulong default_value);
-  bool do_get_info(const int pos, float *value,
-                   const float default_value);
+  bool do_get_info(const int pos, int *value, const int default_value);
+  bool do_get_info(const int pos, ulong *value, const ulong default_value);
+  bool do_get_info(const int pos, float *value, const float default_value);
   bool do_get_info(const int pos, Server_ids *value,
                    const Server_ids *default_value);
-  char* do_get_description_info();
+  char *do_get_description_info();
   uint do_get_rpl_info_type();
 
   bool do_is_transactional();
   bool do_update_is_transactional();
 
-  Rpl_info_file(int const nparam, const char* param_pattern_fname,
-                const char* param_info_fname, bool name_indexed);
+  Rpl_info_file(int const nparam, const char *param_pattern_fname,
+                const char *param_info_fname, bool name_indexed);
 
-  Rpl_info_file(const Rpl_info_file& info);
-  Rpl_info_file& operator=(const Rpl_info_file& info);
+  Rpl_info_file(const Rpl_info_file &info);
+  Rpl_info_file &operator=(const Rpl_info_file &info);
 };
 #endif /* RPL_INFO_FILE_H */

@@ -23,6 +23,6 @@
 # We omit core-t here, since it will always fail.
 SET(TESTS simple skip todo skip_all no_plan)
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.c ADD_TEST ${test})
+  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc ADD_TEST ${test})
   TARGET_LINK_LIBRARIES(${test}-t mytap)
 ENDFOREACH()

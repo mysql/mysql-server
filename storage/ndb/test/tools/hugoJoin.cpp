@@ -33,6 +33,7 @@
 #include <HugoQueryBuilder.hpp>
 #include <HugoQueries.hpp>
 #include <NdbTick.h>
+#include "my_alloc.h"
 
 int _verbose = 1;
 int _help = 0;

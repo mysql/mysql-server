@@ -1,0 +1,170 @@
+################################################################################
+## Server_uuid should not match with group_replication_group_name when GR is
+## running.
+##
+## This test case covers testing of server_uuid matching
+## group_replication_group_name when server start_on_boot=OFF.
+##
+## Test:
+## 0.   This test requires 2 members.
+## 0.1. Store members uuids and set bin logs for required servers.
+## 1.   Bootstrap server1 with server1_uuid as group_name
+## 1.1. START GROUP_REPLICATION should fail on server1.
+##      Since server_uuid matches group_name GR should not start.
+## 1.2. Validate failure logged in error file.
+## 2.   Bootstrap server1 with group_name as server2_UUID.
+##      Environment setup required to match server2_UUID and group_name.
+##      Server1 will work as seed.
+## 2.1. Assert GR starts on server1.
+##      Since server_uuid does not match group_name GR should start.
+## 2.2. Start server2 with server2_uuid as group_name
+## 2.3. START GROUP_REPLICATION should fail on server2.
+##      Since server_uuid matches group_name GR should not start.
+## 2.4. Validate failure logged in error file.
+## 3.   Bootstrap server1 with unique group_name
+## 3.1. Start server2 with unique group_name
+## 3.2. Assert GR starts on server2.
+##      Since server_uuid does not match group_name GR should start.
+## 4.   Cleanup
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+## 0.1. Store members uuids and set bin logs for required servers.
+
+## Get server_uuid of server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+
+## Get server_uuid of server2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Member server_uuid is incompatible with the group.*");
+set session sql_log_bin=1;
+
+--echo
+--echo #######################
+--echo ##  BOOTSTRAP CASES  ##
+--echo #######################
+--echo
+
+## 1.   Bootstrap server1 with server1_uuid as group_name
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET @debug_group_replication_start_on_boot= @@GLOBAL.group_replication_start_on_boot;
+
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name = "$member1_uuid"
+--eval SET GLOBAL group_replication_start_on_boot = ON;
+--enable_query_log
+
+## 1.1. START GROUP_REPLICATION should fail on server1.
+##      Since server_uuid matches group_name GR should not start.
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+## 1.2. Validate failure logged in error file.
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_server_uuid_matches_group_name.1.err
+--let $assert_text = Found the expected error about server_uuid incompatible with the group_name
+--let $assert_select = Member server_uuid is incompatible with the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo ###########################
+--echo ##  NON-BOOTSTRAP CASES  ##
+--echo ###########################
+--echo
+
+## 2.   Bootstrap server1 with group_name as server2_UUID.
+##      Environment setup required to match server2_UUID and group_name.
+##      Server1 will work as seed.
+
+--let $group_replication_group_name= $member2_uuid
+--source include/start_and_bootstrap_group_replication.inc
+
+## 2.1. Assert GR starts on server1.
+##      Since server_uuid does not match group_name GR should start.
+
+--let $assert_text= 'Assert server1 is ONLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 1
+--source include/assert.inc
+
+## 2.2. Start server2 with server2_uuid as group_name
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--disable_query_log
+--eval SET GLOBAL group_replication_group_name = "$member2_uuid";
+--eval SET GLOBAL group_replication_start_on_boot = OFF;
+--enable_query_log
+
+## 2.3. START GROUP_REPLICATION should fail on server2.
+##      Since server_uuid matches group_name GR should not start.
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+## 2.4. Validate failure logged in error file.
+
+--let $assert_file= $MYSQLTEST_VARDIR/tmp/gr_server_uuid_matches_group_name.2.err
+--let $assert_text = Found the expected error about server_uuid incompatible with the group_name
+--let $assert_select = Member server_uuid is incompatible with the group
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo
+--echo ########################
+--echo ##  SUCCESSFUL CASES  ##
+--echo ########################
+--echo
+
+## 3.   Bootstrap server1 with unique group_name
+
+## Reset configurations and start server1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_start_on_boot= @debug_group_replication_start_on_boot;
+
+--let $group_replication_group_name= 8a94f357-aaaa-11aa-22bb-c80aa9420000
+--source include/start_and_bootstrap_group_replication.inc
+
+## 3.1. Start server2 with unique group_name
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+## 3.2. Assert GR starts on server2.
+##      Since server_uuid does not match group_name GR should start.
+
+--let $assert_text= 'Assert server 1 and server 2 are ONLINE'
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 2
+--source include/assert.inc
+
+--echo
+--echo ###############
+--echo ##  Cleanup  ##
+--echo ###############
+--echo
+
+## 4.   Cleanup
+
+--source include/group_replication_end.inc

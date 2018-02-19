@@ -36,17 +36,17 @@
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-#include "mysql/udf_registration_types.h"
 
 class THD;
 
 #if defined(ENABLED_DEBUG_SYNC)
 
 /* Macro to be put in the code at synchronization points. */
-#define DEBUG_SYNC(_thd_, _sync_point_name_)                            \
-          do { if (unlikely(opt_debug_sync_timeout))                    \
-               debug_sync(_thd_, STRING_WITH_LEN(_sync_point_name_));   \
-             } while (0)
+#define DEBUG_SYNC(_thd_, _sync_point_name_)                 \
+  do {                                                       \
+    if (unlikely(opt_debug_sync_timeout))                    \
+      debug_sync(_thd_, STRING_WITH_LEN(_sync_point_name_)); \
+  } while (0)
 
 /* Command line option --debug-sync-timeout. See mysqld.cc. */
 extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
@@ -55,7 +55,7 @@ extern MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout;
 #define DEBUG_SYNC_DEFAULT_WAIT_TIMEOUT 300
 
 /* Debug Sync prototypes. See debug_sync.cc. */
-extern int  debug_sync_init(void);
+extern int debug_sync_init(void);
 extern void debug_sync_end(void);
 extern void debug_sync_init_thread(THD *thd);
 extern void debug_sync_claim_memory_ownership(THD *thd);
@@ -69,22 +69,18 @@ extern uchar *debug_sync_value_ptr(THD *thd);
   This macro simplifies when a DBUG_EXECUTE_IF will generate a given
   signal and then will wait for another signal to continue.
 */
-#define DBUG_SIGNAL_WAIT_FOR(T,A,B,C) \
-  DBUG_EXECUTE_IF(A,\
-                  {\
-                    const char act[]= "now SIGNAL "\
-                                      B\
-                                      " WAIT_FOR "\
-                                      C;\
-                    DBUG_ASSERT(\
-                      !debug_sync_set_action(T,\
-                                             STRING_WITH_LEN(act)));\
-                  };)
+#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C)                          \
+  DBUG_EXECUTE_IF(A, {                                            \
+    const char act[] = "now SIGNAL " B " WAIT_FOR " C;            \
+    DBUG_ASSERT(!debug_sync_set_action(T, STRING_WITH_LEN(act))); \
+  };)
 
 #else /* defined(ENABLED_DEBUG_SYNC) */
 
-#define DEBUG_SYNC(_thd_, _sync_point_name_)    /* disabled DEBUG_SYNC */
-#define DBUG_SIGNAL_WAIT_FOR(T,A,B,C)   do { } while(0)
+#define DEBUG_SYNC(_thd_, _sync_point_name_) /* disabled DEBUG_SYNC */
+#define DBUG_SIGNAL_WAIT_FOR(T, A, B, C) \
+  do {                                   \
+  } while (0)
 
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 

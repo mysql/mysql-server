@@ -110,19 +110,6 @@ SET @@session.sql_mode='invalid';
 SET @@session.session_track_system_variables='*';
 --echo # Expect change info.
 SET @@session.sql_mode= @sql_mode_saved;
---echo # Expect change info.
-SET @@old_passwords=0;
---echo # Expect change info.
-SET @@session.sql_mode= @sql_mode_saved;
-
---echo # Test the wildcard value for tracking.
-SET @@session.session_track_system_variables='*,old_passwords';
---echo # Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
---echo # Expect change info.
-SET @@old_passwords=0;
---echo # Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
 
 --echo # Switch off the session system variables tracker (using empty string).
 SET @@session.session_track_system_variables='';

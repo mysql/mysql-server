@@ -28,33 +28,28 @@
 
 using namespace Mysql::Tools::Dump;
 
-void File_writer::append(const std::string& data_to_append)
-{
+void File_writer::append(const std::string &data_to_append) {
   fwrite(data_to_append.c_str(), 1, data_to_append.size(), m_file);
   // Check for I/O errors.
-  if (ferror(m_file) != 0)
-  {
-    this->pass_message(Mysql::Tools::Base::Message_data(ferror(m_file),
-      "Error occurred while writing to output.",
-      Mysql::Tools::Base::Message_type_error));
+  if (ferror(m_file) != 0) {
+    this->pass_message(Mysql::Tools::Base::Message_data(
+        ferror(m_file), "Error occurred while writing to output.",
+        Mysql::Tools::Base::Message_type_error));
   }
 }
 
-File_writer::~File_writer()
-{
+File_writer::~File_writer() {
   // Check for I/O errors and close file.
-  if (ferror(m_file) != 0 || fclose(m_file) != 0)
-  {
-    this->pass_message(Mysql::Tools::Base::Message_data(ferror(m_file),
-      "Error occurred while finishing writing to output.",
-      Mysql::Tools::Base::Message_type_error));
+  if (ferror(m_file) != 0 || fclose(m_file) != 0) {
+    this->pass_message(Mysql::Tools::Base::Message_data(
+        ferror(m_file), "Error occurred while finishing writing to output.",
+        Mysql::Tools::Base::Message_type_error));
   }
 }
 
 File_writer::File_writer(
-  std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-    message_handler, Simple_id_generator* object_id_generator,
-  const std::string& file_name)
-  : Abstract_chain_element(message_handler, object_id_generator),
-  m_file(fopen(file_name.c_str(), "wb"))
-{}
+    std::function<bool(const Mysql::Tools::Base::Message_data &)>
+        *message_handler,
+    Simple_id_generator *object_id_generator, const std::string &file_name)
+    : Abstract_chain_element(message_handler, object_id_generator),
+      m_file(fopen(file_name.c_str(), "wb")) {}

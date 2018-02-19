@@ -32,13 +32,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 namespace lob_data {
 
-byte* generate_lob(lobid_t* id, ulint size);
-byte* generate_lob(lobid_t* id, char x, ulint size);
+byte *generate_lob(lobid_t *id, ulint size);
+byte *generate_lob(lobid_t *id, char x, ulint size);
 
 /** Get an LOB from the given file. */
-std::pair<byte*, ulint> get_lob(lobid_t* id, const char* filename);
+std::pair<byte *, ulint> get_lob(lobid_t *id, const char *filename);
 void remove_lob(lobid_t id);
 
-};
+};  // namespace lob_data
 
-#endif // _lot0dat_h_
+#endif  // _lot0dat_h_

@@ -363,8 +363,6 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 DROP TABLE t1;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine;
 Warnings:
@@ -1846,21 +1844,6 @@ insert into t1 values (1);
 create index inx1 on t1(a);
 drop table t1;
 create table t1 (a int)
-PARTITION BY KEY (a)
-(PARTITION p0);
-set session sql_mode='no_table_options';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `a` int(11) DEFAULT NULL
-)
-/*!50100 PARTITION BY KEY (a)
-(PARTITION p0) */
-set session sql_mode='';
-drop table t1;
-create table t1 (a int)
 partition by key (a)
 (partition p0 engine = MERGE);
 ERROR HY000: Engine cannot be used in partitioned tables
@@ -1988,6 +1971,7 @@ PARTITION p_100 VALUES LESS THAN (100),
 PARTITION p_X VALUES LESS THAN MAXVALUE 
 );
 drop table t1;
+set session sql_mode='';
 CREATE TABLE t2 (
 taken datetime NOT NULL DEFAULT '0000-00-00 00:00:00',
 id int(11) NOT NULL DEFAULT '0',
@@ -2676,7 +2660,6 @@ DROP TABLE t1;
 SET sql_mode= 'STRICT_TRANS_TABLES';
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (d TIME)
 PARTITION BY RANGE COLUMNS (d)
 (PARTITION p0 VALUES LESS THAN ('2000-01-01'),
@@ -2712,8 +2695,6 @@ Warnings:
 Warning	1618	<INDEX DIRECTORY> option ignored
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -2736,8 +2717,6 @@ t2	CREATE TABLE `t2` (
 (PARTITION p01 VALUES LESS THAN (1000) ENGINE = InnoDB) */
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT)
 PARTITION BY KEY (a)
 (PARTITION p0 DATA DIRECTORY 'MYSQLD_DATADIR/test');
@@ -2785,8 +2764,6 @@ DROP TABLE example;
 # Bug#18513130 STRANGE INTERACTION OF SQL_MODE=ANSI AND PARTITION
 #
 SET @@SQL_MODE= 'ANSI_QUOTES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1(col1 INT, col2 DATE)
 ENGINE=INNODB
@@ -2892,3 +2869,12 @@ CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(ALM
 DROP TABLE t1;
 CREATE TABLE t1 (b INT, `å` INT) PARTITION BY LIST (b) SUBPARTITION BY HASH(TOO_LONG_EXPR) (PARTITION p1 VALUES IN (1));
 ERROR HY000: Partitioning expression is too long.
+#
+# Bug #27005020: UBSAN: GET_PART_ITER_FOR_INTERVAL_VIA_WALKING - SIGNED INTEGER OVERFLOW
+#
+CREATE TABLE t (a BIGINT NOT NULL)
+PARTITION BY KEY(a) PARTITIONS 2;
+INSERT INTO t VALUES(0);
+SELECT 1 FROM t WHERE a = 0x8000000000000000;
+1
+DROP TABLE t;

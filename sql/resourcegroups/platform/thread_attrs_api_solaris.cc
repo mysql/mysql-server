@@ -21,29 +21,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "thread_attrs_api.h"
 
-#include <sys/types.h>
 #include <sys/processor.h>
 #include <sys/procset.h>
+#include <sys/types.h>
 #include "sys/pset.h"
 
 #include "my_dbug.h"
+#include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
-#include "sql/log.h"
 
-namespace resourcegroups
-{
-namespace platform
-{
-bool is_platform_supported()
-{
-  return true;
-}
+namespace resourcegroups {
+namespace platform {
+bool is_platform_supported() { return true; }
 
-bool bind_to_cpu(cpu_id_t cpu_id)
-{
+bool bind_to_cpu(cpu_id_t cpu_id) {
   if (processor_bind(P_LWPID, P_MYID, static_cast<processorid_t>(cpu_id),
-                     nullptr) == -1)
-  {
+                     nullptr) == -1) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_CPUID_FAILED,
            cpu_id, my_errno(),
@@ -53,12 +47,9 @@ bool bind_to_cpu(cpu_id_t cpu_id)
   return false;
 }
 
-
-bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
-{
+bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id) {
   if (processor_bind(P_LWPID, thread_id, static_cast<processorid_t>(cpu_id),
-                     nullptr) == -1)
-  {
+                     nullptr) == -1) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_BIND_TO_THREAD_FAILED,
            thread_id, cpu_id, my_errno(),
@@ -68,21 +59,16 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id)
   return false;
 }
 
-
-bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids)
-{
-  if (cpu_ids.empty())
-    return false;
+bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids) {
+  if (cpu_ids.empty()) return false;
 
   procset_t ps;
-  uint_t nids= cpu_ids.size();
-  id_t *ids= reinterpret_cast<id_t *>(const_cast<unsigned *>(cpu_ids.data()));
-  uint32_t flags= PA_TYPE_CPU | PA_AFF_STRONG;
+  uint_t nids = cpu_ids.size();
+  id_t *ids = reinterpret_cast<id_t *>(const_cast<unsigned *>(cpu_ids.data()));
+  uint32_t flags = PA_TYPE_CPU | PA_AFF_STRONG;
 
-  setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID,
-             my_thread_os_id());
-  if (processor_affinity(&ps, &nids, ids, &flags) != 0)
-  {
+  setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, my_thread_os_id());
+  if (processor_affinity(&ps, &nids, ids, &flags) != 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
            "bind_to_cpus", my_errno(),
@@ -92,20 +78,17 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids)
   return false;
 }
 
-
 bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
-                  my_thread_os_id_t thread_id)
-{
+                  my_thread_os_id_t thread_id) {
   procset_t ps;
-  uint_t nids= cpu_ids.size();
-  id_t *ids= reinterpret_cast<id_t *>(const_cast<unsigned *>(cpu_ids.data()));
-  uint32_t flags= PA_TYPE_CPU | PA_AFF_STRONG;
+  uint_t nids = cpu_ids.size();
+  id_t *ids = reinterpret_cast<id_t *>(const_cast<unsigned *>(cpu_ids.data()));
+  uint32_t flags = PA_TYPE_CPU | PA_AFF_STRONG;
 
   setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID,
              static_cast<id_t>(thread_id));
 
-  if (processor_affinity(&ps, &nids, ids, &flags) != 0)
-  {
+  if (processor_affinity(&ps, &nids, ids, &flags) != 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
            "bind_to_cpus", my_errno(),
@@ -115,16 +98,13 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
   return false;
 }
 
-
-bool unbind_thread()
-{
+bool unbind_thread() {
   procset_t ps;
-  uint32_t flags= PA_CLEAR;
+  uint32_t flags = PA_CLEAR;
 
   setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, my_thread_os_id());
 
-  if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0)
-  {
+  if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
            "unbind_thread", my_errno(),
@@ -134,16 +114,13 @@ bool unbind_thread()
   return false;
 }
 
-
-bool unbind_thread(my_thread_os_id_t thread_id)
-{
+bool unbind_thread(my_thread_os_id_t thread_id) {
   procset_t ps;
-  uint32_t flags= PA_CLEAR;
+  uint32_t flags = PA_CLEAR;
 
   setprocset(&ps, POP_AND, P_PID, P_MYID, P_LWPID, thread_id);
 
-  if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0)
-  {
+  if (processor_affinity(&ps, nullptr, nullptr, &flags) != 0) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     LogErr(ERROR_LEVEL, ER_RES_GRP_SOLARIS_PROCESSOR_AFFINITY_FAILED,
            "unbind_thread", my_errno(),
@@ -153,42 +130,30 @@ bool unbind_thread(my_thread_os_id_t thread_id)
   return false;
 }
 
-int thread_priority()
-{
-  return getpriority(PRIO_PROCESS, my_thread_os_id());
-}
+int thread_priority() { return getpriority(PRIO_PROCESS, my_thread_os_id()); }
 
-int thread_priority(my_thread_os_id_t thread_id)
-{
+int thread_priority(my_thread_os_id_t thread_id) {
   DBUG_ENTER("thread_priority");
   DBUG_RETURN(getpriority(PRIO_PROCESS, thread_id));
 }
 
-bool set_thread_priority(int priority)
-{
+bool set_thread_priority(int priority) {
   return set_thread_priority(priority, my_thread_os_id());
 }
 
-
-bool set_thread_priority(int, my_thread_os_id_t)
-{
+bool set_thread_priority(int, my_thread_os_id_t) {
   DBUG_ENTER("set_thread_priority");
   // Setting thread priority on solaris is not supported.
   DBUG_RETURN(false);
 }
 
-
-uint32_t num_vcpus()
-{
-  uint32_t num_vcpus= 0;
+uint32_t num_vcpus() {
+  uint32_t num_vcpus = 0;
 
   pset_info(P_MYID, nullptr, &num_vcpus, nullptr);
   return num_vcpus;
 }
 
-bool can_thread_priority_be_set()
-{
-  return false;
-}
-}  // platform
-}  // resourcegroups
+bool can_thread_priority_be_set() { return false; }
+}  // namespace platform
+}  // namespace resourcegroups

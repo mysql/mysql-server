@@ -29,14 +29,18 @@
   Table replication_group_members (declarations).
 */
 
-#include <mysql/plugin_group_replication.h>
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "mysql_com.h"
 #include "sql/rpl_info.h"
 #include "sql/sql_const.h"  // UUID_LENGTH
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -48,8 +52,7 @@
   additional
   length field denoted by @<field_name@>_length.
 */
-struct st_row_group_members
-{
+struct st_row_group_members {
   char channel_name[CHANNEL_NAME_LENGTH];
   uint channel_name_length;
   char member_id[UUID_LENGTH];
@@ -66,11 +69,10 @@ struct st_row_group_members
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */
-class table_replication_group_members : public PFS_engine_table
-{
+class table_replication_group_members : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-private:
+ private:
   int make_row(uint index);
 
   /** Table share lock. */
@@ -85,7 +87,7 @@ private:
   /** Next position. */
   pos_t m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -94,14 +96,12 @@ protected:
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_replication_group_members();
 
-public:
+ public:
   ~table_replication_group_members();
 
   /** Table share. */

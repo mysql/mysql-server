@@ -735,8 +735,6 @@ DROP TABLE t1;
 #            subpartitions
 SET @org_mode=@@sql_mode;
 SET @@sql_mode='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT @@sql_mode;
 @@sql_mode
 NO_DIR_IN_CREATE
@@ -802,8 +800,6 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = <curr_engine>) */
 DROP TABLE t1;
 SET @@sql_mode= @org_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INTEGER NOT NULL, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1),(1);
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
@@ -1190,7 +1186,7 @@ partition by range (a)
 partitions 2
 (partition x1 values less than (4),
 partition x2);
-ERROR 42000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition near '
+ERROR 42000: Syntax error: RANGE PARTITIONING requires definition of VALUES LESS THAN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
@@ -1383,7 +1379,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4),
 partition x2);
-ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near '
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
@@ -1404,7 +1400,7 @@ partition by list (a)
 partitions 2
 (partition x1 values in (4,6),
 partition x2);
-ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near '
+ERROR 42000: Syntax error: LIST PARTITIONING requires definition of VALUES IN for each partition near ',
 partition x2)' at line 8
 CREATE TABLE t1 (
 a int not null,
@@ -1481,8 +1477,6 @@ ERROR HY000: This partition function is not allowed
 #             timestamp primary key
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE old (a TIMESTAMP NOT NULL PRIMARY KEY)
 PARTITION BY RANGE (UNIX_TIMESTAMP(a)) (
 PARTITION p VALUES LESS THAN (1219089600),

@@ -27,26 +27,31 @@
 
 #include "storage/perfschema/pfs_engine_table.h"
 
+#include <string.h>
+#include <algorithm>
+
+#include "m_ctype.h"
+#include "m_string.h"
+#include "my_bitmap.h"
+#include "my_byteorder.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "my_thread.h"
+#include "my_sqlcommand.h"
+#include "myisampack.h"
+#include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/current_thd.h"
-#include "sql/derror.h"
-#include "sql/lock.h"  // MYSQL_LOCK_IGNORE_TIMEOUT
-#include "sql/log.h"
-#include "sql/mysqld.h"    /* lower_case_table_names */
-#include "sql/sql_base.h"  // close_thread_tables
+#include "sql/field.h"
+#include "sql/handler.h"
+#include "sql/mysqld.h" /* lower_case_table_names */
+#include "sql/plugin_table.h"
 #include "sql/sql_class.h"
-#include "storage/perfschema/pfs_buffer_container.h"
+#include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/table.h"
 /* For show status */
 #include "storage/perfschema/pfs_column_values.h"
-#include "storage/perfschema/pfs_digest.h"
-#include "storage/perfschema/pfs_global.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
-#include "storage/perfschema/pfs_setup_actor.h"
-#include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/table_accounts.h"
 #include "storage/perfschema/table_data_lock_waits.h"
 #include "storage/perfschema/table_data_locks.h"
@@ -100,7 +105,6 @@
 #include "storage/perfschema/table_os_global_by_type.h"
 #include "storage/perfschema/table_performance_timers.h"
 #include "storage/perfschema/table_persisted_variables.h"
-#include "storage/perfschema/table_plugin_table.h"
 #include "storage/perfschema/table_prepared_stmt_instances.h"
 #include "storage/perfschema/table_replication_applier_configuration.h"
 #include "storage/perfschema/table_replication_applier_filters.h"
@@ -109,11 +113,11 @@
 #include "storage/perfschema/table_replication_applier_status_by_coordinator.h"
 #include "storage/perfschema/table_replication_applier_status_by_worker.h"
 /* For replication related perfschema tables. */
+#include "storage/perfschema/table_instance_log_status.h"
 #include "storage/perfschema/table_replication_connection_configuration.h"
 #include "storage/perfschema/table_replication_connection_status.h"
 #include "storage/perfschema/table_replication_group_member_stats.h"
 #include "storage/perfschema/table_replication_group_members.h"
-#include "storage/perfschema/table_instance_log_status.h"
 #include "storage/perfschema/table_session_account_connect_attrs.h"
 #include "storage/perfschema/table_session_connect_attrs.h"
 #include "storage/perfschema/table_session_status.h"
@@ -141,6 +145,8 @@
 #include "storage/perfschema/table_uvar_by_thread.h"
 #include "storage/perfschema/table_variables_by_thread.h"
 #include "storage/perfschema/table_variables_info.h"
+#include "thr_lock.h"
+#include "thr_mutex.h"
 
 /* clang-format off */
 /**
@@ -463,26 +469,20 @@
   @{
 */
 
-bool
-PFS_table_context::initialize(void)
-{
-  if (m_restore)
-  {
+bool PFS_table_context::initialize(void) {
+  if (m_restore) {
     /* Restore context from TLS. */
     PFS_table_context *context = THR_PFS_contexts[m_thr_key];
     DBUG_ASSERT(context != NULL);
 
-    if (context)
-    {
+    if (context) {
       m_last_version = context->m_current_version;
       m_map = context->m_map;
       DBUG_ASSERT(m_map_size == context->m_map_size);
       m_map_size = context->m_map_size;
       m_word_size = context->m_word_size;
     }
-  }
-  else
-  {
+  } else {
     /* Check that TLS is not in use. */
     PFS_table_context *context = THR_PFS_contexts[m_thr_key];
 
@@ -503,50 +503,40 @@ PFS_table_context::initialize(void)
 }
 
 /* Constructor for global or single thread tables, map size = 0.  */
-PFS_table_context::PFS_table_context(ulonglong current_version,
-                                     bool restore,
+PFS_table_context::PFS_table_context(ulonglong current_version, bool restore,
                                      THR_PFS_key key)
-  : m_thr_key(key),
-    m_current_version(current_version),
-    m_last_version(0),
-    m_map(NULL),
-    m_map_size(0),
-    m_word_size(sizeof(ulong)),
-    m_restore(restore),
-    m_initialized(false),
-    m_last_item(0)
-{
+    : m_thr_key(key),
+      m_current_version(current_version),
+      m_last_version(0),
+      m_map(NULL),
+      m_map_size(0),
+      m_word_size(sizeof(ulong)),
+      m_restore(restore),
+      m_initialized(false),
+      m_last_item(0) {
   initialize();
 }
 
 /* Constructor for by-thread or aggregate tables, map size = max
  * thread/user/host/account. */
-PFS_table_context::PFS_table_context(ulonglong current_version,
-                                     ulong map_size,
-                                     bool restore,
-                                     THR_PFS_key key)
-  : m_thr_key(key),
-    m_current_version(current_version),
-    m_last_version(0),
-    m_map(NULL),
-    m_map_size(map_size),
-    m_word_size(sizeof(ulong)),
-    m_restore(restore),
-    m_initialized(false),
-    m_last_item(0)
-{
+PFS_table_context::PFS_table_context(ulonglong current_version, ulong map_size,
+                                     bool restore, THR_PFS_key key)
+    : m_thr_key(key),
+      m_current_version(current_version),
+      m_last_version(0),
+      m_map(NULL),
+      m_map_size(map_size),
+      m_word_size(sizeof(ulong)),
+      m_restore(restore),
+      m_initialized(false),
+      m_last_item(0) {
   initialize();
 }
 
-PFS_table_context::~PFS_table_context(void)
-{
-}
+PFS_table_context::~PFS_table_context(void) {}
 
-void
-PFS_table_context::set_item(ulong n)
-{
-  if (n == m_last_item)
-  {
+void PFS_table_context::set_item(ulong n) {
+  if (n == m_last_item) {
     return;
   }
   ulong word = n / m_word_size;
@@ -555,212 +545,189 @@ PFS_table_context::set_item(ulong n)
   m_last_item = n;
 }
 
-bool
-PFS_table_context::is_item_set(ulong n)
-{
+bool PFS_table_context::is_item_set(ulong n) {
   ulong word = n / m_word_size;
   ulong bit = n % m_word_size;
   return (m_map[word] & (1UL << bit));
 }
 
 static PFS_engine_table_share *all_shares[] = {
-  &table_cond_instances::m_share,
-  &table_events_waits_current::m_share,
-  &table_events_waits_history::m_share,
-  &table_events_waits_history_long::m_share,
-  &table_ews_by_host_by_event_name::m_share,
-  &table_events_waits_summary_by_instance::m_share,
-  &table_ews_by_thread_by_event_name::m_share,
-  &table_ews_by_user_by_event_name::m_share,
-  &table_ews_by_account_by_event_name::m_share,
-  &table_ews_global_by_event_name::m_share,
-  &table_file_instances::m_share,
-  &table_file_summary_by_event_name::m_share,
-  &table_file_summary_by_instance::m_share,
-  &table_host_cache::m_share,
-  &table_mutex_instances::m_share,
-  &table_os_global_by_type::m_share,
-  &table_performance_timers::m_share,
-  &table_rwlock_instances::m_share,
-  &table_setup_actors::m_share,
-  &table_setup_consumers::m_share,
-  &table_setup_instruments::m_share,
-  &table_setup_objects::m_share,
-  &table_setup_threads::m_share,
-  &table_tiws_by_index_usage::m_share,
-  &table_tiws_by_table::m_share,
-  &table_tlws_by_table::m_share,
-  &table_threads::m_share,
+    &table_cond_instances::m_share,
+    &table_events_waits_current::m_share,
+    &table_events_waits_history::m_share,
+    &table_events_waits_history_long::m_share,
+    &table_ews_by_host_by_event_name::m_share,
+    &table_events_waits_summary_by_instance::m_share,
+    &table_ews_by_thread_by_event_name::m_share,
+    &table_ews_by_user_by_event_name::m_share,
+    &table_ews_by_account_by_event_name::m_share,
+    &table_ews_global_by_event_name::m_share,
+    &table_file_instances::m_share,
+    &table_file_summary_by_event_name::m_share,
+    &table_file_summary_by_instance::m_share,
+    &table_host_cache::m_share,
+    &table_mutex_instances::m_share,
+    &table_os_global_by_type::m_share,
+    &table_performance_timers::m_share,
+    &table_rwlock_instances::m_share,
+    &table_setup_actors::m_share,
+    &table_setup_consumers::m_share,
+    &table_setup_instruments::m_share,
+    &table_setup_objects::m_share,
+    &table_setup_threads::m_share,
+    &table_tiws_by_index_usage::m_share,
+    &table_tiws_by_table::m_share,
+    &table_tlws_by_table::m_share,
+    &table_threads::m_share,
 
-  &table_events_stages_current::m_share,
-  &table_events_stages_history::m_share,
-  &table_events_stages_history_long::m_share,
-  &table_esgs_by_thread_by_event_name::m_share,
-  &table_esgs_by_account_by_event_name::m_share,
-  &table_esgs_by_user_by_event_name::m_share,
-  &table_esgs_by_host_by_event_name::m_share,
-  &table_esgs_global_by_event_name::m_share,
+    &table_events_stages_current::m_share,
+    &table_events_stages_history::m_share,
+    &table_events_stages_history_long::m_share,
+    &table_esgs_by_thread_by_event_name::m_share,
+    &table_esgs_by_account_by_event_name::m_share,
+    &table_esgs_by_user_by_event_name::m_share,
+    &table_esgs_by_host_by_event_name::m_share,
+    &table_esgs_global_by_event_name::m_share,
 
-  &table_events_statements_current::m_share,
-  &table_events_statements_history::m_share,
-  &table_events_statements_history_long::m_share,
-  &table_esms_by_thread_by_event_name::m_share,
-  &table_esms_by_account_by_event_name::m_share,
-  &table_esms_by_user_by_event_name::m_share,
-  &table_esms_by_host_by_event_name::m_share,
-  &table_esms_global_by_event_name::m_share,
-  &table_esms_by_digest::m_share,
-  &table_esms_by_program::m_share,
-  &table_esmh_global::m_share,
-  &table_esmh_by_digest::m_share,
+    &table_events_statements_current::m_share,
+    &table_events_statements_history::m_share,
+    &table_events_statements_history_long::m_share,
+    &table_esms_by_thread_by_event_name::m_share,
+    &table_esms_by_account_by_event_name::m_share,
+    &table_esms_by_user_by_event_name::m_share,
+    &table_esms_by_host_by_event_name::m_share,
+    &table_esms_global_by_event_name::m_share,
+    &table_esms_by_digest::m_share,
+    &table_esms_by_program::m_share,
+    &table_esmh_global::m_share,
+    &table_esmh_by_digest::m_share,
 
-  &table_events_transactions_current::m_share,
-  &table_events_transactions_history::m_share,
-  &table_events_transactions_history_long::m_share,
-  &table_ets_by_thread_by_event_name::m_share,
-  &table_ets_by_account_by_event_name::m_share,
-  &table_ets_by_user_by_event_name::m_share,
-  &table_ets_by_host_by_event_name::m_share,
-  &table_ets_global_by_event_name::m_share,
+    &table_events_transactions_current::m_share,
+    &table_events_transactions_history::m_share,
+    &table_events_transactions_history_long::m_share,
+    &table_ets_by_thread_by_event_name::m_share,
+    &table_ets_by_account_by_event_name::m_share,
+    &table_ets_by_user_by_event_name::m_share,
+    &table_ets_by_host_by_event_name::m_share,
+    &table_ets_global_by_event_name::m_share,
 
-  &table_ees_by_user_by_error::m_share,
-  &table_ees_by_host_by_error::m_share,
-  &table_ees_by_account_by_error::m_share,
-  &table_ees_by_thread_by_error::m_share,
-  &table_ees_global_by_error::m_share,
+    &table_ees_by_user_by_error::m_share,
+    &table_ees_by_host_by_error::m_share,
+    &table_ees_by_account_by_error::m_share,
+    &table_ees_by_thread_by_error::m_share,
+    &table_ees_global_by_error::m_share,
 
-  &table_users::m_share,
-  &table_accounts::m_share,
-  &table_hosts::m_share,
+    &table_users::m_share,
+    &table_accounts::m_share,
+    &table_hosts::m_share,
 
-  &table_socket_instances::m_share,
-  &table_socket_summary_by_instance::m_share,
-  &table_socket_summary_by_event_name::m_share,
+    &table_socket_instances::m_share,
+    &table_socket_summary_by_instance::m_share,
+    &table_socket_summary_by_event_name::m_share,
 
-  &table_session_connect_attrs::m_share,
-  &table_session_account_connect_attrs::m_share,
+    &table_session_connect_attrs::m_share,
+    &table_session_account_connect_attrs::m_share,
 
-  &table_mems_global_by_event_name::m_share,
-  &table_mems_by_account_by_event_name::m_share,
-  &table_mems_by_host_by_event_name::m_share,
-  &table_mems_by_thread_by_event_name::m_share,
-  &table_mems_by_user_by_event_name::m_share,
-  &table_table_handles::m_share,
-  &table_metadata_locks::m_share,
-  &table_data_locks::m_share,
-  &table_data_lock_waits::m_share,
+    &table_mems_global_by_event_name::m_share,
+    &table_mems_by_account_by_event_name::m_share,
+    &table_mems_by_host_by_event_name::m_share,
+    &table_mems_by_thread_by_event_name::m_share,
+    &table_mems_by_user_by_event_name::m_share,
+    &table_table_handles::m_share,
+    &table_metadata_locks::m_share,
+    &table_data_locks::m_share,
+    &table_data_lock_waits::m_share,
 
-  &table_replication_connection_configuration::m_share,
-  &table_replication_group_members::m_share,
-  &table_replication_connection_status::m_share,
-  &table_replication_applier_configuration::m_share,
-  &table_replication_applier_status::m_share,
-  &table_replication_applier_status_by_coordinator::m_share,
-  &table_replication_applier_status_by_worker::m_share,
-  &table_replication_group_member_stats::m_share,
-  &table_replication_applier_filters::m_share,
-  &table_replication_applier_global_filters::m_share,
-  &table_instance_log_status::m_share,
+    &table_replication_connection_configuration::m_share,
+    &table_replication_group_members::m_share,
+    &table_replication_connection_status::m_share,
+    &table_replication_applier_configuration::m_share,
+    &table_replication_applier_status::m_share,
+    &table_replication_applier_status_by_coordinator::m_share,
+    &table_replication_applier_status_by_worker::m_share,
+    &table_replication_group_member_stats::m_share,
+    &table_replication_applier_filters::m_share,
+    &table_replication_applier_global_filters::m_share,
+    &table_instance_log_status::m_share,
 
-  &table_prepared_stmt_instances::m_share,
+    &table_prepared_stmt_instances::m_share,
 
-  &table_uvar_by_thread::m_share,
-  &table_status_by_account::m_share,
-  &table_status_by_host::m_share,
-  &table_status_by_thread::m_share,
-  &table_status_by_user::m_share,
-  &table_global_status::m_share,
-  &table_session_status::m_share,
+    &table_uvar_by_thread::m_share,
+    &table_status_by_account::m_share,
+    &table_status_by_host::m_share,
+    &table_status_by_thread::m_share,
+    &table_status_by_user::m_share,
+    &table_global_status::m_share,
+    &table_session_status::m_share,
 
-  &table_variables_by_thread::m_share,
-  &table_global_variables::m_share,
-  &table_session_variables::m_share,
-  &table_variables_info::m_share,
-  &table_persisted_variables::m_share,
-  &table_user_defined_functions::m_share,
+    &table_variables_by_thread::m_share,
+    &table_global_variables::m_share,
+    &table_session_variables::m_share,
+    &table_variables_info::m_share,
+    &table_persisted_variables::m_share,
+    &table_user_defined_functions::m_share,
 
-  NULL};
+    NULL};
 
 static PSI_mutex_key key_LOCK_pfs_share_list;
 static PSI_mutex_info info_LOCK_pfs_share_list = {
-  &key_LOCK_pfs_share_list,
-  "LOCK_pfs_share_list",
-  PSI_VOLATILITY_PERMANENT,
-  PSI_FLAG_SINGLETON,
-  /* Doc */
-  "Components can provide their own performance_schema tables. "
-  "This lock protects the list of such tables definitions."};
+    &key_LOCK_pfs_share_list, "LOCK_pfs_share_list", PSI_VOLATILITY_PERMANENT,
+    PSI_FLAG_SINGLETON,
+    /* Doc */
+    "Components can provide their own performance_schema tables. "
+    "This lock protects the list of such tables definitions."};
 
-void
-PFS_dynamic_table_shares::init_mutex()
-{
+void PFS_dynamic_table_shares::init_mutex() {
   /* This is called once at startup, ok to register here. */
   /* FIXME: Category "performance_schema" leads to a name too long. */
   mysql_mutex_register("pfs", &info_LOCK_pfs_share_list, 1);
-  mysql_mutex_init(
-    key_LOCK_pfs_share_list, &LOCK_pfs_share_list, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_pfs_share_list, &LOCK_pfs_share_list,
+                   MY_MUTEX_INIT_FAST);
 }
 
-void
-PFS_dynamic_table_shares::destroy_mutex()
-{
+void PFS_dynamic_table_shares::destroy_mutex() {
   mysql_mutex_destroy(&LOCK_pfs_share_list);
 }
 
 PFS_dynamic_table_shares pfs_external_table_shares;
 
 /** Get all the core performance schema tables. */
-void
-PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables)
-{
+void PFS_engine_table_share::get_all_tables(List<const Plugin_table> *tables) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++)
-  {
+  for (current = &all_shares[0]; (*current) != NULL; current++) {
     tables->push_back((*current)->m_table_def);
   }
 }
 
 /** Initialize all the table share locks. */
-void
-PFS_engine_table_share::init_all_locks(void)
-{
+void PFS_engine_table_share::init_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++)
-  {
+  for (current = &all_shares[0]; (*current) != NULL; current++) {
     thr_lock_init((*current)->m_thr_lock_ptr);
   }
 }
 
 /** Delete all the table share locks. */
-void
-PFS_engine_table_share::delete_all_locks(void)
-{
+void PFS_engine_table_share::delete_all_locks(void) {
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++)
-  {
+  for (current = &all_shares[0]; (*current) != NULL; current++) {
     thr_lock_delete((*current)->m_thr_lock_ptr);
   }
 }
 
-ha_rows
-PFS_engine_table_share::get_row_count(void) const
-{
+ha_rows PFS_engine_table_share::get_row_count(void) const {
   return m_get_row_count();
 }
 
-int
-PFS_engine_table_share::write_row(PFS_engine_table *pfs_table,
-                                  TABLE *table,
-                                  unsigned char *buf,
-                                  Field **fields) const
-{
+int PFS_engine_table_share::write_row(PFS_engine_table *pfs_table, TABLE *table,
+                                      unsigned char *buf,
+                                      Field **fields) const {
   my_bitmap_map *org_bitmap;
 
-  if (m_write_row == NULL)
-  {
+  if (m_write_row == NULL) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -772,9 +739,7 @@ PFS_engine_table_share::write_row(PFS_engine_table *pfs_table,
   return result;
 }
 
-int
-compare_table_names(const char *name1, const char *name2)
-{
+int compare_table_names(const char *name1, const char *name2) {
   /*
     The performance schema is implemented as a storage engine, in memory.
     The current storage engine interface exposed by the server,
@@ -791,8 +756,7 @@ compare_table_names(const char *name1, const char *name2)
     relaxed
     to be simply my_strcasecmp(system_charset_info, name1, name2).
   */
-  if (lower_case_table_names)
-  {
+  if (lower_case_table_names) {
     return native_strcasecmp(name1, name2);
   }
   return strcmp(name1, name2);
@@ -803,19 +767,16 @@ compare_table_names(const char *name1, const char *name2)
   @param name             The table name
   @return table share
 */
-PFS_engine_table_share *
-PFS_engine_table::find_engine_table_share(const char *name)
-{
+PFS_engine_table_share *PFS_engine_table::find_engine_table_share(
+    const char *name) {
   DBUG_ENTER("PFS_engine_table::find_table_share");
   PFS_engine_table_share *result;
 
   /* First try to find in native performance schema table shares */
   PFS_engine_table_share **current;
 
-  for (current = &all_shares[0]; (*current) != NULL; current++)
-  {
-    if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0)
-    {
+  for (current = &all_shares[0]; (*current) != NULL; current++) {
+    if (compare_table_names(name, (*current)->m_table_def->get_name()) == 0) {
       DBUG_RETURN(*current);
     }
   }
@@ -834,9 +795,8 @@ PFS_engine_table::find_engine_table_share(const char *name)
   @param fields           Table fields
   @return 0 on success
 */
-int
-PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
-{
+int PFS_engine_table::read_row(TABLE *table, unsigned char *buf,
+                               Field **fields) {
   my_bitmap_map *org_bitmap;
   Field *f;
   Field **fields_reset;
@@ -853,8 +813,7 @@ PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
     A known offender is mysql_checksum_table().
     For robustness, reset every field.
   */
-  for (fields_reset = fields; (f = *fields_reset); fields_reset++)
-  {
+  for (fields_reset = fields; (f = *fields_reset); fields_reset++) {
     f->reset();
   }
 
@@ -872,12 +831,8 @@ PFS_engine_table::read_row(TABLE *table, unsigned char *buf, Field **fields)
   @param fields           Table fields
   @return 0 on success
 */
-int
-PFS_engine_table::update_row(TABLE *table,
-                             const unsigned char *old_buf,
-                             unsigned char *new_buf,
-                             Field **fields)
-{
+int PFS_engine_table::update_row(TABLE *table, const unsigned char *old_buf,
+                                 unsigned char *new_buf, Field **fields) {
   my_bitmap_map *org_bitmap;
 
   /* We internally read from Fields to support the write interface */
@@ -888,11 +843,8 @@ PFS_engine_table::update_row(TABLE *table,
   return result;
 }
 
-int
-PFS_engine_table::delete_row(TABLE *table,
-                             const unsigned char *buf,
-                             Field **fields)
-{
+int PFS_engine_table::delete_row(TABLE *table, const unsigned char *buf,
+                                 Field **fields) {
   my_bitmap_map *org_bitmap;
 
   /* We internally read from Fields to support the delete interface */
@@ -903,9 +855,8 @@ PFS_engine_table::delete_row(TABLE *table,
   return result;
 }
 
-int
-PFS_engine_table::delete_row_values(TABLE *, const unsigned char *, Field **)
-{
+int PFS_engine_table::delete_row_values(TABLE *, const unsigned char *,
+                                        Field **) {
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -913,9 +864,7 @@ PFS_engine_table::delete_row_values(TABLE *, const unsigned char *, Field **)
   Get the position of the current row.
   @param [out] ref        position
 */
-void
-PFS_engine_table::get_position(void *ref)
-{
+void PFS_engine_table::get_position(void *ref) {
   memcpy(ref, m_pos_ptr, m_share_ptr->m_ref_length);
 }
 
@@ -923,18 +872,12 @@ PFS_engine_table::get_position(void *ref)
   Set the table cursor at a given position.
   @param [in] ref         position
 */
-void
-PFS_engine_table::set_position(const void *ref)
-{
+void PFS_engine_table::set_position(const void *ref) {
   memcpy(m_pos_ptr, ref, m_share_ptr->m_ref_length);
 }
 
-int
-PFS_engine_table::update_row_values(TABLE *,
-                                    const unsigned char *,
-                                    unsigned char *,
-                                    Field **)
-{
+int PFS_engine_table::update_row_values(TABLE *, const unsigned char *,
+                                        unsigned char *, Field **) {
   return HA_ERR_WRONG_COMMAND;
 }
 
@@ -943,16 +886,11 @@ PFS_engine_table::update_row_values(TABLE *,
   row if any.
   @return 0, HA_ERR_KEY_NOT_FOUND, or error
 */
-int
-PFS_engine_table::index_read(KEY *key_infos,
-                             uint index,
-                             const uchar *key,
-                             uint key_len,
-                             enum ha_rkey_function find_flag)
-{
+int PFS_engine_table::index_read(KEY *key_infos, uint index, const uchar *key,
+                                 uint key_len,
+                                 enum ha_rkey_function find_flag) {
   // DBUG_ASSERT(m_index != NULL);
-  if (m_index == NULL)
-  {
+  if (m_index == NULL) {
     return HA_ERR_END_OF_FILE;
   }
 
@@ -978,9 +916,7 @@ PFS_engine_table::index_read(KEY *key_infos,
   Reads the next row matching the given key value.
   @return 0, HA_ERR_END_OF_FILE, or error
 */
-int
-PFS_engine_table::index_next_same(const uchar *, uint)
-{
+int PFS_engine_table::index_next_same(const uchar *, uint) {
   return index_next();
 }
 
@@ -991,14 +927,11 @@ PFS_engine_table::index_next_same(const uchar *, uint)
 
   @return if found table share or NULL
 */
-PFS_engine_table_share *
-PFS_dynamic_table_shares::find_share(const char *table_name, bool is_dead_too)
-{
-  if (!opt_initialize)
-    mysql_mutex_assert_owner(&LOCK_pfs_share_list);
+PFS_engine_table_share *PFS_dynamic_table_shares::find_share(
+    const char *table_name, bool is_dead_too) {
+  if (!opt_initialize) mysql_mutex_assert_owner(&LOCK_pfs_share_list);
 
-  for (auto it : shares_vector)
-  {
+  for (auto it : shares_vector) {
     if ((compare_table_names(table_name, it->m_table_def->get_name()) == 0) &&
         (it->m_in_purgatory == false || is_dead_too))
       return it;
@@ -1010,49 +943,39 @@ PFS_dynamic_table_shares::find_share(const char *table_name, bool is_dead_too)
   Remove a share from the list
   @param share  share to be removed
 */
-void
-PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share)
-{
+void PFS_dynamic_table_shares::remove_share(PFS_engine_table_share *share) {
   mysql_mutex_assert_owner(&LOCK_pfs_share_list);
 
   std::vector<PFS_engine_table_share *>::iterator it;
 
   /* Search for the share in share list */
   it = std::find(shares_vector.begin(), shares_vector.end(), share);
-  if (it != shares_vector.end())
-  {
+  if (it != shares_vector.end()) {
     /* Remove the share from the share list */
     shares_vector.erase(it);
   }
 }
 
 /** Implementation of internal ACL checks, for the performance schema. */
-class PFS_internal_schema_access : public ACL_internal_schema_access
-{
-public:
-  PFS_internal_schema_access()
-  {
-  }
+class PFS_internal_schema_access : public ACL_internal_schema_access {
+ public:
+  PFS_internal_schema_access() {}
 
-  ~PFS_internal_schema_access()
-  {
-  }
+  ~PFS_internal_schema_access() {}
 
   ACL_internal_access_result check(ulong want_access, ulong *save_priv) const;
 
   const ACL_internal_table_access *lookup(const char *name) const;
 };
 
-ACL_internal_access_result
-PFS_internal_schema_access::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_internal_schema_access::check(ulong want_access,
+                                                             ulong *) const {
   const ulong always_forbidden =
-    CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
-    EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
-    ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
+      CREATE_ACL | REFERENCES_ACL | INDEX_ACL | ALTER_ACL | CREATE_TMP_ACL |
+      EXECUTE_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | CREATE_PROC_ACL |
+      ALTER_PROC_ACL | EVENT_ACL | TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
@@ -1063,15 +986,13 @@ PFS_internal_schema_access::check(ulong want_access, ulong *) const
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
-const ACL_internal_table_access *
-PFS_internal_schema_access::lookup(const char *name) const
-{
+const ACL_internal_table_access *PFS_internal_schema_access::lookup(
+    const char *name) const {
   const PFS_engine_table_share *share;
 
   pfs_external_table_shares.lock_share_list();
   share = PFS_engine_table::find_engine_table_share(name);
-  if (share)
-  {
+  if (share) {
     const ACL_internal_table_access *acl = share->m_acl;
     pfs_external_table_shares.unlock_share_list();
     return acl;
@@ -1090,23 +1011,18 @@ PFS_internal_schema_access::lookup(const char *name) const
 
 PFS_internal_schema_access pfs_internal_access;
 
-void
-initialize_performance_schema_acl(bool bootstrap)
-{
+void initialize_performance_schema_acl(bool bootstrap) {
   /*
     ACL is always enforced, even if the performance schema
     is not enabled (the tables are still visible).
   */
-  if (!bootstrap)
-  {
+  if (!bootstrap) {
     ACL_internal_schema_registry::register_schema(PERFORMANCE_SCHEMA_str,
                                                   &pfs_internal_access);
   }
 }
 
-static bool
-allow_drop_privilege()
-{
+static bool allow_drop_privilege() {
   /*
     The same DROP_ACL privilege is used for different statements,
     in particular:
@@ -1117,15 +1033,13 @@ allow_drop_privilege()
     Note that we must also allow GRANT to transfer the truncate privilege.
   */
   THD *thd = current_thd;
-  if (thd == NULL)
-  {
+  if (thd == NULL) {
     return false;
   }
 
   DBUG_ASSERT(thd->lex != NULL);
   if ((thd->lex->sql_command != SQLCOM_TRUNCATE) &&
-      (thd->lex->sql_command != SQLCOM_GRANT))
-  {
+      (thd->lex->sql_command != SQLCOM_GRANT)) {
     return false;
   }
 
@@ -1134,16 +1048,14 @@ allow_drop_privilege()
 
 PFS_readonly_acl pfs_readonly_acl;
 
-ACL_internal_access_result
-PFS_readonly_acl::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_readonly_acl::check(ulong want_access,
+                                                   ulong *) const {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
                                  CREATE_ACL | DROP_ACL | REFERENCES_ACL |
                                  INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL |
                                  SHOW_VIEW_ACL | TRIGGER_ACL | LOCK_TABLES_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
@@ -1152,13 +1064,11 @@ PFS_readonly_acl::check(ulong want_access, ulong *) const
 
 PFS_readonly_world_acl pfs_readonly_world_acl;
 
-ACL_internal_access_result
-PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
-{
+ACL_internal_access_result PFS_readonly_world_acl::check(
+    ulong want_access, ulong *save_priv) const {
   ACL_internal_access_result res =
-    PFS_readonly_acl::check(want_access, save_priv);
-  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
-  {
+      PFS_readonly_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
   return res;
@@ -1166,23 +1076,19 @@ PFS_readonly_world_acl::check(ulong want_access, ulong *save_priv) const
 
 PFS_truncatable_acl pfs_truncatable_acl;
 
-ACL_internal_access_result
-PFS_truncatable_acl::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_truncatable_acl::check(ulong want_access,
+                                                      ulong *) const {
   const ulong always_forbidden = INSERT_ACL | UPDATE_ACL | DELETE_ACL |
                                  CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL | LOCK_TABLES_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
-  if (want_access & DROP_ACL)
-  {
-    if (!allow_drop_privilege())
-    {
+  if (want_access & DROP_ACL) {
+    if (!allow_drop_privilege()) {
       return ACL_INTERNAL_ACCESS_DENIED;
     }
   }
@@ -1192,13 +1098,11 @@ PFS_truncatable_acl::check(ulong want_access, ulong *) const
 
 PFS_truncatable_world_acl pfs_truncatable_world_acl;
 
-ACL_internal_access_result
-PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
-{
+ACL_internal_access_result PFS_truncatable_world_acl::check(
+    ulong want_access, ulong *save_priv) const {
   ACL_internal_access_result res =
-    PFS_truncatable_acl::check(want_access, save_priv);
-  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
-  {
+      PFS_truncatable_acl::check(want_access, save_priv);
+  if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT) {
     res = ACL_INTERNAL_ACCESS_GRANTED;
   }
   return res;
@@ -1206,15 +1110,13 @@ PFS_truncatable_world_acl::check(ulong want_access, ulong *save_priv) const
 
 PFS_updatable_acl pfs_updatable_acl;
 
-ACL_internal_access_result
-PFS_updatable_acl::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_updatable_acl::check(ulong want_access,
+                                                    ulong *) const {
   const ulong always_forbidden =
-    INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
-    INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
+      INSERT_ACL | DELETE_ACL | CREATE_ACL | DROP_ACL | REFERENCES_ACL |
+      INDEX_ACL | ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL | TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
@@ -1223,22 +1125,18 @@ PFS_updatable_acl::check(ulong want_access, ulong *) const
 
 PFS_editable_acl pfs_editable_acl;
 
-ACL_internal_access_result
-PFS_editable_acl::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_editable_acl::check(ulong want_access,
+                                                   ulong *) const {
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | SHOW_VIEW_ACL |
                                  TRIGGER_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
-  if (want_access & DROP_ACL)
-  {
-    if (!allow_drop_privilege())
-    {
+  if (want_access & DROP_ACL) {
+    if (!allow_drop_privilege()) {
       return ACL_INTERNAL_ACCESS_DENIED;
     }
   }
@@ -1248,16 +1146,14 @@ PFS_editable_acl::check(ulong want_access, ulong *) const
 
 PFS_unknown_acl pfs_unknown_acl;
 
-ACL_internal_access_result
-PFS_unknown_acl::check(ulong want_access, ulong *) const
-{
+ACL_internal_access_result PFS_unknown_acl::check(ulong want_access,
+                                                  ulong *) const {
   const ulong always_forbidden = CREATE_ACL | REFERENCES_ACL | INDEX_ACL |
                                  ALTER_ACL | CREATE_VIEW_ACL | TRIGGER_ACL |
                                  INSERT_ACL | UPDATE_ACL | DELETE_ACL |
                                  SHOW_VIEW_ACL | LOCK_TABLES_ACL;
 
-  if (unlikely(want_access & always_forbidden))
-  {
+  if (unlikely(want_access & always_forbidden)) {
     return ACL_INTERNAL_ACCESS_DENIED;
   }
 
@@ -1279,22 +1175,16 @@ PFS_unknown_acl::check(ulong want_access, ulong *) const
   return ACL_INTERNAL_ACCESS_CHECK_GRANT;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
-                           bool &isnull,
-                           uchar *value)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_uchar(
+    enum ha_rkey_function find_flag, bool &isnull, uchar *value) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     size_t data_size = 1;
     DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_BINARY);
     DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
 
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
-      if (m_remaining_key[0])
-      {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
 
@@ -1316,22 +1206,16 @@ PFS_key_reader::read_uchar(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_long(enum ha_rkey_function find_flag,
-                          bool &isnull,
-                          long *value)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_long(enum ha_rkey_function find_flag,
+                                                bool &isnull, long *value) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     size_t data_size = sizeof(int32);
     DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_LONG_INT);
     DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
 
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
-      if (m_remaining_key[0])
-      {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
 
@@ -1353,22 +1237,16 @@ PFS_key_reader::read_long(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_ulong(enum ha_rkey_function find_flag,
-                           bool &isnull,
-                           ulong *value)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_ulong(
+    enum ha_rkey_function find_flag, bool &isnull, ulong *value) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     size_t data_size = sizeof(int32);
     DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONG_INT);
     DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
 
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
-      if (m_remaining_key[0])
-      {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
 
@@ -1390,22 +1268,16 @@ PFS_key_reader::read_ulong(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_ulonglong(enum ha_rkey_function find_flag,
-                               bool &isnull,
-                               ulonglong *value)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_ulonglong(
+    enum ha_rkey_function find_flag, bool &isnull, ulonglong *value) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     size_t data_size = sizeof(ulonglong);
     DBUG_ASSERT(m_remaining_key_part_info->type == HA_KEYTYPE_ULONGLONG);
     DBUG_ASSERT(m_remaining_key_part_info->store_length >= data_size);
 
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
-      if (m_remaining_key[0])
-      {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
 
@@ -1427,15 +1299,10 @@ PFS_key_reader::read_ulonglong(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
-                                  bool &isnull,
-                                  char *buffer,
-                                  uint *buffer_length,
-                                  uint buffer_capacity)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
+    enum ha_rkey_function find_flag, bool &isnull, char *buffer,
+    uint *buffer_length, uint buffer_capacity) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
       - 0 or 1 null byte.
@@ -1447,14 +1314,12 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     size_t length_offset = 0;
     size_t data_offset = 2;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
       DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
-      if (m_remaining_key[0])
-      {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
     }
@@ -1469,8 +1334,7 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
     DBUG_ASSERT(data_offset + string_len <= m_remaining_key_len);
 
     // DBUG_ASSERT(string_len <= buffer_capacity);
-    if (string_len > buffer_capacity)
-    {
+    if (string_len > buffer_capacity) {
       string_len = buffer_capacity;
     }
 
@@ -1492,15 +1356,10 @@ PFS_key_reader::read_varchar_utf8(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-enum ha_rkey_function
-PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
-                               bool &isnull,
-                               char *buffer,
-                               uint *buffer_length,
-                               uint buffer_capacity)
-{
-  if (m_remaining_key_part_info->store_length <= m_remaining_key_len)
-  {
+enum ha_rkey_function PFS_key_reader::read_text_utf8(
+    enum ha_rkey_function find_flag, bool &isnull, char *buffer,
+    uint *buffer_length, uint buffer_capacity) {
+  if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
       - 0 or 1 null byte
@@ -1512,14 +1371,12 @@ PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
     size_t length_offset = 0;
     size_t data_offset = 0;
     isnull = false;
-    if (m_remaining_key_part_info->field->real_maybe_null())
-    {
+    if (m_remaining_key_part_info->field->real_maybe_null()) {
       DBUG_ASSERT(HA_KEY_NULL_LENGTH <= m_remaining_key_len);
 
       length_offset++;
       data_offset++;
-      if (m_remaining_key[0])
-      {
+      if (m_remaining_key[0]) {
         isnull = true;
       }
     }
@@ -1541,11 +1398,10 @@ PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
 
     const CHARSET_INFO *cs = &my_charset_utf8_bin;  // FIXME
     uchar *pos = (uchar *)buffer;
-    if (cs->mbmaxlen > 1)
-    {
+    if (cs->mbmaxlen > 1) {
       size_t char_length;
       char_length =
-        my_charpos(cs, pos, pos + string_len, string_len / cs->mbmaxlen);
+          my_charpos(cs, pos, pos + string_len, string_len / cs->mbmaxlen);
       set_if_smaller(string_len, char_length);
     }
     const uchar *end = skip_trailing_space(pos, string_len);
@@ -1562,36 +1418,29 @@ PFS_key_reader::read_text_utf8(enum ha_rkey_function find_flag,
   return HA_READ_INVALID;
 }
 
-void
-PFS_engine_index::read_key(const uchar *key,
-                           uint key_len,
-                           enum ha_rkey_function find_flag)
-{
+void PFS_engine_index::read_key(const uchar *key, uint key_len,
+                                enum ha_rkey_function find_flag) {
   PFS_key_reader reader(m_key_info, key, key_len);
 
-  if (m_key_ptr_1 != NULL)
-  {
+  if (m_key_ptr_1 != NULL) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[0].field->field_name,
                                   m_key_ptr_1->m_name) == 0);
     m_key_ptr_1->read(reader, find_flag);
   }
 
-  if (m_key_ptr_2 != NULL)
-  {
+  if (m_key_ptr_2 != NULL) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[1].field->field_name,
                                   m_key_ptr_2->m_name) == 0);
     m_key_ptr_2->read(reader, find_flag);
   }
 
-  if (m_key_ptr_3 != NULL)
-  {
+  if (m_key_ptr_3 != NULL) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[2].field->field_name,
                                   m_key_ptr_3->m_name) == 0);
     m_key_ptr_3->read(reader, find_flag);
   }
 
-  if (m_key_ptr_4 != NULL)
-  {
+  if (m_key_ptr_4 != NULL) {
     DBUG_ASSERT(native_strcasecmp(m_key_info->key_part[3].field->field_name,
                                   m_key_ptr_4->m_name) == 0);
     m_key_ptr_4->read(reader, find_flag);

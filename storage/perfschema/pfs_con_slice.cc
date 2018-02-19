@@ -37,56 +37,41 @@
   @{
 */
 
-void
-PFS_connection_slice::reset_waits_stats()
-{
+void PFS_connection_slice::reset_waits_stats() {
   PFS_single_stat *stat = m_instr_class_waits_stats;
   PFS_single_stat *stat_last = stat + wait_class_max;
-  for (; stat < stat_last; stat++)
-  {
+  for (; stat < stat_last; stat++) {
     stat->reset();
   }
 }
 
-void
-PFS_connection_slice::reset_stages_stats()
-{
+void PFS_connection_slice::reset_stages_stats() {
   PFS_stage_stat *stat = m_instr_class_stages_stats;
   PFS_stage_stat *stat_last = stat + stage_class_max;
-  for (; stat < stat_last; stat++)
-  {
+  for (; stat < stat_last; stat++) {
     stat->reset();
   }
 }
 
-void
-PFS_connection_slice::reset_statements_stats()
-{
+void PFS_connection_slice::reset_statements_stats() {
   PFS_statement_stat *stat = m_instr_class_statements_stats;
   PFS_statement_stat *stat_last = stat + statement_class_max;
-  for (; stat < stat_last; stat++)
-  {
+  for (; stat < stat_last; stat++) {
     stat->reset();
   }
 }
 
-void
-PFS_connection_slice::reset_transactions_stats()
-{
+void PFS_connection_slice::reset_transactions_stats() {
   PFS_transaction_stat *stat =
-    &m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
-  if (stat)
-  {
+      &m_instr_class_transactions_stats[GLOBAL_TRANSACTION_INDEX];
+  if (stat) {
     stat->reset();
   }
 }
 
-void
-PFS_connection_slice::reset_errors_stats()
-{
+void PFS_connection_slice::reset_errors_stats() {
   PFS_error_stat *stat = &m_instr_class_errors_stats[GLOBAL_ERROR_INDEX];
-  if (stat)
-  {
+  if (stat) {
     stat->reset();
   }
 }

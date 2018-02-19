@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -77,18 +77,14 @@ class Sasl_challenge_response_auth : public ngs::Authentication_interface {
 
   Response handle_continue(const std::string &data) override;
 
-  ngs::Error_code authenticate_account(const std::string &user,
-      const std::string &host, const std::string &passwd) const override;
+  ngs::Error_code authenticate_account(
+      const std::string &user, const std::string &host,
+      const std::string &passwd) const override;
 
  private:
   Account_verification_handler_ptr m_verification_handler;
 
-  enum State {
-    S_starting,
-    S_waiting_response,
-    S_done,
-    S_error
-  } m_state;
+  enum State { S_starting, S_waiting_response, S_done, S_error } m_state;
 };
 
 /**
@@ -107,11 +103,13 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::create(
     ngs::Session_interface *session,
     ngs::SHA256_password_cache_interface *cache) {
   Account_verification_handler *handler =
-      ngs::allocate_object<Account_verification_handler>(session, Account_type,
+      ngs::allocate_object<Account_verification_handler>(
+          session, Account_type,
           ngs::allocate_object<Auth_verificator_t>(cache));
   return ngs::Authentication_interface_ptr(
-      ngs::allocate_object<Sasl_challenge_response_auth<Account_type,
-                           Auth_verificator_t>>(handler));
+      ngs::allocate_object<
+          Sasl_challenge_response_auth<Account_type, Auth_verificator_t>>(
+          handler));
 }
 
 /**
@@ -124,8 +122,7 @@ template <ngs::Account_verification_interface::Account_type Account_type,
           typename Auth_verificator_t>
 ngs::Authentication_interface::Response
 Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_start(
-    const std::string&, const std::string&,
-    const std::string&) {
+    const std::string &, const std::string &, const std::string &) {
   if (m_state != S_starting) {
     m_state = S_error;
     return {Error, ER_NET_PACKETS_OUT_OF_ORDER};
@@ -177,9 +174,9 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_continue(
 */
 template <ngs::Account_verification_interface::Account_type Account_type,
           typename Auth_verificator_t>
-ngs::Error_code Sasl_challenge_response_auth<Account_type,
-    Auth_verificator_t>::authenticate_account(const std::string &user,
-        const std::string &host, const std::string &passwd) const {
+ngs::Error_code Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::
+    authenticate_account(const std::string &user, const std::string &host,
+                         const std::string &passwd) const {
   return m_verification_handler->verify_account(user, host, passwd);
 }
 

@@ -41,7 +41,7 @@ namespace temptable {
 
 class Test {
  public:
-  Test(handlerton* hton, TABLE_SHARE* mysql_table_share, TABLE* mysql_table);
+  Test(handlerton *hton, TABLE_SHARE *mysql_table_share, TABLE *mysql_table);
   void correctness();
   void performance();
 
@@ -58,9 +58,9 @@ class Test {
   template <class H>
   void sysbench_distinct_ranges();
 
-  handlerton* m_hton;
-  TABLE_SHARE* m_mysql_table_share;
-  TABLE* m_mysql_table;
+  handlerton *m_hton;
+  TABLE_SHARE *m_mysql_table_share;
+  TABLE *m_mysql_table;
 };
 
 } /* namespace temptable */

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -24,7 +24,6 @@
 
 #ifndef _X_NGS_INCLUDE_NGS_COMMON_PROTOCOL_PROTOBUF_H_
 #define _X_NGS_INCLUDE_NGS_COMMON_PROTOCOL_PROTOBUF_H_
-
 
 #ifdef WIN32
 #pragma warning(push, 0)
@@ -60,10 +59,8 @@
 #include "plugin/x/generated/protobuf_lite/mysqlx_sql.pb.h"
 #endif  // USE_MYSQLX_FULL_PROTO
 
-
 #ifdef WIN32
 #pragma warning(pop)
 #endif  // WIN32
 
-
-#endif // _X_NGS_INCLUDE_NGS_COMMON_PROTOCOL_PROTOBUF_H_
+#endif  // _X_NGS_INCLUDE_NGS_COMMON_PROTOCOL_PROTOBUF_H_

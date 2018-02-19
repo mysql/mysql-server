@@ -599,8 +599,6 @@ a	b
 drop view v1;
 drop table t1;
 set sql_mode='ansi';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 ("a*b" int);
 create view v1 as select "a*b" from t1;
 show create view v1;
@@ -625,8 +623,6 @@ col1	char(2)	YES		NULL
 drop view v1;
 drop table `t1a``b`;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (col1 char(5),col2 char(5));
 create view v1 as select * from t1;
 drop table t1;
@@ -1327,8 +1323,6 @@ s1
 drop view v1;
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (s1 tinyint);
 create trigger t1_bi before insert on t1 for each row set new.s1 = 500;
 create view v1 as select * from t1 where s1 <> 127 with check option;
@@ -2950,7 +2944,6 @@ Warning	1423	Field of view 'test.v1' underlying table doesn't have a default val
 SET SQL_MODE = STRICT_ALL_TABLES;
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 INSERT INTO v1 (b) VALUES (4);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 SET SQL_MODE = '';
@@ -3850,13 +3843,9 @@ Warnings:
 Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
 set @old_mode=@@sql_mode;
 set @@sql_mode=traditional;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 insert into v1 values(1);
 ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
 set @@sql_mode=@old_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop view v1;
 drop table t1;
 create table t1 (a int, key(a));

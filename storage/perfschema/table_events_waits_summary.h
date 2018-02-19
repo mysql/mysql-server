@@ -31,12 +31,23 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
-#include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_all_instr.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class PFS_engine_table;
+class Plugin_table;
+struct PFS_cond;
+struct PFS_engine_table_share;
+struct PFS_file;
+struct PFS_instr;
+struct PFS_instr_class;
+struct PFS_mutex;
+struct PFS_rwlock;
+struct PFS_single_stat;
+struct PFS_socket;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -44,8 +55,7 @@
 */
 
 /** A row of PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
-struct row_events_waits_summary_by_instance
-{
+struct row_events_waits_summary_by_instance {
   /** Column EVENT_NAME. */
   const char *m_name;
   /** Length in bytes of @c m_name. */
@@ -56,17 +66,12 @@ struct row_events_waits_summary_by_instance
   PFS_stat_row m_stat;
 };
 
-class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr
-{
-public:
+class PFS_index_events_waits_summary_by_instance : public PFS_index_all_instr {
+ public:
   PFS_index_events_waits_summary_by_instance()
-    : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
-  {
-  }
+      : PFS_index_all_instr(&m_key), m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_events_waits_summary_by_instance()
-  {
-  }
+  ~PFS_index_events_waits_summary_by_instance() {}
 
   virtual bool match(PFS_mutex *pfs);
   virtual bool match(PFS_rwlock *pfs);
@@ -74,21 +79,17 @@ public:
   virtual bool match(PFS_file *pfs);
   virtual bool match(PFS_socket *pfs);
 
-private:
+ private:
   PFS_key_object_instance m_key;
 };
 
-class PFS_index_events_waits_summary_by_event_name : public PFS_index_all_instr
-{
-public:
+class PFS_index_events_waits_summary_by_event_name
+    : public PFS_index_all_instr {
+ public:
   PFS_index_events_waits_summary_by_event_name()
-    : PFS_index_all_instr(&m_key), m_key("EVENT_NAME")
-  {
-  }
+      : PFS_index_all_instr(&m_key), m_key("EVENT_NAME") {}
 
-  ~PFS_index_events_waits_summary_by_event_name()
-  {
-  }
+  ~PFS_index_events_waits_summary_by_event_name() {}
 
   virtual bool match(PFS_mutex *pfs);
   virtual bool match(PFS_rwlock *pfs);
@@ -97,23 +98,21 @@ public:
   virtual bool match(PFS_socket *pfs);
   virtual bool match_view(uint view);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_INSTANCE. */
-class table_events_waits_summary_by_instance : public table_all_instr
-{
-public:
+class table_events_waits_summary_by_instance : public table_all_instr {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
   static int delete_all_rows();
   int index_init(uint idx, bool sorted);
 
-protected:
-  int make_instr_row(PFS_instr *pfs,
-                     PFS_instr_class *klass,
+ protected:
+  int make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
                      const void *object_instance_begin,
                      PFS_single_stat *pfs_stat);
   virtual int make_mutex_row(PFS_mutex *pfs);
@@ -122,19 +121,15 @@ protected:
   virtual int make_file_row(PFS_file *pfs);
   virtual int make_socket_row(PFS_socket *pfs);
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_events_waits_summary_by_instance();
 
-public:
-  ~table_events_waits_summary_by_instance()
-  {
-  }
+ public:
+  ~table_events_waits_summary_by_instance() {}
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

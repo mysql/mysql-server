@@ -28,8 +28,7 @@
 
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/dd/dd_kill_immunizer.h" // dd::DD_kill_immunizer
-#include "sql/dd/string_type.h"       // dd::String_type
+#include "sql/dd/dd_kill_immunizer.h"  // dd::DD_kill_immunizer
 #include "sql/dd/impl/types/abstract_table_impl.h"
 #include "sql/dd/impl/types/charset_impl.h"
 #include "sql/dd/impl/types/collation_impl.h"
@@ -53,11 +52,12 @@
 #include "sql/dd/impl/types/view_impl.h"
 #include "sql/dd/impl/types/view_routine_impl.h"
 #include "sql/dd/impl/types/view_table_impl.h"
+#include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/discrete_interval.h"
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/set_var.h"
-#include "sql/sql_class.h"            // THD::killed_state
+#include "sql/sql_class.h"  // THD::killed_state
 #include "thr_lock.h"
 
 struct LEX;
@@ -71,30 +71,29 @@ class Raw_table;
 /**
   Auxiliary class for opening dictionary tables.
 */
-class Open_dictionary_tables_ctx
-{
-public:
-  Open_dictionary_tables_ctx(THD *thd, thr_lock_type lock_type )
-    : m_thd(thd),
-      m_lock_type(lock_type),
-      m_ignore_global_read_lock(false)
-  { }
+class Open_dictionary_tables_ctx {
+ public:
+  Open_dictionary_tables_ctx(THD *thd, thr_lock_type lock_type)
+      : m_thd(thd), m_lock_type(lock_type), m_ignore_global_read_lock(false) {}
 
   ~Open_dictionary_tables_ctx();
 
   Raw_table *get_table(const String_type &name) const;
 
   template <typename T>
-  Raw_table *get_table() const
-  { return get_table(T::DD_table::instance().name()); }
+  Raw_table *get_table() const {
+    return get_table(T::DD_table::instance().name());
+  }
 
   template <typename X>
-  void register_tables()
-  { X::Impl::register_tables(this); }
+  void register_tables() {
+    X::Impl::register_tables(this);
+  }
 
   template <typename X>
-  void add_table()
-  { this->add_table(X::instance().name()); }
+  void add_table() {
+    this->add_table(X::instance().name());
+  }
 
   /**
     Open all the DD tables in list Open_dictionary_tables_ctx::m_tables.
@@ -113,13 +112,11 @@ public:
 
     @returns void.
   */
-  void mark_ignore_global_read_lock()
-  {
-    if (m_lock_type == TL_WRITE)
-      m_ignore_global_read_lock= true;
+  void mark_ignore_global_read_lock() {
+    if (m_lock_type == TL_WRITE) m_ignore_global_read_lock = true;
   }
 
-private:
+ private:
   THD *m_thd;
   thr_lock_type m_lock_type;
   bool m_ignore_global_read_lock;
@@ -127,52 +124,42 @@ private:
   Object_table_map m_tables;
 };
 
-
 /**
   Implementation of read-only data-dictionary transaction.
   Relies on attachable transactions infrastructure.
 */
-class Transaction_ro
-{
-public:
+class Transaction_ro {
+ public:
   Transaction_ro(THD *thd, enum_tx_isolation isolation)
-   : otx(thd, TL_READ),
-     m_thd(thd),
-     m_kill_immunizer(thd)
-  {
+      : otx(thd, TL_READ), m_thd(thd), m_kill_immunizer(thd) {
     thd->begin_attachable_ro_transaction();
-    thd->tx_isolation= isolation;
+    thd->tx_isolation = isolation;
   }
 
-  ~Transaction_ro()
-  {
-    m_thd->end_attachable_transaction();
-  }
+  ~Transaction_ro() { m_thd->end_attachable_transaction(); }
 
   Open_dictionary_tables_ctx otx;
 
-private:
+ private:
   THD *m_thd;
 
   DD_kill_immunizer m_kill_immunizer;
 };
-
 
 ///////////////////////////////////////////////////////////////////////////
 
 /**
   Class for storing/restoring state during dictionary update operations.
 */
-class Update_dictionary_tables_ctx
-{
-public:
+class Update_dictionary_tables_ctx {
+ public:
   Update_dictionary_tables_ctx(THD *thd);
 
   ~Update_dictionary_tables_ctx();
 
   Open_dictionary_tables_ctx otx;
 
-private:
+ private:
   THD *m_thd;
 
   DD_kill_immunizer m_kill_immunizer;
@@ -206,6 +193,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__TRANSACTION_IMPL_INCLUDED
+#endif  // DD__TRANSACTION_IMPL_INCLUDED

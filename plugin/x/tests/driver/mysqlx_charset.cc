@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -23,7 +23,6 @@
  */
 
 #include "plugin/x/tests/driver/mysqlx_charset.h"
-
 
 namespace xcl {
 
@@ -274,7 +273,7 @@ std::string Charset::field_from_id(uint32_t id,
   return result;
 }
 
-uint32_t Charset::id_from_collation_name(const std::string& collation_name) {
+uint32_t Charset::id_from_collation_name(const std::string &collation_name) {
   uint32_t result = 0;
 
   for (const auto &charset_info : m_charsets_info) {

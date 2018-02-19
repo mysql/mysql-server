@@ -1,7 +1,5 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT 1 FROM (SELECT 1) as a  GROUP BY SUM(1);
 ERROR HY000: Invalid use of group function
 CREATE TABLE t1 (
@@ -1061,8 +1059,6 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 VALUES (1,1),(2,1),(3,2),(4,2),(5,3),(6,3);
 SET SQL_MODE = 'ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT MAX(a)-MIN(a) FROM t1 GROUP BY b;
 MAX(a)-MIN(a)
 1
@@ -1265,8 +1261,6 @@ DROP TABLE t1;
 #
 SET @save_sql_mode=@@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (a INT, b INT, c INT DEFAULT 0);
 INSERT INTO t1 (a, b) VALUES (3,3), (2,2), (3,3), (2,2), (3,3), (4,4);
 CREATE TABLE t2 SELECT * FROM t1;
@@ -1420,8 +1414,6 @@ tt
 35
 41
 SET sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1, t2;
 # 
 # BUG#38072: Wrong result: HAVING not observed in a query with aggregate
@@ -1906,8 +1898,6 @@ HAVING b = 10;
 ERROR 42S22: Reference 'c' not supported (reference to group function)
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT b c, (SELECT a FROM t1 WHERE b = c)
 FROM t1;
 c	(SELECT a FROM t1 WHERE b = c)
@@ -1930,12 +1920,8 @@ FROM t1;
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(i INT);
 INSERT INTO t1 VALUES (1), (10);
 SELECT COUNT(i) FROM t1;
@@ -1946,8 +1932,6 @@ COUNT(i)
 1
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # Bug #45640: optimizer bug produces wrong results
 #
@@ -2224,8 +2208,6 @@ SET BIG_TABLES=0;
 #
 SET @save_sql_mode=@@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (f1 int, f2 DATE);
 INSERT INTO t1 VALUES (1,'2004-04-19'), (1,'0000-00-00'), (1,'2004-04-18'),
 (2,'2004-05-19'), (2,'0001-01-01'), (3,'2004-04-10');
@@ -2252,8 +2234,6 @@ f1	MIN(f2)	MAX(f2)
 4	00:25:00	00:25:00
 DROP TABLE t1;
 SET sql_mode=@save_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #End of test#49771
 #
 # Bug #58782
@@ -2618,8 +2598,6 @@ DROP TABLE t1,t2;
 # ONLY_FULL_GROUP_BY SQL MODE
 SET @old_sql_mode = @@sql_mode;
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 pk INT,
 col_int_key INT,
@@ -2724,8 +2702,6 @@ WHERE alias1.col_varchar_key <= alias1.col_varchar_nokey
 ERROR 42000: Expression #2 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.alias1.col_varchar_key' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 DROP VIEW v1;
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Verify that if an alias is used in GROUP BY/ORDER BY it
 # is printed as an alias, not as the expression.
 CREATE TABLE t2(a INT);
@@ -2868,8 +2844,6 @@ DROP TABLE t1;
 #
 SET @old_sql_mode = @@sql_mode;
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1(a int, b int);
 select a from t1 group by b;
 ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.a' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
@@ -2931,8 +2905,6 @@ select a from t2 group by a
 order by (select a from t1 order by t2.b limit 1);
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t2.b' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 DROP TABLE t1,t2;
 create table t1 (branch varchar(40), id int);
 select count(*) from t1 group by branch having
@@ -2943,8 +2915,6 @@ having (branch<>'mumbai' OR count(*)<2)
 order by id desc,branch desc limit 100;
 branch	count(*)/max(id)
 SET @@sql_mode='ONLY_FULL_GROUP_BY';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select count(*) from t1 group by branch having
 branch<>'mumbai' order by id desc,branch desc limit 100;
 ERROR 42000: Expression #1 of ORDER BY clause is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
@@ -2969,8 +2939,6 @@ ifnull(a, 'xyz')
 xyz
 DROP TABLE t1;
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#12640437: USING SQL_BUFFER_RESULT RESULTS IN A
 #               DIFFERENT QUERY OUTPUT
@@ -3182,8 +3150,6 @@ DROP TABLE r;
 #
 SET @old_sql_mode = @@sql_mode;
 set sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE AA (
 col_varchar_1024_latin1 varchar(1024)  CHARACTER SET latin1,
 pk integer auto_increment,
@@ -3249,8 +3215,6 @@ field1
 DROP TABLE AA,B;
 DROP VIEW view_AA;
 SET @@sql_mode = @old_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET sql_mode = default;
 #
 # Bug#20262196 ASSERTION FAILED: !IMPLICIT_GROUPING || TMP_TABLE_PARAM.SUM_FUNC_COUNT
@@ -3589,8 +3553,6 @@ SELECT 1 FROM t GROUP BY (SELECT SUM(a));
 1
 1
 SET sql_mode = ANSI;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT * FROM t t1 WHERE (SELECT SUM(t1.a) s FROM t t2 HAVING s = 0);
 ERROR HY000: Invalid use of group function
 SELECT 1 FROM t t1 GROUP BY (SELECT SUM(t1.a) s FROM t t2 ORDER BY s);
@@ -3721,4 +3683,56 @@ SELECT WEEK(d)/10, GROUP_CONCAT(i) FROM t GROUP BY WEEK(d)/10 DESC;
 WEEK(d)/10	GROUP_CONCAT(i)
 0.2000	3
 NULL	1
+DROP TABLE t;
+#
+# Bug#21974696 WRONG RESULT WHEN GROUPING ON VALUE FROM SUBQUERY
+#              AND USING COUNT DISTINCT
+#
+CREATE TABLE t(a TEXT, b INT);
+INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
+SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
+col1	COUNT(DISTINCT b)
+3	1
+2	1
+1	2
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+SELECT SQL_BIG_RESULT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1 WITH ROLLUP;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+1	5
+DROP TABLE t;
+CREATE TABLE t(a JSON, b INT);
+INSERT INTO t VALUES ('1', 10), ('1', 11), ('2', 20), ('2', 20), ('3', 30);
+SELECT (SELECT a) AS col1, COUNT(DISTINCT b) FROM t GROUP BY -col1;
+col1	COUNT(DISTINCT b)
+3	1
+2	1
+1	2
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+SELECT SQL_BIG_RESULT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+SELECT (SELECT a) AS col1, COUNT(b) FROM t GROUP BY -col1 WITH ROLLUP;
+col1	COUNT(b)
+3	1
+2	2
+1	2
+1	5
 DROP TABLE t;

@@ -25,11 +25,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "mysql/thread_pool_priv.h"       // Plugin_connection_handler_functions
-#include "sql/conn_handler/connection_handler.h" // Connection_handler
+#include "mysql/thread_pool_priv.h"  // Plugin_connection_handler_functions
+#include "sql/conn_handler/connection_handler.h"  // Connection_handler
 
 class THD;
-
 
 /**
    This is a wrapper class around global free functions implemented
@@ -41,34 +40,24 @@ class THD;
    @see Connection_handler_functions struct.
 */
 
-class Plugin_connection_handler : public Connection_handler
-{
+class Plugin_connection_handler : public Connection_handler {
   Connection_handler_functions *m_functions;
 
-  Plugin_connection_handler(const Plugin_connection_handler&);
-  Plugin_connection_handler&
-    operator=(const Plugin_connection_handler&);
+  Plugin_connection_handler(const Plugin_connection_handler &);
+  Plugin_connection_handler &operator=(const Plugin_connection_handler &);
 
-public:
+ public:
   Plugin_connection_handler(Connection_handler_functions *functions)
-  : m_functions(functions)
-  {}
+      : m_functions(functions) {}
 
-  virtual ~Plugin_connection_handler()
-  {
-    m_functions->end();
-  }
+  virtual ~Plugin_connection_handler() { m_functions->end(); }
 
-protected:
-  virtual bool add_connection(Channel_info* channel_info)
-  {
+ protected:
+  virtual bool add_connection(Channel_info *channel_info) {
     return m_functions->add_connection(channel_info);
   }
 
-  virtual uint get_max_threads() const
-  {
-    return m_functions->max_threads;
-  }
+  virtual uint get_max_threads() const { return m_functions->max_threads; }
 };
 
-#endif // PLUGIN_CONNECTION_HANDLER_INCLUDED
+#endif  // PLUGIN_CONNECTION_HANDLER_INCLUDED

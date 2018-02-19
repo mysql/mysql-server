@@ -23,29 +23,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef MYSQL_COMPONENT_H
 #define MYSQL_COMPONENT_H
 
-#include <vector>
 #include <mysql/components/services/dynamic_loader.h>
+#include <vector>
 #include "my_metadata.h"
 
 /**
   Wraps st_mysql_component_t component data conforming ABI into C++ object.
 */
-class mysql_component : public my_metadata
-{
-public:
-  mysql_component(mysql_component_t* component_data, my_string urn);
+class mysql_component : public my_metadata {
+ public:
+  mysql_component(mysql_component_t *component_data, my_string urn);
 
-  const char* name_c_str() const;
-  const char* urn_c_str() const;
-  const my_string& get_urn() const;
+  const char *name_c_str() const;
+  const char *urn_c_str() const;
+  const my_string &get_urn() const;
 
-  std::vector<const mysql_service_ref_t*> get_provided_services() const;
-  std::vector<mysql_service_placeholder_ref_t*> get_required_services() const;
+  std::vector<const mysql_service_ref_t *> get_provided_services() const;
+  std::vector<mysql_service_placeholder_ref_t *> get_required_services() const;
 
-  const mysql_component_t* get_data() const;
+  const mysql_component_t *get_data() const;
 
-private:
-  mysql_component_t* m_component_data;
+ private:
+  mysql_component_t *m_component_data;
   my_string m_urn;
 };
 

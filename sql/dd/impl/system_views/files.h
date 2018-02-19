@@ -32,11 +32,9 @@ namespace system_views {
 /*
   The class representing INFORMATION_SCHEMA.FILES system view definition.
 */
-class Files : public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Files : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_FILE_ID,
     FIELD_FILE_NAME,
     FIELD_FILE_TYPE, /* ndb/innodb */
@@ -44,24 +42,24 @@ public:
     FIELD_TABLE_CATALOG,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
-    FIELD_LOGFILE_GROUP_NAME, /* ndb */
+    FIELD_LOGFILE_GROUP_NAME,   /* ndb */
     FIELD_LOGFILE_GROUP_NUMBER, /* ndb */
     FIELD_ENGINE,
     FIELD_FULLTEXT_KEYS,
     FIELD_DELETED_ROWS,
     FIELD_UPDATE_COUNT,
-    FIELD_FREE_EXTENTS, /* ndb/innodb */
-    FIELD_TOTAL_EXTENTS, /* ndb/innodb */
-    FIELD_EXTENT_SIZE, /* ndb/innodb */
-    FIELD_INITIAL_SIZE, /* ndb/innodb */
-    FIELD_MAXIMUM_SIZE, /* ndb/innodb */
+    FIELD_FREE_EXTENTS,    /* ndb/innodb */
+    FIELD_TOTAL_EXTENTS,   /* ndb/innodb */
+    FIELD_EXTENT_SIZE,     /* ndb/innodb */
+    FIELD_INITIAL_SIZE,    /* ndb/innodb */
+    FIELD_MAXIMUM_SIZE,    /* ndb/innodb */
     FIELD_AUTOEXTEND_SIZE, /* ndb/innodb */
     FIELD_CREATION_TIME,
     FIELD_LAST_UPDATE_TIME,
     FIELD_LAST_ACCESS_TIME,
     FIELD_RECOVER_TIME,
     FIELD_TRANSACTION_COUNTER,
-    FIELD_VERSION, /* ndb */
+    FIELD_VERSION,    /* ndb */
     FIELD_ROW_FORMAT, /* ndb */
     FIELD_TABLE_ROWS,
     FIELD_AVG_ROW_LENGTH,
@@ -74,23 +72,21 @@ public:
     FIELD_CHECK_TIME,
     FIELD_CHECKSUM,
     FIELD_STATUS, /* ndb/innodb */
-    FIELD_EXTRA  /* no-innodb/ndb*/
+    FIELD_EXTRA   /* no-innodb/ndb*/
   };
 
   Files();
 
   static const Files &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("FILES");
     return s_view_name;
   }
-  virtual const String_type &name() const
-  { return Files::view_name(); }
+  virtual const String_type &name() const { return Files::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__FILES_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__FILES_INCLUDED

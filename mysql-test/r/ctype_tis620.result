@@ -2932,8 +2932,6 @@ hex(a)	STRCMP(a,'a')	STRCMP(a,'a ')
 61	0	0
 DROP TABLE t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1 (
 `id` int(11) NOT NULL auto_increment,
 `url` varchar(200) NOT NULL default '',

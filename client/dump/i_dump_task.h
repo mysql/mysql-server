@@ -27,37 +27,36 @@
 
 #include "client/dump/i_data_object.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Interface for all individual dump process tasks.
  */
-class I_dump_task
-{
-public:
+class I_dump_task {
+ public:
   virtual ~I_dump_task();
 
-  virtual I_data_object* get_related_db_object() const= 0;
+  virtual I_data_object *get_related_db_object() const = 0;
   /**
     Returns true if task was fully completed by all elements of chain.
    */
-  virtual bool is_completed() const= 0;
+  virtual bool is_completed() const = 0;
   /**
     Sets task completed flag. Need to be called once main chain element
     receives completion report.
    */
-  virtual void set_completed()= 0;
+  virtual void set_completed() = 0;
   /**
     Returns true if task can start processing, for example when all
     dependencies are met.
    */
-  virtual bool can_be_executed() const= 0;
+  virtual bool can_be_executed() const = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

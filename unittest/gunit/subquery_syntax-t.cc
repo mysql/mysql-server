@@ -30,18 +30,15 @@
 
 namespace subquery_syntax_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class SubquerySyntaxTest : public ParserTest
-{
-};
+class SubquerySyntaxTest : public ParserTest {};
 
-TEST_F(SubquerySyntaxTest, Outer)
-{
-  SELECT_LEX *term= parse("SET @v = ( SELECT 1 )");
-  SELECT_LEX_UNIT *top_union= term->master_unit();
+TEST_F(SubquerySyntaxTest, Outer) {
+  SELECT_LEX *term = parse("SET @v = ( SELECT 1 )");
+  SELECT_LEX_UNIT *top_union = term->master_unit();
   EXPECT_EQ(nullptr, top_union->outer_select());
 }
 
-}
+}  // namespace subquery_syntax_unittest

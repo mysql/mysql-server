@@ -27,11 +27,11 @@
 
 */
 
-#include "my_config.h"
 #include <mysql/plugin_audit.h>
+#include "my_config.h"
 
 bool refresh_rules_table();
 
 MYSQL_PLUGIN get_rewriter_plugin_info();
 
-#endif // REWRITER_PLUGIN_INCLUDED
+#endif  // REWRITER_PLUGIN_INCLUDED

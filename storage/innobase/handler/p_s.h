@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,11 +24,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file handler/p_s.h
-InnoDB performance_schema tables interface to MySQL.
+/** @file handler/p_s.h
+ InnoDB performance_schema tables interface to MySQL.
 
-*******************************************************/
+ *******************************************************/
 
 #ifndef p_s_h
 #define p_s_h
@@ -38,20 +37,16 @@ InnoDB performance_schema tables interface to MySQL.
 /** Inspect data locks in innodb.
 This class is used by the performance schema to extract lock data.
 */
-class Innodb_data_lock_inspector : public PSI_engine_data_lock_inspector
-{
-public:
-	Innodb_data_lock_inspector();
-	~Innodb_data_lock_inspector();
+class Innodb_data_lock_inspector : public PSI_engine_data_lock_inspector {
+ public:
+  Innodb_data_lock_inspector();
+  ~Innodb_data_lock_inspector();
 
-	virtual PSI_engine_data_lock_iterator*
-		create_data_lock_iterator();
-	virtual PSI_engine_data_lock_wait_iterator*
-		create_data_lock_wait_iterator();
-	virtual void destroy_data_lock_iterator(
-		PSI_engine_data_lock_iterator *it);
-	virtual void destroy_data_lock_wait_iterator(
-		PSI_engine_data_lock_wait_iterator *it);
+  virtual PSI_engine_data_lock_iterator *create_data_lock_iterator();
+  virtual PSI_engine_data_lock_wait_iterator *create_data_lock_wait_iterator();
+  virtual void destroy_data_lock_iterator(PSI_engine_data_lock_iterator *it);
+  virtual void destroy_data_lock_wait_iterator(
+      PSI_engine_data_lock_wait_iterator *it);
 };
 
 #endif /* p_s_h */

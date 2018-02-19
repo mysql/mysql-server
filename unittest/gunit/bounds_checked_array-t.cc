@@ -30,49 +30,39 @@ namespace bounds_check_array_unittest {
 
 typedef Bounds_checked_array<int> Int_array;
 
-class BoundsCheckedArray : public ::testing::Test
-{
-public:
+class BoundsCheckedArray : public ::testing::Test {
+ public:
   BoundsCheckedArray() : some_integer(0) {}
 
-  virtual void SetUp()
-  {
-    for (int ix= 0; ix < c_array_size; ++ix)
-      c_array[ix]= ix;
+  virtual void SetUp() {
+    for (int ix = 0; ix < c_array_size; ++ix) c_array[ix] = ix;
   }
 
-  static const int c_array_size= 5;
+  static const int c_array_size = 5;
   int c_array[c_array_size];
 
   int some_integer;
   Int_array int_array;
 };
 
-}
+}  // namespace bounds_check_array_unittest
 
 /*
   operator<<() is needed by the EXPECT macros.
   It is a template argument, so static rather than in unnamed namespace.
  */
-static inline
-std::ostream &operator<<(std::ostream &s,
-                         const bounds_check_array_unittest::Int_array &v)
-{
-  return s << "{"
-           << v.array() << ", "
-           << v.size()
-           << "}"
-    ;
+static inline std::ostream &operator<<(
+    std::ostream &s, const bounds_check_array_unittest::Int_array &v) {
+  return s << "{" << v.array() << ", " << v.size() << "}";
 }
 
-namespace bounds_check_array_unittest  {
+namespace bounds_check_array_unittest {
 
-TEST_F(BoundsCheckedArray, Empty)
-{
+TEST_F(BoundsCheckedArray, Empty) {
   EXPECT_EQ(sizeof(int), int_array.element_size());
   EXPECT_EQ(0U, int_array.size());
   EXPECT_TRUE(int_array.is_null());
-  int *pi= NULL;
+  int *pi = NULL;
   EXPECT_EQ(pi, int_array.array());
 }
 
@@ -81,80 +71,70 @@ TEST_F(BoundsCheckedArray, Empty)
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef BoundsCheckedArray BoundsCheckedArrayDeathTest;
 
-TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckRead)
-{
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckRead) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int_array= Int_array(c_array, 2);
-  EXPECT_DEATH_IF_SUPPORTED(some_integer= int_array[5],
+  int_array = Int_array(c_array, 2);
+  EXPECT_DEATH_IF_SUPPORTED(some_integer = int_array[5],
                             ".*Assertion .*n < m_size.*");
 }
 
-TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckAssign)
-{
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckAssign) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int_array= Int_array(c_array, 2);
-  EXPECT_DEATH_IF_SUPPORTED(int_array[5]= some_integer,
+  int_array = Int_array(c_array, 2);
+  EXPECT_DEATH_IF_SUPPORTED(int_array[5] = some_integer,
                             ".*Assertion .*n < m_size.*");
 }
 
-TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckPopFront)
-{
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckPopFront) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int_array= Int_array(c_array, 1);
+  int_array = Int_array(c_array, 1);
   int_array.pop_front();
   EXPECT_DEATH_IF_SUPPORTED(int_array.pop_front(),
                             ".*Assertion .*m_size > 0.*");
 }
 
-TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResize)
-{
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResize) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int_array= Int_array(c_array, 1);
+  int_array = Int_array(c_array, 1);
   EXPECT_DEATH_IF_SUPPORTED(int_array.resize(2),
                             ".*Assertion .*new_size <= m_size.*");
 }
 
-TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign)
-{
+TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  int_array= Int_array(c_array, 2);
-  int_array[1]= some_integer;
+  int_array = Int_array(c_array, 2);
+  int_array[1] = some_integer;
   int_array.resize(1);
-  EXPECT_DEATH_IF_SUPPORTED(int_array[1]= some_integer,
+  EXPECT_DEATH_IF_SUPPORTED(int_array[1] = some_integer,
                             ".*Assertion .*n < m_size.*");
 }
 
 #endif  // !defined(DBUG_OFF)
 
-TEST_F(BoundsCheckedArray, Indexing)
-{
-  int_array= Int_array(c_array, c_array_size);
+TEST_F(BoundsCheckedArray, Indexing) {
+  int_array = Int_array(c_array, c_array_size);
   EXPECT_EQ(0, int_array[0]);
-  int_array[0]= 42;
+  int_array[0] = 42;
   EXPECT_EQ(42, int_array[0]);
 }
 
-
-TEST_F(BoundsCheckedArray, Reset)
-{
-  int_array= Int_array(c_array, c_array_size);
+TEST_F(BoundsCheckedArray, Reset) {
+  int_array = Int_array(c_array, c_array_size);
   EXPECT_EQ(c_array, int_array.array());
   EXPECT_FALSE(int_array.is_null());
   int_array.reset();
-  int *pi= NULL;
+  int *pi = NULL;
   EXPECT_EQ(pi, int_array.array());
   EXPECT_TRUE(int_array.is_null());
 }
 
-TEST_F(BoundsCheckedArray, Resize)
-{
-  int_array= Int_array(c_array, c_array_size);
+TEST_F(BoundsCheckedArray, Resize) {
+  int_array = Int_array(c_array, c_array_size);
   int_array.resize(c_array_size - 1);
   EXPECT_EQ(c_array_size - 1, static_cast<int>(int_array.size()));
-  
-  int count= 0;
-  while (int_array.size() > 0)
-  {
+
+  int count = 0;
+  while (int_array.size() > 0) {
     EXPECT_EQ(count, int_array[0]);
     count++;
     int_array.pop_front();
@@ -163,25 +143,21 @@ TEST_F(BoundsCheckedArray, Resize)
   EXPECT_EQ(count, c_array_size - 1);
 }
 
-
-TEST_F(BoundsCheckedArray, PopFront)
-{
-  int_array= Int_array(c_array, c_array_size);
-  for (int ix= 0; ix < c_array_size; ++ix)
-  {
+TEST_F(BoundsCheckedArray, PopFront) {
+  int_array = Int_array(c_array, c_array_size);
+  for (int ix = 0; ix < c_array_size; ++ix) {
     EXPECT_EQ(ix, int_array[0]);
     int_array.pop_front();
   }
 }
 
-TEST_F(BoundsCheckedArray, Equality)
-{
-  int_array= Int_array(c_array, c_array_size);
+TEST_F(BoundsCheckedArray, Equality) {
+  int_array = Int_array(c_array, c_array_size);
   EXPECT_EQ(int_array, int_array);
 
   Int_array int_array_copy(int_array);
-  EXPECT_EQ(int_array, int_array_copy) << " original " << int_array
-                                       << " copy " << int_array_copy;
+  EXPECT_EQ(int_array, int_array_copy)
+      << " original " << int_array << " copy " << int_array_copy;
 
   int_array_copy.resize(c_array_size - 1);
   EXPECT_NE(int_array, int_array_copy);
@@ -194,15 +170,14 @@ TEST_F(BoundsCheckedArray, Equality)
   EXPECT_NE(int_array, int_array_two);
 }
 
-TEST_F(BoundsCheckedArray, Sort)
-{
-  int_array= Int_array(c_array, c_array_size);
+TEST_F(BoundsCheckedArray, Sort) {
+  int_array = Int_array(c_array, c_array_size);
   std::random_shuffle(int_array.begin(), int_array.end());
   std::sort(int_array.begin(), int_array.end());
   Int_array::const_iterator it;
   int ix;
-  for (ix= 0, it= int_array.begin(); it != int_array.end(); ++it, ++ix)
+  for (ix = 0, it = int_array.begin(); it != int_array.end(); ++it, ++ix)
     EXPECT_EQ(ix, *it);
 }
 
-}  // namespace
+}  // namespace bounds_check_array_unittest

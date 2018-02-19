@@ -26,9 +26,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-Column_statistic::Column_statistic(uint64 id, const std::string& schema,
-  const std::string& sql_formatted_definition, const Table* defined_table)
-  : Abstract_plain_sql_object_dump_task(id, "", schema,
-    sql_formatted_definition),
-    m_defined_table(defined_table)
-{}
+Column_statistic::Column_statistic(uint64 id, const std::string &schema,
+                                   const std::string &sql_formatted_definition,
+                                   const Table *defined_table)
+    : Abstract_plain_sql_object_dump_task(id, "", schema,
+                                          sql_formatted_definition),
+      m_defined_table(defined_table) {}

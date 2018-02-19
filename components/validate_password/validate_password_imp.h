@@ -23,15 +23,15 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef VALIDATE_PASSWORD_IMP_H
 #define VALIDATE_PASSWORD_IMP_H
 
-#include <mysql/components/services/log_builtins.h>
-#include <mysql/components/service_implementation.h>
 #include <mysql/components/component_implementation.h>
-#include <mysql/components/services/validate_password.h>
-#include <mysql/components/services/mysql_string.h>
-#include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/service_implementation.h>
 #include <mysql/components/services/component_status_var_service.h>
-#include <mysql/components/services/security_context.h>
+#include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysql/components/services/mysql_string.h>
 #include <mysql/components/services/psi_memory_service.h>
+#include <mysql/components/services/security_context.h>
+#include <mysql/components/services/validate_password.h>
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 extern REQUIRES_SERVICE_PLACEHOLDER(log_builtins);
@@ -52,23 +52,21 @@ extern REQUIRES_SERVICE_PLACEHOLDER(psi_memory_v1);
   An implementation of the password_validation_service to validate password and
   to get its strength.
 */
-class validate_password_imp
-{
-public:
+class validate_password_imp {
+ public:
   /**
     Validates the strength of given password.
 
     @sa validate_password::validate()
   */
-  static DEFINE_BOOL_METHOD(validate,
-    (void *thd, my_h_string password));
+  static DEFINE_BOOL_METHOD(validate, (void *thd, my_h_string password));
 
   /**
     Gets the password strength between (0-100)
 
     @sa validate_password::get_strength()
   */
-  static DEFINE_BOOL_METHOD(get_strength,
-    (void *thd, my_h_string password, unsigned int *strength));
+  static DEFINE_BOOL_METHOD(get_strength, (void *thd, my_h_string password,
+                                           unsigned int *strength));
 };
 #endif /* VALIDATE_PASSWORD_IMP_H */

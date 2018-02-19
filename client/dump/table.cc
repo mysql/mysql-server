@@ -31,94 +31,69 @@
 
 using namespace Mysql::Tools::Dump;
 
-Table::Table(uint64 id, const std::string& name, const std::string& schema,
-  const std::string& sql_formatted_definition, std::vector<Field>& fields,
-  std::string type, uint64 row_count, uint64 row_bound, uint64 data_lenght)
-  : Abstract_plain_sql_object(id, name, schema, sql_formatted_definition),
-  m_fields(fields),
-  m_type(type),
-  m_row_count(row_count),
-  m_row_bound(row_bound),
-  m_data_lenght(data_lenght)
-{
+Table::Table(uint64 id, const std::string &name, const std::string &schema,
+             const std::string &sql_formatted_definition,
+             std::vector<Field> &fields, std::string type, uint64 row_count,
+             uint64 row_bound, uint64 data_lenght)
+    : Abstract_plain_sql_object(id, name, schema, sql_formatted_definition),
+      m_fields(fields),
+      m_type(type),
+      m_row_count(row_count),
+      m_row_bound(row_bound),
+      m_data_lenght(data_lenght) {
   using Detail::Pattern_matcher;
-  bool engine_line_read= false;
-  bool first_line= true;
+  bool engine_line_read = false;
+  bool first_line = true;
   std::stringstream definition_stream(sql_formatted_definition);
-  for (std::string line; std::getline(definition_stream, line); )
-  {
+  for (std::string line; std::getline(definition_stream, line);) {
     /*
       MAINTAINER: This code parses the output of SHOW CREATE TABLE.
       @TODO: Instead, look up INFORMATION_SCHEMA and get the table details.
     */
 
     boost::trim_left(line);
-    if (!engine_line_read)
-      boost::trim_if(line, boost::is_any_of(","));
-    if (boost::starts_with(line, "KEY ")
-      || boost::starts_with(line, "INDEX ")
-      || boost::starts_with(line, "UNIQUE KEY ")
-      || boost::starts_with(line, "UNIQUE INDEX ")
-      || boost::starts_with(line, "FULLTEXT KEY ")
-      || boost::starts_with(line, "FULLTEXT INDEX ")
-      || boost::starts_with(line, "SPATIAL KEY ")
-      || boost::starts_with(line, "SPATIAL INDEX ")
-      || boost::starts_with(line, "CONSTRAINT "))
-    {
+    if (!engine_line_read) boost::trim_if(line, boost::is_any_of(","));
+    if (boost::starts_with(line, "KEY ") ||
+        boost::starts_with(line, "INDEX ") ||
+        boost::starts_with(line, "UNIQUE KEY ") ||
+        boost::starts_with(line, "UNIQUE INDEX ") ||
+        boost::starts_with(line, "FULLTEXT KEY ") ||
+        boost::starts_with(line, "FULLTEXT INDEX ") ||
+        boost::starts_with(line, "SPATIAL KEY ") ||
+        boost::starts_with(line, "SPATIAL INDEX ") ||
+        boost::starts_with(line, "CONSTRAINT ")) {
       m_indexes_sql_definition.push_back(line);
-    }
-    else
-    {
+    } else {
       /*
         Make sure we detect the table options clauses,
         even with different syntaxes (with or without TABLESPACE)
       */
-      if (boost::starts_with(line, ")") &&
-          boost::contains(line, "ENGINE="))
-      {
-        engine_line_read= true;
+      if (boost::starts_with(line, ")") && boost::contains(line, "ENGINE=")) {
+        engine_line_read = true;
         std::string &sql_def = m_sql_definition_without_indexes;
         sql_def = boost::algorithm::replace_last_copy(sql_def, ",", "");
-      }
-      else if (!first_line && !engine_line_read)
-        line+= ",";
-      m_sql_definition_without_indexes+= line + '\n';
+      } else if (!first_line && !engine_line_read)
+        line += ",";
+      m_sql_definition_without_indexes += line + '\n';
     }
-    first_line= false;
+    first_line = false;
   }
 }
 
-const std::string& Table::get_sql_definition_without_indexes() const
-{
+const std::string &Table::get_sql_definition_without_indexes() const {
   return m_sql_definition_without_indexes;
 }
 
-const std::vector<std::string>& Table::get_indexes_sql_definition() const
-{
+const std::vector<std::string> &Table::get_indexes_sql_definition() const {
   return m_indexes_sql_definition;
 }
 
-const std::vector<Field>& Table::get_fields() const
-{
-  return m_fields;
-}
+const std::vector<Field> &Table::get_fields() const { return m_fields; }
 
-uint64 Table::get_row_data_lenght() const
-{
-  return m_data_lenght;
-}
+uint64 Table::get_row_data_lenght() const { return m_data_lenght; }
 
-uint64 Table::get_row_count_bound() const
-{
-  return m_row_bound;
-}
+uint64 Table::get_row_count_bound() const { return m_row_bound; }
 
-uint64 Table::get_row_count() const
-{
-  return m_row_count;
-}
+uint64 Table::get_row_count() const { return m_row_count; }
 
-std::string Table::get_type() const
-{
-  return m_type;
-}
+std::string Table::get_type() const { return m_type; }

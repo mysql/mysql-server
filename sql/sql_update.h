@@ -28,14 +28,14 @@
 
 #include "my_base.h"
 #include "my_sqlcommand.h"
-#include "sql/query_result.h" // Query_result_interceptor
-#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
-#include "sql/sql_lex.h"
+#include "sql/query_result.h"  // Query_result_interceptor
+#include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 #include "sql/sql_list.h"
 
 class COPY_INFO;
 class Copy_field;
 class Item;
+class SELECT_LEX_UNIT;
 class THD;
 class Temp_table_param;
 struct TABLE;
@@ -44,8 +44,7 @@ struct TABLE_LIST;
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
 
-class Query_result_update final : public Query_result_interceptor
-{
+class Query_result_update final : public Query_result_interceptor {
   /// Number of tables being updated
   uint update_table_count;
   /// Pointer to list of updated tables, linked via 'next_local'
@@ -69,20 +68,22 @@ class Query_result_update final : public Query_result_interceptor
   /// Number of rows actually updated, in all affected tables
   ha_rows updated_rows;
   /// List of pointers to fields to update, in order from statement
-  List <Item> *fields;
+  List<Item> *fields;
   /// List of pointers to values to update with, in order from statement
-  List <Item> *values;
+  List<Item> *values;
   /// The fields list decomposed into separate lists per table
-  List <Item> **fields_for_table;
+  List<Item> **fields_for_table;
   /// The values list decomposed into separate lists per table
-  List <Item> **values_for_table;
+  List<Item> **values_for_table;
   /**
    List of tables referenced in the CHECK OPTION condition of
-   the updated view excluding the updated table. 
+   the updated view excluding the updated table.
   */
-  List <TABLE> unupdated_check_opt_tables;
+  List<TABLE> unupdated_check_opt_tables;
   /// ???
   Copy_field *copy_field;
+  /// Length of the copy_field array.
+  size_t max_fields{0};
   /// True if the full update operation is complete
   bool update_completed;
   /// True if all tables to be updated are transactional.
@@ -111,26 +112,32 @@ class Query_result_update final : public Query_result_interceptor
   */
   COPY_INFO **update_operations;
 
-public:
+ public:
   Query_result_update(THD *thd, List<Item> *field_list, List<Item> *value_list)
-  :Query_result_interceptor(thd),
-   update_table_count(0),
-   update_tables(NULL), tmp_tables(NULL),
-   main_table(NULL), table_to_update(NULL),
-   found_rows(0), updated_rows(0),
-   fields(field_list), values(value_list),
-   copy_field(NULL),
-   update_completed(false), trans_safe(true),
-   transactional_tables(false), error_handled(false),
-   update_operations(NULL)
-  {}
-  ~Query_result_update()
-  {}
+      : Query_result_interceptor(thd),
+        update_table_count(0),
+        update_tables(NULL),
+        tmp_tables(NULL),
+        main_table(NULL),
+        table_to_update(NULL),
+        found_rows(0),
+        updated_rows(0),
+        fields(field_list),
+        values(value_list),
+        copy_field(NULL),
+        update_completed(false),
+        trans_safe(true),
+        transactional_tables(false),
+        error_handled(false),
+        update_operations(NULL) {}
+  ~Query_result_update() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(List<Item> &list, SELECT_LEX_UNIT *u) override;
   bool optimize() override;
-  bool start_execution() override
-  { update_completed= false; return false; }
+  bool start_execution() override {
+    update_completed = false;
+    return false;
+  }
   bool send_data(List<Item> &items) override;
   void send_error(uint errcode, const char *err) override;
   bool do_updates();
@@ -139,25 +146,25 @@ public:
   void cleanup() override;
 };
 
-class Sql_cmd_update final : public Sql_cmd_dml
-{
-public:
+class Sql_cmd_update final : public Sql_cmd_dml {
+ public:
   Sql_cmd_update(bool multitable_arg, List<Item> *update_values)
-  : multitable(multitable_arg), update_value_list(update_values) {}
+      : multitable(multitable_arg), update_value_list(update_values) {}
 
-  enum_sql_command sql_command_code() const override
-  { return multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE; }
+  enum_sql_command sql_command_code() const override {
+    return multitable ? SQLCOM_UPDATE_MULTI : SQLCOM_UPDATE;
+  }
 
   bool is_single_table_plan() const override { return !multitable; }
 
-protected:
+ protected:
   bool precheck(THD *thd) override;
 
   bool prepare_inner(THD *thd) override;
 
   bool execute_inner(THD *thd) override;
 
-private:
+ private:
   bool update_single_table(THD *thd);
 
   bool multitable;

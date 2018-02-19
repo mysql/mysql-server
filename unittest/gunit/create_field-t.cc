@@ -27,30 +27,26 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 
-#include "sql/item_timefunc.h"     // Item_func_now_local
+#include "sql/item_timefunc.h"  // Item_func_now_local
 #include "unittest/gunit/mock_create_field.h"
 #include "unittest/gunit/test_utils.h"
 
-
 namespace create_field_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class CreateFieldTest : public ::testing::Test
-{
-protected:
+class CreateFieldTest : public ::testing::Test {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
   Server_initializer initializer;
 };
 
-
-TEST_F(CreateFieldTest, init)
-{
+TEST_F(CreateFieldTest, init) {
   // To do: Add all possible precisions.
-  Item_func_now_local *now= new Item_func_now_local(0);
+  Item_func_now_local *now = new Item_func_now_local(0);
 
   Mock_create_field field_definition_none(MYSQL_TYPE_TIMESTAMP, NULL, NULL);
   EXPECT_EQ(Field::NONE, field_definition_none.auto_flags);
@@ -59,11 +55,11 @@ TEST_F(CreateFieldTest, init)
   EXPECT_EQ(Field::DEFAULT_NOW, field_definition_dn.auto_flags);
 
   Mock_create_field field_definition_dnun(MYSQL_TYPE_TIMESTAMP, now, now);
-  EXPECT_EQ((Field::DEFAULT_NOW|Field::ON_UPDATE_NOW),
+  EXPECT_EQ((Field::DEFAULT_NOW | Field::ON_UPDATE_NOW),
             field_definition_dnun.auto_flags);
 
   Mock_create_field field_definition_un(MYSQL_TYPE_TIMESTAMP, NULL, now);
   EXPECT_EQ(Field::ON_UPDATE_NOW, field_definition_un.auto_flags);
 }
 
-}
+}  // namespace create_field_unittest

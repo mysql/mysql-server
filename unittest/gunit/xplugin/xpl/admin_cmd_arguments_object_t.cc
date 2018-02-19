@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,16 +34,12 @@ namespace test {
 
 class Admin_command_arguments_object_test : public ::testing::Test {
  public:
-  enum {
-    OPTIONAL_NO = 0,
-    OPTIONAL_YES = 1
-  };
+  enum { OPTIONAL_NO = 0, OPTIONAL_YES = 1 };
 
   Admin_command_arguments_object_test()
-  : extractor(new Admin_command_arguments_object(args))
-  {}
+      : extractor(new Admin_command_arguments_object(args)) {}
 
-  void set_arguments(const Any& value) {
+  void set_arguments(const Any &value) {
     args.Add()->CopyFrom(value);
     extractor.reset(new Admin_command_arguments_object(args));
   }
@@ -287,8 +283,9 @@ TEST_F(Admin_command_arguments_object_test, end_to_many_args_optional) {
 TEST_F(Admin_command_arguments_object_test, string_list_one_value) {
   set_arguments(Any::Object{{"first", "bunny"}});
   std::vector<std::string> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->string_list("first", &values,
-                                                         OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_list("first", &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -296,8 +293,9 @@ TEST_F(Admin_command_arguments_object_test, string_list_one_value) {
 TEST_F(Admin_command_arguments_object_test, string_list_array_one) {
   set_arguments(Any::Object{{"first", Any::Array{"bunny"}}});
   std::vector<std::string> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->string_list("first", &values,
-                                                         OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_list("first", &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>{"bunny"}, values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -305,8 +303,9 @@ TEST_F(Admin_command_arguments_object_test, string_list_array_one) {
 TEST_F(Admin_command_arguments_object_test, string_list_array) {
   set_arguments(Any::Object{{"first", Any::Array{"bunny", "carrot"}}});
   std::vector<std::string> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->string_list("first", &values,
-                                                         OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_list("first", &values, OPTIONAL_NO).end());
   std::vector<std::string> expect{"bunny", "carrot"};
   ASSERT_EQ(expect, values);
   ASSERT_TRUE(extractor->is_end());
@@ -331,8 +330,9 @@ TEST_F(Admin_command_arguments_object_test, string_list_empty) {
   set_arguments(Any::Object{{"first", Any::Array{}}});
 
   std::vector<std::string> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->string_list("first", &values,
-                                                         OPTIONAL_NO).end());
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->string_list("first", &values, OPTIONAL_NO).end());
   ASSERT_EQ(std::vector<std::string>(), values);
   ASSERT_TRUE(extractor->is_end());
 }
@@ -351,9 +351,10 @@ TEST_F(Admin_command_arguments_object_test, string_list_bad_arg) {
 TEST_F(Admin_command_arguments_object_test, object_list_one_value) {
   set_arguments(Any::Object{{"first", Any::Object{{"second", 42u}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments*> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->object_list("first", &values,
-                                                         OPTIONAL_NO, 0).end());
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(1u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
@@ -367,9 +368,10 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_one) {
   set_arguments(
       Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments*> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->object_list("first", &values,
-                                                         OPTIONAL_NO, 0).end());
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(1u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value2 = 666;
@@ -384,9 +386,10 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
       Any::Object{{"first", Any::Array{Any::Object{{"second", 42u}},
                                        Any::Object{{"third", -44}}}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments*> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->object_list("first", &values,
-                                                         OPTIONAL_NO, 0).end());
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(2u, values.size());
   ASSERT_TRUE(extractor->is_end());
   uint64_t value1 = 666;
@@ -404,9 +407,10 @@ TEST_F(Admin_command_arguments_object_test, object_list_array) {
 TEST_F(Admin_command_arguments_object_test, object_list_empty) {
   set_arguments(Any::Object{{"first", Any::Array{}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments*> values;
-  ASSERT_ERROR_CODE(ER_X_SUCCESS, extractor->object_list("first", &values,
-                                                         OPTIONAL_NO, 0).end());
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
+  ASSERT_ERROR_CODE(
+      ER_X_SUCCESS,
+      extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
   ASSERT_EQ(0u, values.size());
   ASSERT_TRUE(extractor->is_end());
 }
@@ -415,7 +419,7 @@ TEST_F(Admin_command_arguments_object_test, object_list_array_bad_arg) {
   set_arguments(Any::Object{
       {"first", Any::Array{Any::Object{{"second", 42u}}, "bunny"}}});
 
-  std::vector<Admin_command_arguments_object::Command_arguments*> values;
+  std::vector<Admin_command_arguments_object::Command_arguments *> values;
   ASSERT_ERROR_CODE(
       ER_X_CMD_ARGUMENT_TYPE,
       extractor->object_list("first", &values, OPTIONAL_NO, 0).end());
@@ -433,7 +437,7 @@ class Admin_command_arguments_docpath_test
       public testing::WithParamInterface<Param_docpath_arg> {};
 
 TEST_P(Admin_command_arguments_docpath_test, docpath_arg) {
-  const Param_docpath_arg& param = GetParam();
+  const Param_docpath_arg &param = GetParam();
   set_arguments(Any::Object{{"first", param.path.c_str()}});
   std::string value("none");
   ASSERT_ERROR_CODE(param.expect_error,

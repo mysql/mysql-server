@@ -24,11 +24,10 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql_string.h"       // String
+#include "sql_string.h"  // String
 
-
-Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
-    ninfo(param_ninfo) { }
+Rpl_info_values::Rpl_info_values(int param_ninfo)
+    : value(0), ninfo(param_ninfo) {}
 
 /**
   Initializes a sequence of values to be read from or stored into a repository.
@@ -36,20 +35,15 @@ Rpl_info_values::Rpl_info_values(int param_ninfo): value(0),
   @c ninfo which is set while calling the constructor. Each value is created
   with the default size of @c FN_REFLEN.
 
-  @retval FALSE No error
-  @retval TRUE Failure
+  @retval false No error
+  @retval true Failure
 */
-bool Rpl_info_values::init()
-{
+bool Rpl_info_values::init() {
   DBUG_ENTER("Rpl_info_values::init");
 
-  if (!value && !(value= new String[ninfo]))
-      DBUG_RETURN(TRUE);
+  if (!value && !(value = new String[ninfo])) DBUG_RETURN(true);
 
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
-Rpl_info_values::~Rpl_info_values()
-{
-  delete [] value;
-}
+Rpl_info_values::~Rpl_info_values() { delete[] value; }

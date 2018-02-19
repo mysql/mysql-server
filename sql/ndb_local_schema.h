@@ -25,6 +25,8 @@
 #ifndef NDB_LOCAL_SCHEMA_H
 #define NDB_LOCAL_SCHEMA_H
 
+#include "my_compiler.h"
+
 class Ndb_local_schema
 {
   /*
@@ -49,7 +51,8 @@ class Ndb_local_schema
     const char* m_db;
     const char* m_name;
 
-    void log_warning(const char* fmt, ...) const;
+    void log_warning(const char* fmt, ...) const
+      MY_ATTRIBUTE((format(printf, 2, 3)));
 
     Base(); // Not implemented
     Base(const Base&); // Not implemented

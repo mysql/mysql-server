@@ -43,27 +43,23 @@
 
 #include "my_inttypes.h"
 
-namespace services
-{
+namespace services {
 
-class Session
-{
-public:
+class Session {
+ public:
   Session(MYSQL_THD current_session);
 
   MYSQL_THD thd() { return m_current_session; }
 
-private:
+ private:
   MYSQL_THD m_previous_session;
   MYSQL_THD m_current_session;
 };
 
-class Digest
-{
+class Digest {
   uchar m_buf[PARSER_SERVICE_DIGEST_LENGTH];
 
-public:
-
+ public:
   /**
     Copies the digest buffer from the server.
 
@@ -76,22 +72,18 @@ public:
   const uchar *c_ptr() const { return m_buf; }
 };
 
-class Literal_visitor
-{
-public:
+class Literal_visitor {
+ public:
   virtual ~Literal_visitor() {}
   virtual bool visit(MYSQL_ITEM item) = 0;
 };
-
 
 /**
   This class may inherited and passed to parse() in order to handle conditions
   raised by the server.
 */
-class Condition_handler
-{
-public:
-
+class Condition_handler {
+ public:
   /**
     This function will be called by the server via this API before raising a
     condition. The Condition_handler subclass may then decide to handle the
@@ -104,8 +96,8 @@ public:
     @retval true The condition is handled entirely by this object.
     @retval false The condition is not handled.
   */
-  virtual bool handle(int sql_errno, const char* sqlstate, const char* message)
-    = 0;
+  virtual bool handle(int sql_errno, const char *sqlstate,
+                      const char *message) = 0;
 
   virtual ~Condition_handler() = 0;
 };
@@ -131,6 +123,6 @@ std::string print_item(MYSQL_ITEM item);
 std::string get_current_query_normalized(MYSQL_THD thd);
 
 std::vector<int> get_parameter_positions(MYSQL_THD thd);
-}
+}  // namespace services
 
-#endif // SERVICES_INCLUDED
+#endif  // SERVICES_INCLUDED

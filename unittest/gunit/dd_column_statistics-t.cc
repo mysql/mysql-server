@@ -48,55 +48,46 @@ using my_testing::Server_initializer;
 using ::testing::Invoke;
 using ::testing::WithArgs;
 
-
-void add_values(histograms::Value_map<longlong> &value_map)
-{
+void add_values(histograms::Value_map<longlong> &value_map) {
   value_map.add_values(0LL, 10);
 }
 
-void add_values(histograms::Value_map<ulonglong> &value_map)
-{
+void add_values(histograms::Value_map<ulonglong> &value_map) {
   value_map.add_values(0ULL, 10);
 }
 
-void add_values(histograms::Value_map<double> &value_map)
-{
+void add_values(histograms::Value_map<double> &value_map) {
   value_map.add_values(0.0, 10);
 }
 
-void add_values(histograms::Value_map<String> &value_map)
-{
+void add_values(histograms::Value_map<String> &value_map) {
   value_map.add_values(String(), 10);
 }
 
-void add_values(histograms::Value_map<MYSQL_TIME> &value_map)
-{
+void add_values(histograms::Value_map<MYSQL_TIME> &value_map) {
   MYSQL_TIME my_time;
-  my_time.year= 2017;
-  my_time.month= 1;
-  my_time.day= 1;
-  my_time.hour= 10;
-  my_time.minute= 0;
-  my_time.second= 0;
-  my_time.second_part= 0;
-  my_time.neg= false;
-  my_time.time_type= MYSQL_TIMESTAMP_DATETIME;
+  my_time.year = 2017;
+  my_time.month = 1;
+  my_time.day = 1;
+  my_time.hour = 10;
+  my_time.minute = 0;
+  my_time.second = 0;
+  my_time.second_part = 0;
+  my_time.neg = false;
+  my_time.time_type = MYSQL_TIMESTAMP_DATETIME;
   value_map.add_values(my_time, 10);
 }
 
-void add_values(histograms::Value_map<my_decimal> &value_map)
-{
+void add_values(histograms::Value_map<my_decimal> &value_map) {
   my_decimal my_decimal;
   double2my_decimal(0, 0.0, &my_decimal);
   value_map.add_values(my_decimal, 10);
 }
 
-
 template <class T>
-void equi_height_test(histograms::Value_map_type value_map_type)
-{
+void equi_height_test(histograms::Value_map_type value_map_type) {
   List<Field> m_field_list;
-  Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
+  Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
   Mock_dd_field_longlong id;
@@ -120,7 +111,7 @@ void equi_height_test(histograms::Value_map_type value_map_type)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -147,45 +138,45 @@ void equi_height_test(histograms::Value_map_type value_map_type)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    ON_CALL(catalog_id, store(_, _)).
-      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+    ON_CALL(catalog_id, store(_, _))
+        .WillByDefault(
+            Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
 
-    ON_CALL(name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&name,
-                                       &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(name, store(_, _, _))
+        .WillByDefault(
+            WithArgs<0>(Invoke(&name, &Mock_dd_field_varstring::fake_store)));
 
-    ON_CALL(schema_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&schema_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(schema_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&schema_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(schema_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&schema_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(schema_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&schema_name, &Mock_dd_field_varstring::fake_val_str)));
 
-    ON_CALL(table_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&table_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(table_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&table_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(table_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&table_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(table_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&table_name, &Mock_dd_field_varstring::fake_val_str)));
 
-    ON_CALL(column_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&column_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(column_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&column_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(column_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&column_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(column_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&column_name, &Mock_dd_field_varstring::fake_val_str)));
 
     EXPECT_CALL(catalog_id, store(_, _)).Times(1);
     EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
-                store(column_statistics.schema_name().c_str(), _, _)).Times(1);
-    EXPECT_CALL(table_name,
-                store(column_statistics.table_name().c_str(), _, _)).Times(1);
+                store(column_statistics.schema_name().c_str(), _, _))
+        .Times(1);
+    EXPECT_CALL(table_name, store(column_statistics.table_name().c_str(), _, _))
+        .Times(1);
     EXPECT_CALL(column_name,
-                store(column_statistics.column_name().c_str(), _, _)).Times(1);
+                store(column_statistics.column_name().c_str(), _, _))
+        .Times(1);
 
     // Store attributes
     EXPECT_FALSE(column_statistics.store_attributes(&r));
@@ -201,39 +192,41 @@ void equi_height_test(histograms::Value_map_type value_map_type)
 
     // Verify that the stored and restored contents are the same.
     EXPECT_EQ(std::strcmp(column_statistics.schema_name().c_str(),
-                          column_statistics_restored.schema_name().c_str()), 0);
+                          column_statistics_restored.schema_name().c_str()),
+              0);
     EXPECT_EQ(std::strcmp(column_statistics.table_name().c_str(),
-                          column_statistics_restored.table_name().c_str()), 0);
+                          column_statistics_restored.table_name().c_str()),
+              0);
     EXPECT_EQ(std::strcmp(column_statistics.column_name().c_str(),
-                          column_statistics_restored.column_name().c_str()), 0);
+                          column_statistics_restored.column_name().c_str()),
+              0);
 
     // Check if the histogram contents is still the same
     EXPECT_EQ(column_statistics.histogram()->get_num_buckets(),
               column_statistics_restored.histogram()->get_num_buckets());
 
     EXPECT_EQ(
-      column_statistics.histogram()->get_num_buckets_specified(),
-      column_statistics_restored.histogram()->get_num_buckets_specified());
+        column_statistics.histogram()->get_num_buckets_specified(),
+        column_statistics_restored.histogram()->get_num_buckets_specified());
 
     EXPECT_EQ(
-      column_statistics.histogram()->get_character_set()->number,
-      column_statistics_restored.histogram()->get_character_set()->number);
+        column_statistics.histogram()->get_character_set()->number,
+        column_statistics_restored.histogram()->get_character_set()->number);
 
     EXPECT_DOUBLE_EQ(
-      column_statistics.histogram()->get_null_values_fraction(),
-      column_statistics_restored.histogram()->get_null_values_fraction());
+        column_statistics.histogram()->get_null_values_fraction(),
+        column_statistics_restored.histogram()->get_null_values_fraction());
 
     EXPECT_DOUBLE_EQ(
-      column_statistics.histogram()->get_sampling_rate(),
-      column_statistics_restored.histogram()->get_sampling_rate());
+        column_statistics.histogram()->get_sampling_rate(),
+        column_statistics_restored.histogram()->get_sampling_rate());
   }
 }
 
 template <class T>
-void singleton_test(histograms::Value_map_type value_map_type)
-{
+void singleton_test(histograms::Value_map_type value_map_type) {
   List<Field> m_field_list;
-  Fake_TABLE_SHARE dummy_share(1); // Keep Field_varstring constructor happy.
+  Fake_TABLE_SHARE dummy_share(1);  // Keep Field_varstring constructor happy.
 
   // Add fields
   Mock_dd_field_longlong id;
@@ -257,7 +250,7 @@ void singleton_test(histograms::Value_map_type value_map_type)
   bitmap_set_all(table.write_set);
   dd::Raw_record r(&table);
 
-  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256, 0);
+  MEM_ROOT mem_root(PSI_NOT_INSTRUMENTED, 256);
 
   dd::Column_statistics_impl column_statistics;
 
@@ -269,8 +262,8 @@ void singleton_test(histograms::Value_map_type value_map_type)
     histograms::Value_map<T> value_map(&my_charset_latin1, value_map_type);
     add_values(value_map);
 
-    histograms::Singleton<T> singleton(&mem_root, "schema", "table",
-                                       "column", value_map_type);
+    histograms::Singleton<T> singleton(&mem_root, "schema", "table", "column",
+                                       value_map_type);
 
     EXPECT_FALSE(singleton.build_histogram(value_map, 1024));
 
@@ -284,45 +277,45 @@ void singleton_test(histograms::Value_map_type value_map_type)
       Note: We cannot mock away and make expectations store_json/val_json since
       the function is not virtual.
     */
-    ON_CALL(catalog_id, store(_, _)).
-      WillByDefault(Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
+    ON_CALL(catalog_id, store(_, _))
+        .WillByDefault(
+            Invoke(&catalog_id, &Mock_dd_field_longlong::fake_store));
 
-    ON_CALL(name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&name,
-                                       &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(name, store(_, _, _))
+        .WillByDefault(
+            WithArgs<0>(Invoke(&name, &Mock_dd_field_varstring::fake_store)));
 
-    ON_CALL(schema_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&schema_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(schema_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&schema_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(schema_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&schema_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(schema_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&schema_name, &Mock_dd_field_varstring::fake_val_str)));
 
-    ON_CALL(table_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&table_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(table_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&table_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(table_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&table_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(table_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&table_name, &Mock_dd_field_varstring::fake_val_str)));
 
-    ON_CALL(column_name, store(_, _, _)).
-      WillByDefault(WithArgs<0>(Invoke(&column_name,
-                                       &Mock_dd_field_varstring::fake_store)));
-    ON_CALL(column_name, val_str(_, _)).
-      WillByDefault(WithArgs<1>(
-                    Invoke(&column_name,
-                           &Mock_dd_field_varstring::fake_val_str)));
+    ON_CALL(column_name, store(_, _, _))
+        .WillByDefault(WithArgs<0>(
+            Invoke(&column_name, &Mock_dd_field_varstring::fake_store)));
+    ON_CALL(column_name, val_str(_, _))
+        .WillByDefault(WithArgs<1>(
+            Invoke(&column_name, &Mock_dd_field_varstring::fake_val_str)));
 
     EXPECT_CALL(catalog_id, store(_, _)).Times(1);
     EXPECT_CALL(name, store(_, _, _)).Times(1);
     EXPECT_CALL(schema_name,
-                store(column_statistics.schema_name().c_str(), _, _)).Times(1);
-    EXPECT_CALL(table_name,
-                store(column_statistics.table_name().c_str(), _, _)).Times(1);
+                store(column_statistics.schema_name().c_str(), _, _))
+        .Times(1);
+    EXPECT_CALL(table_name, store(column_statistics.table_name().c_str(), _, _))
+        .Times(1);
     EXPECT_CALL(column_name,
-                store(column_statistics.column_name().c_str(), _, _)).Times(1);
+                store(column_statistics.column_name().c_str(), _, _))
+        .Times(1);
 
     // Store attributes
     EXPECT_FALSE(column_statistics.store_attributes(&r));
@@ -338,28 +331,31 @@ void singleton_test(histograms::Value_map_type value_map_type)
 
     // Verify that the stored and restored contents are the same.
     EXPECT_EQ(std::strcmp(column_statistics.schema_name().c_str(),
-                          column_statistics_restored.schema_name().c_str()), 0);
+                          column_statistics_restored.schema_name().c_str()),
+              0);
     EXPECT_EQ(std::strcmp(column_statistics.table_name().c_str(),
-                          column_statistics_restored.table_name().c_str()), 0);
+                          column_statistics_restored.table_name().c_str()),
+              0);
     EXPECT_EQ(std::strcmp(column_statistics.column_name().c_str(),
-                          column_statistics_restored.column_name().c_str()), 0);
+                          column_statistics_restored.column_name().c_str()),
+              0);
 
     // Check if the histogram contents is still the same
     EXPECT_EQ(column_statistics.histogram()->get_num_buckets(),
               column_statistics_restored.histogram()->get_num_buckets());
 
-    EXPECT_EQ(column_statistics.histogram()->get_character_set()->number,
-              column_statistics_restored.histogram()->get_character_set()->number);
+    EXPECT_EQ(
+        column_statistics.histogram()->get_character_set()->number,
+        column_statistics_restored.histogram()->get_character_set()->number);
 
     EXPECT_DOUBLE_EQ(
-      column_statistics.histogram()->get_null_values_fraction(),
-      column_statistics_restored.histogram()->get_null_values_fraction());
+        column_statistics.histogram()->get_null_values_fraction(),
+        column_statistics_restored.histogram()->get_null_values_fraction());
   }
 }
 
-TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
-{
-  //Dictionary_impl *m_dict;                // Dictionary instance.
+TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight) {
+  // Dictionary_impl *m_dict;                // Dictionary instance.
   my_testing::Server_initializer m_init;  // Server initializer.
   m_init.SetUp();
   equi_height_test<longlong>(histograms::Value_map_type::INT);
@@ -375,8 +371,7 @@ TEST(ColumnStatisticsTest, StoreAndRestoreAttributesEquiHeight)
   m_init.TearDown();
 }
 
-TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
-{
+TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton) {
   my_testing::Server_initializer m_init;  // Server initializer.
   m_init.SetUp();
   singleton_test<longlong>(histograms::Value_map_type::INT);
@@ -392,5 +387,4 @@ TEST(ColumnStatisticsTest, StoreAndRestoreAttributesSingleton)
   m_init.TearDown();
 }
 
-
-}
+}  // namespace dd_column_statistics_unittest

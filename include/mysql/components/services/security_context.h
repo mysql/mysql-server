@@ -55,144 +55,139 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* manipulates the THD relationship to the security context */
 BEGIN_SERVICE_DEFINITION(mysql_thd_security_context)
-  /**
-    Gets the security context for the thread.
+/**
+  Gets the security context for the thread.
 
-    @param[in] _thd      The thread to get the context from
-    @param[out] out_ctx  placeholder for the security context handle
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(get,
-  (void *_thd, Security_context_handle *out_ctx));
+  @param[in] _thd      The thread to get the context from
+  @param[out] out_ctx  placeholder for the security context handle
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(get, (void *_thd, Security_context_handle *out_ctx));
 
-  /**
-    Sets a new security context for the thread.
+/**
+  Sets a new security context for the thread.
 
-    @param[in] _thd    The thread to set the context to
-    @param[in] in_ctx  The handle of the new security context
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(set,
-  (void *_thd, Security_context_handle in_ctx));
+  @param[in] _thd    The thread to set the context to
+  @param[in] in_ctx  The handle of the new security context
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(set, (void *_thd, Security_context_handle in_ctx));
 END_SERVICE_DEFINITION(mysql_thd_security_context)
 
 /* factory methods: allocate, deallocate, copy */
 BEGIN_SERVICE_DEFINITION(mysql_security_context_factory)
-  /**
-    Creates a new security context and initializes it with the defaults
-    (no access, no user etc).
+/**
+  Creates a new security context and initializes it with the defaults
+  (no access, no user etc).
 
-    @param[out] out_ctx  placeholder for the newly created security context
-                         handle
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(create,
-  (Security_context_handle *out_ctx));
+  @param[out] out_ctx  placeholder for the newly created security context
+                       handle
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(create, (Security_context_handle * out_ctx));
 
-  /**
-    Deallocates a security context.
+/**
+  Deallocates a security context.
 
-    @param[in] ctx  The handle of the security context to destroy
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(destroy,
-  (Security_context_handle ctx));
+  @param[in] ctx  The handle of the security context to destroy
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(destroy, (Security_context_handle ctx));
 
-  /**
-    Duplicates a security context.
+/**
+  Duplicates a security context.
 
-    @param[in]  in_ctx  The handle of the security context to copy
-    @param[out] out_ctx  placeholder for the handle of the copied
-                         security context
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(copy,
-  (Security_context_handle in_ctx, Security_context_handle *out_ctx));
+  @param[in]  in_ctx  The handle of the security context to copy
+  @param[out] out_ctx  placeholder for the handle of the copied
+                       security context
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(copy, (Security_context_handle in_ctx,
+                           Security_context_handle *out_ctx));
 END_SERVICE_DEFINITION(mysql_security_context_factory)
 
 /* interact with the user account database */
 BEGIN_SERVICE_DEFINITION(mysql_account_database_security_context_lookup)
-  /**
-    Looks up in the defined user accounts an account based on
-    the user\@host[ip] combo supplied and checks if the user
-    has access to the database requested.
-    The lookup is done in exactly the same way as at login time.
-    The new security context need to checkout additional privileges using
-    the checkout_acl method.
-    @param[in]  ctx   The handle of the security context to update
-    @param[in]  user  The user name to look up
-    @param[in]  host  The host name to look up
-    @param[in]  ip    The ip of the incoming connection
-    @param[in]  db    The database to check access to
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(lookup,
-  (Security_context_handle ctx, const char *user, const char *host,
-   const char *ip, const char *db));
+/**
+  Looks up in the defined user accounts an account based on
+  the user\@host[ip] combo supplied and checks if the user
+  has access to the database requested.
+  The lookup is done in exactly the same way as at login time.
+  The new security context need to checkout additional privileges using
+  the checkout_acl method.
+  @param[in]  ctx   The handle of the security context to update
+  @param[in]  user  The user name to look up
+  @param[in]  host  The host name to look up
+  @param[in]  ip    The ip of the incoming connection
+  @param[in]  db    The database to check access to
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(lookup, (Security_context_handle ctx, const char *user,
+                             const char *host, const char *ip, const char *db));
 END_SERVICE_DEFINITION(mysql_account_database_security_context_lookup)
 
 /* options */
 BEGIN_SERVICE_DEFINITION(mysql_security_context_options)
-  /**
-    Reads a named security context attribute and retuns its value.
-    Currently defined names are:
+/**
+  Reads a named security context attribute and retuns its value.
+  Currently defined names are:
 
-    - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
-    - host  MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
-    - ip    MYSQL_LEX_CSTRING *  login client ip
-    - host_or_ip MYSQL_LEX_CSTRING *  host, if present, ip if not.
-    - priv_user  MYSQL_LEX_CSTRING *  authenticated user
-                 (a.k.a. the user's part of CURRENT_USER())
-    - priv_host  MYSQL_LEX_CSTRING * authenticated host
-                 (a.k.a. the host's part of CURRENT_USER())
-    - proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
+  - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
+  - host  MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
+  - ip    MYSQL_LEX_CSTRING *  login client ip
+  - host_or_ip MYSQL_LEX_CSTRING *  host, if present, ip if not.
+  - priv_user  MYSQL_LEX_CSTRING *  authenticated user
+               (a.k.a. the user's part of CURRENT_USER())
+  - priv_host  MYSQL_LEX_CSTRING * authenticated host
+               (a.k.a. the host's part of CURRENT_USER())
+  - proxy_user  MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
-    - privilege_super DECLARE_BOOL_METHOD *  1 if the user account has
-      supper privilege, 0 otherwise
-    - privilege_execute DECLARE_BOOL_METHOD *  1 if the user account has
-      execute privilege, 0 otherwise
+  - privilege_super DECLARE_BOOL_METHOD *  1 if the user account has
+    supper privilege, 0 otherwise
+  - privilege_execute DECLARE_BOOL_METHOD *  1 if the user account has
+    execute privilege, 0 otherwise
 
-    @param[in]  ctx   The handle of the security context to read from
-    @param[in]  name  The option name to read
-    @param[out] inout_pvalue The value of the option. Type depends on the name.
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(get,
-  (Security_context_handle ctx, const char *name, void *inout_pvalue));
+  @param[in]  ctx   The handle of the security context to read from
+  @param[in]  name  The option name to read
+  @param[out] inout_pvalue The value of the option. Type depends on the name.
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(get, (Security_context_handle ctx, const char *name,
+                          void *inout_pvalue));
 
-  /**
-    Sets a value for a named security context attribute
-    Currently defined names are:
+/**
+  Sets a value for a named security context attribute
+  Currently defined names are:
 
-    - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
-    - host  MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
-    - ip    MYSQL_LEX_CSTRING *  login client ip
-    - priv_user  MYSQL_LEX_CSTRING *  authenticated user
-                 (a.k.a. the user's part of CURRENT_USER())
-    - priv_host  MYSQL_LEX_CSTRING *  authenticated host
-                 (a.k.a. the host's part of CURRENT_USER())
-    - proxy_user MYSQL_LEX_CSTRING *  the proxy user used in authenticating
+  - user  MYSQL_LEX_CSTRING *  login user (a.k.a. the user's part of USER())
+  - host  MYSQL_LEX_CSTRING *  login host (a.k.a. the host's part of USER())
+  - ip    MYSQL_LEX_CSTRING *  login client ip
+  - priv_user  MYSQL_LEX_CSTRING *  authenticated user
+               (a.k.a. the user's part of CURRENT_USER())
+  - priv_host  MYSQL_LEX_CSTRING *  authenticated host
+               (a.k.a. the host's part of CURRENT_USER())
+  - proxy_user MYSQL_LEX_CSTRING *  the proxy user used in authenticating
 
-    - privilege_super  DECLARE_BOOL_METHOD * 1 if the user account has
-                       supper privilege, 0 otherwise
-    - privilege_execute DECLARE_BOOL_METHOD *  1 if the user account has
-      execute privilege, 0 otherwise
+  - privilege_super  DECLARE_BOOL_METHOD * 1 if the user account has
+                     supper privilege, 0 otherwise
+  - privilege_execute DECLARE_BOOL_METHOD *  1 if the user account has
+    execute privilege, 0 otherwise
 
-    @param[in]  ctx   The handle of the security context to set into
-    @param[in]  name  The option name to set
-    @param[in]  pvalue The value of the option. Type depends on the name.
-    @retval true    failure
-    @retval false   success
-  */
-  DECLARE_BOOL_METHOD(set,
-  (Security_context_handle ctx, const char *name, void *pvalue));
+  @param[in]  ctx   The handle of the security context to set into
+  @param[in]  name  The option name to set
+  @param[in]  pvalue The value of the option. Type depends on the name.
+  @retval true    failure
+  @retval false   success
+*/
+DECLARE_BOOL_METHOD(set, (Security_context_handle ctx, const char *name,
+                          void *pvalue));
 END_SERVICE_DEFINITION(mysql_security_context_options)
 
 #endif /* SECURITY_CONTEXT_H */

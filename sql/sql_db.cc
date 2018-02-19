@@ -21,7 +21,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* create and drop of databases */
 
 #include "sql/sql_db.h"
@@ -29,9 +28,6 @@
 #include "my_config.h"
 
 #include <errno.h>
-
-#include "my_loglevel.h"
-#include "mysql/udf_registration_types.h"
 #ifdef _WIN32
 #include <direct.h>
 #endif
@@ -55,83 +51,78 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread_local.h"
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "mysys_err.h"       // EE_*
-#include "prealloced_array.h"
+#include "mysys_err.h"  // EE_*
 #include "sql/auth/auth_acls.h"
-#include "sql/auth/auth_common.h" // SELECT_ACL
+#include "sql/auth/auth_common.h"  // SELECT_ACL
 #include "sql/auth/sql_security_ctx.h"
-#include "sql/binlog.h"      // mysql_bin_log
-#include "sql/dd/cache/dictionary_client.h" // Dictionary_client
-#include "sql/dd/dd.h"                  // dd::get_dictionary()
-#include "sql/dd/dd_schema.h"           // dd::create_schema
-#include "sql/dd/dictionary.h"          // dd::Dictionary
+#include "sql/binlog.h"                      // mysql_bin_log
+#include "sql/dd/cache/dictionary_client.h"  // Dictionary_client
+#include "sql/dd/dd.h"                       // dd::get_dictionary()
+#include "sql/dd/dd_schema.h"                // dd::create_schema
+#include "sql/dd/dictionary.h"               // dd::Dictionary
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/schema.h"
-#include "sql/dd/upgrade/upgrade.h"     // dd::upgrade::in_progress
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
-#include "sql/error_handler.h" // Drop_table_error_handler
-#include "sql/events.h"      // Events
+#include "sql/dd/upgrade/upgrade.h"  // dd::upgrade::in_progress
+#include "sql/debug_sync.h"          // DEBUG_SYNC
+#include "sql/derror.h"              // ER_THD
+#include "sql/error_handler.h"       // Drop_table_error_handler
+#include "sql/events.h"              // Events
 #include "sql/handler.h"
-#include "sql/key.h"
-#include "sql/lock.h"        // lock_schema_name
-#include "sql/log.h"         // log_*()
-#include "sql/log_event.h"   // Query_log_event
+#include "sql/lock.h"       // lock_schema_name
+#include "sql/log.h"        // log_*()
+#include "sql/log_event.h"  // Query_log_event
 #include "sql/mdl.h"
-#include "sql/mysqld.h"      // key_file_misc
-#include "sql/psi_memory_key.h" // key_memory_THD_db
+#include "sql/mysqld.h"          // key_file_misc
+#include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
 #include "sql/session_tracker.h"
-#include "sql/sp.h"          // lock_db_routines
-#include "sql/sql_base.h"    // lock_table_names
-#include "sql/sql_class.h"   // THD
+#include "sql/sp.h"         // lock_db_routines
+#include "sql/sql_base.h"   // lock_table_names
+#include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/sql_handler.h" // mysql_ha_rm_tables
-#include "sql/sql_table.h"   // build_table_filename
+#include "sql/sql_handler.h"  // mysql_ha_rm_tables
+#include "sql/sql_table.h"    // build_table_filename
 #include "sql/system_variables.h"
-#include "sql/table.h"       // TABLE_LIST
-#include "sql/transaction.h" // trans_rollback_stmt
+#include "sql/table.h"  // TABLE_LIST
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"  // trans_rollback_stmt
 #include "sql_string.h"
 #include "typelib.h"
-
-
 
 /*
   .frm is left in this list so that any orphan files can be removed on upgrade.
   .SDI needs to be there for now... need to investigate why...
 */
-const char *del_exts[]= {".frm", ".BAK", ".TMD", ".opt", ".OLD", ".cfg", ".SDI", NullS};
-static TYPELIB deletable_extentions=
-{array_elements(del_exts)-1,"del_exts", del_exts, NULL};
+const char *del_exts[] = {".frm", ".BAK", ".TMD", ".opt",
+                          ".OLD", ".cfg", ".SDI", NullS};
+static TYPELIB deletable_extentions = {array_elements(del_exts) - 1, "del_exts",
+                                       del_exts, NULL};
 
 static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
                                                     const char *path);
 
-static bool find_db_tables(THD *thd, const dd::Schema &schema,
-                           const char *db, TABLE_LIST **tables);
+static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
+                           TABLE_LIST **tables);
 
 static long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path);
 static bool rm_dir_w_symlink(const char *org_path, bool send_error);
-static void mysql_change_db_impl(THD *thd,
-                                 const LEX_CSTRING &new_db_name,
+static void mysql_change_db_impl(THD *thd, const LEX_CSTRING &new_db_name,
                                  ulong new_db_access,
                                  const CHARSET_INFO *new_db_charset);
 
-
 bool get_default_db_collation(const dd::Schema &schema,
-                              const CHARSET_INFO **collation)
-{
-  *collation= get_charset(schema.default_collation_id(), MYF(0));
-  if (*collation == nullptr)
-  {
+                              const CHARSET_INFO **collation) {
+  *collation = get_charset(schema.default_collation_id(), MYF(0));
+  if (*collation == nullptr) {
     char buff[STRING_BUFFER_USUAL_SIZE];
     my_error(ER_UNKNOWN_COLLATION, MYF(0),
              llstr(schema.default_collation_id(), buff));
@@ -139,7 +130,6 @@ bool get_default_db_collation(const dd::Schema &schema,
   }
   return false;
 }
-
 
 /**
   Return default database collation.
@@ -152,24 +142,20 @@ bool get_default_db_collation(const dd::Schema &schema,
                true  Error (thd->is_error is assumed to be set.)
 */
 
-bool get_default_db_collation(THD *thd,
-                              const char *db_name,
-                              const CHARSET_INFO **collation)
-{
+bool get_default_db_collation(THD *thd, const char *db_name,
+                              const CHARSET_INFO **collation) {
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *sch_obj= NULL;
+  const dd::Schema *sch_obj = NULL;
 
   if (mdl_handler.ensure_locked(db_name) ||
       thd->dd_client()->acquire(db_name, &sch_obj))
     return true;
 
-  if (sch_obj)
-    return get_default_db_collation(*sch_obj, collation);
+  if (sch_obj) return get_default_db_collation(*sch_obj, collation);
   return false;
 }
-
 
 /**
   Auxiliary function which writes CREATE/ALTER or DROP DATABASE statement
@@ -177,13 +163,11 @@ bool get_default_db_collation(THD *thd,
   being dropped.
 */
 
-static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
-{
-  if (mysql_bin_log.is_open())
-  {
-    int errcode= query_error_code(thd, TRUE);
-    Query_log_event qinfo(thd, thd->query().str, thd->query().length,
-                          trx_cache, false,
+static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache) {
+  if (mysql_bin_log.is_open()) {
+    int errcode = query_error_code(thd, true);
+    Query_log_event qinfo(thd, thd->query().str, thd->query().length, trx_cache,
+                          false,
                           /* suppress_use */ true, errcode);
     /*
       Write should use the database being created/altered or dropped
@@ -202,8 +186,8 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
       USE sisyfos;                # Will give error on slave since
                                   # database does not exist.
     */
-    qinfo.db= db;
-    qinfo.db_len= strlen(db);
+    qinfo.db = db;
+    qinfo.db_len = strlen(db);
 
     thd->add_to_binlog_accessed_dbs(db);
 
@@ -212,7 +196,6 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
 
   return false;
 }
-
 
 /**
   Create a database
@@ -231,8 +214,7 @@ static bool write_db_cmd_to_binlog(THD *thd, const char *db, bool trx_cache)
   @retval true  Error
 */
 
-bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
-{
+bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   DBUG_ENTER("mysql_create_db");
 
   /*
@@ -244,8 +226,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   // Reject creation of the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
       dd::get_dictionary()->is_dd_schema_name(db) &&
-      !(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS))
-  {
+      !(create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)) {
     my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
     DBUG_RETURN(true);
   }
@@ -255,51 +236,44 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     correct MDL locking) when l_c_t_n == 2.
   */
   char name_buf[NAME_LEN + 1];
-  const char *lock_db_name= db;
-  if (lower_case_table_names == 2)
-  {
+  const char *lock_db_name = db;
+  if (lower_case_table_names == 2) {
     my_stpcpy(name_buf, db);
     my_casedn_str(&my_charset_utf8_tolower_ci, name_buf);
-    lock_db_name= name_buf;
+    lock_db_name = name_buf;
   }
-  if (lock_schema_name(thd, lock_db_name))
-    DBUG_RETURN(true);
+  if (lock_schema_name(thd, lock_db_name)) DBUG_RETURN(true);
 
-  dd::cache::Dictionary_client &dc= *thd->dd_client();
+  dd::cache::Dictionary_client &dc = *thd->dd_client();
   dd::String_type schema_name{db};
-  const dd::Schema *existing_schema= nullptr;
-  if (dc.acquire(schema_name, &existing_schema))
-  {
-     DBUG_RETURN(true);
+  const dd::Schema *existing_schema = nullptr;
+  if (dc.acquire(schema_name, &existing_schema)) {
+    DBUG_RETURN(true);
   }
 
-  bool store_in_dd= true;
-  bool if_not_exists= (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
-  if (existing_schema != nullptr)
-  {
-    if (if_not_exists == false)
-    {
+  bool store_in_dd = true;
+  bool if_not_exists = (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS);
+  if (existing_schema != nullptr) {
+    if (if_not_exists == false) {
       my_error(ER_DB_CREATE_EXISTS, MYF(0), db);
       DBUG_RETURN(true);
     }
-    push_warning_printf(thd, Sql_condition::SL_NOTE,
-                        ER_DB_CREATE_EXISTS,
+    push_warning_printf(thd, Sql_condition::SL_NOTE, ER_DB_CREATE_EXISTS,
                         ER_THD(thd, ER_DB_CREATE_EXISTS), db);
 
-    store_in_dd= false;
+    store_in_dd = false;
   }
 
   /* Check directory */
-  char	 path[FN_REFLEN+16];
-  bool   was_truncated;
-  size_t path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
-                                        &was_truncated);
-  if (was_truncated)
-  {
-    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+  char path[FN_REFLEN + 16];
+  bool was_truncated;
+  size_t path_len = build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
+                                         &was_truncated);
+  if (was_truncated) {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path) - 1, path);
     DBUG_RETURN(true);
   }
-  path[path_len-1]= 0;                    // Remove last '/' from path
+  path[path_len - 1] = 0;  // Remove last '/' from path
 
   // If we are creating the system schema, then we create it physically
   // only during first time server initialization. During ordinary restart,
@@ -307,43 +281,35 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   // the physical representation of the schema is not re-created since it
   // already exists.
   MY_STAT stat_info;
-  bool schema_dir_exists= (mysql_file_stat(key_file_misc,
-                                       path, &stat_info, MYF(0)) != NULL);
+  bool schema_dir_exists =
+      (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)) != NULL);
   if (thd->is_dd_system_thread() &&
       (!opt_initialize || dd::upgrade_57::in_progress()) &&
-      dd::get_dictionary()->is_dd_schema_name(db))
-  {
+      dd::get_dictionary()->is_dd_schema_name(db)) {
     /*
       CREATE SCHEMA statement is being executed from bootstrap thread.
       Server should either be in restart mode or upgrade mode to create only
       dd::Schema object for the dictionary cache.
     */
-    if (!schema_dir_exists)
-    {
+    if (!schema_dir_exists) {
       my_printf_error(ER_BAD_DB_ERROR,
-                      "System schema directory does not exist.",
-                      MYF(0));
+                      "System schema directory does not exist.", MYF(0));
       DBUG_RETURN(true);
     }
-  }
-  else if (store_in_dd)
-  {
-    if (schema_dir_exists)
-    {
+  } else if (store_in_dd) {
+    if (schema_dir_exists) {
       my_error(ER_SCHEMA_DIR_EXISTS, MYF(0), path);
       DBUG_RETURN(true);
     }
 
     // Don't create folder inside data directory in case we are upgrading.
-    if (my_errno() != ENOENT)
-    {
+    if (my_errno() != ENOENT) {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_STAT, MYF(0), path,
-               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      my_error(EE_STAT, MYF(0), path, my_errno(),
+               my_strerror(errbuf, sizeof(errbuf), my_errno()));
       DBUG_RETURN(true);
     }
-    if (my_mkdir(path, 0777, MYF(0)) < 0)
-    {
+    if (my_mkdir(path, 0777, MYF(0)) < 0) {
       char errbuf[MYSQL_ERRMSG_SIZE];
       my_error(ER_SCHEMA_DIR_CREATE_FAILED, MYF(0), db, my_errno(),
                my_strerror(errbuf, MYSQL_ERRMSG_SIZE, my_errno()));
@@ -361,13 +327,11 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     been created, the cached objects will be stored persistently.
   */
 
-  if (store_in_dd)
-  {
+  if (store_in_dd) {
     if (!create_info->default_table_charset)
-      create_info->default_table_charset= thd->variables.collation_server;
+      create_info->default_table_charset = thd->variables.collation_server;
 
-    if (dd::create_schema(thd, db, create_info->default_table_charset))
-    {
+    if (dd::create_schema(thd, db, create_info->default_table_charset)) {
       /*
         We could be here due an deadlock or some error reported
         by DD API framework. We remove the database directory
@@ -383,8 +347,7 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
         We rely on called to do rollback in case of error and thus
         revert change to the binary log.
       */
-      if (!schema_dir_exists)
-        rm_dir_w_symlink(path, true);
+      if (!schema_dir_exists) rm_dir_w_symlink(path, true);
       DBUG_RETURN(true);
     }
   }
@@ -394,10 +357,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     active transaction at this point. In this case we can't use
     binlog's trx cache, which requires transaction with valid XID.
   */
-  if (write_db_cmd_to_binlog(thd, db, store_in_dd))
-  {
-    if (!schema_dir_exists)
-      rm_dir_w_symlink(path, true);
+  if (write_db_cmd_to_binlog(thd, db, store_in_dd)) {
+    if (!schema_dir_exists) rm_dir_w_symlink(path, true);
     DBUG_RETURN(true);
   }
 
@@ -405,10 +366,8 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     Do commit locally instead of relying on caller in order to be
     able to remove directory in case of failure.
   */
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-  {
-    if (!schema_dir_exists)
-      rm_dir_w_symlink(path, true);
+  if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    if (!schema_dir_exists) rm_dir_w_symlink(path, true);
     DBUG_RETURN(true);
   }
 
@@ -416,34 +375,29 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   DBUG_RETURN(false);
 }
 
-
 /* db-name is already validated when we come here */
 
-bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
-{
+bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   DBUG_ENTER("mysql_alter_db");
 
   // Reject altering the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
-      dd::get_dictionary()->is_dd_schema_name(db))
-  {
+      dd::get_dictionary()->is_dd_schema_name(db)) {
     my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db);
     DBUG_RETURN(true);
   }
 
-  if (lock_schema_name(thd, db))
-    DBUG_RETURN(true);
+  if (lock_schema_name(thd, db)) DBUG_RETURN(true);
 
   if (!create_info->default_table_charset)
-    create_info->default_table_charset= thd->variables.collation_server;
+    create_info->default_table_charset = thd->variables.collation_server;
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  dd::Schema *schema= nullptr;
+  dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire_for_modification(db, &schema))
     DBUG_RETURN(true);
 
-  if (schema == nullptr)
-  {
+  if (schema == nullptr) {
     my_error(ER_NO_SUCH_DB, MYF(0), db);
     DBUG_RETURN(true);
   }
@@ -452,71 +406,57 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
   schema->set_default_collation_id(create_info->default_table_charset->number);
 
   // Update schema.
-  if (thd->dd_client()->update(schema))
-    DBUG_RETURN(true);
+  if (thd->dd_client()->update(schema)) DBUG_RETURN(true);
 
-  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB,
-                      thd->query().str, thd->query().length,
-                      db, "");
+  ha_binlog_log_query(thd, 0, LOGCOM_ALTER_DB, thd->query().str,
+                      thd->query().length, db, "");
 
-  if (write_db_cmd_to_binlog(thd, db, true))
-    DBUG_RETURN(true);
+  if (write_db_cmd_to_binlog(thd, db, true)) DBUG_RETURN(true);
 
   /*
     Commit the statement locally instead of relying on caller,
     in order to be sure that it is  successfull, before changing
     options of current database.
   */
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-    DBUG_RETURN(true);
+  if (trans_commit_stmt(thd) || trans_commit(thd)) DBUG_RETURN(true);
 
   /* Change options if current database is being altered. */
-  if (thd->db().str && !strcmp(thd->db().str,db))
-  {
-    thd->db_charset= create_info->default_table_charset ?
-		     create_info->default_table_charset :
-		     thd->variables.collation_server;
-    thd->variables.collation_database= thd->db_charset;
+  if (thd->db().str && !strcmp(thd->db().str, db)) {
+    thd->db_charset = create_info->default_table_charset
+                          ? create_info->default_table_charset
+                          : thd->variables.collation_server;
+    thd->variables.collation_database = thd->db_charset;
   }
 
   my_ok(thd, 1);
   DBUG_RETURN(false);
 }
 
-
 /**
   Error handler which converts errors during database directory removal
   to warnings/messages to error log.
 */
 
-class Rmdir_error_handler : public Internal_error_handler
-{
-public:
-  Rmdir_error_handler()
-    : m_is_active(false)
-  {}
+class Rmdir_error_handler : public Internal_error_handler {
+ public:
+  Rmdir_error_handler() : m_is_active(false) {}
 
-  virtual bool handle_condition(THD *thd,
-                                uint,
-                                const char*,
-                                Sql_condition::enum_severity_level*,
-                                const char* msg)
-  {
-    if (! m_is_active)
-    {
+  virtual bool handle_condition(THD *thd, uint, const char *,
+                                Sql_condition::enum_severity_level *,
+                                const char *msg) {
+    if (!m_is_active) {
       /* Disable the handler to avoid infinite recursion. */
-      m_is_active= true;
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-			  ER_DB_DROP_RMDIR2,
+      m_is_active = true;
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_DB_DROP_RMDIR2,
                           ER_THD(thd, ER_DB_DROP_RMDIR2), msg);
       LogErr(WARNING_LEVEL, ER_DROP_DATABASE_FAILED_RMDIR_MANUALLY, msg);
-      m_is_active= false;
+      m_is_active = false;
       return true;
     }
     return false;
   }
 
-private:
+ private:
   /**
     Indicates that we are already in the process of handling
     some error. Allows to re-emit error/warning from the error
@@ -524,7 +464,6 @@ private:
   */
   bool m_is_active;
 };
-
 
 /**
   Drop all tables, routines and events in a database and the database itself.
@@ -543,16 +482,15 @@ private:
   @retval  true   Error
 */
 
-bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
-{
-  ulong deleted_tables= 0;
-  bool error= false;
-  char	path[2 * FN_REFLEN + 16];
-  TABLE_LIST *tables= NULL;
+bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
+  ulong deleted_tables = 0;
+  bool error = false;
+  char path[2 * FN_REFLEN + 16];
+  TABLE_LIST *tables = NULL;
   TABLE_LIST *table;
   Drop_table_error_handler err_handler;
-  bool dropped_non_atomic= false;
-  std::set<handlerton*> post_ddl_htons;
+  bool dropped_non_atomic = false;
+  std::set<handlerton *> post_ddl_htons;
   Foreign_key_parents_invalidator fk_invalidator;
 
   DBUG_ENTER("mysql_rm_db");
@@ -561,124 +499,102 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
 
   // Reject dropping the system schema except for system threads.
   if (!thd->is_dd_system_thread() &&
-      dd::get_dictionary()->is_dd_schema_name(dd::String_type(db.str)))
-  {
+      dd::get_dictionary()->is_dd_schema_name(dd::String_type(db.str))) {
     my_error(ER_NO_SYSTEM_SCHEMA_ACCESS, MYF(0), db.str);
     DBUG_RETURN(true);
   }
 
-  if (lock_schema_name(thd, db.str))
-    DBUG_RETURN(true);
+  if (lock_schema_name(thd, db.str)) DBUG_RETURN(true);
 
   build_table_filename(path, sizeof(path) - 1, db.str, "", "", 0);
 
   DEBUG_SYNC(thd, "before_acquire_in_drop_schema");
-  const dd::Schema *schema= nullptr;
-  if (thd->dd_client()->acquire(db.str, &schema))
-    DBUG_RETURN(true);
+  const dd::Schema *schema = nullptr;
+  if (thd->dd_client()->acquire(db.str, &schema)) DBUG_RETURN(true);
 
-  DBUG_EXECUTE_IF("pretend_no_schema_in_drop_schema",
-  {
-    schema= nullptr;
-  });
+  DBUG_EXECUTE_IF("pretend_no_schema_in_drop_schema", { schema = nullptr; });
 
   /* See if the directory exists */
-  MY_DIR *schema_dirp= my_dir(path, MYF(MY_DONT_SORT));
+  MY_DIR *schema_dirp = my_dir(path, MYF(MY_DONT_SORT));
 
-  auto dirender= [] (MY_DIR *dirp) { my_dirend(dirp); };
+  auto dirender = [](MY_DIR *dirp) { my_dirend(dirp); };
   std::unique_ptr<MY_DIR, decltype(dirender)> grd{schema_dirp, dirender};
 
-  if (schema == nullptr) // Schema not found in DD
+  if (schema == nullptr)  // Schema not found in DD
   {
-    if (schema_dirp != nullptr) // Schema directory exists
+    if (schema_dirp != nullptr)  // Schema directory exists
     {
       // This is always an error, even when if_exists is true
       my_error(ER_SCHEMA_DIR_UNKNOWN, MYF(0), db.str, path);
       DBUG_RETURN(true);
     }
 
-    if (!if_exists) // IF EXISTS not given
+    if (!if_exists)  // IF EXISTS not given
     {
       my_error(ER_DB_DROP_EXISTS, MYF(0), db.str);
       DBUG_RETURN(true);
     }
-    push_warning_printf(thd, Sql_condition::SL_NOTE,
-                        ER_DB_DROP_EXISTS,
+    push_warning_printf(thd, Sql_condition::SL_NOTE, ER_DB_DROP_EXISTS,
                         ER_THD(thd, ER_DB_DROP_EXISTS), db.str);
 
     /*
       We don't have active transaction at this point so we can't use
       binlog's trx cache, which requires transaction with valid XID.
     */
-    if (write_db_cmd_to_binlog(thd, db.str, false))
-      DBUG_RETURN(true);
+    if (write_db_cmd_to_binlog(thd, db.str, false)) DBUG_RETURN(true);
 
-    if (trans_commit_stmt(thd) ||  trans_commit_implicit(thd))
-      DBUG_RETURN(true);
+    if (trans_commit_stmt(thd) || trans_commit_implicit(thd)) DBUG_RETURN(true);
 
     /* Fall-through to resetting current database in connection. */
-  }
-  else // Schema found in DD
+  } else  // Schema found in DD
   {
     /* Database directory does not exist. */
-    if (schema_dirp == nullptr)
-    {
-      if (!if_exists)
-      {
+    if (schema_dirp == nullptr) {
+      if (!if_exists) {
         my_error(ER_SCHEMA_DIR_MISSING, MYF(0), path);
         DBUG_RETURN(true);
       }
-      push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_SCHEMA_DIR_MISSING,
+      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_SCHEMA_DIR_MISSING,
                           ER_THD(thd, ER_SCHEMA_DIR_MISSING), path);
-    }
-    else
-    {
-      if (find_unknown_and_remove_deletable_files(thd, schema_dirp, path))
-      {
+    } else {
+      if (find_unknown_and_remove_deletable_files(thd, schema_dirp, path)) {
         DBUG_RETURN(true);
       }
     }
 
-    if (find_db_tables(thd, *schema, db.str, &tables))
-    {
+    if (find_db_tables(thd, *schema, db.str, &tables)) {
       DBUG_RETURN(true);
     }
 
     /* Lock all tables and stored routines about to be dropped. */
-    if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout, 0)
-        || rm_table_do_discovery_and_lock_fk_tables(thd, tables)
-        || Events::lock_schema_events(thd, *schema)
-        || lock_db_routines(thd, *schema)
-        || lock_trigger_names(thd, tables))
+    if (lock_table_names(thd, tables, NULL, thd->variables.lock_wait_timeout,
+                         0) ||
+        rm_table_do_discovery_and_lock_fk_tables(thd, tables) ||
+        Events::lock_schema_events(thd, *schema) ||
+        lock_db_routines(thd, *schema) || lock_trigger_names(thd, tables))
       DBUG_RETURN(true);
 
     /* mysql_ha_rm_tables() requires a non-null TABLE_LIST. */
-    if (tables)
-      mysql_ha_rm_tables(thd, tables);
+    if (tables) mysql_ha_rm_tables(thd, tables);
 
-    for (table= tables; table; table= table->next_local)
-    {
+    for (table = tables; table; table = table->next_local) {
       deleted_tables++;
     }
 
-    if (thd->killed)
-      DBUG_RETURN(true);
+    if (thd->killed) DBUG_RETURN(true);
 
     thd->push_internal_handler(&err_handler);
     if (tables)
-      error= mysql_rm_table_no_locks(thd, tables, true, false, true,
-                                     &dropped_non_atomic, &post_ddl_htons,
-                                     &fk_invalidator, nullptr);
+      error = mysql_rm_table_no_locks(thd, tables, true, false, true,
+                                      &dropped_non_atomic, &post_ddl_htons,
+                                      &fk_invalidator, nullptr);
 
-    DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables",
-                    {
-                      my_error(ER_UNKNOWN_ERROR, MYF(0));
-                      error= true;
-                    });
+    DBUG_EXECUTE_IF("rm_db_fail_after_dropping_tables", {
+      my_error(ER_UNKNOWN_ERROR, MYF(0));
+      error = true;
+    });
 
-    if (!error)
-    {
+    if (!error) {
       /*
         We temporarily disable the binary log while dropping SPs
         in the database. Since the DROP DATABASE statement is always
@@ -701,31 +617,27 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       ha_drop_database(path);
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
-      error= Events::drop_schema_events(thd, *schema);
-      error= (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
+      error = Events::drop_schema_events(thd, *schema);
+      error = (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
     }
     thd->pop_internal_handler();
 
-    if (!error)
-      error= thd->dd_client()->drop(schema);
+    if (!error) error = thd->dd_client()->drop(schema);
 
     /*
       If database exists and there was no error we should
       write statement to binary log and remove DD entry.
     */
-    if (!error)
-      error= write_db_cmd_to_binlog(thd, db.str, true);
+    if (!error) error = write_db_cmd_to_binlog(thd, db.str, true);
 
-    if (!error)
-      error= trans_commit_stmt(thd) || trans_commit(thd);
+    if (!error) error = trans_commit_stmt(thd) || trans_commit(thd);
 
     /*
       In case of error rollback the transaction in order to revert
       changes which are possible to rollback (e.g. removal of tables
       in SEs supporting atomic DDL, events and routines).
     */
-    if (error)
-    {
+    if (error) {
       trans_rollback_stmt(thd);
       /*
         Play safe to be sure that THD::transaction_rollback_request is
@@ -740,8 +652,7 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       Call post-DDL handlerton hook. For engines supporting atomic DDL
       tables' files are removed from disk on this step.
     */
-    for (handlerton *hton: post_ddl_htons)
-      hton->post_ddl(thd);
+    for (handlerton *hton : post_ddl_htons) hton->post_ddl(thd);
 
     fk_invalidator.invalidate(thd);
 
@@ -758,18 +669,15 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
       failure to remove the directory as an error. Instead we report it
       as a warning, which is sent to user and written to server error log.
     */
-    if (!error && schema_dirp != nullptr)
-    {
+    if (!error && schema_dirp != nullptr) {
       Rmdir_error_handler rmdir_handler;
       thd->push_internal_handler(&rmdir_handler);
-      (void) rm_dir_w_symlink(path, true);
+      (void)rm_dir_w_symlink(path, true);
       thd->pop_internal_handler();
     }
 
-    if (error)
-    {
-      if (mysql_bin_log.is_open())
-      {
+    if (error) {
+      if (mysql_bin_log.is_open()) {
         /*
           If GTID_NEXT=='UUID:NUMBER', we must not log an incomplete
           statement.  However, the incomplete DROP has already 'committed'
@@ -777,13 +685,12 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
           user fix the situation.
         */
         if (thd->variables.gtid_next.type == ASSIGNED_GTID &&
-            dropped_non_atomic)
-        {
+            dropped_non_atomic) {
           char gtid_buf[Gtid::MAX_TEXT_LENGTH + 1];
           thd->variables.gtid_next.gtid.to_string(global_sid_map, gtid_buf,
                                                   true);
-          my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0),
-                   path, gtid_buf, db.str);
+          my_error(ER_CANNOT_LOG_PARTIAL_DROP_DATABASE_WITH_GTID, MYF(0), path,
+                   gtid_buf, db.str);
           DBUG_RETURN(true);
         }
       }
@@ -797,25 +704,25 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
     SELECT DATABASE() in the future). For this we free() thd->db and set
     it to 0.
   */
-  if (thd->db().str && !strcmp(thd->db().str, db.str))
-  {
+  if (thd->db().str && !strcmp(thd->db().str, db.str)) {
     mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     /*
-      Check if current database tracker is enabled. If so, set the 'changed' flag.
+      Check if current database tracker is enabled. If so, set the 'changed'
+      flag.
     */
-    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
-    {
-      LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
-      dummy.length= dummy.length*1;
-      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
+    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
+            ->is_enabled()) {
+      LEX_CSTRING dummy = {C_STRING_WITH_LEN("")};
+      dummy.length = dummy.length * 1;
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
+          ->mark_as_changed(thd, &dummy);
     }
   }
 
-  thd->server_status|= SERVER_STATUS_DB_DROPPED;
+  thd->server_status |= SERVER_STATUS_DB_DROPPED;
   my_ok(thd, deleted_tables);
   DBUG_RETURN(false);
 }
-
 
 /**
   Auxiliary function which checks if database directory has any
@@ -826,31 +733,25 @@ bool mysql_rm_db(THD *thd,const LEX_CSTRING &db, bool if_exists)
   be safe to delete.
 */
 
-static bool
-find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
-                                        const char *path)
-{
+static bool find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
+                                                    const char *path) {
   char filePath[FN_REFLEN];
   DBUG_ENTER("rm_known_files");
-  DBUG_PRINT("enter",("path: %s", path));
-  TYPELIB *known_extensions= ha_known_exts();
+  DBUG_PRINT("enter", ("path: %s", path));
+  TYPELIB *known_extensions = ha_known_exts();
 
-  for (uint idx=0 ;
-       idx < dirp->number_off_files && !thd->killed ;
-       idx++)
-  {
-    FILEINFO *file=dirp->dir_entry+idx;
+  for (uint idx = 0; idx < dirp->number_off_files && !thd->killed; idx++) {
+    FILEINFO *file = dirp->dir_entry + idx;
     char *extension;
-    DBUG_PRINT("info",("Examining: %s", file->name));
+    DBUG_PRINT("info", ("Examining: %s", file->name));
 
     /* skiping . and .. */
-    if (file->name[0] == '.' && (!file->name[1] ||
-       (file->name[1] == '.' &&  !file->name[2])))
+    if (file->name[0] == '.' &&
+        (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
 
-    if (file->name[0] == 'a' && file->name[1] == 'r' &&
-             file->name[2] == 'c' && file->name[3] == '\0')
-    {
+    if (file->name[0] == 'a' && file->name[1] == 'r' && file->name[2] == 'c' &&
+        file->name[3] == '\0') {
       /* .frm archive:
         Those archives are obsolete, but following code should
         exist to remove existent "arc" directories.
@@ -858,20 +759,16 @@ find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
       char newpath[FN_REFLEN];
       MY_DIR *new_dirp;
       strxmov(newpath, path, "/", "arc", NullS);
-      (void) unpack_filename(newpath, newpath);
-      if ((new_dirp = my_dir(newpath, MYF(MY_DONT_SORT))))
-      {
-	DBUG_PRINT("my",("Archive subdir found: %s", newpath));
-	if ((mysql_rm_arc_files(thd, new_dirp, newpath)) < 0)
-	  DBUG_RETURN(true);
-	continue;
+      (void)unpack_filename(newpath, newpath);
+      if ((new_dirp = my_dir(newpath, MYF(MY_DONT_SORT)))) {
+        DBUG_PRINT("my", ("Archive subdir found: %s", newpath));
+        if ((mysql_rm_arc_files(thd, new_dirp, newpath)) < 0) DBUG_RETURN(true);
+        continue;
       }
       goto found_other_files;
     }
-    if (!(extension= strrchr(file->name, '.')))
-      extension= strend(file->name);
-    if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0)
-    {
+    if (!(extension = strrchr(file->name, '.'))) extension = strend(file->name);
+    if (find_type(extension, &deletable_extentions, FIND_TYPE_NO_PREFIX) <= 0) {
       if (find_type(extension, known_extensions, FIND_TYPE_NO_PREFIX) <= 0)
         goto found_other_files;
       continue;
@@ -881,12 +778,10 @@ find_unknown_and_remove_deletable_files(THD *thd, MY_DIR *dirp,
       We ignore ENOENT error in order to skip files that was deleted
       by concurrently running statement like REAPIR TABLE ...
     */
-    if (my_delete_with_symlink(filePath, MYF(0)) &&
-        my_errno() != ENOENT)
-    {
+    if (my_delete_with_symlink(filePath, MYF(0)) && my_errno() != ENOENT) {
       char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_DELETE, MYF(0), filePath,
-               my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+      my_error(EE_DELETE, MYF(0), filePath, my_errno(),
+               my_strerror(errbuf, sizeof(errbuf), my_errno()));
       DBUG_RETURN(true);
     }
   }
@@ -900,70 +795,61 @@ found_other_files:
   DBUG_RETURN(true);
 }
 
-
 /**
   Auxiliary function which retrieves list of all tables in the database
   from the data-dictionary.
 */
 
-static bool find_db_tables(THD *thd, const dd::Schema &schema,
-                           const char *db, TABLE_LIST **tables)
-{
-  TABLE_LIST *tot_list=0, **tot_list_next_local, **tot_list_next_global;
+static bool find_db_tables(THD *thd, const dd::Schema &schema, const char *db,
+                           TABLE_LIST **tables) {
+  TABLE_LIST *tot_list = 0, **tot_list_next_local, **tot_list_next_global;
   DBUG_ENTER("find_db_tables");
 
-  tot_list_next_local= tot_list_next_global= &tot_list;
+  tot_list_next_local = tot_list_next_global = &tot_list;
 
-  std::vector<const dd::Abstract_table*> sch_tables;
+  std::vector<const dd::Abstract_table *> sch_tables;
   if (thd->dd_client()->fetch_schema_components(&schema, &sch_tables))
     DBUG_RETURN(true);
 
-  for (const dd::Abstract_table *table : sch_tables)
-  {
+  for (const dd::Abstract_table *table : sch_tables) {
     /*
       Skip tables which are implicitly created and dropped by SE (e.g.
       InnoDB's auxiliary tables for FTS). Other hidden tables (e.g.
       left-over #sql... tables from crashed non-atomic ALTER TABLEs)
       should be dropped by DROP DATABASE.
     */
-    if (table->hidden() == dd::Abstract_table::HT_HIDDEN_SE)
-      continue;
+    if (table->hidden() == dd::Abstract_table::HT_HIDDEN_SE) continue;
 
-    TABLE_LIST *table_list=(TABLE_LIST*)
-      thd->mem_calloc(sizeof(*table_list));
+    TABLE_LIST *table_list = new (thd->mem_root) TABLE_LIST;
+    if (table_list == nullptr) DBUG_RETURN(true); /* purecov: inspected */
 
-    if (!table_list)
-      DBUG_RETURN(true); /* purecov: inspected */
+    table_list->db = thd->mem_strdup(db);
+    table_list->db_length = strlen(db);
+    table_list->table_name = thd->mem_strdup(table->name().c_str());
+    table_list->table_name_length = table->name().length();
 
-    table_list->db= thd->mem_strdup(db);
-    table_list->db_length= strlen(db);
-    table_list->table_name= thd->mem_strdup(table->name().c_str());
-    table_list->table_name_length= table->name().length();
-
-    table_list->open_type= OT_BASE_ONLY;
+    table_list->open_type = OT_BASE_ONLY;
 
     /* To be able to correctly look up the table in the table cache. */
     if (lower_case_table_names)
       my_casedn_str(files_charset_info,
-                    const_cast<char*>(table_list->table_name));
+                    const_cast<char *>(table_list->table_name));
 
-    table_list->alias= table_list->table_name;	// If lower_case_table_names=2
-    table_list->internal_tmp_table= is_prefix(table->name().c_str(), tmp_file_prefix);
-    MDL_REQUEST_INIT(&table_list->mdl_request,
-                     MDL_key::TABLE, table_list->db,
-                     table_list->table_name, MDL_EXCLUSIVE,
-                     MDL_TRANSACTION);
+    table_list->alias = table_list->table_name;  // If lower_case_table_names=2
+    table_list->internal_tmp_table =
+        is_prefix(table->name().c_str(), tmp_file_prefix);
+    MDL_REQUEST_INIT(&table_list->mdl_request, MDL_key::TABLE, table_list->db,
+                     table_list->table_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
     /* Link into list */
-    (*tot_list_next_local)= table_list;
-    (*tot_list_next_global)= table_list;
-    tot_list_next_local= &table_list->next_local;
-    tot_list_next_global= &table_list->next_global;
+    (*tot_list_next_local) = table_list;
+    (*tot_list_next_global) = table_list;
+    tot_list_next_local = &table_list->next_local;
+    tot_list_next_global = &table_list->next_global;
   }
 
-  *tables= tot_list;
+  *tables = tot_list;
   DBUG_RETURN(false);
 }
-
 
 /*
   Remove directory with symlink
@@ -977,10 +863,9 @@ static bool find_db_tables(THD *thd, const dd::Schema &schema,
     1 ERROR
 */
 
-static bool rm_dir_w_symlink(const char *org_path, bool send_error)
-{
+static bool rm_dir_w_symlink(const char *org_path, bool send_error) {
   char tmp_path[FN_REFLEN], *pos;
-  char *path= tmp_path;
+  char *path = tmp_path;
   DBUG_ENTER("rm_dir_w_symlink");
   unpack_filename(tmp_path, org_path);
 #ifndef _WIN32
@@ -988,29 +873,23 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error)
   char tmp2_path[FN_REFLEN];
 
   /* Remove end FN_LIBCHAR as this causes problem on Linux in readlink */
-  pos= strend(path);
-  if (pos > path && pos[-1] == FN_LIBCHAR)
-    *--pos=0;
+  pos = strend(path);
+  if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
 
-  if ((error= my_readlink(tmp2_path, path, MYF(MY_WME))) < 0)
-    DBUG_RETURN(1);
-  if (!error)
-  {
-    if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0)))
-    {
+  if ((error = my_readlink(tmp2_path, path, MYF(MY_WME))) < 0) DBUG_RETURN(1);
+  if (!error) {
+    if (mysql_file_delete(key_file_misc, path, MYF(send_error ? MY_WME : 0))) {
       DBUG_RETURN(send_error);
     }
     /* Delete directory symbolic link pointed at */
-    path= tmp2_path;
+    path = tmp2_path;
   }
 #endif
   /* Remove last FN_LIBCHAR to not cause a problem on OS/2 */
-  pos= strend(path);
+  pos = strend(path);
 
-  if (pos > path && pos[-1] == FN_LIBCHAR)
-    *--pos=0;
-  if (rmdir(path) < 0 && send_error)
-  {
+  if (pos > path && pos[-1] == FN_LIBCHAR) *--pos = 0;
+  if (rmdir(path) < 0 && send_error) {
     char errbuf[MYSQL_ERRMSG_SIZE];
     my_error(ER_DB_DROP_RMDIR, MYF(0), path, errno,
              my_strerror(errbuf, MYSQL_ERRMSG_SIZE, errno));
@@ -1018,7 +897,6 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error)
   }
   DBUG_RETURN(0);
 }
-
 
 /*
   Remove .frm archives from directory
@@ -1037,52 +915,42 @@ static bool rm_dir_w_symlink(const char *org_path, bool send_error)
     A support of "arc" directories is obsolete, however this
     function should exist to remove existent "arc" directories.
 */
-long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
-{
-  long deleted= 0;
-  ulong found_other_files= 0;
+long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path) {
+  long deleted = 0;
+  ulong found_other_files = 0;
   char filePath[FN_REFLEN];
   DBUG_ENTER("mysql_rm_arc_files");
   DBUG_PRINT("enter", ("path: %s", org_path));
 
-  for (uint idx=0 ;
-       idx < dirp->number_off_files && !thd->killed ;
-       idx++)
-  {
-    FILEINFO *file=dirp->dir_entry+idx;
+  for (uint idx = 0; idx < dirp->number_off_files && !thd->killed; idx++) {
+    FILEINFO *file = dirp->dir_entry + idx;
     char *extension, *revision;
-    DBUG_PRINT("info",("Examining: %s", file->name));
+    DBUG_PRINT("info", ("Examining: %s", file->name));
 
     /* skiping . and .. */
-    if (file->name[0] == '.' && (!file->name[1] ||
-       (file->name[1] == '.' &&  !file->name[2])))
+    if (file->name[0] == '.' &&
+        (!file->name[1] || (file->name[1] == '.' && !file->name[2])))
       continue;
 
-    extension= fn_ext(file->name);
-    if (extension[0] != '.' ||
-        extension[1] != 'f' || extension[2] != 'r' ||
-        extension[3] != 'm' || extension[4] != '-')
-    {
+    extension = fn_ext(file->name);
+    if (extension[0] != '.' || extension[1] != 'f' || extension[2] != 'r' ||
+        extension[3] != 'm' || extension[4] != '-') {
       found_other_files++;
       continue;
     }
-    revision= extension+5;
-    while (*revision && my_isdigit(system_charset_info, *revision))
-      revision++;
-    if (*revision)
-    {
+    revision = extension + 5;
+    while (*revision && my_isdigit(system_charset_info, *revision)) revision++;
+    if (*revision) {
       found_other_files++;
       continue;
     }
     strxmov(filePath, org_path, "/", file->name, NullS);
-    if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME)))
-    {
+    if (mysql_file_delete_with_symlink(key_file_misc, filePath, MYF(MY_WME))) {
       goto err;
     }
     deleted++;
   }
-  if (thd->killed)
-    goto err;
+  if (thd->killed) goto err;
 
   my_dirend(dirp);
 
@@ -1090,16 +958,13 @@ long mysql_rm_arc_files(THD *thd, MY_DIR *dirp, const char *org_path)
     If the directory is a symbolic link, remove the link first, then
     remove the directory the symbolic link pointed at
   */
-  if (!found_other_files &&
-      rm_dir_w_symlink(org_path, 0))
-    DBUG_RETURN(-1);
+  if (!found_other_files && rm_dir_w_symlink(org_path, 0)) DBUG_RETURN(-1);
   DBUG_RETURN(deleted);
 
 err:
   my_dirend(dirp);
   DBUG_RETURN(-1);
 }
-
 
 /**
   @brief Internal implementation: switch current database to a valid one.
@@ -1113,41 +978,33 @@ err:
   @param new_db_charset Character set of the new database.
 */
 
-static void mysql_change_db_impl(THD *thd,
-                                 const LEX_CSTRING &new_db_name,
+static void mysql_change_db_impl(THD *thd, const LEX_CSTRING &new_db_name,
                                  ulong new_db_access,
-                                 const CHARSET_INFO *new_db_charset)
-{
+                                 const CHARSET_INFO *new_db_charset) {
   /* 1. Change current database in THD. */
 
-  if (new_db_name.str == NULL)
-  {
+  if (new_db_name.str == NULL) {
     /*
       THD::set_db() does all the job -- it frees previous database name and
       sets the new one.
     */
 
     thd->set_db(NULL_CSTR);
-  }
-  else if (!strcmp(new_db_name.str,INFORMATION_SCHEMA_NAME.str))
-  {
+  } else if (!strcmp(new_db_name.str, INFORMATION_SCHEMA_NAME.str)) {
     /*
       Here we must use THD::set_db(), because we want to copy
       INFORMATION_SCHEMA_NAME constant.
     */
 
     thd->set_db(to_lex_cstring(INFORMATION_SCHEMA_NAME));
-  }
-  else
-  {
+  } else {
     /*
       Here we already have a copy of database name to be used in THD. So,
       we just call THD::reset_db(). Since THD::reset_db() does not releases
       the previous database name, we should do it explicitly.
     */
     mysql_mutex_lock(&thd->LOCK_thd_data);
-    if (thd->db().str)
-      my_free(const_cast<char*>(thd->db().str));
+    if (thd->db().str) my_free(const_cast<char *>(thd->db().str));
     DEBUG_SYNC(thd, "after_freeing_thd_db");
     thd->reset_db(new_db_name);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -1160,11 +1017,9 @@ static void mysql_change_db_impl(THD *thd,
 
   /* 3. Update db-charset environment variables. */
 
-  thd->db_charset= new_db_charset;
-  thd->variables.collation_database= new_db_charset;
+  thd->db_charset = new_db_charset;
+  thd->variables.collation_database = new_db_charset;
 }
-
-
 
 /**
   Backup the current database name before switch.
@@ -1181,26 +1036,20 @@ static void mysql_change_db_impl(THD *thd,
                                   "length" is set to 0.
 */
 
-static void backup_current_db_name(THD *thd,
-                                   LEX_STRING *saved_db_name)
-{
-  if (!thd->db().str)
-  {
+static void backup_current_db_name(THD *thd, LEX_STRING *saved_db_name) {
+  if (!thd->db().str) {
     /* No current (default) database selected. */
 
-    saved_db_name->str= NULL;
-    saved_db_name->length= 0;
-  }
-  else
-  {
+    saved_db_name->str = NULL;
+    saved_db_name->length = 0;
+  } else {
     strmake(saved_db_name->str, thd->db().str, saved_db_name->length - 1);
-    saved_db_name->length= thd->db().length;
+    saved_db_name->length = thd->db().length;
   }
 }
 
-
 /**
-  Return TRUE if db1_name is equal to db2_name, FALSE otherwise.
+  Return true if db1_name is equal to db2_name, false otherwise.
 
   The function allows to compare database names according to the MySQL
   rules. The database names db1 and db2 are equal if:
@@ -1210,26 +1059,22 @@ static void backup_current_db_name(THD *thd,
        db2 in system character set (UTF8).
 */
 
-static inline bool
-cmp_db_names(const char *db1_name,
-             const char *db2_name)
-{
+static inline bool cmp_db_names(const char *db1_name, const char *db2_name) {
   return
-         /* db1 is NULL and db2 is NULL */
-         (!db1_name && !db2_name) ||
+      /* db1 is NULL and db2 is NULL */
+      (!db1_name && !db2_name) ||
 
-         /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
-         (db1_name && db2_name &&
-         my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
+      /* db1 is not-NULL, db2 is not-NULL, db1 == db2. */
+      (db1_name && db2_name &&
+       my_strcasecmp(system_charset_info, db1_name, db2_name) == 0);
 }
-
 
 /**
   @brief Change the current database and its attributes unconditionally.
 
   @param thd          thread handle
   @param new_db_name  database name
-  @param force_switch if force_switch is FALSE, then the operation will fail if
+  @param force_switch if force_switch is false, then the operation will fail if
 
                         - new_db_name is NULL or empty;
 
@@ -1240,7 +1085,7 @@ cmp_db_names(const char *db1_name,
 
                         - OR new database does not exist;
 
-                      if force_switch is TRUE, then
+                      if force_switch is true, then
 
                         - if new_db_name is NULL or empty, the current
                           database will be NULL, @@collation_database will
@@ -1287,28 +1132,24 @@ cmp_db_names(const char *db1_name,
 */
 
 bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
-                     bool force_switch)
-{
+                     bool force_switch) {
   LEX_STRING new_db_file_name;
   LEX_CSTRING new_db_file_name_cstr;
 
-  Security_context *sctx= thd->security_context();
-  ulong db_access= sctx->current_db_access();
-  const CHARSET_INFO *db_default_cl= NULL;
+  Security_context *sctx = thd->security_context();
+  ulong db_access = sctx->current_db_access();
+  const CHARSET_INFO *db_default_cl = NULL;
 
   // We must make sure the schema is released and unlocked in the right order.
   dd::Schema_MDL_locker mdl_handler(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
-  const dd::Schema *schema= nullptr;
+  const dd::Schema *schema = nullptr;
 
   DBUG_ENTER("mysql_change_db");
-  DBUG_PRINT("enter",("name: '%s'", new_db_name.str));
+  DBUG_PRINT("enter", ("name: '%s'", new_db_name.str));
 
-  if (new_db_name.str == NULL ||
-      new_db_name.length == 0)
-  {
-    if (force_switch)
-    {
+  if (new_db_name.str == NULL || new_db_name.length == 0) {
+    if (force_switch) {
       /*
         This can happen only if we're switching the current database back
         after loading stored program. The thing is that loading of stored
@@ -1322,17 +1163,14 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
       mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
 
       goto done;
-    }
-    else
-    {
+    } else {
       my_error(ER_NO_DB_ERROR, MYF(0));
 
       DBUG_RETURN(true);
     }
   }
 
-  if (is_infoschema_db(new_db_name.str, new_db_name.length))
-  {
+  if (is_infoschema_db(new_db_name.str, new_db_name.length)) {
     /* Switch the current database to INFORMATION_SCHEMA. */
 
     mysql_change_db_impl(thd, to_lex_cstring(INFORMATION_SCHEMA_NAME),
@@ -1347,13 +1185,11 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     TODO: fix check_db_name().
   */
 
-  new_db_file_name.str= my_strndup(key_memory_THD_db,
-                                   new_db_name.str, new_db_name.length,
-                                   MYF(MY_WME));
-  new_db_file_name.length= new_db_name.length;
+  new_db_file_name.str = my_strndup(key_memory_THD_db, new_db_name.str,
+                                    new_db_name.length, MYF(MY_WME));
+  new_db_file_name.length = new_db_name.length;
 
-  if (new_db_file_name.str == NULL)
-    DBUG_RETURN(true);                             /* the error is set */
+  if (new_db_file_name.str == NULL) DBUG_RETURN(true); /* the error is set */
 
   /*
     NOTE: if check_db_name() fails, we should throw an error in any case,
@@ -1365,68 +1201,53 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
   */
 
   if (check_and_convert_db_name(&new_db_file_name, false) !=
-      Ident_name_check::OK)
-  {
+      Ident_name_check::OK) {
     my_free(new_db_file_name.str);
 
     if (force_switch)
       mysql_change_db_impl(thd, NULL_CSTR, 0, thd->variables.collation_server);
     DBUG_RETURN(true);
   }
-  new_db_file_name_cstr.str= new_db_file_name.str;
-  new_db_file_name_cstr.length= new_db_file_name.length;
-  DBUG_PRINT("info",("Use database: %s", new_db_file_name.str));
+  new_db_file_name_cstr.str = new_db_file_name.str;
+  new_db_file_name_cstr.length = new_db_file_name.length;
+  DBUG_PRINT("info", ("Use database: %s", new_db_file_name.str));
 
-  if (sctx->get_active_roles()->size() == 0)
-  {
-    db_access= sctx->check_access(DB_ACLS) ?
-      DB_ACLS :
-      acl_get(thd, sctx->host().str,
-              sctx->ip().str,
-              sctx->priv_user().str,
-              new_db_file_name.str,
-              false) | sctx->master_access();
-  }
-  else
-  {
-    db_access= sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
+  if (sctx->get_active_roles()->size() == 0) {
+    db_access =
+        sctx->check_access(DB_ACLS)
+            ? DB_ACLS
+            : acl_get(thd, sctx->host().str, sctx->ip().str,
+                      sctx->priv_user().str, new_db_file_name.str, false) |
+                  sctx->master_access();
+  } else {
+    db_access = sctx->db_acl(new_db_file_name_cstr) | sctx->master_access();
   }
 
-  if (!force_switch &&
-      !(db_access & DB_ACLS) &&
-      check_grant_db(thd, new_db_file_name.str))
-  {
-    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
-             sctx->priv_user().str,
-             sctx->priv_host().str,
-             new_db_file_name.str);
-    query_logger.general_log_print(thd, COM_INIT_DB,
-                                   ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
-                                   sctx->priv_user().str,
-                                   sctx->priv_host().str,
-                                   new_db_file_name.str);
+  if (!force_switch && !(db_access & DB_ACLS) &&
+      check_grant_db(thd, new_db_file_name.str)) {
+    my_error(ER_DBACCESS_DENIED_ERROR, MYF(0), sctx->priv_user().str,
+             sctx->priv_host().str, new_db_file_name.str);
+    query_logger.general_log_print(
+        thd, COM_INIT_DB, ER_DEFAULT(ER_DBACCESS_DENIED_ERROR),
+        sctx->priv_user().str, sctx->priv_host().str, new_db_file_name.str);
     my_free(new_db_file_name.str);
     DBUG_RETURN(true);
   }
 
   if (mdl_handler.ensure_locked(new_db_file_name.str) ||
-      thd->dd_client()->acquire(new_db_file_name.str, &schema))
-  {
+      thd->dd_client()->acquire(new_db_file_name.str, &schema)) {
     my_free(new_db_file_name.str);
     DBUG_RETURN(true);
   }
 
   DEBUG_SYNC(thd, "acquired_schema_while_getting_collation");
 
-  if (schema == nullptr)
-  {
-    if (force_switch)
-    {
+  if (schema == nullptr) {
+    if (force_switch) {
       /* Throw a warning and free new_db_file_name. */
 
-      push_warning_printf(thd, Sql_condition::SL_NOTE,
-                          ER_BAD_DB_ERROR, ER_THD(thd, ER_BAD_DB_ERROR),
-                          new_db_file_name.str);
+      push_warning_printf(thd, Sql_condition::SL_NOTE, ER_BAD_DB_ERROR,
+                          ER_THD(thd, ER_BAD_DB_ERROR), new_db_file_name.str);
 
       my_free(new_db_file_name.str);
 
@@ -1435,9 +1256,7 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
 
       /* The operation succeed. */
       goto done;
-    }
-    else
-    {
+    } else {
       /* Report an error and free new_db_file_name. */
 
       my_error(ER_BAD_DB_ERROR, MYF(0), new_db_file_name.str);
@@ -1449,14 +1268,13 @@ bool mysql_change_db(THD *thd, const LEX_CSTRING &new_db_name,
     }
   }
 
-  if (get_default_db_collation(*schema, &db_default_cl))
-  {
+  if (get_default_db_collation(*schema, &db_default_cl)) {
     my_free(new_db_file_name.str);
     DBUG_ASSERT(thd->is_error() || thd->killed);
     DBUG_RETURN(true);
   }
 
-  db_default_cl= db_default_cl ? db_default_cl : thd->collation();
+  db_default_cl = db_default_cl ? db_default_cl : thd->collation();
   /*
     NOTE: in mysql_change_db_impl() new_db_file_name is assigned to THD
     attributes and will be freed in THD::~THD().
@@ -1467,17 +1285,18 @@ done:
   /*
     Check if current database tracker is enabled. If so, set the 'changed' flag.
   */
-  if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
-  {
-    LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
-    dummy.length= dummy.length*1;
-    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(thd, &dummy);
+  if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled()) {
+    LEX_CSTRING dummy = {C_STRING_WITH_LEN("")};
+    dummy.length = dummy.length * 1;
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)
+        ->mark_as_changed(thd, &dummy);
   }
-  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
-    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(thd, NULL);
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+          ->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)
+        ->mark_as_changed(thd, NULL);
   DBUG_RETURN(false);
 }
-
 
 /**
   Change the current database and its attributes if needed.
@@ -1499,16 +1318,12 @@ done:
                                   the function suceeded)
 */
 
-bool mysql_opt_change_db(THD *thd,
-                         const LEX_CSTRING &new_db_name,
-                         LEX_STRING *saved_db_name,
-                         bool force_switch,
-                         bool *cur_db_changed)
-{
-  *cur_db_changed= !cmp_db_names(thd->db().str, new_db_name.str);
+bool mysql_opt_change_db(THD *thd, const LEX_CSTRING &new_db_name,
+                         LEX_STRING *saved_db_name, bool force_switch,
+                         bool *cur_db_changed) {
+  *cur_db_changed = !cmp_db_names(thd->db().str, new_db_name.str);
 
-  if (!*cur_db_changed)
-    return FALSE;
+  if (!*cur_db_changed) return false;
 
   backup_current_db_name(thd, saved_db_name);
 

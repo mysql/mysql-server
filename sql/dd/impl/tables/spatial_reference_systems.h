@@ -40,13 +40,11 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Spatial_reference_systems : public Entity_object_table_impl
-{
-public:
+class Spatial_reference_systems : public Entity_object_table_impl {
+ public:
   static const Spatial_reference_systems &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_CATALOG_ID,
     FIELD_NAME,
@@ -59,25 +57,20 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_CATALOG_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_CATALOG_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_UK_CATALOG_ID_ORG_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_CATALOG_ID
-  };
+  enum enum_foreign_keys { FK_CATALOG_ID };
 
   Spatial_reference_systems();
 
-  virtual Spatial_reference_system*
-    create_entity_object(const Raw_record &) const;
+  virtual Spatial_reference_system *create_entity_object(
+      const Raw_record &) const;
 
-  static bool update_object_key(Item_name_key *key,
-                                Object_id catalog_id,
+  static bool update_object_key(Item_name_key *key, Object_id catalog_id,
                                 const String_type &name);
 
   static Object_key *create_key_by_catalog_id(Object_id catalog_id);
@@ -85,7 +78,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__SPATIAL_REFERENCE_SYSTEMS_INCLUDED
+#endif  // DD_TABLES__SPATIAL_REFERENCE_SYSTEMS_INCLUDED

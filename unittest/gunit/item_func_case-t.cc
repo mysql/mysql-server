@@ -30,13 +30,9 @@ namespace item_func_case_unittest {
 
 using my_testing::Server_initializer;
 
-class ItemFuncCaseTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
-    initializer.SetUp();
-  }
+class ItemFuncCaseTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() { initializer.SetUp(); }
 
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -46,7 +42,7 @@ protected:
 };
 
 /*
-  Bug#21381060 
+  Bug#21381060
   A "CASE WHEN" EXPRESSION WITH NULL AND AN UNSIGNED TYPE GIVES A SIGNED RESULT
 
   Original test case:
@@ -58,15 +54,14 @@ protected:
 
   This unit test verifies that the bug is fixed in 5.7 and up.
 */
-TEST_F(ItemFuncCaseTest, CaseWhenElseNull)
-{
-  Item_int *int_one= new Item_int(1);
-  Item_int *int_n= new Item_int(180ULL);
+TEST_F(ItemFuncCaseTest, CaseWhenElseNull) {
+  Item_int *int_one = new Item_int(1);
+  Item_int *int_n = new Item_int(180ULL);
   List<Item> list;
   list.push_back(int_one);
   list.push_back(int_n);
-  Item_func_case *item_case=
-    new Item_func_case(POS(), list, NULL, new Item_null());
+  Item_func_case *item_case =
+      new Item_func_case(POS(), list, NULL, new Item_null());
   EXPECT_FALSE(item_case->fix_fields(thd(), NULL));
 
   EXPECT_FALSE(int_one->unsigned_flag);
@@ -76,5 +71,4 @@ TEST_F(ItemFuncCaseTest, CaseWhenElseNull)
   EXPECT_TRUE(item_case->unsigned_flag);
 }
 
-
-}
+}  // namespace item_func_case_unittest

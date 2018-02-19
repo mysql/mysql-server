@@ -25,6 +25,7 @@ TempTable C++ unit tests hooked inside CREATE TABLE. */
 
 #include <array>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <thread>
 
@@ -54,7 +55,7 @@ class Chrono {
  public:
   /** Constructor.
   @param[in]	name	chrono's name, used when showing the values */
-  Chrono(const char* name) : m_name(name), m_show_from_destructor(true) {
+  Chrono(const char *name) : m_name(name), m_show_from_destructor(true) {
     reset();
   }
 
@@ -113,7 +114,7 @@ class Chrono {
 
  private:
   /** Name of this chronometer. */
-  const char* m_name;
+  const char *m_name;
 
   /** True if the current timings should be printed by the destructor. */
   bool m_show_from_destructor;
@@ -125,7 +126,7 @@ class Chrono {
   struct timeval m_tv;
 };
 
-Test::Test(handlerton* hton, TABLE_SHARE* mysql_table_share, TABLE* mysql_table)
+Test::Test(handlerton *hton, TABLE_SHARE *mysql_table_share, TABLE *mysql_table)
     : m_hton(hton),
       m_mysql_table_share(mysql_table_share),
       m_mysql_table(mysql_table) {}
@@ -376,7 +377,7 @@ void Test::create_and_drop() {
 void Test::scan_empty() {
   Handler h(m_hton, m_mysql_table_share);
 
-  static const char* table_name = "test_scan_empty";
+  static const char *table_name = "test_scan_empty";
 
   ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
@@ -396,7 +397,7 @@ void Test::scan_empty() {
 void Test::scan_hash_index() {
   Handler h(m_hton, m_mysql_table_share);
 
-  static const char* table_name = "test_scan_hash_index";
+  static const char *table_name = "test_scan_hash_index";
 
   ut_a(h.create(table_name, m_mysql_table, nullptr, nullptr) == 0);
 
@@ -419,7 +420,7 @@ void Test::scan_hash_index() {
   ut_a(h.index_init(0, true /* ignored */) == 0);
 
   ut_a(h.index_read(m_mysql_table->record[0], row1 + 1, row_len - 1,
-                     HA_READ_KEY_EXACT) == 0);
+                    HA_READ_KEY_EXACT) == 0);
   ut_a(memcmp(m_mysql_table->record[0], row1, row_len) == 0);
 
   /* This could return either success or not found because hash indexes do not

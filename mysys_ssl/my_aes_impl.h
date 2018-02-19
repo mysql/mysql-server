@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /**
   @file mysys_ssl/my_aes_impl.h
 */
@@ -36,7 +35,5 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 extern uint *my_aes_opmode_key_sizes;
 
-
-void my_aes_create_key(const unsigned char *key, uint key_length,
-                       uint8 *rkey, enum my_aes_opmode opmode);
-
+void my_aes_create_key(const unsigned char *key, uint key_length, uint8 *rkey,
+                       enum my_aes_opmode opmode);

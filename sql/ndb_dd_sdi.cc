@@ -27,6 +27,7 @@
 
 // Using
 #include "my_rapidjson_size_t.h"    // IWYU pragma: keep
+
 #include <rapidjson/document.h>     // rapidjson::Document
 #include <rapidjson/writer.h>       // rapidjson::Writer
 #include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter

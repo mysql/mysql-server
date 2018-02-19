@@ -22,7 +22,7 @@
 
 # Build comp_sql - used for embedding SQL in C or C++ programs
 IF(NOT CMAKE_CROSSCOMPILING)
- MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.c SKIP_INSTALL)
+ MYSQL_ADD_EXECUTABLE(comp_sql comp_sql.cc SKIP_INSTALL)
  TARGET_LINK_LIBRARIES(comp_sql)
 ENDIF()
 

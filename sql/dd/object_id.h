@@ -33,10 +33,10 @@ typedef unsigned long long Object_id;
   The default object ID which represents that the DD object is
   new and not persistent in dictionary tables yet.
 */
-const Object_id INVALID_OBJECT_ID= (Object_id) -1;
+const Object_id INVALID_OBJECT_ID = (Object_id)-1;
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__OBJECT_ID_INCLUDED
+#endif  // DD__OBJECT_ID_INCLUDED

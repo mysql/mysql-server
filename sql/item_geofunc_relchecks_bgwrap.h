@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,15 +34,16 @@
   @tparam Geom_types Geometry types definitions.
 */
 
+#include <stddef.h>
 #include <string.h>  // Boost expects ::memset to be already present.
+#include <set>
 #include <string>  // Boost expects std::string to be already present.
+#include <vector>
+
 #include <boost/geometry/algorithms/crosses.hpp>
 #include <boost/geometry/algorithms/intersects.hpp>
 #include <boost/geometry/algorithms/touches.hpp>
 #include <boost/geometry/algorithms/within.hpp>
-#include <stddef.h>
-#include <set>
-#include <vector>
 
 #include "my_inttypes.h"
 #include "my_sys.h"
@@ -52,10 +53,9 @@
 class Geometry;
 struct bgpt_lt;
 
-template<typename Geom_types>
+template <typename Geom_types>
 class BG_wrap {
-public:
-
+ public:
   typedef typename Geom_types::Point Point;
   typedef typename Geom_types::Linestring Linestring;
   typedef typename Geom_types::Polygon Polygon;
@@ -135,11 +135,11 @@ public:
   static int multipolygon_touches_geometry(Geometry *g1, Geometry *g2,
                                            bool *pnull_value);
 
-private:
-  template<typename Geom_type>
+ private:
+  template <typename Geom_type>
   static int multipoint_disjoint_geometry_internal(const Multipoint &mpts1,
                                                    const Geom_type &geom);
-  template<typename Geom_type>
+  template <typename Geom_type>
   static int multipoint_disjoint_multi_geometry(const Multipoint &mpts,
                                                 const Geom_type &geom);
   template <typename GeomType>
@@ -147,8 +147,7 @@ private:
                                                  const GeomType &geom);
   static int multipoint_within_multipolygon(const Multipoint &mpts,
                                             const Multipolygon &mplgn);
-};// BG_wrap
-
+};  // BG_wrap
 
 /*
   Call a BG function with specified types of operands. We have to create
@@ -156,22 +155,20 @@ private:
   parsed, so not suitable for BG to use. geo1 will share the same copy of WKB
   data with g1, also true for geo2.
  */
-#define BGCALL(res, bgfunc, GeoType1, g1, GeoType2, g2, pnullval) do {  \
-  const void *pg1= g1->normalize_ring_order();                          \
-  const void *pg2= g2->normalize_ring_order();                          \
-  if (pg1 != NULL && pg2 != NULL)                                       \
-  {                                                                     \
-    GeoType1 geo1(pg1, g1->get_data_size(), g1->get_flags(),            \
-                  g1->get_srid());                                      \
-    GeoType2 geo2(pg2, g2->get_data_size(), g2->get_flags(),            \
-                  g2->get_srid());                                      \
-    res= boost::geometry::bgfunc(geo1, geo2);                           \
-  }                                                                     \
-  else                                                                  \
-  {                                                                     \
-    my_error(ER_GIS_INVALID_DATA, MYF(0), "st_" #bgfunc);               \
-    (*(pnullval))= 1;                                                   \
-  }                                                                     \
-} while (0)
+#define BGCALL(res, bgfunc, GeoType1, g1, GeoType2, g2, pnullval) \
+  do {                                                            \
+    const void *pg1 = g1->normalize_ring_order();                 \
+    const void *pg2 = g2->normalize_ring_order();                 \
+    if (pg1 != NULL && pg2 != NULL) {                             \
+      GeoType1 geo1(pg1, g1->get_data_size(), g1->get_flags(),    \
+                    g1->get_srid());                              \
+      GeoType2 geo2(pg2, g2->get_data_size(), g2->get_flags(),    \
+                    g2->get_srid());                              \
+      res = boost::geometry::bgfunc(geo1, geo2);                  \
+    } else {                                                      \
+      my_error(ER_GIS_INVALID_DATA, MYF(0), "st_" #bgfunc);       \
+      (*(pnullval)) = 1;                                          \
+    }                                                             \
+  } while (0)
 
 #endif  // ITEM_GEOFUNC_BGWRAP_INCLUDED

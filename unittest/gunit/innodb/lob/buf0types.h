@@ -29,6 +29,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 
-typedef byte    buf_frame_t;
+typedef byte buf_frame_t;
 
-#endif // _buf0types_h_
+#endif  // _buf0types_h_

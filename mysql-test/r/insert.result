@@ -1,7 +1,5 @@
 drop table if exists t1,t2,t3;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t1 (a int not null);
 insert into t1 values (1);
 insert into t1 values (a+2);
@@ -644,8 +642,6 @@ DROP TABLE t1;
 # Bug#11745889 Traditional: INSERT accepts invalid date from default val
 #
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
 INSERT INTO default_date VALUES();
 INSERT INTO default_date VALUES(DEFAULT);
@@ -909,10 +905,8 @@ INSERT INTO table_stations VALUES ('87654321','XXXX','YY');
 CREATE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW view_stations AS select table_stations.mexs_id AS mexs_id, table_stations.icao AS icao, table_stations.country AS landescode from (table_stations join table_countries on((table_stations.country = table_countries.country)));
 CREATE TABLE table_source ( id varchar(4), datetime TIMESTAMP, PRIMARY KEY (id));
 INSERT INTO  table_source VALUES ('XXXX','2006-07-12 07:50:00');
-SET @orig_sql_mode= @@sql_mode;
-SET sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER user20989@localhost;
 GRANT  SELECT                ON table_source    TO   user20989@localhost;
-SET sql_mode= @orig_sql_mode;
 GRANT  SELECT                ON table_countries TO   user20989@localhost;
 GRANT  SELECT                ON table_stations  TO   user20989@localhost;
 GRANT  SELECT                ON view_stations   TO   user20989@localhost;

@@ -26,10 +26,12 @@
 */
 
 %{
+#include "my_inttypes.h"
 #include "sql/derror.h"
 #include "sql/parse_tree_hints.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_lex_hints.h"
 
 #define NEW_PTN new (thd->mem_root)
@@ -307,70 +309,70 @@ opt_qb_name:
 qb_level_hint:
           SEMIJOIN_HINT '(' opt_qb_name semijoin_strategies ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, SEMIJOIN_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, true, SEMIJOIN_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           NO_SEMIJOIN_HINT '(' opt_qb_name semijoin_strategies ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, FALSE, SEMIJOIN_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, false, SEMIJOIN_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           SUBQUERY_HINT '(' opt_qb_name subquery_strategy ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, SUBQUERY_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, true, SUBQUERY_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_PREFIX_HINT '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_PREFIX_HINT_ENUM, $3);
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, true, JOIN_PREFIX_HINT_ENUM, $3);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_PREFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_PREFIX_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_PREFIX_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_SUFFIX_HINT '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_SUFFIX_HINT_ENUM, $3);
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, true, JOIN_SUFFIX_HINT_ENUM, $3);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_SUFFIX_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_SUFFIX_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_SUFFIX_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_ORDER_HINT '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, TRUE, JOIN_ORDER_HINT_ENUM, $3);
+            $$= NEW_PTN PT_qb_level_hint(NULL_CSTR, true, JOIN_ORDER_HINT_ENUM, $3);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_ORDER_HINT '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_ORDER_HINT_ENUM, $4);
+            $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_ORDER_HINT_ENUM, $4);
             if ($$ == NULL)
               YYABORT; // OOM
           }
           |
           JOIN_FIXED_ORDER_HINT '(' opt_qb_name  ')'
           {
-            $$= NEW_PTN PT_qb_level_hint($3, TRUE, JOIN_FIXED_ORDER_HINT_ENUM, 0);
+            $$= NEW_PTN PT_qb_level_hint($3, true, JOIN_FIXED_ORDER_HINT_ENUM, 0);
             if ($$ == NULL)
               YYABORT; // OOM
           }
@@ -405,27 +407,27 @@ subquery_strategy:
 table_level_hint:
           table_level_hint_type_on '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, TRUE, $1);
+            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, true, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
         | table_level_hint_type_on
           '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_table_level_hint($3, $4, TRUE, $1);
+            $$= NEW_PTN PT_table_level_hint($3, $4, true, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
         | table_level_hint_type_off '(' opt_hint_param_table_list ')'
           {
-            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, FALSE, $1);
+            $$= NEW_PTN PT_table_level_hint(NULL_CSTR, $3, false, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
         | table_level_hint_type_off
           '(' HINT_ARG_QB_NAME opt_hint_param_table_list_empty_qb ')'
           {
-            $$= NEW_PTN PT_table_level_hint($3, $4, FALSE, $1);
+            $$= NEW_PTN PT_table_level_hint($3, $4, false, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
@@ -435,14 +437,14 @@ index_level_hint:
           key_level_hint_type_on
           '(' hint_param_table_ext opt_hint_param_index_list ')'
           {
-            $$= NEW_PTN PT_key_level_hint($3, $4, TRUE, $1);
+            $$= NEW_PTN PT_key_level_hint($3, $4, true, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }
         | key_level_hint_type_off
           '(' hint_param_table_ext opt_hint_param_index_list ')'
           {
-            $$= NEW_PTN PT_key_level_hint($3, $4, FALSE, $1);
+            $$= NEW_PTN PT_key_level_hint($3, $4, false, $1);
             if ($$ == NULL)
               YYABORT; // OOM
           }

@@ -27,24 +27,20 @@
   Comparison functions for floating point values.
 */
 
+#include <cmath>    // std::isnan, std::signbit, std::isinf
+#include <cstdint>  // int64_t, int32_t
+#include <cstdlib>  // std::abs
 
-#include <cmath>        // std::isnan, std::signbit, std::isinf
-#include <cstdint>      // int64_t, int32_t
-#include <cstdlib>      // std::abs
-
-class Float_compare
-{
-private:
-  union Double_t
-  {
+class Float_compare {
+ private:
+  union Double_t {
     Double_t(double value) : double_value(value) {}
 
     int64_t integer_part;
     double double_value;
   };
 
-  union Float_t
-  {
+  union Float_t {
     Float_t(float value) : float_value(value) {}
 
     int32_t integer_part;
@@ -59,8 +55,7 @@ private:
 
     @return  the difference in ULPs between the two values
   */
-  static int32_t get_ulp_diff(float val1, float val2)
-  {
+  static int32_t get_ulp_diff(float val1, float val2) {
     Float_t a(val1);
     Float_t b(val2);
 
@@ -75,14 +70,14 @@ private:
 
     @return  the difference in ULPs between the two values
   */
-  static int64_t get_ulp_diff(double val1, double val2)
-  {
+  static int64_t get_ulp_diff(double val1, double val2) {
     Double_t a(val1);
     Double_t b(val2);
 
     return std::abs(a.integer_part - b.integer_part);
   }
-public:
+
+ public:
   /*
     Compare floating point values for "almost equal".
 
@@ -121,30 +116,26 @@ public:
   */
   template <class T>
   static bool almost_equal(T val1, T val2,
-                           decltype(get_ulp_diff(val1, val2)) max_ulp_diff= 4)
-  {
+                           decltype(get_ulp_diff(val1,
+                                                 val2)) max_ulp_diff = 4) {
     /*
       According to IEEE standard, any comparison involving a NaN must return
       false.
     */
-    if (std::isnan(val1) || std::isnan(val2))
-      return false;
+    if (std::isnan(val1) || std::isnan(val2)) return false;
 
     // If the numbers have different signs, they are not equal.
-    if (std::signbit(val1) != std::signbit(val2))
-    {
+    if (std::signbit(val1) != std::signbit(val2)) {
       //...but check for equality, since we should consider -0.0 equal to 0.0.
       return val1 == val2;
     }
 
     // Infinity should not be equal to any other than itself.
-    if (std::isinf(val1) != std::isinf(val2))
-      return false;
+    if (std::isinf(val1) != std::isinf(val2)) return false;
 
     // Find the difference in ULPs.
-    const auto ulp_diff= get_ulp_diff(val1, val2);
-    if (ulp_diff < max_ulp_diff)
-      return true;
+    const auto ulp_diff = get_ulp_diff(val1, val2);
+    if (ulp_diff < max_ulp_diff) return true;
     return false;
   }
 };

@@ -62,42 +62,32 @@ PFS_ALIGNED PFS_events_stages *events_stages_history_long_array = NULL;
   Initialize table EVENTS_STAGES_HISTORY_LONG.
   @param events_stages_history_long_sizing       table sizing
 */
-int
-init_events_stages_history_long(uint events_stages_history_long_sizing)
-{
+int init_events_stages_history_long(uint events_stages_history_long_sizing) {
   events_stages_history_long_size = events_stages_history_long_sizing;
   events_stages_history_long_full = false;
   events_stages_history_long_index.m_u32.store(0);
 
-  if (events_stages_history_long_size == 0)
-  {
+  if (events_stages_history_long_size == 0) {
     return 0;
   }
 
-  events_stages_history_long_array =
-    PFS_MALLOC_ARRAY(&builtin_memory_stages_history_long,
-                     events_stages_history_long_size,
-                     sizeof(PFS_events_stages),
-                     PFS_events_stages,
-                     MYF(MY_ZEROFILL));
+  events_stages_history_long_array = PFS_MALLOC_ARRAY(
+      &builtin_memory_stages_history_long, events_stages_history_long_size,
+      sizeof(PFS_events_stages), PFS_events_stages, MYF(MY_ZEROFILL));
 
   return (events_stages_history_long_array ? 0 : 1);
 }
 
 /** Cleanup table EVENTS_STAGES_HISTORY_LONG. */
-void
-cleanup_events_stages_history_long(void)
-{
+void cleanup_events_stages_history_long(void) {
   PFS_FREE_ARRAY(&builtin_memory_stages_history_long,
-                 events_stages_history_long_size,
-                 sizeof(PFS_events_stages),
+                 events_stages_history_long_size, sizeof(PFS_events_stages),
                  events_stages_history_long_array);
   events_stages_history_long_array = NULL;
 }
 
-static inline void
-copy_events_stages(PFS_events_stages *dest, const PFS_events_stages *source)
-{
+static inline void copy_events_stages(PFS_events_stages *dest,
+                                      const PFS_events_stages *source) {
   memcpy(dest, source, sizeof(PFS_events_stages));
 }
 
@@ -106,11 +96,9 @@ copy_events_stages(PFS_events_stages *dest, const PFS_events_stages *source)
   @param thread             thread that executed the wait
   @param stage              record to insert
 */
-void
-insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
-{
-  if (unlikely(events_stages_history_per_thread == 0))
-  {
+void insert_events_stages_history(PFS_thread *thread,
+                                  PFS_events_stages *stage) {
+  if (unlikely(events_stages_history_per_thread == 0)) {
     return;
   }
 
@@ -129,8 +117,7 @@ insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
   copy_events_stages(&thread->m_stages_history[index], stage);
 
   index++;
-  if (index >= events_stages_history_per_thread)
-  {
+  if (index >= events_stages_history_per_thread) {
     index = 0;
     thread->m_stages_history_full = true;
   }
@@ -141,11 +128,8 @@ insert_events_stages_history(PFS_thread *thread, PFS_events_stages *stage)
   Insert a stage record in table EVENTS_STAGES_HISTORY_LONG.
   @param stage              record to insert
 */
-void
-insert_events_stages_history_long(PFS_events_stages *stage)
-{
-  if (unlikely(events_stages_history_long_size == 0))
-  {
+void insert_events_stages_history_long(PFS_events_stages *stage) {
+  if (unlikely(events_stages_history_long_size == 0)) {
     return;
   }
 
@@ -154,8 +138,7 @@ insert_events_stages_history_long(PFS_events_stages *stage)
   uint index = events_stages_history_long_index.m_u32++;
 
   index = index % events_stages_history_long_size;
-  if (index == 0)
-  {
+  if (index == 0) {
     events_stages_history_long_full = true;
   }
 
@@ -163,58 +146,44 @@ insert_events_stages_history_long(PFS_events_stages *stage)
   copy_events_stages(&events_stages_history_long_array[index], stage);
 }
 
-static void
-fct_reset_events_stages_current(PFS_thread *pfs)
-{
+static void fct_reset_events_stages_current(PFS_thread *pfs) {
   pfs->m_stage_current.m_class = NULL;
 }
 
 /** Reset table EVENTS_STAGES_CURRENT data. */
-void
-reset_events_stages_current(void)
-{
+void reset_events_stages_current(void) {
   global_thread_container.apply_all(fct_reset_events_stages_current);
 }
 
-static void
-fct_reset_events_stages_history(PFS_thread *pfs_thread)
-{
+static void fct_reset_events_stages_history(PFS_thread *pfs_thread) {
   PFS_events_stages *pfs = pfs_thread->m_stages_history;
   PFS_events_stages *pfs_last = pfs + events_stages_history_per_thread;
 
   pfs_thread->m_stages_history_index = 0;
   pfs_thread->m_stages_history_full = false;
-  for (; pfs < pfs_last; pfs++)
-  {
+  for (; pfs < pfs_last; pfs++) {
     pfs->m_class = NULL;
   }
 }
 
 /** Reset table EVENTS_STAGES_HISTORY data. */
-void
-reset_events_stages_history(void)
-{
+void reset_events_stages_history(void) {
   global_thread_container.apply_all(fct_reset_events_stages_history);
 }
 
 /** Reset table EVENTS_STAGES_HISTORY_LONG data. */
-void
-reset_events_stages_history_long(void)
-{
+void reset_events_stages_history_long(void) {
   events_stages_history_long_index.m_u32.store(0);
   events_stages_history_long_full = false;
 
   PFS_events_stages *pfs = events_stages_history_long_array;
   PFS_events_stages *pfs_last = pfs + events_stages_history_long_size;
-  for (; pfs < pfs_last; pfs++)
-  {
+  for (; pfs < pfs_last; pfs++) {
     pfs->m_class = NULL;
   }
 }
 
-static void
-fct_reset_events_stages_by_thread(PFS_thread *thread)
-{
+static void fct_reset_events_stages_by_thread(PFS_thread *thread) {
   PFS_account *account = sanitize_account(thread->m_account);
   PFS_user *user = sanitize_user(thread->m_user);
   PFS_host *host = sanitize_host(thread->m_host);
@@ -222,62 +191,45 @@ fct_reset_events_stages_by_thread(PFS_thread *thread)
 }
 
 /** Reset table EVENTS_STAGES_SUMMARY_BY_THREAD_BY_EVENT_NAME data. */
-void
-reset_events_stages_by_thread()
-{
+void reset_events_stages_by_thread() {
   global_thread_container.apply(fct_reset_events_stages_by_thread);
 }
 
-static void
-fct_reset_events_stages_by_account(PFS_account *pfs)
-{
+static void fct_reset_events_stages_by_account(PFS_account *pfs) {
   PFS_user *user = sanitize_user(pfs->m_user);
   PFS_host *host = sanitize_host(pfs->m_host);
   pfs->aggregate_stages(user, host);
 }
 
 /** Reset table EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME data. */
-void
-reset_events_stages_by_account()
-{
+void reset_events_stages_by_account() {
   global_account_container.apply(fct_reset_events_stages_by_account);
 }
 
-static void
-fct_reset_events_stages_by_user(PFS_user *pfs)
-{
+static void fct_reset_events_stages_by_user(PFS_user *pfs) {
   pfs->aggregate_stages();
 }
 
 /** Reset table EVENTS_STAGES_SUMMARY_BY_USER_BY_EVENT_NAME data. */
-void
-reset_events_stages_by_user()
-{
+void reset_events_stages_by_user() {
   global_user_container.apply(fct_reset_events_stages_by_user);
 }
 
-static void
-fct_reset_events_stages_by_host(PFS_host *pfs)
-{
+static void fct_reset_events_stages_by_host(PFS_host *pfs) {
   pfs->aggregate_stages();
 }
 
 /** Reset table EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME data. */
-void
-reset_events_stages_by_host()
-{
+void reset_events_stages_by_host() {
   global_host_container.apply(fct_reset_events_stages_by_host);
 }
 
 /** Reset table EVENTS_STAGES_GLOBAL_BY_EVENT_NAME data. */
-void
-reset_events_stages_global()
-{
+void reset_events_stages_global() {
   PFS_stage_stat *stat = global_instr_class_stages_array;
   PFS_stage_stat *stat_last = global_instr_class_stages_array + stage_class_max;
 
-  for (; stat < stat_last; stat++)
-  {
+  for (; stat < stat_last; stat++) {
     stat->reset();
   }
 }

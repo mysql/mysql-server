@@ -39,94 +39,100 @@
 
 #include "my_thread_local.h"
 
-int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp,
-                   const char *file, uint line)
-{
+int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp, const char *file,
+                   uint line) {
   int error;
   native_mutex_lock(&mp->global);
-  if (mp->count == 0)
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait on a unlocked mutex at %s, line %d\n",file,line);
+  if (mp->count == 0) {
+    fprintf(
+        stderr,
+        "safe_mutex: Trying to cond_wait on a unlocked mutex at %s, line %d\n",
+        file, line);
     fflush(stderr);
     abort();
   }
-  if (!my_thread_equal(my_thread_self(),mp->thread))
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait on a mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
-	    file,line,mp->file,mp->line);
+  if (!my_thread_equal(my_thread_self(), mp->thread)) {
+    fprintf(stderr,
+            "safe_mutex: Trying to cond_wait on a mutex at %s, line %d  that "
+            "was locked by another thread at: %s, line: %d\n",
+            file, line, mp->file, mp->line);
     fflush(stderr);
     abort();
   }
 
-  if (mp->count-- != 1)
-  {
-    fprintf(stderr,"safe_mutex:  Count was %d on locked mutex at %s, line %d\n",
-	    mp->count+1, file, line);
+  if (mp->count-- != 1) {
+    fprintf(stderr,
+            "safe_mutex:  Count was %d on locked mutex at %s, line %d\n",
+            mp->count + 1, file, line);
     fflush(stderr);
     abort();
   }
   native_mutex_unlock(&mp->global);
-  error= native_cond_wait(cond,&mp->mutex);
+  error = native_cond_wait(cond, &mp->mutex);
   native_mutex_lock(&mp->global);
-  if (error)
-  {
-    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_wait at %s, line %d\n", error, errno, file, line);
+  if (error) {
+    fprintf(stderr,
+            "safe_mutex: Got error: %d (%d) when doing a safe_mutex_wait at "
+            "%s, line %d\n",
+            error, errno, file, line);
     fflush(stderr);
     abort();
   }
-  mp->thread= my_thread_self();
-  if (mp->count++)
-  {
+  mp->thread = my_thread_self();
+  if (mp->count++) {
 #ifndef DBUG_OFF
     fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread 0x%x when locking mutex at %s, line %d\n",
-	    mp->count-1, my_thread_var_id(), file, line);
+            "safe_mutex:  Count was %d in thread 0x%x when locking mutex at "
+            "%s, line %d\n",
+            mp->count - 1, my_thread_var_id(), file, line);
     fflush(stderr);
 #endif
     abort();
   }
-  mp->file= file;
-  mp->line=line;
+  mp->file = file;
+  mp->line = line;
   native_mutex_unlock(&mp->global);
   return error;
 }
 
-
 int safe_cond_timedwait(native_cond_t *cond, safe_mutex_t *mp,
-                        const struct timespec *abstime,
-                        const char *file, uint line)
-{
+                        const struct timespec *abstime, const char *file,
+                        uint line) {
   int error;
   native_mutex_lock(&mp->global);
-  if (mp->count != 1 || !my_thread_equal(my_thread_self(),mp->thread))
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait at %s, line %d on a not hold mutex\n",file,line);
+  if (mp->count != 1 || !my_thread_equal(my_thread_self(), mp->thread)) {
+    fprintf(
+        stderr,
+        "safe_mutex: Trying to cond_wait at %s, line %d on a not hold mutex\n",
+        file, line);
     fflush(stderr);
     abort();
   }
-  mp->count--;					/* Mutex will be released */
+  mp->count--; /* Mutex will be released */
   native_mutex_unlock(&mp->global);
-  error= native_cond_timedwait(cond,&mp->mutex,abstime);
+  error = native_cond_timedwait(cond, &mp->mutex, abstime);
 #ifdef EXTRA_DEBUG
-  if (error != 0 && error != EINTR && !is_timeout(error))
-  {
-    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_cond_timedwait at %s, line %d\n", error, errno, file, line);
+  if (error != 0 && error != EINTR && !is_timeout(error)) {
+    fprintf(stderr,
+            "safe_mutex: Got error: %d (%d) when doing a safe_cond_timedwait "
+            "at %s, line %d\n",
+            error, errno, file, line);
   }
 #endif
   native_mutex_lock(&mp->global);
-  mp->thread= my_thread_self();
-  if (mp->count++)
-  {
+  mp->thread = my_thread_self();
+  if (mp->count++) {
 #ifndef DBUG_OFF
     fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread 0x%x when locking mutex at %s, line %d (error: %d (%d))\n",
-	    mp->count-1, my_thread_var_id(), file, line, error, error);
+            "safe_mutex:  Count was %d in thread 0x%x when locking mutex at "
+            "%s, line %d (error: %d (%d))\n",
+            mp->count - 1, my_thread_var_id(), file, line, error, error);
     fflush(stderr);
 #endif
     abort();
   }
-  mp->file= file;
-  mp->line=line;
+  mp->file = file;
+  mp->line = line;
   native_mutex_unlock(&mp->global);
   return error;
 }

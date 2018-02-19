@@ -33,34 +33,25 @@
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_instr.h"
 
-ha_rows
-cursor_by_thread::get_row_count(void)
-{
+ha_rows cursor_by_thread::get_row_count(void) {
   return global_thread_container.get_row_count();
 }
 
 cursor_by_thread::cursor_by_thread(const PFS_engine_table_share *share)
-  : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0)
-{
-}
+    : PFS_engine_table(share, &m_pos), m_pos(0), m_next_pos(0) {}
 
-void
-cursor_by_thread::reset_position(void)
-{
+void cursor_by_thread::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int
-cursor_by_thread::rnd_next(void)
-{
+int cursor_by_thread::rnd_next(void) {
   PFS_thread *pfs;
 
   m_pos.set_at(&m_next_pos);
   PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
   pfs = it.scan_next(&m_pos.m_index);
-  if (pfs != NULL)
-  {
+  if (pfs != NULL) {
     m_next_pos.set_after(&m_pos);
     return make_row(pfs);
   }
@@ -68,39 +59,30 @@ cursor_by_thread::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-cursor_by_thread::rnd_pos(const void *pos)
-{
+int cursor_by_thread::rnd_pos(const void *pos) {
   PFS_thread *pfs;
 
   set_position(pos);
 
   pfs = global_thread_container.get(m_pos.m_index);
-  if (pfs != NULL)
-  {
+  if (pfs != NULL) {
     return make_row(pfs);
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int
-cursor_by_thread::index_next()
-{
+int cursor_by_thread::index_next() {
   PFS_thread *pfs;
 
   m_pos.set_at(&m_next_pos);
   PFS_thread_iterator it = global_thread_container.iterate(m_pos.m_index);
 
-  do
-  {
+  do {
     pfs = it.scan_next(&m_pos.m_index);
-    if (pfs != NULL)
-    {
-      if (m_opened_index->match(pfs))
-      {
-        if (!make_row(pfs))
-        {
+    if (pfs != NULL) {
+      if (m_opened_index->match(pfs)) {
+        if (!make_row(pfs)) {
           m_next_pos.set_after(&m_pos);
           return 0;
         }

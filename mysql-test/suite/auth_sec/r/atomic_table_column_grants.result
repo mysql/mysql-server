@@ -41,144 +41,18 @@ GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
-# Case 2 : Create new users through grant
-GRANT INSERT, DELETE ON db1.table1 TO userX, userY, userZ, userA IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT INSERT, DELETE ON `db1`.`table1` TO `userA`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT, DELETE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userA.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 3 : With NO_AUTO_CREATE_USER off
-set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set @orig_sql_mode_session= @@SESSION.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT SELECT , UPDATE ON db1.table1 TO userX, userY, userZ, userB;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userB
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userB
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT, INSERT, UPDATE, DELETE ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT, UPDATE ON `db1`.`table1` TO `userB`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userB.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-# Case 4 : Credential change using GRANT
-GRANT INSERT, SELECT ON db1.table1 TO userA IDENTIFIED BY 'hoho', userB IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-# Must show updated grants
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT SELECT, INSERT, DELETE ON `db1`.`table1` TO `userA`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userB`@`%`
-# Must show password for both users
-SHOW CREATE USER userA;
-CREATE USER for userA@%
-CREATE USER 'userA'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-SHOW CREATE USER userB;
-CREATE USER for userB@%
-CREATE USER 'userB'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT, INSERT ON.*db1.*table1.*TO.*userA.*IDENTIFIED WITH.*AS.*userB.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 5 : Non-existing user with NO_AUTO_CREATE_USER on
-REVOKE ALL ON db1.table1 FROM userX, userY, userZ;
-include/save_binlog_position.inc
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT INSERT, UPDATE ON db1.table1 TO userX, userY, userZ, userC, userD;
-ERROR 42000: Can't find any matching row in the user table
-# Grants must remain unchanged
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT INSERT, UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userC.*userD.*)
-include/assert_binlog_events.inc
 # Case 6 : Create new user with an account without CREATE USER privilege
-REVOKE ALL ON db1.table1 FROM userA, userB;
+CREATE USER userA, userB;
 GRANT SELECT ON db1.table1 to userX WITH GRANT OPTION;
 include/save_binlog_position.inc
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
 SHOW GRANTS FOR userA;
 Grants for userA@%
 GRANT USAGE ON *.* TO `userA`@`%`
@@ -188,17 +62,17 @@ GRANT USAGE ON *.* TO `userB`@`%`
 # should succeed
 GRANT SELECT ON db1.table1 TO userY, userZ;
 # should fail
-GRANT SELECT ON db1.table1 TO userA, userB, userC IDENTIFIED BY 'haha';
+GRANT SELECT ON db1.table1 TO userA, userB, userC;
 ERROR 42000: You are not allowed to create a user with GRANT
 # Must show updated grants
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT ON `db1`.`table1` TO `userY`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT ON `db1`.`table1` TO `userZ`@`%`
+GRANT SELECT, INSERT, UPDATE ON `db1`.`table1` TO `userZ`@`%`
 # Must not have any change
 SHOW GRANTS FOR userA;
 Grants for userA@%
@@ -255,144 +129,18 @@ GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`ta
 # This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), UPDATE (.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
-# Case 2 : Create new users through grant
-GRANT INSERT(c2, c3) , REFERENCES(c1, c3) ON db1.table1 TO userX, userY, userZ, userA IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT SELECT, INSERT (`c2`, `c3`), UPDATE, REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userA`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), REFERENCES (.*) ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userA.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 3 : With NO_AUTO_CREATE_USER off
-set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set @orig_sql_mode_session= @@SESSION.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT SELECT(c2, c3), UPDATE(c1, c2) ON db1.table1 TO userX, userY, userZ, userB;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userB
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT (`c1`, `c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c1`, `c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT (`c1`, `c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c1`, `c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT (`c1`, `c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE (`c1`, `c2`, `c3`), REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT (`c2`, `c3`), INSERT, UPDATE (`c1`, `c2`), REFERENCES ON `db1`.`table1` TO `userB`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT (.*), UPDATE (.*).*ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userB.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-# Case 4 : Credential change using GRANT
-GRANT INSERT(c2, c3), SELECT(c1, c2) ON db1.table1 TO userA IDENTIFIED BY 'hoho', userB IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-# Must show updated grants
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT SELECT (`c1`, `c2`), INSERT (`c2`, `c3`), UPDATE, REFERENCES (`c1`, `c3`) ON `db1`.`table1` TO `userA`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT (`c1`, `c2`, `c3`), INSERT (`c2`, `c3`), UPDATE (`c1`, `c2`), REFERENCES ON `db1`.`table1` TO `userB`@`%`
-# Must show password for both users
-SHOW CREATE USER userA;
-CREATE USER for userA@%
-CREATE USER 'userA'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-SHOW CREATE USER userB;
-CREATE USER for userB@%
-CREATE USER 'userB'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT (.*), INSERT (.*) ON.*db1.*table1.*TO.*userA.*IDENTIFIED WITH.*AS.*.*userB.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 5 : Non-existing user with NO_AUTO_CREATE_USER on
-REVOKE ALL ON db1.table1 FROM userX, userY, userZ;
-include/save_binlog_position.inc
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT INSERT(c1, c2), UPDATE(c1, c3) ON db1.table1 TO userX, userY, userZ, userC, userD;
-ERROR 42000: Can't find any matching row in the user table
-# Grants must remain unchanged
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT INSERT (.*), UPDATE (.*) ON.*db1.table1.*TO.*userX.*userY.*userZ.*userC.*userD.*)
-include/assert_binlog_events.inc
 # Case 6 : Create new user with an account without CREATE USER privilege
-REVOKE ALL ON db1.table1 FROM userA, userB;
+CREATE USER userA, userB;
 GRANT SELECT(c1, c3) ON db1.table1 to userX WITH GRANT OPTION;
 include/save_binlog_position.inc
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
 SHOW GRANTS FOR userA;
 Grants for userA@%
 GRANT USAGE ON *.* TO `userA`@`%`
@@ -402,17 +150,17 @@ GRANT USAGE ON *.* TO `userB`@`%`
 # should succeed
 GRANT SELECT(c1) ON db1.table1 TO userY, userZ;
 # should fail
-GRANT SELECT(c1) ON db1.table1 TO userA, userB, userC IDENTIFIED BY 'haha';
+GRANT SELECT(c1) ON db1.table1 TO userA, userB, userC;
 ERROR 42000: You are not allowed to create a user with GRANT
 # Must show updated grants
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT (`c1`) ON `db1`.`table1` TO `userY`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT (`c1`) ON `db1`.`table1` TO `userZ`@`%`
+GRANT SELECT (`c1`, `c2`), INSERT (`c1`, `c3`), UPDATE (`c2`, `c3`) ON `db1`.`table1` TO `userZ`@`%`
 # Must not have any change
 SHOW GRANTS FOR userA;
 Grants for userA@%
@@ -469,144 +217,18 @@ GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
 # This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*)
 include/assert_binlog_events.inc
 include/save_binlog_position.inc
-# Case 2 : Create new users through grant
-GRANT INSERT(c2, c3) , REFERENCES ON db1.table1 TO userX, userY, userZ, userA IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT, INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT, INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT, INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT INSERT (`c2`, `c3`), REFERENCES ON `db1`.`table1` TO `userA`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT INSERT (.*), REFERENCES ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userA.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 3 : With NO_AUTO_CREATE_USER off
-set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set @orig_sql_mode_session= @@SESSION.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-GRANT SELECT(c2, c3) , UPDATE ON db1.table1 TO userX, userY, userZ, userB;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-# Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-user
-userA
-userB
-userX
-userY
-userZ
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-GRANT SELECT, SELECT (`c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT, SELECT (`c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT, SELECT (`c2`, `c3`), INSERT (`c1`, `c2`, `c3`), UPDATE, REFERENCES ON `db1`.`table1` TO `userZ`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT (`c2`, `c3`), INSERT, UPDATE ON `db1`.`table1` TO `userB`@`%`
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userB.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-set GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-# Case 4 : Credential change using GRANT
-GRANT INSERT(c2, c3), SELECT ON db1.table1 TO userA IDENTIFIED BY 'hoho', userB IDENTIFIED BY 'haha';
-Warnings:
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
-# Must show updated grants
-SHOW GRANTS FOR userA;
-Grants for userA@%
-GRANT USAGE ON *.* TO `userA`@`%`
-GRANT SELECT, INSERT (`c2`, `c3`), REFERENCES ON `db1`.`table1` TO `userA`@`%`
-SHOW GRANTS FOR userB;
-Grants for userB@%
-GRANT USAGE ON *.* TO `userB`@`%`
-GRANT SELECT, SELECT (`c2`, `c3`), INSERT (`c2`, `c3`), UPDATE ON `db1`.`table1` TO `userB`@`%`
-# Must show password for both users
-SHOW CREATE USER userA;
-CREATE USER for userA@%
-CREATE USER 'userA'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-SHOW CREATE USER userB;
-CREATE USER for userB@%
-CREATE USER 'userB'@'%' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>' REQUIRE NONE PASSWORD EXPIRE DEFAULT ACCOUNT UNLOCK PASSWORD HISTORY DEFAULT PASSWORD REUSE INTERVAL DEFAULT
-# This event sequence pattern MUST be present in binlog: !Q(GRANT SELECT, INSERT (.*) ON.*db1.*table1.*TO.*userA.*IDENTIFIED WITH.*AS.*userB.*IDENTIFIED WITH.*AS.*)
-include/assert_binlog_events.inc
-include/save_binlog_position.inc
-# Case 5 : Non-existing user with NO_AUTO_CREATE_USER on
-REVOKE ALL ON db1.table1 FROM userX, userY, userZ;
-include/save_binlog_position.inc
-# Must show updated grants
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT INSERT(c1, c2), UPDATE ON db1.table1 TO userX, userY, userZ, userC, userD;
-ERROR 42000: Can't find any matching row in the user table
-# Grants must remain unchanged
-SHOW GRANTS FOR userX;
-Grants for userX@%
-GRANT USAGE ON *.* TO `userX`@`%`
-SHOW GRANTS FOR userY;
-Grants for userY@%
-GRANT USAGE ON *.* TO `userY`@`%`
-SHOW GRANTS FOR userZ;
-Grants for userZ@%
-GRANT USAGE ON *.* TO `userZ`@`%`
-# This event sequence pattern MUST NOT be present in binlog: !Q(GRANT INSERT (.*), UPDATE ON.*db1.*table1.*TO.*userX.*userY.*userZ.*userC.*userD.*)
-include/assert_binlog_events.inc
 # Case 6 : Create new user with an account without CREATE USER privilege
-REVOKE ALL ON db1.table1 FROM userA, userB;
+CREATE USER userA, userB;
 GRANT SELECT(c1, c3), INSERT ON db1.table1 to userX WITH GRANT OPTION;
 include/save_binlog_position.inc
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
+GRANT SELECT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
 SHOW GRANTS FOR userA;
 Grants for userA@%
 GRANT USAGE ON *.* TO `userA`@`%`
@@ -616,17 +238,17 @@ GRANT USAGE ON *.* TO `userB`@`%`
 # should succeed
 GRANT SELECT(c1), INSERT ON db1.table1 TO userY, userZ;
 # should fail
-GRANT SELECT(c1), INSERT ON db1.table1 TO userA, userB, userC IDENTIFIED BY 'haha';
+GRANT SELECT(c1), INSERT ON db1.table1 TO userA, userB, userC;
 ERROR 42000: You are not allowed to create a user with GRANT
 # Must show updated grants
 SHOW GRANTS FOR userY;
 Grants for userY@%
 GRANT USAGE ON *.* TO `userY`@`%`
-GRANT SELECT (`c1`), INSERT ON `db1`.`table1` TO `userY`@`%`
+GRANT SELECT, SELECT (`c1`), INSERT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userY`@`%`
 SHOW GRANTS FOR userZ;
 Grants for userZ@%
 GRANT USAGE ON *.* TO `userZ`@`%`
-GRANT SELECT (`c1`), INSERT ON `db1`.`table1` TO `userZ`@`%`
+GRANT SELECT, SELECT (`c1`), INSERT, INSERT (`c1`, `c3`), UPDATE ON `db1`.`table1` TO `userZ`@`%`
 # Must not have any change
 SHOW GRANTS FOR userA;
 Grants for userA@%

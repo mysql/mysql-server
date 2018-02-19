@@ -25,15 +25,13 @@
 namespace dd {
 namespace system_views {
 
-const St_spatial_reference_systems &St_spatial_reference_systems::instance()
-{
-  static St_spatial_reference_systems *s_instance= new
-    St_spatial_reference_systems();
+const St_spatial_reference_systems &St_spatial_reference_systems::instance() {
+  static St_spatial_reference_systems *s_instance =
+      new St_spatial_reference_systems();
   return *s_instance;
 }
 
-St_spatial_reference_systems::St_spatial_reference_systems()
-{
+St_spatial_reference_systems::St_spatial_reference_systems() {
   m_target_def.set_view_name(view_name());
 
   m_target_def.add_field(FIELD_SRS_NAME, "SRS_NAME", "name");
@@ -48,5 +46,5 @@ St_spatial_reference_systems::St_spatial_reference_systems()
   m_target_def.add_from("mysql.st_spatial_reference_systems");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

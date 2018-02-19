@@ -369,13 +369,6 @@ DROP USER u3@localhost;
 --echo # Bug #20814051 CREATE USER BINLOG EVENTS INCLUDE NEW ACCOUNT KEYWORD
 --echo #
 
---echo # test general log with log_builtin_as_identified_by_password ON
-
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-
---echo # SHOW CREATE USER should always show ACCOUNT LOCK clause
-
-SET GLOBAL log_builtin_as_identified_by_password = ON;
 CREATE USER u1 IDENTIFIED BY 'pass';
 --replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
@@ -383,8 +376,6 @@ ALTER USER u1 ACCOUNT LOCK;
 --replace_regex /IDENTIFIED WITH .* AS .* REQUIRE/IDENTIFIED WITH '<default_authentication>' AS '<non-deterministic-password-hash>' REQUIRE/
 SHOW CREATE USER u1;
 DROP USER u1;
-
---echo # restarting the server with log_builtin_as_identified_by_password ON
 
 # Write file to make mysql-test-run.pl wait for the server to stop
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -396,15 +387,13 @@ DROP USER u1;
 -- source include/wait_until_disconnected.inc
 
 --echo # Restart server.
---exec echo "restart:--log-builtin-as-identified-by-password=ON" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
 # Turn on reconnect
 --enable_reconnect
 
 # Call script that will poll the server waiting for it to be back online again
 --source include/wait_until_connected_again.inc
-
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 # make sure we start with a clean slate. log_tables.test says this is OK.
 TRUNCATE TABLE mysql.general_log;
@@ -432,11 +421,6 @@ ALTER USER u1 IDENTIFIED BY 'pass' ACCOUNT UNLOCK;
 --echo #
 
 ALTER USER u2 IDENTIFIED BY 'pass';
-
-CREATE TABLE test_log (argument TEXT);
---replace_result $MYSQLTEST_VARDIR ...
-eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/rewrite_general.log'
-     INTO TABLE test_log FIELDS TERMINATED BY '\n' LINES TERMINATED BY '\n';
 
 --echo Show what is logged:
 --echo ------ rewrite ------

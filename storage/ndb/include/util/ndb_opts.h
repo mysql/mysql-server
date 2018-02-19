@@ -27,7 +27,8 @@
 
 #include <ndb_global.h>
 
-#include "my_sys.h" /* loglevel needed by my_getopt.h */
+#include "my_alloc.h" // MEM_ROOT
+#include "my_sys.h"   // loglevel needed by my_getopt.h
 #include "my_getopt.h"
 
 #ifdef __cplusplus
@@ -173,11 +174,11 @@ public:
   static void release();
 
 private:
+  struct MEM_ROOT opts_mem_root;
   int * main_argc_ptr;
   char *** main_argv_ptr;
   const char ** mycnf_default_groups;
   struct my_option * options;
-  char ** defaults_argv;
   void (*short_usage_fn)(void), (*long_usage_extra_fn)(void);
 };
 

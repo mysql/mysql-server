@@ -26,8 +26,8 @@
 #include <sys/types.h>
 
 #include "my_compiler.h"
-#include "sql/dd/impl/types/object_table_impl.h" // Object_table_impl
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
+#include "sql/dd/impl/types/object_table_impl.h"  // Object_table_impl
+#include "sql/dd/types/entity_object_table.h"     // dd::Entity_object_table
 
 class THD;
 
@@ -42,52 +42,53 @@ class Properties;
 class Raw_record;
 
 class Entity_object_table_impl : public Object_table_impl,
-                                 public Entity_object_table
-{
-public:
-  virtual ~Entity_object_table_impl()
-  { };
+                                 public Entity_object_table {
+ public:
+  virtual ~Entity_object_table_impl(){};
 
-  virtual bool restore_object_from_record(
-    Open_dictionary_tables_ctx *otx,
-    const Raw_record &record,
-    Entity_object **o) const;
+  virtual bool restore_object_from_record(Open_dictionary_tables_ctx *otx,
+                                          const Raw_record &record,
+                                          Entity_object **o) const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Object_table_definition_impl *target_table_definition()
-  { return Object_table_impl::target_table_definition(); }
-
-  virtual const Object_table_definition_impl *target_table_definition() const
-  { return Object_table_impl::target_table_definition(); }
-
-  virtual void set_abandoned(uint last_dd_version) const
-  { return Object_table_impl::set_abandoned(last_dd_version); }
-
-  virtual bool is_abandoned() const
-  { return Object_table_impl::is_abandoned(); }
-
-  virtual const Object_table_definition_impl *actual_table_definition() const
-  { return Object_table_impl::actual_table_definition(); }
-
-  virtual bool set_actual_table_definition(
-    const Properties &table_def_properties) const
-  {
-    return Object_table_impl::set_actual_table_definition(
-            table_def_properties);
+  virtual Object_table_definition_impl *target_table_definition() {
+    return Object_table_impl::target_table_definition();
   }
 
-  virtual bool populate(THD *thd) const
-  { return Object_table_impl::populate(thd); }
+  virtual const Object_table_definition_impl *target_table_definition() const {
+    return Object_table_impl::target_table_definition();
+  }
 
-  virtual bool is_hidden() const
-  { return Object_table_impl::is_hidden(); }
+  virtual void set_abandoned(uint last_dd_version) const {
+    return Object_table_impl::set_abandoned(last_dd_version);
+  }
 
-  virtual void set_hidden(bool hidden)
-  { return Object_table_impl::set_hidden(hidden); }
+  virtual bool is_abandoned() const {
+    return Object_table_impl::is_abandoned();
+  }
+
+  virtual const Object_table_definition_impl *actual_table_definition() const {
+    return Object_table_impl::actual_table_definition();
+  }
+
+  virtual bool set_actual_table_definition(
+      const Properties &table_def_properties) const {
+    return Object_table_impl::set_actual_table_definition(table_def_properties);
+  }
+
+  virtual bool populate(THD *thd) const {
+    return Object_table_impl::populate(thd);
+  }
+
+  virtual bool is_hidden() const { return Object_table_impl::is_hidden(); }
+
+  virtual void set_hidden(bool hidden) {
+    return Object_table_impl::set_hidden(hidden);
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__ENTITY_OBJECT_TABLE_IMPL_INCLUDED
+#endif  // DD__ENTITY_OBJECT_TABLE_IMPL_INCLUDED

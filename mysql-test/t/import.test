@@ -35,10 +35,10 @@ CREATE SCHEMA s2;
 
 --error ER_IMP_SCHEMA_DOES_NOT_EXIST
 IMPORT TABLE FROM 's2/t1*.sdi';
---remove_files_wildcard $MYSQLD_DATADIR/s2/
+--remove_files_wildcard $MYSQLD_DATADIR/s2/ *
 DROP SCHEMA s2;
 --echo # Clean \$EXPORT_DIR
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 
 --echo #
 --echo # IM-NEG-1.1: Verfy that import using relative path to .sdi file
@@ -133,7 +133,7 @@ DROP TABLE t1;
 
 --echo # Clean datadir and \$EXPORT_DIR
 --remove_files_wildcard $MYSQLD_DATADIR/test/ t1*
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 
 --echo #
 --echo # IM-NEG-6: Verify that concurrent use (from other threads)
@@ -181,11 +181,7 @@ open(T1, "t1.sdi");
 open(T1_, ">t1_.sdi");
 while (<T1>)
 {
-  if (/"sdi_version": 1,/)
-  {
-    print T1_ "\"sdi_version\": 42,\n";
-    next;
-  }
+  s/("sdi_version": ?)\d+,/${1}42,/g;
   print T1_ $_;
 }
 close(T1);
@@ -198,7 +194,7 @@ EOF
 --error ER_IMP_INCOMPATIBLE_SDI_VERSION
 IMPORT TABLE FROM 't1_.sdi';
 DROP TABLE t1;
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 --remove_files_wildcard $MYSQLD_DATADIR/test/ t1_.sdi
 
 
@@ -364,12 +360,8 @@ open(T1, "t1.sdi");
 open(T1_, ">t1_.sdi");
 while (<T1>)
 {
-  if (/"name": "i"/)
-  {
-    print T1_ "\"name\": \"k\",\n";
-    next;
-  }
-  print T1_ $_;
+ s/("name": ?)"i"/$1"k"/g;
+ print T1_ $_;
 }
 close(T1);
 close(T1_);
@@ -381,7 +373,7 @@ IMPORT TABLE FROM 't1_.sdi';
 SELECT * FROM t1 ORDER BY k;
 DROP TABLE t1;
 --echo # Clean \$EXPORT_DIR
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 --echo # Clean \$DATA_DIR/test
 --remove_files_wildcard $MYSQLD_DATADIR/test t1*
 
@@ -424,7 +416,7 @@ DROP TABLE s1.t1;
 DROP SCHEMA s1;
 
 --echo # Clean \$EXPORT_DIR
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 
 --echo #
 --echo # IM-POS-5: Verify that concurrent DROP SCHEMA|DATABASE, after the
@@ -468,7 +460,7 @@ SELECT i FROM s1.t1 ORDER BY i;
 DROP TABLE s1.t1;
 DROP SCHEMA s1;
 --echo # Clean \$EXPORT_DIR
---remove_files_wildcard $EXPORT_DIR
+--remove_files_wildcard $EXPORT_DIR *
 
 
 --echo #
@@ -479,7 +471,7 @@ INSERT INTO T_CASE VALUES (1), (3), (5);
 SELECT * FROM T_CASE ORDER BY i;
 FLUSH TABLES WITH READ LOCK;
 --echo # Copy T_CASE files to export dir
---copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR
+--copy_files_wildcard $MYSQLD_DATADIR/test/ $EXPORT_DIR *
 UNLOCK TABLES;
 DROP TABLE T_CASE;
 
@@ -513,11 +505,7 @@ open(T1, "t_case.sdi");
 open(T1_, ">t_case_.sdi");
 while (<T1>)
 {
-  if (/"name": "T_CASE"/)
-  {
-    print T1_ "\"name\": \"t_case\",\n";
-    next;
-  }
+  s/T_CASE/t_case/g;
   print T1_ $_;
 }
 close(T1);

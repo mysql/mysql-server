@@ -1,4 +1,4 @@
-# Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,7 @@ set(UNIT_SOURCE_FILES
     connpool.cc
     incr.cc
     queue.cc
-    stub_logger.c
+    stub_logger.cc
     tsv.cc
     lookuptable.cc
  )
@@ -39,9 +39,9 @@ target_link_libraries(run_unit_tests ndbmemcache)
 
 
 ### test_workqueue #####################
-set(TEST_WORKQUEUE_SOURCES test_workqueue.c ../src/workqueue.c) 
+set(TEST_WORKQUEUE_SOURCES test_workqueue.cc ../src/workqueue.cc) 
 if(HAVE_SOLARIS_ATOMICS) 
-  set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.c)
+  set(TEST_WORKQUEUE_SOURCES ${TEST_WORKQUEUE_SOURCES} ../src/atomics.cc)
 endif()
 
 set(libs)

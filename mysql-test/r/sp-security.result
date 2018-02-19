@@ -1,15 +1,14 @@
+create table mysql.db_copy as select * from mysql.db;
+delete from mysql.db where host='%';
+flush privileges;
 set @orig_sql_mode_session= @@SESSION.sql_mode;
 set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 use test;
-grant usage on *.* to user1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user user1@localhost;
+create user ''@'%';
+create user user1;
+delete from mysql.db;
+insert into mysql.db select * from mysql.db_copy;
 flush privileges;
 drop table if exists t1;
 drop database if exists db1_secret;
@@ -42,12 +41,8 @@ select db();
 db()
 test
 grant execute on procedure db1_secret.stamp to user1@'%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to user1@'%';
 grant execute on procedure db1_secret.stamp to ''@'%';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant execute on function db1_secret.db to ''@'%';
 call db1_secret.stamp(2);
 select db1_secret.db();
@@ -115,11 +110,10 @@ create database db2;
 use db2;
 create table t2 (s1 int);
 insert into t2 values (0);
+create user user2@localhost;
 grant usage on db2.* to user1@localhost;
 grant select on db2.* to user1@localhost;
 grant usage on db2.* to user2@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select,insert,update,delete,create routine on db2.* to user2@localhost;
 grant create routine on db2.* to user1@localhost;
 flush privileges;
@@ -173,17 +167,11 @@ delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
 delete from mysql.procs_priv where user='user1' or user='user2';
 delete from mysql.procs_priv where user='' and host='%';
-delete from mysql.db where user='user2';
+delete from mysql.db where user='user1' or user='user2';
 flush privileges;
-grant usage on *.* to usera@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant usage on *.* to userb@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
-grant usage on *.* to userc@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user usera@localhost;
+create user userb@localhost;
+create user userc@localhost;
 create database sptest;
 create table t1 ( u varchar(64), i int );
 create procedure sptest.p1(i int) insert into test.t1 values (user(), i);
@@ -244,13 +232,12 @@ delete from mysql.procs_priv where user='usera' or user='userb' or user='userc';
 delete from mysql.tables_priv where user='usera';
 flush privileges;
 drop table t1;
+create user user1@localhost;
 drop function if exists bug_9503;
 create database mysqltest//
 use mysqltest//
 create table t1 (s1 int)//
 grant select on t1 to user1@localhost//
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 create function bug_9503 () returns int sql security invoker begin declare v int;
 select min(s1) into v from t1; return v; end//
 use mysqltest;
@@ -293,9 +280,7 @@ create procedure mysqltest_1.p1()
 begin
 select 1 from dual;
 end//
-grant usage on *.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+create user mysqltest_1@localhost;
 call mysqltest_1.p1();
 ERROR 42000: execute command denied to user 'mysqltest_1'@'localhost' for routine 'mysqltest_1.p1'
 call mysqltest_1.p1();
@@ -458,9 +443,7 @@ ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does no
 ---> connection: root
 DROP USER mysqltest_2@localhost;
 DROP DATABASE mysqltest;
-GRANT USAGE ON *.* TO user19857@localhost IDENTIFIED BY 'meow';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER user19857@localhost IDENTIFIED BY 'meow';
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE ROUTINE, ALTER ROUTINE ON test.* TO
 user19857@localhost;
 SELECT Host,User FROM mysql.user WHERE User='user19857';
@@ -739,12 +722,6 @@ disconnect conn1;
 disconnect conn2;
 DROP USER user@localhost;
 DROP DATABASE mysqltest_db;
-SET GLOBAL sql_mode= @orig_sql_mode_global;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
-SET SESSION sql_mode= @orig_sql_mode_session;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # PASSWORD EXPIRATION CHECKED FOR LOCKED ACCOUNTS USED AS SP DEFINERS
 #
@@ -756,3 +733,9 @@ current_user()
 r1@%
 DROP PROCEDURE p1;
 DROP ROLE r1;
+delete from mysql.db;
+insert into mysql.db select * from mysql.db_copy;
+flush privileges;
+drop table mysql.db_copy;
+SET GLOBAL sql_mode= @orig_sql_mode_global;
+SET SESSION sql_mode= @orig_sql_mode_session;

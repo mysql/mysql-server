@@ -125,7 +125,8 @@ ELSEIF(NOT HAVE_CMAKE_BUILD_TYPE OR OLD_WITH_DEBUG)
   SET(OLD_WITH_DEBUG 0 CACHE INTERNAL "" FORCE)
 ENDIF()
 
-IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*")
+IF(CMAKE_GENERATOR MATCHES "Visual Studio [1-9][0-9].*" AND
+   CMAKE_GENERATOR_TOOLSET STREQUAL "")
   # Switch to 64 bit toolset on Windows (32 bit is default).
   # This is recommended as the 32 bit linker will run into address space issues
   # and not exit for long time.
@@ -322,6 +323,7 @@ MACRO (MY_CHECK_C_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_C_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
@@ -338,6 +340,7 @@ MACRO (MY_CHECK_CXX_COMPILER_FLAG FLAG RESULT)
   SET(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
   SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${FLAG}")
   CHECK_CXX_SOURCE_COMPILES("int main(void) { return 0; }" ${RESULT}
+    FAIL_REGEX "unknown argument ignored"
     FAIL_REGEX "argument unused during compilation"
     FAIL_REGEX "unsupported .*option"
     FAIL_REGEX "unknown .*option"
@@ -375,26 +378,48 @@ ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
 IF(WITH_ASAN)
-  MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
-  IF(WITH_ASAN_OK)
-    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+  IF(WIN32_CLANG)
+    # Feature detection of -faddress=sanitize is problematic with Clang on
+    # Windows, since Clang (at least as of 5.0.0) requires /MT, but CMake
+    # default is /MD, and this code is run before the one in
+    # cmake/os/Windows.cmake, which sets /MT for ASAN on Win32 Clang.
+    # Just enable it unconditionally; we know it's working.
+    SET(CMAKE_C_FLAGS_DEBUG
+      "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+      "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
+    SET(CMAKE_CXX_FLAGS_DEBUG
+      "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address -fsanitize-address-use-after-scope -Wno-error")
+    SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+      "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize=address -fsanitize-address-use-after-scope")
     SET(HAVE_ASAN 1)
-    # This works with clang, but not gcc it seems.
-    MY_CHECK_CXX_COMPILER_FLAG(
-      "-fsanitize=address -fsanitize-address-use-after-scope"
-      HAVE_SANITIZE_SCOPE)
-    IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
-      SET(CMAKE_C_FLAGS_DEBUG
-        "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_C_FLAGS_RELWITHDEBINFO
-        "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_DEBUG
-        "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
-      SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
-        "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
-    ENDIF()
+
+    # Get the path to the ASAN support libraries.
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+    SET(ASAN_LIB_DIR "${ASAN_LIB_DIR}/../lib/clang/${CMAKE_CXX_COMPILER_VERSION}/lib/windows")
+    GET_FILENAME_COMPONENT(ASAN_LIB_DIR ${ASAN_LIB_DIR} REALPATH)
   ELSE()
-    MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    MY_SANITIZER_CHECK("-fsanitize=address" TRUE WITH_ASAN_OK)
+    IF(WITH_ASAN_OK)
+      OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
+      SET(HAVE_ASAN 1)
+      # This works with clang, but not gcc it seems.
+      MY_CHECK_CXX_COMPILER_FLAG(
+        "-fsanitize=address -fsanitize-address-use-after-scope"
+        HAVE_SANITIZE_SCOPE)
+      IF(WITH_ASAN_SCOPE AND HAVE_SANITIZE_SCOPE)
+        SET(CMAKE_C_FLAGS_DEBUG
+          "${CMAKE_C_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_C_FLAGS_RELWITHDEBINFO
+          "${CMAKE_C_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_DEBUG
+          "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize-address-use-after-scope")
+        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO
+          "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fsanitize-address-use-after-scope")
+      ENDIF()
+    ELSE()
+      MESSAGE(FATAL_ERROR "Do not know how to enable address sanitizer")
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -470,6 +495,15 @@ IF(WIN32)
 ELSE()
   OPTION(USE_LD_GOLD "Use GNU gold linker" ON)
 ENDIF()
+
+IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
+  SET(LINK_RANDOMIZE_SEED "mysql"
+    CACHE STRING "Seed to use for link randomization")
+ELSE()
+  SET(LINK_RANDOMIZE OFF)
+ENDIF()
+
 IF (USE_LD_GOLD)
   # These tests will give a false negative on some Clang versions,
   # since there is no easy way in CMake to check for a linker flag
@@ -480,18 +514,18 @@ IF (USE_LD_GOLD)
   MY_CHECK_C_COMPILER_FLAG("-fuse-ld=gold" C_LD_GOLD_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("-fuse-ld=gold" CXX_LD_GOLD_RESULT)
   IF (C_LD_GOLD_RESULT AND CXX_LD_GOLD_RESULT AND NOT SOLARIS)
-    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
-    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold -Wl,--gc-sections -Wl,--icf=safe")
+    SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -fuse-ld=gold")
+    SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -fuse-ld=gold")
+
+    # Seemingly --gc-sections causes problems with randomization, so only
+    # turn it on if we are not making a randomized build.
+    IF (NOT LINK_RANDOMIZE)
+      SET(CMAKE_C_LINK_FLAGS "${CMAKE_C_LINK_FLAGS} -Wl,--gc-sections")
+      SET(CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS} -Wl,--gc-sections")
+    ENDIF()
   ENDIF()
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
-  OPTION(LINK_RANDOMIZE "Randomize the order of all symbols in the binary" OFF)
-  SET(LINK_RANDOMIZE_SEED "mysql"
-    CACHE STRING "Seed to use for link randomization")
-ELSE()
-  SET(LINK_RANDOMIZE OFF)
-ENDIF()
 IF(LINK_RANDOMIZE)
   SET(CMAKE_C_FLAGS_DEBUG
     "${CMAKE_C_FLAGS_DEBUG} -ffunction-sections -fdata-sections")
@@ -544,8 +578,6 @@ ENDIF()
 OPTION(ENABLED_LOCAL_INFILE
  "If we should enable LOAD DATA LOCAL by default" OFF)
 MARK_AS_ADVANCED(ENABLED_LOCAL_INFILE)
-
-OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
 #
 # Options related to client-side protocol tracing
@@ -668,6 +700,55 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/rapid
   ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
   ${CMAKE_SOURCE_DIR}/libbinlogevents/export)
+
+# Explicit list of all -DWITH_XXX=system possibilities
+# *except* boost, which requires one specific version to be downloaded
+SET(SYSTEM_LIBRARIES
+  CURL
+  EDITLINE
+  ICU
+  LIBEVENT
+  LZ4
+# LZMA     use bundled by default here
+  PROTOBUF
+  RE2
+  SSL
+  ZLIB
+  )
+
+OPTION(WITH_SYSTEM_LIBS
+  "Use -DWITH_XXX=system for ${SYSTEM_LIBRARIES}" OFF)
+
+GET_CMAKE_PROPERTY(CACHE_VARS CACHE_VARIABLES)
+UNSET(COMMAND_LINE_VARS)
+FOREACH(CACHE_VAR ${CACHE_VARS})
+  GET_PROPERTY(CACHE_VAR_HELPSTRING CACHE ${CACHE_VAR} PROPERTY HELPSTRING)
+  IF(CACHE_VAR_HELPSTRING STREQUAL
+      "No help, variable specified on the command line."
+      )
+    LIST(APPEND COMMAND_LINE_VARS ${CACHE_VAR})
+  ENDIF()
+ENDFOREACH()
+
+# Default to "system" for all SYSTEM_LIBRARIES
+IF(WITH_SYSTEM_LIBS)
+  FOREACH(SYSTEM_LIB ${SYSTEM_LIBRARIES})
+    LIST(FIND COMMAND_LINE_VARS WITH_${SYSTEM_LIB} FOUNDIT)
+    IF(FOUNDIT LESS 0)
+      SET(WITH_${SYSTEM_LIB} "system")
+      SET(WITH_${SYSTEM_LIB} "system" CACHE STRING
+        "Use system rather than bundled" FORCE)
+      MESSAGE(STATUS "Adding -DWITH_${SYSTEM_LIB}=${WITH_${SYSTEM_LIB}}")
+    ELSE()
+      MESSAGE(STATUS
+        "Found WITH_${SYSTEM_LIB}=${WITH_${SYSTEM_LIB}} on command line")
+    ENDIF()
+  ENDFOREACH()
+  # Don't redo the system analysis on subsequent runs of cmake
+  UNSET(WITH_SYSTEM_LIBS)
+  UNSET(WITH_SYSTEM_LIBS CACHE)
+ENDIF()
+
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
 IF(BUILD_BUNDLED_ZLIB)

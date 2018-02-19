@@ -16,6 +16,7 @@
 database=db1
 EOF
 
+# Error 7 is EXIT_UNKNOWN_VARIABLE.
 --replace_regex /.*mysqladmin.*: unknown/mysqladmin: unknown/
 --error 7
 --exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/tmp/bug10608.cnf --default-character-set=latin1 -S $MASTER_MYSOCK -P $MASTER_MYPORT  -u root --password= ping 2>&1

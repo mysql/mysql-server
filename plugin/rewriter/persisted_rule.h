@@ -22,11 +22,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <memory>
+#include <string>
 #include "my_config.h"
 #include "mysql/service_rules_table.h"
 #include "nullable.h"
-#include <string>
-#include <memory>
 
 namespace rts = rules_table_service;
 
@@ -37,12 +37,9 @@ namespace rts = rules_table_service;
   rules_table_service::Cursor.
 */
 
-
 /// A rule as persisted on disk.
-class Persisted_rule
-{
-public:
-
+class Persisted_rule {
+ public:
   /// The rewrite rule's pattern string.
   Mysql::Nullable<std::string> pattern;
 
@@ -69,47 +66,40 @@ public:
     heap. The interface is constructed this way due to on some OS'es
     (e.g. Windows), every shared library has its own heap.
   */
-  explicit Persisted_rule(rts::Cursor *c)
-  {
+  explicit Persisted_rule(rts::Cursor *c) {
     copy_and_set(&pattern, c, c->pattern_column());
     copy_and_set(&pattern_db, c, c->pattern_database_column());
     copy_and_set(&replacement, c, c->replacement_column());
 
-    const char *is_enabled_c= (c->fetch_string(c->enabled_column()));
+    const char *is_enabled_c = (c->fetch_string(c->enabled_column()));
     if (is_enabled_c != NULL && is_enabled_c[0] == 'Y')
-      is_enabled= true;
+      is_enabled = true;
     else
-      is_enabled= false;
+      is_enabled = false;
     rts::free_string(is_enabled_c);
   }
 
   /// Convenience function, may be called with a const char*.
-  void set_message(const std::string &message_arg)
-  {
-    message= Mysql::Nullable<std::string>(message_arg);
-  }
-
-
-  /// Convenience function, may be called with a const char*.
-  void set_pattern_digest(const std::string &s)
-  {
-    pattern_digest= Mysql::Nullable<std::string>(s);
+  void set_message(const std::string &message_arg) {
+    message = Mysql::Nullable<std::string>(message_arg);
   }
 
   /// Convenience function, may be called with a const char*.
-  void set_normalized_pattern(const std::string &s)
-  {
-    normalized_pattern= Mysql::Nullable<std::string>(s);
+  void set_pattern_digest(const std::string &s) {
+    pattern_digest = Mysql::Nullable<std::string>(s);
   }
 
+  /// Convenience function, may be called with a const char*.
+  void set_normalized_pattern(const std::string &s) {
+    normalized_pattern = Mysql::Nullable<std::string>(s);
+  }
 
   /**
     Writes the values in this Persisted_rule to the table at the row pointed
     to by the cursor. Values that don't have a corresponding column in the
     table will be ignored.
   */
-  bool write_to(rts::Cursor *c)
-  {
+  bool write_to(rts::Cursor *c) {
     c->make_writeable();
 
     set_if_present(c, c->message_column(), message);
@@ -119,41 +109,34 @@ public:
     return c->write();
   }
 
-private:
-
+ private:
   /**
     Reads from a Cursor and writes to a property of type Nullable<string>
     after forcing a copy of the string buffer. The function calls a member
     function in Cursor that is located in the server's dynamic library.
   */
   void copy_and_set(Mysql::Nullable<std::string> *property, rts::Cursor *c,
-                    int colno)
-  {
-    const char *value= c->fetch_string(colno);
-    if (value != NULL)
-    {
+                    int colno) {
+    const char *value = c->fetch_string(colno);
+    if (value != NULL) {
       std::string tmp;
       tmp.assign(value);
-      *property= tmp;
+      *property = tmp;
     }
     rts::free_string(value);
   }
 
   /// Writes a string value to the cursor's column if it exists.
   void set_if_present(rts::Cursor *cursor, rts::Cursor::column_id column,
-                      Mysql::Nullable<std::string> value)
-  {
-    if (column == rts::Cursor::ILLEGAL_COLUMN_ID)
-      return;
-    if (!value.has_value())
-    {
+                      Mysql::Nullable<std::string> value) {
+    if (column == rts::Cursor::ILLEGAL_COLUMN_ID) return;
+    if (!value.has_value()) {
       cursor->set(column, NULL, 0);
       return;
     }
-    const std::string &s= value.value();
+    const std::string &s = value.value();
     cursor->set(column, s.c_str(), s.length());
   }
 };
 
-
-#endif // PERSISTED_RULE_INCLUDED
+#endif  // PERSISTED_RULE_INCLUDED

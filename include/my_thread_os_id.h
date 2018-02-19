@@ -37,14 +37,12 @@
 #endif
 
 #ifdef HAVE_PTHREAD_GETTHREADID_NP
-#include <pthread_np.h>             /* pthread_getthreadid_np() */
-#endif /* HAVE_PTHREAD_GETTHREADID_NP */
+#include <pthread_np.h> /* pthread_getthreadid_np() */
+#endif                  /* HAVE_PTHREAD_GETTHREADID_NP */
 
 #ifdef HAVE_PTHREAD_THREADID_NP
 #include <pthread.h>
 #endif /* HAVE_PTHREAD_THREADID_NP */
-
-C_MODE_START
 
 typedef unsigned long long my_thread_os_id_t;
 
@@ -56,8 +54,7 @@ typedef unsigned long long my_thread_os_id_t;
     for example with perf in linux.
   This helper returns the underling operating system thread id.
 */
-static inline my_thread_os_id_t my_thread_os_id()
-{
+static inline my_thread_os_id_t my_thread_os_id() {
 #ifdef HAVE_PTHREAD_THREADID_NP
   /*
     macOS.
@@ -98,7 +95,5 @@ static inline my_thread_os_id_t my_thread_os_id()
 #endif /* HAVE_SYS_GETTID */
 #endif /* HAVE_SYS_THREAD_SELFID */
 }
-
-C_MODE_END
 
 #endif /* MY_THREAD_OS_ID_INCLUDED */

@@ -27,24 +27,23 @@
 
 #include <string>
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Field
-{
-public:
+class Field {
+ public:
   Field(std::string name, std::string type_string);
-  const std::string& get_name() const;
-  const std::string& get_type_string() const;
+  const std::string &get_name() const;
+  const std::string &get_type_string() const;
 
-private:
+ private:
   std::string m_name;
   std::string m_type_string;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

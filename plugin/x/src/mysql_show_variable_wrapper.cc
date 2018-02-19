@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,40 +27,32 @@
 #include <mysql/plugin.h>
 #include <algorithm>
 
-
 using namespace mysqld;
 
-xpl_show_var::xpl_show_var(st_mysql_show_var *var)
-: m_var(var)
-{}
+xpl_show_var::xpl_show_var(SHOW_VAR *var) : m_var(var) {}
 
-void xpl_show_var::assign(const std::string &str)
-{
-  this->assign(str.c_str());
-}
+void xpl_show_var::assign(const std::string &str) { this->assign(str.c_str()); }
 
-void xpl_show_var::assign(const char *str)
-{
+void xpl_show_var::assign(const char *str) {
   m_var->type = SHOW_CHAR;
   strncpy(m_var->value, str, SHOW_VAR_FUNC_BUFF_SIZE);
   m_var->value[SHOW_VAR_FUNC_BUFF_SIZE - 1] = 0;
 }
 
-void xpl_show_var::assign(const long value)
-{
+void xpl_show_var::assign(const long value) {
   m_var->type = SHOW_LONG;
-  memcpy(m_var->value, &value, std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
+  memcpy(m_var->value, &value,
+         std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
 }
 
-void xpl_show_var::assign(const bool value)
-{
+void xpl_show_var::assign(const bool value) {
   m_var->type = SHOW_BOOL;
-  memcpy(m_var->value, &value, std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
+  memcpy(m_var->value, &value,
+         std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
 }
 
-
-void xpl_show_var::assign(const long long value)
-{
+void xpl_show_var::assign(const long long value) {
   m_var->type = SHOW_LONGLONG;
-  memcpy(m_var->value, &value, std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
+  memcpy(m_var->value, &value,
+         std::min<std::size_t>(SHOW_VAR_FUNC_BUFF_SIZE, sizeof(value)));
 }

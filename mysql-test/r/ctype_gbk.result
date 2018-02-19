@@ -326,7 +326,7 @@ alter table t1 change c1 c1 mediumtext  character set gbk not null;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` mediumtext NOT NULL,
+  `c1` mediumtext CHARACTER SET gbk COLLATE gbk_chinese_ci NOT NULL,
   `c2` text NOT NULL
 ) ENGINE=default_engine DEFAULT CHARSET=gbk
 drop table t1;

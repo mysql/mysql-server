@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,39 +25,32 @@
 #ifndef _PROTOCOL_FWD_H_
 #define _PROTOCOL_FWD_H_
 
-namespace google
-{
-namespace protobuf
-{
+namespace google {
+namespace protobuf {
 #ifdef USE_MYSQLX_FULL_PROTO
 class Message;
 #else
 class MessageLite;
 #endif
 }
-}
+}  // namespace google
 
-namespace Mysqlx
-{
+namespace Mysqlx {
 
-namespace Sql
-{
+namespace Sql {
 class StmtExecute;
 }
 
-namespace Resultset
-{
+namespace Resultset {
 class Row;
 }
 
-namespace Datatypes
-{
+namespace Datatypes {
 class Any;
 class Scalar;
-}
+}  // namespace Datatypes
 
-namespace Crud
-{
+namespace Crud {
 class Projection;
 class Column;
 class Limit;
@@ -72,13 +65,12 @@ class Delete;
 class DropView;
 class CreateView;
 class ModifyView;
-}
+}  // namespace Crud
 
-namespace Expr
-{
+namespace Expr {
 class Expr;
 }
 
-} // Mysqlx
+}  // namespace Mysqlx
 
-#endif // _PROTOCOL_FWD_H_
+#endif  // _PROTOCOL_FWD_H_

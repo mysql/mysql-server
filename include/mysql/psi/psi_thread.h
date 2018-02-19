@@ -38,8 +38,6 @@
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_thread_bits.h"
 
-C_MODE_START
-
 /**
   @def PSI_THREAD_VERSION_1
   Performance Schema Thread Interface number for version 1.
@@ -55,8 +53,7 @@ C_MODE_START
 #define PSI_CURRENT_THREAD_VERSION 1
 
 /** Entry point for the performance schema interface. */
-struct PSI_thread_bootstrap
-{
+struct PSI_thread_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -74,8 +71,7 @@ typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
   Performance Schema Thread Interface, version 1.
   @since PSI_IDLE_VERSION_1
 */
-struct PSI_thread_service_v1
-{
+struct PSI_thread_service_v1 {
   /** @sa register_thread_v1_t. */
   register_thread_v1_t register_thread;
   /** @sa spawn_thread_v1_t. */
@@ -143,7 +139,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_thread_service_t *psi_thread_service;
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 /** @} (end of group psi_abi_thread) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_THREAD_H */

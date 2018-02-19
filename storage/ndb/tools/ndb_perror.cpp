@@ -32,6 +32,7 @@
 #include "ndbapi/ndberror.h"
 #include "mgmapi/ndbd_exit_codes.h"
 #include "mgmapi/mgmapi_error.h"
+#include "my_alloc.h"
 
 static bool opt_verbose;
 static bool opt_silent; // Overrides verbose and sets it to 0
@@ -67,7 +68,7 @@ int mgmapi_error_string(int err_no, char *str, int size)
   {
     if ((int)ndb_mgm_error_msgs[i].code == err_no)
     {
-      my_snprintf(str, size - 1, "%s", ndb_mgm_error_msgs[i].msg);
+      snprintf(str, size - 1, "%s", ndb_mgm_error_msgs[i].msg);
       str[size - 1] = '\0';
       return 1; // Found a message
     }
@@ -78,7 +79,7 @@ int mgmapi_error_string(int err_no, char *str, int size)
 
 // Forward declare function from ndbd_exit_codes.cc which is not
 // declared in any header
-extern "C" int ndbd_exit_string(int err_no, char *str, unsigned int size);
+int ndbd_exit_string(int err_no, char *str, unsigned int size);
 
 
 int main(int argc, char** argv)

@@ -24,9 +24,9 @@
 #define DD__PARTITION_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/sdi_fwd.h"           // dd::Sdi_wcontext
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
-#include "sql/dd/types/table.h"       // Table::Partition_collection
+#include "sql/dd/sdi_fwd.h"              // dd::Sdi_wcontext
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
+#include "sql/dd/types/table.h"          // Table::Partition_collection
 
 namespace dd {
 
@@ -38,25 +38,24 @@ class Partition_index;
 class Partition_value;
 class Properties;
 class Table;
-template <typename T> class Collection;
+template <typename T>
+class Collection;
 
 namespace tables {
-  class Table_partitions;
+class Table_partitions;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition : virtual public Entity_object
-{
-public:
-  typedef Collection<Partition_index*> Partition_indexes;
-  typedef Collection<Partition_value*> Partition_values;
+class Partition : virtual public Entity_object {
+ public:
+  typedef Collection<Partition_index *> Partition_indexes;
+  typedef Collection<Partition_value *> Partition_values;
   typedef Partition_impl Impl;
   typedef tables::Table_partitions DD_table;
 
-public:
-  virtual ~Partition()
-  { };
+ public:
+  virtual ~Partition(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -119,9 +118,9 @@ public:
   virtual Properties &se_private_data() = 0;
 
   virtual bool set_se_private_data_raw(
-                 const String_type &se_private_data_raw) = 0;
+      const String_type &se_private_data_raw) = 0;
 
-  virtual void set_se_private_data(const Properties &se_private_data)= 0;
+  virtual void set_se_private_data(const Properties &se_private_data) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // se_private_id.
@@ -188,7 +187,6 @@ public:
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
 
-
   /**
     Re-establishes the state of *this by reading sdi information from
     the rapidjson DOM subobject provided.
@@ -208,6 +206,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_INCLUDED
+#endif  // DD__PARTITION_INCLUDED

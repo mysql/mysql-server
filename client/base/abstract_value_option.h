@@ -30,25 +30,24 @@
 #include "client/base/abstract_option.h"
 #include "my_getopt.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Abstract option to handle options accepting value argument.
  */
-template<typename T_type> class Abstract_value_option
-  : public Abstract_option<T_type>
-{
-public:
+template <typename T_type>
+class Abstract_value_option : public Abstract_option<T_type> {
+ public:
   /**
     Sets arg_type to OPT_ARG - doesn't require argument to be specified when
     using this option.
    */
-  T_type* value_optional();
+  T_type *value_optional();
 
-protected:
+ protected:
   /**
     Constructs new option with value argument.
     @param value Pointer to object to receive option value.
@@ -59,25 +58,27 @@ protected:
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_value_option(void* value, ulong var_type, std::string name,
-    std::string description, uint64 default_value);
+  Abstract_value_option(void *value, ulong var_type, std::string name,
+                        std::string description, uint64 default_value);
 };
 
+template <typename T_type>
+Abstract_value_option<T_type>::Abstract_value_option(void *value,
+                                                     ulong var_type,
+                                                     std::string name,
+                                                     std::string description,
+                                                     uint64 default_value)
+    : Abstract_option<T_type>(value, var_type, name, description,
+                              default_value) {}
 
-template<typename T_type> Abstract_value_option<T_type>::Abstract_value_option(
-    void* value, ulong var_type, std::string name, std::string description,
-    uint64 default_value)
-  : Abstract_option<T_type>(value, var_type, name, description, default_value)
-{}
-
-template<typename T_type> T_type* Abstract_value_option<T_type>::value_optional()
-{
-  this->m_option_structure.arg_type= OPT_ARG;
-  return (T_type*)this;
+template <typename T_type>
+T_type *Abstract_value_option<T_type>::value_optional() {
+  this->m_option_structure.arg_type = OPT_ARG;
+  return (T_type *)this;
 }
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 #endif

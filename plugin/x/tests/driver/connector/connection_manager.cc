@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,10 +32,10 @@
 namespace details {
 
 ::Mysqlx::Connection::CapabilitiesSet setup_capability_set_from_bool(
-    const std::string &name,  const bool value) {
+    const std::string &name, const bool value) {
   ::Mysqlx::Connection::CapabilitiesSet capability_set;
-  auto capability = capability_set.mutable_capabilities()->
-      mutable_capabilities()->Add();
+  auto capability =
+      capability_set.mutable_capabilities()->mutable_capabilities()->Add();
 
   capability->set_name(name);
   capability->mutable_value()->set_type(::Mysqlx::Datatypes::Any_Type_SCALAR);
@@ -63,13 +63,10 @@ std::string get_ip_mode_to_text(const xcl::Internet_protocol ip) {
 
 }  // namespace details
 
-
 Connection_manager::Connection_manager(const Connection_options &co,
                                        Variable_container *variables,
                                        const Console &console)
-    : m_connection_options(co),
-      m_variables(variables),
-      m_console(console) {
+    : m_connection_options(co), m_variables(variables), m_console(console) {
   m_variables->make_special_variable(
       "%OPTION_CLIENT_USER%",
       new Variable_dynamic_string(m_connection_options.user));
@@ -134,48 +131,40 @@ void Connection_manager::safe_close(const std::string &name) {
   try {
     set_active(name, true);
     close_active(true, true);
-  }
-  catch (const std::exception &) {
-  }
-  catch (const xcl::XError &) {
+  } catch (const std::exception &) {
+  } catch (const xcl::XError &) {
   }
 }
 
-void Connection_manager::connect_default(const bool send_cap_password_expired,
-                                         const bool client_interactive,
-                                         const bool no_auth,
-                                         const std::vector<std::string> &auth_methods) {
+void Connection_manager::connect_default(
+    const bool send_cap_password_expired, const bool client_interactive,
+    const bool no_auth, const std::vector<std::string> &auth_methods) {
   m_console.print_verbose("Connecting...\n");
 
-  auto  session    = m_active_holder->get_session();
-  auto  text_ip_mode = details::get_ip_mode_to_text(
-      m_connection_options.ip_mode);
+  auto session = m_active_holder->get_session();
+  auto text_ip_mode =
+      details::get_ip_mode_to_text(m_connection_options.ip_mode);
 
   m_active_holder->setup_ssl(m_connection_options);
   m_active_holder->setup_msg_callbacks(m_connection_options.trace_protocol);
 
   if (send_cap_password_expired) {
     session->set_capability(
-        xcl::XSession::Capability_can_handle_expired_password,
-        true);
+        xcl::XSession::Capability_can_handle_expired_password, true);
   }
 
   if (client_interactive) {
-    session->set_capability(
-        xcl::XSession::Capability_client_interactive,
-        true);
+    session->set_capability(xcl::XSession::Capability_client_interactive, true);
   }
 
-  session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Compatibility_mode,
-      m_connection_options.compatible);
+  session->set_mysql_option(xcl::XSession::Mysqlx_option::Compatibility_mode,
+                            m_connection_options.compatible);
 
-  session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Authentication_method, auth_methods);
+  session->set_mysql_option(xcl::XSession::Mysqlx_option::Authentication_method,
+                            auth_methods);
 
-  session->set_mysql_option(
-      xcl::XSession::Mysqlx_option::Hostname_resolve_to,
-      text_ip_mode);
+  session->set_mysql_option(xcl::XSession::Mysqlx_option::Hostname_resolve_to,
+                            text_ip_mode);
 
   xcl::XError error;
 
@@ -237,8 +226,7 @@ void Connection_manager::create(const std::string &name,
 
   if (!auth_methods.empty())
     holder->get_session()->set_mysql_option(
-        xcl::XSession::Mysqlx_option::Authentication_method,
-        auth_methods);
+        xcl::XSession::Mysqlx_option::Authentication_method, auth_methods);
 
   holder->setup_ssl(co);
   holder->setup_msg_callbacks(co.trace_protocol);
@@ -263,8 +251,7 @@ void Connection_manager::create(const std::string &name,
 
   m_console.print("active session is now '", name, "'\n");
 
-  m_console.print_verbose("Connected client #",
-                          active_xsession()->client_id(),
+  m_console.print_verbose("Connected client #", active_xsession()->client_id(),
                           "\n");
 }
 
@@ -322,13 +309,11 @@ void Connection_manager::close_active(const bool shutdown,
 
         if (!m_connection_options.dont_wait_for_disconnect) {
           Message_ptr msg{
-            active_xprotocol()->recv_single_message(&msgid, &error)
-          };
+              active_xprotocol()->recv_single_message(&msgid, &error)};
 
           if (!error && !be_quiet) {
-            m_console.print_error(
-                "Was expecting closure but got message:",
-                *msg);
+            m_console.print_error("Was expecting closure but got message:",
+                                  *msg);
           }
         }
 
@@ -336,22 +321,19 @@ void Connection_manager::close_active(const bool shutdown,
       }
       m_session_holders.erase(m_active_session_name);
       if (!shutdown) set_active("", be_quiet);
-    }
-    catch (const std::exception &error) {
+    } catch (const std::exception &error) {
       active_xconnection()->close();
       m_session_holders.erase(m_active_session_name);
       if (!shutdown) set_active("", be_quiet);
       throw error;
-    }
-    catch (const xcl::XError &error) {
+    } catch (const xcl::XError &error) {
       active_xconnection()->close();
       m_session_holders.erase(m_active_session_name);
       if (!shutdown) set_active("", be_quiet);
       throw error;
     }
   } else {
-    if (!shutdown)
-      throw std::runtime_error("no active session");
+    if (!shutdown) throw std::runtime_error("no active session");
   }
 }
 
@@ -359,8 +341,8 @@ void Connection_manager::set_active(const std::string &name,
                                     const bool be_quiet) {
   if (m_session_holders.count(name) == 0) {
     std::string slist;
-    for (auto it = m_session_holders.begin();
-         it != m_session_holders.end(); ++it)
+    for (auto it = m_session_holders.begin(); it != m_session_holders.end();
+         ++it)
       slist.append(it->first).append(", ");
     if (!slist.empty()) slist.resize(slist.length() - 2);
     throw std::runtime_error("no session named '" + name + "': " + slist);
@@ -377,7 +359,7 @@ void Connection_manager::set_active(const std::string &name,
         "\n");
 }
 
-Session_holder& Connection_manager::active_holder() {
+Session_holder &Connection_manager::active_holder() {
   if (!m_active_holder) std::runtime_error("no active session");
 
   return *m_active_holder;
@@ -406,10 +388,8 @@ uint64_t Connection_manager::active_session_messages_received(
 
 void Connection_manager::setup_variables(xcl::XSession *session) {
   auto &connection = session->get_protocol().get_connection();
-  m_variables->set("%ACTIVE_CLIENT_ID%",
-                  std::to_string(session->client_id()));
+  m_variables->set("%ACTIVE_CLIENT_ID%", std::to_string(session->client_id()));
 
   m_variables->set("%ACTIVE_SOCKET_ID%",
-                  std::to_string(connection.get_socket_fd()));
+                   std::to_string(connection.get_socket_fd()));
 }
-

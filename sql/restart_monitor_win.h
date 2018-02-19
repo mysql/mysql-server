@@ -23,65 +23,54 @@
 #ifndef SQL_RESTART_MONITOR_WIN_H_
 #define SQL_RESTART_MONITOR_WIN_H_
 
-#include <string.h>
 #include <stdlib.h>
-
+#include <string.h>
 
 /**
   Type indicating the type of signals which involve communication
   between the monitor and the mysqld.
 */
 
-enum class Signal_type
-{
-   /**
-     Shutdown signal from monitor to mysqld. This is used
-     to relay the shutdown that comes from the SCM.
-   */
-   SIGNAL_SHUTDOWN,
+enum class Signal_type {
+  /**
+    Shutdown signal from monitor to mysqld. This is used
+    to relay the shutdown that comes from the SCM.
+  */
+  SIGNAL_SHUTDOWN,
 
+  /**
+    Signal used to send the service status command to the monitor.
+  */
 
-   /**
-     Signal used to send the service status command to the monitor.
-   */
+  SIGNAL_SERVICE_STATUS_CMD,
 
-   SIGNAL_SERVICE_STATUS_CMD,
+  /**
+    Signal to the the mysqld from monitor indicating service status command
+    has been processed.
+  */
 
-
-   /**
-     Signal to the the mysqld from monitor indicating service status command
-     has been processed.
-   */
-
-   SIGNAL_SERVICE_STATUS_CMD_PROCESSED
+  SIGNAL_SERVICE_STATUS_CMD_PROCESSED
 };
-
 
 /**
   Service status message providing an abstraction for the service message sent
   by monitor to client.
 */
 
-struct Service_status_msg
-{
-private:
+struct Service_status_msg {
+ private:
   /**
     Service status message indicating type of update to be done monitor to SCM.
   */
 
   char m_service_msg[32];
-public:
 
-
+ public:
   /**
     Constructor which initializes the service status message to a null string.
   */
 
-  Service_status_msg()
-  {
-     m_service_msg[0]= '\0';
-  }
-
+  Service_status_msg() { m_service_msg[0] = '\0'; }
 
   /**
     Constructor initializes the service status with a particular message.
@@ -89,11 +78,9 @@ public:
     @param msg pointer to message string.
   */
 
-  Service_status_msg(const char *msg)
-  {
+  Service_status_msg(const char *msg) {
     strncpy(m_service_msg, msg, sizeof(m_service_msg));
   }
-
 
   /**
     Get service message.
@@ -101,37 +88,29 @@ public:
     @return pointer to the service message.
   */
 
-  const char *service_msg() const
-  {
-     return m_service_msg;
-  }
+  const char *service_msg() const { return m_service_msg; }
 };
-
 
 /**
   Type of messages logged by monitor logging.
 */
 
-enum class Monitor_log_msg_type
-{
+enum class Monitor_log_msg_type {
   /**
     Error log.
   */
   MONITOR_LOG_ERROR,
-
 
   /**
     Warning log.
   */
   MONITOR_LOG_WARN,
 
-
   /**
     Information log.
   */
   MONITOR_LOG_INFO
 };
-
 
 /**
   Initialize the mysqld monitor. This method is called from
@@ -143,14 +122,12 @@ enum class Monitor_log_msg_type
 
 bool initialize_mysqld_monitor();
 
-
 /**
   Deinitialize the monitor.
   This method essentially closes any handles opened during initialization.
 */
 
 void deinitialize_mysqld_monitor();
-
 
 /**
   Send service status message to the monitor. This method is used by mysqld to
@@ -159,14 +136,12 @@ void deinitialize_mysqld_monitor();
 
 bool send_service_status(const Service_status_msg &);
 
-
 /**
   Close the service status pipe. This method is called by
   the mysqld child process.
 */
 
 void close_service_status_pipe_in_mysqld();
-
 
 /**
   Get char representation corresponding to MYSQLD_PARENT_PID.
@@ -176,7 +151,6 @@ void close_service_status_pipe_in_mysqld();
 
 const char *get_monitor_pid();
 
-
 /**
   Signal an event of type Signal_type.
 
@@ -184,7 +158,6 @@ const char *get_monitor_pid();
 */
 
 void signal_event(Signal_type signal);
-
 
 /**
   Check if there is an option of early type.
@@ -200,7 +173,6 @@ void signal_event(Signal_type signal);
 
 bool is_early_option(int argc, char **argv);
 
-
 /**
   Check if we are monitor process.
 
@@ -209,7 +181,6 @@ bool is_early_option(int argc, char **argv);
 
 bool is_mysqld_monitor();
 
-
 /**
   Check if the monitor is started under a windows service.
 
@@ -217,7 +188,6 @@ bool is_mysqld_monitor();
 */
 
 bool is_monitor_win_service();
-
 
 /**
   Start the monitor if we are called in parent (monitor) context.
@@ -229,7 +199,6 @@ bool is_monitor_win_service();
 
 int start_monitor();
 
-
 /**
   Setup the service status command processed handle.
   This method is called from mysqld context. This handle ensures the
@@ -238,7 +207,6 @@ int start_monitor();
 */
 
 bool setup_service_status_cmd_processed_handle();
-
 
 /**
   Close the Service Status Cmd Processed handle.
@@ -250,4 +218,4 @@ void close_service_status_cmd_processed_handle();
 extern bool is_windows_service();
 class NTService;
 extern NTService *get_win_service_ptr();
-#endif // SQL_RESTART_MONITOR_WIN_H_
+#endif  // SQL_RESTART_MONITOR_WIN_H_

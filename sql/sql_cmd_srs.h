@@ -37,40 +37,40 @@
 
 class THD;
 
-struct Sql_cmd_srs_attributes
-{
+struct Sql_cmd_srs_attributes {
   MYSQL_LEX_STRING srs_name;
   MYSQL_LEX_STRING definition;
   MYSQL_LEX_STRING organization;
   unsigned long long organization_coordsys_id;
   MYSQL_LEX_STRING description;
 
-  Sql_cmd_srs_attributes() : srs_name({nullptr, 0}), definition({nullptr, 0}),
-    organization({nullptr, 0}), organization_coordsys_id(0),
-    description({nullptr, 0})
-  {}
+  Sql_cmd_srs_attributes()
+      : srs_name({nullptr, 0}),
+        definition({nullptr, 0}),
+        organization({nullptr, 0}),
+        organization_coordsys_id(0),
+        description({nullptr, 0}) {}
 };
 
-class Sql_cmd_create_srs final : public Sql_cmd
-{
-public:
+class Sql_cmd_create_srs final : public Sql_cmd {
+ public:
   Sql_cmd_create_srs() {}
   void init(bool or_replace, bool if_not_exists, gis::srid_t srid,
             MYSQL_LEX_STRING srs_name, MYSQL_LEX_STRING definition,
             MYSQL_LEX_STRING organization, gis::srid_t organization_coordsys_id,
-            MYSQL_LEX_STRING description)
-  {
-    m_or_replace= or_replace;
-    m_if_not_exists= if_not_exists;
-    m_srid= srid;
-    m_srs_name= srs_name;
-    m_definition= definition;
-    m_organization= organization;
-    m_organization_coordsys_id= organization_coordsys_id;
-    m_description= description;
+            MYSQL_LEX_STRING description) {
+    m_or_replace = or_replace;
+    m_if_not_exists = if_not_exists;
+    m_srid = srid;
+    m_srs_name = srs_name;
+    m_definition = definition;
+    m_organization = organization;
+    m_organization_coordsys_id = organization_coordsys_id;
+    m_description = description;
   }
-  enum_sql_command sql_command_code() const override
-  { return SQLCOM_CREATE_SRS; }
+  enum_sql_command sql_command_code() const override {
+    return SQLCOM_CREATE_SRS;
+  }
   bool execute(THD *thd) override;
 
   /// Fill an SRS with information from this CREATE statement (except the ID).
@@ -82,13 +82,13 @@ public:
   /// has been reported with my_error.
   bool fill_srs(dd::Spatial_reference_system *srs);
 
-private:
+ private:
   /// Whether OR REPLACE was specified.
-  bool m_or_replace= false;
+  bool m_or_replace = false;
   /// Whether IF NOT EXISTS was specified
-  bool m_if_not_exists= false;
+  bool m_if_not_exists = false;
   /// The SRID of the new SRS.
-  gis::srid_t m_srid= 0;
+  gis::srid_t m_srid = 0;
   /// The name of the new SRS.
   ///
   /// The value is always a valid name (verified by PT_create_srs), but it may
@@ -101,20 +101,19 @@ private:
   /// Organization that is the source of the SRS definition.
   MYSQL_LEX_STRING m_organization;
   /// Source organization's SRS ID.
-  gis::srid_t m_organization_coordsys_id= 0;
+  gis::srid_t m_organization_coordsys_id = 0;
   /// Description of the new SRS.
   MYSQL_LEX_STRING m_description;
 };
 
-class Sql_cmd_drop_srs final : public Sql_cmd
-{
-public:
+class Sql_cmd_drop_srs final : public Sql_cmd {
+ public:
   Sql_cmd_drop_srs(gis::srid_t srid, bool if_exists)
       : m_srid(srid), m_if_exists(if_exists) {}
   enum_sql_command sql_command_code() const override { return SQLCOM_DROP_SRS; }
-  bool execute(THD* thd) override;
+  bool execute(THD *thd) override;
 
-private:
+ private:
   /// SRID of the SRS to drop.
   gis::srid_t m_srid;
   /// Whether IF EXISTS was specified.

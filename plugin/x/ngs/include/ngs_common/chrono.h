@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,20 +22,22 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef NGS_CHRONO_H_
-#define NGS_CHRONO_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_
 
-#include <chrono>
+#include <chrono>  // NOLINT(build/c++11)
 
 namespace ngs {
 namespace chrono {
 
 using std::chrono::milliseconds;
 using std::chrono::seconds;
-typedef std::chrono::steady_clock::time_point time_point;
-typedef std::chrono::steady_clock::duration duration;
+using std::chrono::system_clock;
+using clock = std::chrono::steady_clock;
+using time_point = clock::time_point;
+using duration = clock::duration;
 
-inline time_point now() { return std::chrono::steady_clock::now(); }
+inline time_point now() { return clock::now(); }
 
 inline milliseconds::rep to_milliseconds(const duration &d) {
   return std::chrono::duration_cast<milliseconds>(d).count();
@@ -50,6 +52,6 @@ inline bool is_valid(const time_point &p) {
 }
 
 }  // namespace chrono
-}  // namespcae ngs
+}  // namespace ngs
 
-#endif  // NGS_CHRONO_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_CHRONO_H_

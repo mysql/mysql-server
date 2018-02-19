@@ -32,19 +32,19 @@
 #include "client/base/help_options.h"
 #include "client/base/i_options_provider.h"
 #include "client/base/message_data.h"
+#include "my_alloc.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 /**
   Base class for all MySQL client tools.
  */
-class Abstract_program : public Options::Composite_options_provider
-{
-public:
+class Abstract_program : public Options::Composite_options_provider {
+ public:
   virtual ~Abstract_program();
 
   /**
@@ -56,7 +56,7 @@ public:
     Returns pointer to array of options for usage in handle_options.
     Array has empty sentinel at the end, as handle_options expects.
    */
-  my_option* get_options_array();
+  my_option *get_options_array();
 
   /**
     Does all initialization and exit work, calls execute().
@@ -66,41 +66,41 @@ public:
   /**
     Returns string describing current version of this program.
    */
-  virtual std::string get_version()= 0;
+  virtual std::string get_version() = 0;
 
   /**
     Returns year of first release of this program.
    */
-  virtual int get_first_release_year()= 0;
+  virtual int get_first_release_year() = 0;
 
   /**
     Returns string describing shortly current program
    */
-  virtual std::string get_description()= 0;
+  virtual std::string get_description() = 0;
 
   /**
     Handles general errors.
    */
-  virtual void error(const Message_data& message)= 0;
+  virtual void error(const Message_data &message) = 0;
 
   /**
     Runs main program code.
    */
-  virtual int execute(std::vector<std::string> positional_options)= 0;
+  virtual int execute(std::vector<std::string> positional_options) = 0;
 
   /**
    Prints program invocation message.
   */
-  virtual void short_usage()= 0;
+  virtual void short_usage() = 0;
   /**
    Return error code
   */
-  virtual int get_error_code()= 0;
+  virtual int get_error_code() = 0;
 
-protected:
+ protected:
   Abstract_program();
 
-private:
+ private:
   /**
     Initializes program name.
    */
@@ -114,27 +114,27 @@ private:
   /**
     Compares option structures by long name. Keeps --help first.
    */
-  static bool options_by_name_comparer(const my_option& a, const my_option& b);
+  static bool options_by_name_comparer(const my_option &a, const my_option &b);
 
   /*
     Redirects call to option_parsed of main Abstract_program instance.
     If we have anonymous functions or binding this should be removed.
   */
-  static bool callback_option_parsed(int optid,
-    const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument);
+  static bool callback_option_parsed(
+      int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+      char *argument);
 
   Options::Debug_options m_debug_options;
   Options::Help_options m_help_options;
   std::vector<my_option> m_options;
-  char **m_defaults_argv;
+  MEM_ROOT m_argv_alloc{PSI_NOT_INSTRUMENTED, 512};
   std::string m_name;
 
   friend class Abstract_connection_program;
 };
 
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

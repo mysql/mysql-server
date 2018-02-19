@@ -22,31 +22,30 @@
 
 #include "sql/dd/impl/system_views/keywords.h"
 
+#include <algorithm>
 #include <string>
 
-#include "sql/stateless_allocator.h"
 #include "sql/keyword_list.h"
+#include "sql/stateless_allocator.h"
 
 namespace dd {
 namespace system_views {
 
-const Keywords &Keywords::instance()
-{
-  static Keywords *s_instance= new Keywords();
+const Keywords &Keywords::instance() {
+  static Keywords *s_instance = new Keywords();
   return *s_instance;
 }
 
-Keywords::Keywords()
-{
-  size_t max_word_size= 0;
+Keywords::Keywords() {
+  size_t max_word_size = 0;
   for (auto x : keyword_list)
-    max_word_size= std::max(max_word_size, strlen(x.word));
+    max_word_size = std::max(max_word_size, strlen(x.word));
 
   Stringstream_type ss;
   ss << "JSON_TABLE('[";
   for (auto x : keyword_list)
     ss << "[\"" << x.word << "\"," << x.reserved << "],";
-  ss.seekp(ss.tellp() - static_cast<std::streamoff>(1)); // remove last ','
+  ss.seekp(ss.tellp() - static_cast<std::streamoff>(1));  // remove last ','
   ss << "]', '$[*]' COLUMNS(word VARCHAR(" << max_word_size << ") PATH '$[0]',"
      << "reserved INT PATH '$[1]')) AS j";
 
@@ -56,5 +55,5 @@ Keywords::Keywords()
   m_target_def.add_from(ss.str());
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

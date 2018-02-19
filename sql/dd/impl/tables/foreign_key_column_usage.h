@@ -23,54 +23,46 @@
 #ifndef DD_TABLES__FOREIGN_KEY_COLUMN_USAGE_INCLUDED
 #define DD_TABLES__FOREIGN_KEY_COLUMN_USAGE_INCLUDED
 
-#include "sql/dd/impl/types/object_table_impl.h" // dd::Object_table_impl
-#include "sql/dd/object_id.h"                // dd::Object_id
+#include "sql/dd/impl/types/object_table_impl.h"  // dd::Object_table_impl
+#include "sql/dd/object_id.h"                     // dd::Object_id
 #include "sql/dd/string_type.h"
 
 namespace dd {
-  class Object_key;
+class Object_key;
 
 namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_column_usage : public Object_table_impl
-{
-public:
+class Foreign_key_column_usage : public Object_table_impl {
+ public:
   static const Foreign_key_column_usage &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_FOREIGN_KEY_ID,
     FIELD_ORDINAL_POSITION,
     FIELD_COLUMN_ID,
     FIELD_REFERENCED_COLUMN_NAME
   };
 
-  enum enum_indexes
-  {
+  enum enum_indexes {
     INDEX_PK_FOREIGN_KEY_ID_ORDINAL_POSITION,
     INDEX_UK_FOREIGN_KEY_ID_COLUMN_ID,
     INDEX_K_COLUMN_ID
   };
 
-  enum enum_foreign_keys
-  {
-    FK_FOREIGN_KEY_ID,
-    FK_COLUMN_ID
-  };
+  enum enum_foreign_keys { FK_FOREIGN_KEY_ID, FK_COLUMN_ID };
 
   Foreign_key_column_usage();
 
   static Object_key *create_key_by_foreign_key_id(Object_id fk_id);
 
-  static Object_key *create_primary_key(
-    Object_id fk_id, int ordinal_position);
+  static Object_key *create_primary_key(Object_id fk_id, int ordinal_position);
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__FOREIGN_KEY_COLUMN_USAGE_INCLUDED
+#endif  // DD_TABLES__FOREIGN_KEY_COLUMN_USAGE_INCLUDED

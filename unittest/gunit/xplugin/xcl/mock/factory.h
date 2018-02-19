@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,7 +22,6 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef XPLUGIN_XCL_MOCK_FACTORY_H_
 #define XPLUGIN_XCL_MOCK_FACTORY_H_
 
@@ -31,50 +30,42 @@
 
 #include "plugin/x/client/xprotocol_factory.h"
 
-
 namespace xcl {
 namespace test {
 
 class Mock_factory : public Protocol_factory {
  public:
   MOCK_METHOD1(create_protocol_raw,
-      XProtocol *(std::shared_ptr<Context> context));
+               XProtocol *(std::shared_ptr<Context> context));
   MOCK_METHOD1(create_connection_raw,
-      XConnection *(std::shared_ptr<Context> context));
+               XConnection *(std::shared_ptr<Context> context));
   MOCK_METHOD3(create_result_raw,
-      XQuery_result *(std::shared_ptr<XProtocol>,
-                      Query_instances *,
-                      std::shared_ptr<Context>));
+               XQuery_result *(std::shared_ptr<XProtocol>, Query_instances *,
+                               std::shared_ptr<Context>));
 
  private:
-    std::shared_ptr<XProtocol> create_protocol(
-        std::shared_ptr<Context> context) override {
-      std::shared_ptr<XProtocol> result {
-        create_protocol_raw(context)
-      };
+  std::shared_ptr<XProtocol> create_protocol(
+      std::shared_ptr<Context> context) override {
+    std::shared_ptr<XProtocol> result{create_protocol_raw(context)};
 
-      return result;
-    }
+    return result;
+  }
 
-    std::unique_ptr<XConnection> create_connection(
-        std::shared_ptr<Context> context) override {
-      std::unique_ptr<XConnection> result {
-        create_connection_raw(context)
-      };
+  std::unique_ptr<XConnection> create_connection(
+      std::shared_ptr<Context> context) override {
+    std::unique_ptr<XConnection> result{create_connection_raw(context)};
 
-      return result;
-    }
+    return result;
+  }
 
-    std::unique_ptr<XQuery_result> create_result(
-        std::shared_ptr<XProtocol> protocol,
-        Query_instances *query_instances,
-        std::shared_ptr<Context> context) override {
-      std::unique_ptr<XQuery_result> result {
-        create_result_raw(protocol, query_instances, context)
-      };
+  std::unique_ptr<XQuery_result> create_result(
+      std::shared_ptr<XProtocol> protocol, Query_instances *query_instances,
+      std::shared_ptr<Context> context) override {
+    std::unique_ptr<XQuery_result> result{
+        create_result_raw(protocol, query_instances, context)};
 
-      return result;
-    }
+    return result;
+  }
 };
 
 }  // namespace test

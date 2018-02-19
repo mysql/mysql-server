@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,6 @@
 
 # To do: The default should probably be different depending on platform. On
 # Windows, it should likely be wherever NuGet puts the libraries.
-
-SET(DEFAULT_ICU "bundled")
 
 #
 # install_root is either 'system' or is assumed to be a path.
@@ -86,6 +84,7 @@ MACRO (FIND_ICU install_root)
 ENDMACRO()
 
 MACRO (MYSQL_USE_BUNDLED_ICU)
+  SET(WITH_ICU "bundled" CACHE STRING "Use bundled icu library")
   SET(BUILD_BUNDLED_ICU 1)
   # To do: remove
   SET(UDATA_DEBUG 1)
@@ -105,12 +104,10 @@ MACRO (MYSQL_USE_BUNDLED_ICU)
 
 ENDMACRO()
 
-IF (NOT WITH_ICU)
-  SET(WITH_ICU ${DEFAULT_ICU})
+IF(NOT WITH_ICU)
+  SET(WITH_ICU bundled CACHE STRING
+    "By default use bundled icu library")
 ENDIF()
-
-SET(WITH_ICU ${WITH_ICU} CACHE
-  STRING "By default use ${DEFAULT_ICU} icu library")
 
 MACRO (MYSQL_CHECK_ICU)
   ADD_DEFINITIONS(

@@ -23,13 +23,11 @@
 #ifndef MYSQLD_DAEMON_INCLUDED
 #define MYSQLD_DAEMON_INCLUDED
 
-namespace mysqld
-{
-namespace runtime
-{
-  bool is_daemon();
-  int mysqld_daemonize();
-  void signal_parent(int pipe_write_fd, char status);
-}
-}
-#endif // MYSQLD_DAEMON_INCLUDED
+namespace mysqld {
+namespace runtime {
+bool is_daemon();
+int mysqld_daemonize();
+void signal_parent(int pipe_write_fd, char status);
+}  // namespace runtime
+}  // namespace mysqld
+#endif  // MYSQLD_DAEMON_INCLUDED

@@ -28,8 +28,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "lot0types.h"
 #include "mtr0types.h"
-#include "ut0dbg.h"
 #include "ut0byte.h"
+#include "ut0dbg.h"
 
 inline uint8_t mach_read_from_1(const byte *b) {
   ut_ad(b != nullptr);
@@ -65,14 +65,14 @@ inline ulint mach_read_from_4(const byte *b) {
 
 inline uint32_t mach_read_ulint(const byte *ptr, mlog_id_t type) {
   switch (type) {
-  case MLOG_1BYTE:
-    return (mach_read_from_1(ptr));
-  case MLOG_2BYTES:
-    return (mach_read_from_2(ptr));
-  case MLOG_4BYTES:
-    return (mach_read_from_4(ptr));
-  default:
-    break;
+    case MLOG_1BYTE:
+      return (mach_read_from_1(ptr));
+    case MLOG_2BYTES:
+      return (mach_read_from_2(ptr));
+    case MLOG_4BYTES:
+      return (mach_read_from_4(ptr));
+    default:
+      break;
   }
 
   ut_error;
@@ -83,31 +83,21 @@ inline uint32_t mach_read_ulint(const byte *ptr, mlog_id_t type) {
 bytes. The most significant byte is at the lowest address.
 @param[in]      b       pointer to 6 bytes to read
 @return 48-bit integer */
-inline
-ib_uint64_t
-mach_read_from_6(
-        const byte*     b)
-{
-        ut_ad(b != nullptr);
+inline ib_uint64_t mach_read_from_6(const byte *b) {
+  ut_ad(b != nullptr);
 
-        return(ut_ull_create(mach_read_from_2(b), mach_read_from_4(b + 2)));
+  return (ut_ull_create(mach_read_from_2(b), mach_read_from_4(b + 2)));
 }
 
 /** The following function is used to store data in 6 consecutive
 bytes. We store the most significant byte to the lowest address.
 @param[in]      b       pointer to 6 bytes where to store
 @param[in]      id      48-bit integer to write */
-inline
-void
-mach_write_to_6(
-        byte*           b,
-        ib_uint64_t     n)
-{
-        ut_ad(b != nullptr);
+inline void mach_write_to_6(byte *b, ib_uint64_t n) {
+  ut_ad(b != nullptr);
 
-        mach_write_to_2(b, (ulint) (n >> 32));
-        mach_write_to_4(b + 2, (ulint) n);
+  mach_write_to_2(b, (ulint)(n >> 32));
+  mach_write_to_4(b + 2, (ulint)n);
 }
 
-
-#endif // _mach0data_h_
+#endif  // _mach0data_h_

@@ -21,90 +21,72 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "thread_attrs_api.h"
 
-#include "sql/log.h"
 #include "my_dbug.h"
+#include "sql/log.h"
 
-namespace resourcegroups
-{
-namespace platform
-{
-
+namespace resourcegroups {
+namespace platform {
 
 /*
   Mac OS doesn't have an explicit API to bind a set of processors with thread.
   Hence platform APIs are just stubs on this platform.
 */
 
-bool is_platform_supported()
-{
-  return false;
-}
+bool is_platform_supported() { return false; }
 
-bool bind_to_cpu(cpu_id_t)
-{
+bool bind_to_cpu(cpu_id_t) {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpu(cpu_id_t, my_thread_os_id_t)
-{
+bool bind_to_cpu(cpu_id_t, my_thread_os_id_t) {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpus(const std::vector<cpu_id_t> &)
-{
+bool bind_to_cpus(const std::vector<cpu_id_t> &) {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool bind_to_cpus(const std::vector<cpu_id_t> &,
-                  my_thread_os_id_t)
-{
+bool bind_to_cpus(const std::vector<cpu_id_t> &, my_thread_os_id_t) {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool unbind_thread()
-{
+bool unbind_thread() {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool unbind_thread(my_thread_os_id_t)
-{
+bool unbind_thread(my_thread_os_id_t) {
   DBUG_ASSERT(0);
   return true;
 }
 
-int thread_priority(my_thread_os_id_t)
-{
+int thread_priority(my_thread_os_id_t) {
   DBUG_ASSERT(0);
   return 0;
 }
 
-bool set_thread_priority(int)
-{
+bool set_thread_priority(int) {
   DBUG_ASSERT(0);
   return true;
 }
 
-bool set_thread_priority(int, my_thread_os_id_t)
-{
+bool set_thread_priority(int, my_thread_os_id_t) {
   DBUG_ASSERT(0);
   return true;
 }
 
-uint32_t num_vcpus()
-{
+uint32_t num_vcpus() {
   DBUG_ASSERT(0);
   return 0;
 }
 
-bool can_thread_priority_be_set()
-{
+bool can_thread_priority_be_set() {
   DBUG_ASSERT(0);
   return false;
 }
-}  // platform
-}  // resourcegroups
+}  // namespace platform
+}  // namespace resourcegroups

@@ -32,16 +32,15 @@
 #include "my_inttypes.h"
 #include "mysql.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
+namespace Mysql {
+namespace Tools {
+namespace Base {
 
 /**
   Extracts the value of server variable.
  */
-class Show_variable_query_extractor
-{
-public:
+class Show_variable_query_extractor {
+ public:
   /**
     Extract the value of server variable.
 
@@ -51,16 +50,16 @@ public:
     @param[out] exists reference to bool to store if variable was found.
     @return nonzero if error was encountered.
    */
-  static int64 get_variable_value(
-    Mysql_query_runner* query_runner, std::string variable,
-    std::string& value, bool& exists);
+  static int64 get_variable_value(Mysql_query_runner *query_runner,
+                                  std::string variable, std::string &value,
+                                  bool &exists);
 
-private:
+ private:
   Show_variable_query_extractor();
   /**
     Result row callback to be used in query runner.
    */
-  int64 extract_variable(const Mysql_query_runner::Row& result_row);
+  int64 extract_variable(const Mysql_query_runner::Row &result_row);
 
   /**
   Temporary placeholder for extracted value.
@@ -73,8 +72,8 @@ private:
   bool m_exists;
 };
 
-}
-}
-}
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

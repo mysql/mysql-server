@@ -28,26 +28,25 @@
 #include "client/dump/abstract_dump_task.h"
 #include "client/dump/table.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Abstract class for defining single DB table dump task.
  */
-class Abstract_table_dump_task : public Abstract_dump_task
-{
-public:
-  Abstract_table_dump_task(Table* related_table);
+class Abstract_table_dump_task : public Abstract_dump_task {
+ public:
+  Abstract_table_dump_task(Table *related_table);
 
   /**
     Returns table the current task is created for.
    */
-  Table* get_related_table();
+  Table *get_related_table();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

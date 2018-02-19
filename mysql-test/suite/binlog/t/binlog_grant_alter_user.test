@@ -15,7 +15,6 @@
 --source include/master-slave.inc
 --connection master
 
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
 --echo #
 --echo # WL#6409: CREATE/ALTER USER
 --echo #
@@ -792,7 +791,8 @@ REVOKE INSERT,UPDATE ON mysql.* FROM user1@localhost;
 SHOW GRANTS FOR user1@localhost;
 --echo
 
-GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost IDENTIFIED BY 'admin'
+GRANT SELECT,INSERT,UPDATE ON *.* TO user2@localhost;
+ALTER USER user2@localhost IDENTIFIED BY 'admin'
       REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
       ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
       WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
@@ -804,13 +804,6 @@ max_questions,max_updates,max_connections FROM mysql.user WHERE USER='user2';
 
 CREATE USER user3@localhost IDENTIFIED BY 'auth_string';
 
-GRANT SELECT ON mysql.* TO user3@localhost
-      IDENTIFIED WITH 'mysql_native_password' BY 'auth_string'
-      REQUIRE SUBJECT '/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=Client'
-      ISSUER "/C=SE/ST=Stockholm/L=Stockholm/O=Oracle/OU=MySQL/CN=CA"
-      WITH MAX_CONNECTIONS_PER_HOUR 1000 MAX_USER_CONNECTIONS 20
-           MAX_QUERIES_PER_HOUR 60 MAX_UPDATES_PER_HOUR 100;
-
 --echo # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost;
 
@@ -820,10 +813,8 @@ DROP USER user1@localhost,user2@localhost,user3@localhost;
 CREATE USER user1@localhost IDENTIFIED BY 'auth_string';
 CREATE USER user2@localhost IDENTIFIED WITH 'mysql_native_password' BY 'auth_string1';
 
-SELECT PASSWORD('plaintext_pwd');
-
-SET PASSWORD FOR user1@localhost=PASSWORD('auth_xyz@');
-SET PASSWORD FOR user2@localhost=PASSWORD('gd636@gj');
+SET PASSWORD FOR user1@localhost='auth_xyz@';
+SET PASSWORD FOR user2@localhost='gd636@gj';
 
 --echo
 CREATE USER user4@localhost;
@@ -876,35 +867,6 @@ disconnect con1;
 --echo # Cleanup
 DROP USER user1@localhost,user2@localhost,user3@localhost,
           user4@localhost,user5@localhost,user6@localhost;
---echo
---echo # Testing log_builtin_as_identified_by_password variable scope GLOBAL Dynamic
-
-# log_builtin_as_identified_by_password variable change dynamically
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET GLOBAL log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET GLOBAL log_builtin_as_identified_by_password = OFF;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET SESSION log_builtin_as_identified_by_password = ON;
-SHOW  VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET @@log_builtin_as_identified_by_password = OFF;
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
-SET @@global.log_builtin_as_identified_by_password = ON;
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
---echo
---error ER_GLOBAL_VARIABLE
-SET @@session.log_builtin_as_identified_by_password = ON;
---echo # GLOBAL variable value
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-SET GLOBAL log_builtin_as_identified_by_password=OFF;
-SHOW VARIABLES LIKE 'log_builtin_as_identified_by_password';
 
 --source include/sync_slave_sql_with_master.inc
 --echo [On Slave]

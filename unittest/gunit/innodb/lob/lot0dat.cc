@@ -23,24 +23,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 *****************************************************************************/
-#include <iostream>
-#include <fstream>
-#include <map>
 #include <string.h>
+#include <fstream>
+#include <iostream>
+#include <map>
 #include "lot0types.h"
 
 namespace lob_data {
 
-const char* allowed_char = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
-"stuvwxyz1234567890~!@#$%^&*()_-=+";
+const char *allowed_char =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqr"
+    "stuvwxyz1234567890~!@#$%^&*()_-=+";
 
-static std::map<lobid_t, byte*> g_data;
+static std::map<lobid_t, byte *> g_data;
 
-byte* generate_lob(lobid_t* id, ulint size) {
+byte *generate_lob(lobid_t *id, ulint size) {
   lobid_t new_id = g_data.size();
   const ulint max_j = strlen(allowed_char);
 
-  byte* tmp = new byte[size];
+  byte *tmp = new byte[size];
 
   ulint count = 10;
   for (ulint i = 0, j = 0; i < size; ++i, --count) {
@@ -55,28 +56,27 @@ byte* generate_lob(lobid_t* id, ulint size) {
   }
   *id = new_id;
 
-  g_data.insert(std::pair<lobid_t, byte*>(new_id, tmp));
-  return(tmp);
+  g_data.insert(std::pair<lobid_t, byte *>(new_id, tmp));
+  return (tmp);
 }
 
-byte* generate_lob(lobid_t* id, char x, ulint size) {
-
+byte *generate_lob(lobid_t *id, char x, ulint size) {
   lobid_t new_id = g_data.size();
-  byte* tmp = new byte[size];
+  byte *tmp = new byte[size];
 
   for (ulint i = 0; i < size; ++i) {
     tmp[i] = x;
   }
 
   *id = new_id;
-  g_data.insert(std::pair<lobid_t, byte*>(new_id, tmp));
-  return(tmp);
+  g_data.insert(std::pair<lobid_t, byte *>(new_id, tmp));
+  return (tmp);
 }
 
 void remove_lob(lobid_t id) {
   auto it = g_data.find(id);
 
-  byte* lob = it->second;
+  byte *lob = it->second;
   delete[] lob;
 
   if (it != g_data.end()) {
@@ -84,21 +84,21 @@ void remove_lob(lobid_t id) {
   }
 }
 
-std::pair<byte*, ulint> get_lob(lobid_t* id, const char* filename) {
+std::pair<byte *, ulint> get_lob(lobid_t *id, const char *filename) {
   std::ifstream fstrm(filename, std::ios_base::in | std::ios_base::binary);
   if (fstrm.fail()) {
-    return(std::pair<byte*, ulint>(nullptr, 0));
+    return (std::pair<byte *, ulint>(nullptr, 0));
   }
   fstrm.seekg(0, std::ios_base::end);
   size_t file_size = fstrm.tellg();
   fstrm.seekg(0, std::ios_base::beg);
-  byte* tmp = new byte[file_size];
-  fstrm.read( (char*) tmp, file_size);
+  byte *tmp = new byte[file_size];
+  fstrm.read((char *)tmp, file_size);
   fstrm.close();
   lobid_t new_id = g_data.size();
   *id = new_id;
-  g_data.insert(std::pair<lobid_t, byte*>(new_id, tmp));
-  return(std::pair<byte*, ulint>(tmp, file_size));
+  g_data.insert(std::pair<lobid_t, byte *>(new_id, tmp));
+  return (std::pair<byte *, ulint>(tmp, file_size));
 }
 
-};
+};  // namespace lob_data

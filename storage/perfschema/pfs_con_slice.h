@@ -50,12 +50,9 @@ class PFS_opaque_container_page;
   A connection slice, an arbitrary grouping of several connections.
   This structure holds statistics for grouping of connections.
 */
-struct PFS_connection_slice
-{
+struct PFS_connection_slice {
   /** Reset all statistics. */
-  inline void
-  reset_stats()
-  {
+  inline void reset_stats() {
     m_has_waits_stats = false;
     m_has_stages_stats = false;
     m_has_statements_stats = false;
@@ -76,156 +73,112 @@ struct PFS_connection_slice
   /** Reset all errors statistics. */
   void reset_errors_stats();
   /** Reset all status variable statistics. */
-  void
-  reset_status_stats()
-  {
-    m_status_stats.reset();
-  }
+  void reset_status_stats() { m_status_stats.reset(); }
 
-  void
-  set_instr_class_waits_stats(PFS_single_stat *array)
-  {
+  void set_instr_class_waits_stats(PFS_single_stat *array) {
     m_has_waits_stats = false;
     m_instr_class_waits_stats = array;
   }
 
-  const PFS_single_stat *
-  read_instr_class_waits_stats() const
-  {
-    if (!m_has_waits_stats)
-    {
+  const PFS_single_stat *read_instr_class_waits_stats() const {
+    if (!m_has_waits_stats) {
       return NULL;
     }
     return m_instr_class_waits_stats;
   }
 
-  PFS_single_stat *
-  write_instr_class_waits_stats()
-  {
-    if (!m_has_waits_stats)
-    {
+  PFS_single_stat *write_instr_class_waits_stats() {
+    if (!m_has_waits_stats) {
       reset_waits_stats();
       m_has_waits_stats = true;
     }
     return m_instr_class_waits_stats;
   }
 
-  void
-  set_instr_class_stages_stats(PFS_stage_stat *array)
-  {
+  void set_instr_class_stages_stats(PFS_stage_stat *array) {
     m_has_stages_stats = false;
     m_instr_class_stages_stats = array;
   }
 
-  const PFS_stage_stat *
-  read_instr_class_stages_stats() const
-  {
-    if (!m_has_stages_stats)
-    {
+  const PFS_stage_stat *read_instr_class_stages_stats() const {
+    if (!m_has_stages_stats) {
       return NULL;
     }
     return m_instr_class_stages_stats;
   }
 
-  PFS_stage_stat *
-  write_instr_class_stages_stats()
-  {
-    if (!m_has_stages_stats)
-    {
+  PFS_stage_stat *write_instr_class_stages_stats() {
+    if (!m_has_stages_stats) {
       reset_stages_stats();
       m_has_stages_stats = true;
     }
     return m_instr_class_stages_stats;
   }
 
-  void
-  set_instr_class_statements_stats(PFS_statement_stat *array)
-  {
+  void set_instr_class_statements_stats(PFS_statement_stat *array) {
     m_has_statements_stats = false;
     m_instr_class_statements_stats = array;
   }
 
-  const PFS_statement_stat *
-  read_instr_class_statements_stats() const
-  {
-    if (!m_has_statements_stats)
-    {
+  const PFS_statement_stat *read_instr_class_statements_stats() const {
+    if (!m_has_statements_stats) {
       return NULL;
     }
     return m_instr_class_statements_stats;
   }
 
-  PFS_statement_stat *
-  write_instr_class_statements_stats()
-  {
-    if (!m_has_statements_stats)
-    {
+  PFS_statement_stat *write_instr_class_statements_stats() {
+    if (!m_has_statements_stats) {
       reset_statements_stats();
       m_has_statements_stats = true;
     }
     return m_instr_class_statements_stats;
   }
 
-  void
-  set_instr_class_transactions_stats(PFS_transaction_stat *array)
-  {
+  void set_instr_class_transactions_stats(PFS_transaction_stat *array) {
     m_has_transactions_stats = false;
     m_instr_class_transactions_stats = array;
   }
 
-  const PFS_transaction_stat *
-  read_instr_class_transactions_stats() const
-  {
-    if (!m_has_transactions_stats)
-    {
+  const PFS_transaction_stat *read_instr_class_transactions_stats() const {
+    if (!m_has_transactions_stats) {
       return NULL;
     }
     return m_instr_class_transactions_stats;
   }
 
-  PFS_transaction_stat *
-  write_instr_class_transactions_stats()
-  {
-    if (!m_has_transactions_stats)
-    {
+  PFS_transaction_stat *write_instr_class_transactions_stats() {
+    if (!m_has_transactions_stats) {
       reset_transactions_stats();
       m_has_transactions_stats = true;
     }
     return m_instr_class_transactions_stats;
   }
 
-  void
-  set_instr_class_errors_stats(PFS_error_stat *array)
-  {
+  void set_instr_class_errors_stats(PFS_error_stat *array) {
     m_has_errors_stats = false;
     m_instr_class_errors_stats = array;
   }
 
-  const PFS_error_stat *
-  read_instr_class_errors_stats() const
-  {
-    if (!m_has_errors_stats)
-    {
+  const PFS_error_stat *read_instr_class_errors_stats() const {
+    if (!m_has_errors_stats) {
       return NULL;
     }
     return m_instr_class_errors_stats;
   }
 
-  PFS_error_stat *
-  write_instr_class_errors_stats()
-  {
-    if (!m_has_errors_stats)
-    {
+  PFS_error_stat *write_instr_class_errors_stats() {
+    if (!m_has_errors_stats) {
       reset_errors_stats();
       m_has_errors_stats = true;
     }
     return m_instr_class_errors_stats;
   }
 
-protected:
+ protected:
   bool m_has_memory_stats;
 
-private:
+ private:
   bool m_has_waits_stats;
   bool m_has_stages_stats;
   bool m_has_statements_stats;
@@ -272,10 +225,8 @@ private:
   */
   PFS_error_stat *m_instr_class_errors_stats;
 
-public:
-  void
-  aggregate_status_stats(const System_status_var *status_vars)
-  {
+ public:
+  void aggregate_status_stats(const System_status_var *status_vars) {
     m_status_stats.aggregate_from(status_vars);
   }
 

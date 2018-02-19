@@ -30,10 +30,10 @@
 #include <sys/types.h>
 #include <atomic>
 
-static_assert(
-  sizeof(std::atomic<void *>) == sizeof(void *),
-  "We happily cast to and from std::atomic<void *>, so they need to be at least"
-  "nominally compatible.");
+static_assert(sizeof(std::atomic<void *>) == sizeof(void *),
+              "We happily cast to and from std::atomic<void *>, so they need "
+              "to be at least"
+              "nominally compatible.");
 
 /**
   @file mysys/lf_alloc-pin.cc
@@ -136,20 +136,18 @@ static void lf_pinbox_real_free(LF_PINS *pins);
   See the latter for details.
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
-                    lf_pinbox_free_func *free_func, void *free_func_arg)
-{
+                    lf_pinbox_free_func *free_func, void *free_func_arg) {
   DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
   static_assert(sizeof(LF_PINS) == 64, "");
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
-  pinbox->pinstack_top_ver= 0;
-  pinbox->pins_in_array= 0;
-  pinbox->free_ptr_offset= free_ptr_offset;
-  pinbox->free_func= free_func;
-  pinbox->free_func_arg= free_func_arg;
+  pinbox->pinstack_top_ver = 0;
+  pinbox->pins_in_array = 0;
+  pinbox->free_ptr_offset = free_ptr_offset;
+  pinbox->free_func = free_func;
+  pinbox->free_func_arg = free_func_arg;
 }
 
-void lf_pinbox_destroy(LF_PINBOX *pinbox)
-{
+void lf_pinbox_destroy(LF_PINBOX *pinbox) {
   lf_dynarray_destroy(&pinbox->pinarray);
 }
 
@@ -163,8 +161,7 @@ void lf_pinbox_destroy(LF_PINBOX *pinbox)
     get a new LF_PINS structure from a stack of unused pins,
     or allocate a new one out of dynarray.
 */
-LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
-{
+LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox) {
   uint32 pins, next, top_ver;
   LF_PINS *el;
   /*
@@ -176,38 +173,33 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     (every time the 16 low bits are updated, the 16 high bits are
     incremented). Versioning prevents the ABA problem.
   */
-  top_ver= pinbox->pinstack_top_ver;
-  do
-  {
-    if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
-    {
+  top_ver = pinbox->pinstack_top_ver;
+  do {
+    if (!(pins = top_ver % LF_PINBOX_MAX_PINS)) {
       /* the stack of free elements is empty */
-      pins= pinbox->pins_in_array.fetch_add(1) + 1;
-      if (unlikely(pins >= LF_PINBOX_MAX_PINS))
-        return 0;
+      pins = pinbox->pins_in_array.fetch_add(1) + 1;
+      if (unlikely(pins >= LF_PINBOX_MAX_PINS)) return 0;
       /*
         note that the first allocated element has index 1 (pins==1).
         index 0 is reserved to mean "NULL pointer"
       */
-      el= (LF_PINS *)lf_dynarray_lvalue(&pinbox->pinarray, pins);
-      if (unlikely(!el))
-        return 0;
+      el = (LF_PINS *)lf_dynarray_lvalue(&pinbox->pinarray, pins);
+      if (unlikely(!el)) return 0;
       break;
     }
-    el= (LF_PINS *)lf_dynarray_value(&pinbox->pinarray, pins);
-    next= el->link;
+    el = (LF_PINS *)lf_dynarray_value(&pinbox->pinarray, pins);
+    next = el->link;
   } while (!atomic_compare_exchange_strong(
-             &pinbox->pinstack_top_ver,
-             &top_ver,
-             top_ver-pins+next+LF_PINBOX_MAX_PINS));
+      &pinbox->pinstack_top_ver, &top_ver,
+      top_ver - pins + next + LF_PINBOX_MAX_PINS));
   /*
     set el->link to the index of el in the dynarray (el->link has two usages:
     - if element is allocated, it's its own index
     - if element is free, it's its next element in the free stack
   */
-  el->link= pins;
-  el->purgatory_count= 0;
-  el->pinbox= pinbox;
+  el->link = pins;
+  el->purgatory_count = 0;
+  el->pinbox = pinbox;
   return el;
 }
 
@@ -218,18 +210,16 @@ LF_PINS *lf_pinbox_get_pins(LF_PINBOX *pinbox)
     empty the purgatory (XXX deadlock warning below!),
     push LF_PINS structure to a stack
 */
-void lf_pinbox_put_pins(LF_PINS *pins)
-{
-  LF_PINBOX *pinbox= pins->pinbox;
+void lf_pinbox_put_pins(LF_PINS *pins) {
+  LF_PINBOX *pinbox = pins->pinbox;
   uint32 top_ver, nr;
-  nr= pins->link;
+  nr = pins->link;
 
 #ifndef DBUG_OFF
   {
     /* This thread should not hold any pin. */
     int i;
-    for (i= 0; i < LF_PINBOX_PINS; i++)
-      DBUG_ASSERT(pins->pin[i] == 0);
+    for (i = 0; i < LF_PINBOX_PINS; i++) DBUG_ASSERT(pins->pin[i] == 0);
   }
 #endif /* DBUG_OFF */
 
@@ -239,22 +229,18 @@ void lf_pinbox_put_pins(LF_PINS *pins)
     and they would have pinned addresses that the caller wants to free.
     Thus: only free pins when all work is done and nobody can wait for you!!!
   */
-  while (pins->purgatory_count)
-  {
+  while (pins->purgatory_count) {
     lf_pinbox_real_free(pins);
-    if (pins->purgatory_count)
-    {
+    if (pins->purgatory_count) {
       my_thread_yield();
     }
   }
-  top_ver= pinbox->pinstack_top_ver;
-  do
-  {
-    pins->link= top_ver % LF_PINBOX_MAX_PINS;
+  top_ver = pinbox->pinstack_top_ver;
+  do {
+    pins->link = top_ver % LF_PINBOX_MAX_PINS;
   } while (!atomic_compare_exchange_strong(
-             &pinbox->pinstack_top_ver,
-             &top_ver,
-             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
+      &pinbox->pinstack_top_ver, &top_ver,
+      top_ver - pins->link + nr + LF_PINBOX_MAX_PINS));
 }
 
 /*
@@ -263,10 +249,9 @@ void lf_pinbox_put_pins(LF_PINS *pins)
 */
 #define pnext_node(P, X) (*((void **)(((char *)(X)) + (P)->free_ptr_offset)))
 
-static inline void add_to_purgatory(LF_PINS *pins, void *addr)
-{
-  pnext_node(pins->pinbox, addr)= pins->purgatory;
-  pins->purgatory= addr;
+static inline void add_to_purgatory(LF_PINS *pins, void *addr) {
+  pnext_node(pins->pinbox, addr) = pins->purgatory;
+  pins->purgatory = addr;
   pins->purgatory_count++;
 }
 
@@ -277,11 +262,9 @@ static inline void add_to_purgatory(LF_PINS *pins, void *addr)
     add an object to purgatory. if necessary, call lf_pinbox_real_free()
     to actually free something.
 */
-void lf_pinbox_free(LF_PINS *pins, void *addr)
-{
+void lf_pinbox_free(LF_PINS *pins, void *addr) {
   add_to_purgatory(pins, addr);
-  if (pins->purgatory_count % LF_PURGATORY_SIZE == 0)
-    lf_pinbox_real_free(pins);
+  if (pins->purgatory_count % LF_PURGATORY_SIZE == 0) lf_pinbox_real_free(pins);
 }
 
 struct st_match_and_save_arg {
@@ -297,36 +280,28 @@ struct st_match_and_save_arg {
   to a new purgatory. At the end, the old purgatory will contain
   pointers not pinned by any thread.
 */
-static int match_and_save(LF_PINS *el, struct st_match_and_save_arg *arg)
-{
+static int match_and_save(LF_PINS *el, struct st_match_and_save_arg *arg) {
   int i;
-  LF_PINS *el_end= el + LF_DYNARRAY_LEVEL_LENGTH;
-  for (; el < el_end; el++)
-  {
-    for (i= 0; i < LF_PINBOX_PINS; i++)
-    {
-      void *p= el->pin[i];
-      if (p)
-      {
-        void *cur= arg->old_purgatory;
-        void **list_prev= &arg->old_purgatory;
-        while (cur)
-        {
-          void *next= pnext_node(arg->pinbox, cur);
+  LF_PINS *el_end = el + LF_DYNARRAY_LEVEL_LENGTH;
+  for (; el < el_end; el++) {
+    for (i = 0; i < LF_PINBOX_PINS; i++) {
+      void *p = el->pin[i];
+      if (p) {
+        void *cur = arg->old_purgatory;
+        void **list_prev = &arg->old_purgatory;
+        while (cur) {
+          void *next = pnext_node(arg->pinbox, cur);
 
-          if (p == cur)
-          {
+          if (p == cur) {
             /* pinned - keeping */
             add_to_purgatory(arg->pins, cur);
             /* unlink from old purgatory */
-            *list_prev= next;
-          }
-          else
-            list_prev= (void **)((char *)cur+arg->pinbox->free_ptr_offset);
-          cur= next;
+            *list_prev = next;
+          } else
+            list_prev = (void **)((char *)cur + arg->pinbox->free_ptr_offset);
+          cur = next;
         }
-        if (!arg->old_purgatory)
-          return 1;
+        if (!arg->old_purgatory) return 1;
       }
     }
   }
@@ -336,32 +311,29 @@ static int match_and_save(LF_PINS *el, struct st_match_and_save_arg *arg)
 /*
   Scan the purgatory and free everything that can be freed
 */
-static void lf_pinbox_real_free(LF_PINS *pins)
-{
-  LF_PINBOX *pinbox= pins->pinbox;
+static void lf_pinbox_real_free(LF_PINS *pins) {
+  LF_PINBOX *pinbox = pins->pinbox;
 
   /* Store info about current purgatory. */
   struct st_match_and_save_arg arg = {pins, pinbox, pins->purgatory};
   /* Reset purgatory. */
-  pins->purgatory= NULL;
-  pins->purgatory_count= 0;
+  pins->purgatory = NULL;
+  pins->purgatory_count = 0;
 
-  lf_dynarray_iterate(&pinbox->pinarray,
-                      (lf_dynarray_func)match_and_save, &arg);
+  lf_dynarray_iterate(&pinbox->pinarray, (lf_dynarray_func)match_and_save,
+                      &arg);
 
-  if (arg.old_purgatory)
-  {
+  if (arg.old_purgatory) {
     /* Some objects in the old purgatory were not pinned, free them. */
-    void *last= arg.old_purgatory;
-    while (pnext_node(pinbox, last))
-      last= pnext_node(pinbox, last);
+    void *last = arg.old_purgatory;
+    while (pnext_node(pinbox, last)) last = pnext_node(pinbox, last);
     pinbox->free_func(arg.old_purgatory, last, pinbox->free_func_arg);
   }
 }
 
-static inline std::atomic<uchar *>& next_node(LF_PINBOX *P, uchar *X)
-{
-  std::atomic<uchar *> *free_ptr= (std::atomic<uchar *> *)(X + P->free_ptr_offset);
+static inline std::atomic<uchar *> &next_node(LF_PINBOX *P, uchar *X) {
+  std::atomic<uchar *> *free_ptr =
+      (std::atomic<uchar *> *)(X + P->free_ptr_offset);
   return *free_ptr;
 }
 
@@ -379,16 +351,12 @@ LF_REQUIRE_PINS(1)
     'first' and 'last' are the ends of the linked list of nodes:
     first->el->el->....->el->last. Use first==last to free only one element.
 */
-static void alloc_free(uchar *first,
-                       uchar *last,
-                       LF_ALLOCATOR *allocator)
-{
-  uchar *node= allocator->top;
-  do
-  {
-    anext_node(last)= node;
-  } while (!atomic_compare_exchange_strong(
-             &allocator->top, &node, first) && LF_BACKOFF);
+static void alloc_free(uchar *first, uchar *last, LF_ALLOCATOR *allocator) {
+  uchar *node = allocator->top;
+  do {
+    anext_node(last) = node;
+  } while (!atomic_compare_exchange_strong(&allocator->top, &node, first) &&
+           LF_BACKOFF);
 }
 
 /**
@@ -408,16 +376,15 @@ static void alloc_free(uchar *first,
 */
 
 void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
-                    lf_allocator_func *ctor, lf_allocator_func *dtor)
-{
+                    lf_allocator_func *ctor, lf_allocator_func *dtor) {
   lf_pinbox_init(&allocator->pinbox, free_ptr_offset,
                  (lf_pinbox_free_func *)alloc_free, allocator);
-  allocator->top= 0;
-  allocator->mallocs= 0;
-  allocator->element_size= size;
-  allocator->constructor= ctor;
-  allocator->destructor= dtor;
-  DBUG_ASSERT(size >= sizeof(void*) + free_ptr_offset);
+  allocator->top = 0;
+  allocator->mallocs = 0;
+  allocator->element_size = size;
+  allocator->constructor = ctor;
+  allocator->destructor = dtor;
+  DBUG_ASSERT(size >= sizeof(void *) + free_ptr_offset);
 }
 
 /*
@@ -431,19 +398,16 @@ void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
     accessing the allocator when it is being or has been destroyed.
     Oh yes, and don't put your cat in a microwave.
 */
-void lf_alloc_destroy(LF_ALLOCATOR *allocator)
-{
-  uchar *node= allocator->top;
-  while (node)
-  {
-    uchar *tmp= anext_node(node);
-    if (allocator->destructor)
-      allocator->destructor(node);
+void lf_alloc_destroy(LF_ALLOCATOR *allocator) {
+  uchar *node = allocator->top;
+  while (node) {
+    uchar *tmp = anext_node(node);
+    if (allocator->destructor) allocator->destructor(node);
     my_free(node);
-    node= tmp;
+    node = tmp;
   }
   lf_pinbox_destroy(&allocator->pinbox);
-  allocator->top= 0;
+  allocator->top = 0;
 }
 
 /*
@@ -453,32 +417,25 @@ void lf_alloc_destroy(LF_ALLOCATOR *allocator)
     Pop an unused object from the stack or malloc it is the stack is empty.
     pin[0] is used, it's removed on return.
 */
-void *lf_alloc_new(LF_PINS *pins)
-{
-  LF_ALLOCATOR *allocator= (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
+void *lf_alloc_new(LF_PINS *pins) {
+  LF_ALLOCATOR *allocator = (LF_ALLOCATOR *)(pins->pinbox->free_func_arg);
   uchar *node;
-  for (;;)
-  {
-    do
-    {
-      node= allocator->top;
+  for (;;) {
+    do {
+      node = allocator->top;
       lf_pin(pins, 0, node);
     } while (node != allocator->top && LF_BACKOFF);
-    if (!node)
-    {
-      node= static_cast<uchar *>(my_malloc(key_memory_lf_node,
-                                           allocator->element_size,
-                                           MYF(MY_WME)));
-      if (allocator->constructor)
-        allocator->constructor(node);
+    if (!node) {
+      node = static_cast<uchar *>(
+          my_malloc(key_memory_lf_node, allocator->element_size, MYF(MY_WME)));
+      if (allocator->constructor) allocator->constructor(node);
 #ifdef MY_LF_EXTRA_DEBUG
-      if (likely(node != 0))
-        ++allocator->mallocs;
+      if (likely(node != 0)) ++allocator->mallocs;
 #endif
       break;
     }
-    if (atomic_compare_exchange_strong(
-          &allocator->top, &node, anext_node(node).load()))
+    if (atomic_compare_exchange_strong(&allocator->top, &node,
+                                       anext_node(node).load()))
       break;
   }
   lf_unpin(pins, 0);
@@ -491,12 +448,10 @@ void *lf_alloc_new(LF_PINS *pins)
   NOTE
     This is NOT thread-safe !!!
 */
-uint lf_alloc_pool_count(LF_ALLOCATOR *allocator)
-{
+uint lf_alloc_pool_count(LF_ALLOCATOR *allocator) {
   uint i;
   uchar *node;
-  for (node= allocator->top, i= 0; node; node= anext_node(node), i++)
+  for (node = allocator->top, i = 0; node; node = anext_node(node), i++)
     /* no op */;
   return i;
 }
-

@@ -31,8 +31,7 @@ Clone handler interface to access clone plugin
 #include <string>
 
 #include "my_io.h"
-#include "mysql/plugin_clone.h"
-#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class THD;
 struct Mysql_clone;
@@ -40,14 +39,10 @@ struct Mysql_clone;
 /**
   Clone plugin handler to convenient way to. Takes
 */
-class Clone_handler
-{
-public:
-
+class Clone_handler {
+ public:
   /** Constructor: Initialize plugin name */
-  Clone_handler(const char *plugin_name_arg)
-    : m_plugin_handle(nullptr)
-  {
+  Clone_handler(const char *plugin_name_arg) : m_plugin_handle(nullptr) {
     m_plugin_name.assign(plugin_name_arg);
   }
 
@@ -59,33 +54,32 @@ public:
   @param[in]	thd		server thread handle
   @param[in]	data_dir	cloned data directory
   @return error code */
-  int clone_local(THD* thd, const char* data_dir);
-
+  int clone_local(THD *thd, const char *data_dir);
 
   /** Clone handler interface for remote clone client.
   @param[in]	thd		server thread handle
   @param[in]	data_dir	cloned data directory
   @return error code */
-  int clone_remote_client(THD* thd, const char* data_dir);
+  int clone_remote_client(THD *thd, const char *data_dir);
 
   /** Clone handler interface for remote clone server.
   @param[in]	thd	server thread handle
   @param[in]	socket	network socket to remote client
   @return error code */
-  int clone_remote_server(THD* thd, my_socket socket);
+  int clone_remote_server(THD *thd, my_socket socket);
 
-private:
+ private:
   /** Validate clone data directory and convert to os format
   @param[in]	in_dir	user specified clone directory
   @param[out]	out_dir	data directory in native os format
   @return error code */
-  int validate_dir(const char* in_dir, char* out_dir);
+  int validate_dir(const char *in_dir, char *out_dir);
 
   /** Clone plugin name */
-  std::string  m_plugin_name;
+  std::string m_plugin_name;
 
   /** Clone plugin handle */
-  Mysql_clone* m_plugin_handle;
+  Mysql_clone *m_plugin_handle;
 };
 
 /** Check if the clone plugin is installed and lock. If the plugin is ready,
@@ -93,11 +87,11 @@ return the handler to caller.
 @param[in]	thd	server thread handle
 @param[out]	plugin	plugin reference
 @return clone handler on success otherwise NULL */
-Clone_handler* clone_plugin_lock(THD* thd, plugin_ref* plugin);
+Clone_handler *clone_plugin_lock(THD *thd, plugin_ref *plugin);
 
 /** Unlock the clone plugin.
 @param[in]	thd	server thread handle
 @param[out]	plugin	plugin reference */
-void clone_plugin_unlock(THD* thd, plugin_ref plugin);
+void clone_plugin_unlock(THD *thd, plugin_ref plugin);
 
 #endif /* CLONE_HANDLER_INCLUDED */

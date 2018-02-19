@@ -144,7 +144,7 @@ SET @@session.query_prealloc_size   = " ";
 --disable_warnings
 SELECT @@global.query_prealloc_size   = VARIABLE_VALUE
 FROM performance_schema.global_variables
-WHERE VARIABLE_NAME='query_prealloc_size  ';
+WHERE VARIABLE_NAME='query_prealloc_size';
 --enable_warnings
 
 --echo '#------------------FN_DYNVARS_005_07-----------------------#'
@@ -155,7 +155,7 @@ WHERE VARIABLE_NAME='query_prealloc_size  ';
 --disable_warnings
 SELECT @@session.query_prealloc_size   = VARIABLE_VALUE
 FROM performance_schema.session_variables
-WHERE VARIABLE_NAME='query_prealloc_size  ';
+WHERE VARIABLE_NAME='query_prealloc_size';
 --enable_warnings
 
 

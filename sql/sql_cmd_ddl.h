@@ -25,12 +25,9 @@
 
 #include "sql/sql_cmd.h"
 
-
-class Sql_cmd_ddl : public Sql_cmd
-{
-public:
-
+class Sql_cmd_ddl : public Sql_cmd {
+ public:
   bool is_dml() const override final { return false; }
 };
 
-#endif//SQL_CMD_DDL_INCLUDED
+#endif  // SQL_CMD_DDL_INCLUDED

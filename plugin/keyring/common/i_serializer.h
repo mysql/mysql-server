@@ -29,33 +29,30 @@
 #include "map_helpers.h"
 #include "plugin/keyring/common/i_serialized_object.h"
 
-namespace keyring
-{
+namespace keyring {
 
-  class ISerializer
-  {
-  public:
-    /**
-     * Purpose of this function is to serialize keys_hash or key (or both)
-     * into an object implementing ISeriazlized_object interface.
-     * @param keys_hash - hash container of all the keys stored in keyring.
-     *                    This parameter is usually used when all the keys
-     *                    need to be serialized.
-     * @param key - key to be added or removed.
-     * @param operation - The operation which is performed on key. It shows
-     *                    whether we serialize key that is to be removed or
-     *                    stored.
-     * @return ISerialized_object on success returns serialized object, ie. object
-     *                            which implements ISeriazlied_object interface
-     *                            on failure returns NULL.
-    */
-    virtual ISerialized_object* serialize
-      (const collation_unordered_map<std::string, std::unique_ptr<IKey>>
-         &keys_hash,
-       IKey *key, Key_operation operation)= 0;
-    virtual ~ISerializer()
-    {}
-  };
-} //namespace keyring
+class ISerializer {
+ public:
+  /**
+   * Purpose of this function is to serialize keys_hash or key (or both)
+   * into an object implementing ISeriazlized_object interface.
+   * @param keys_hash - hash container of all the keys stored in keyring.
+   *                    This parameter is usually used when all the keys
+   *                    need to be serialized.
+   * @param key - key to be added or removed.
+   * @param operation - The operation which is performed on key. It shows
+   *                    whether we serialize key that is to be removed or
+   *                    stored.
+   * @return ISerialized_object on success returns serialized object, ie. object
+   *                            which implements ISeriazlied_object interface
+   *                            on failure returns NULL.
+   */
+  virtual ISerialized_object *serialize(
+      const collation_unordered_map<std::string, std::unique_ptr<IKey>>
+          &keys_hash,
+      IKey *key, const Key_operation operation) = 0;
+  virtual ~ISerializer() {}
+};
+}  // namespace keyring
 
-#endif //MYSQL_I_SERIALIZER_H
+#endif  // MYSQL_I_SERIALIZER_H

@@ -1,9 +1,5 @@
 
 command ok
-check with password function which is deprecated
-1/0	1/0	password('test')	password('')
-null	null	*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29	
-0 rows affected
 check with dropping db which doesn't exists
 
 0 rows affected

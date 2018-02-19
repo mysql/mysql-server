@@ -45,41 +45,38 @@ class Tablespace_file;
 class Void_key;
 
 namespace tables {
-  class Tablespaces;
+class Tablespaces;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Tablespace : virtual public Entity_object
-{
-public:
+class Tablespace : virtual public Entity_object {
+ public:
   typedef Tablespace_impl Impl;
   typedef Tablespace Cache_partition;
   typedef tables::Tablespaces DD_table;
   typedef Primary_id_key Id_key;
   typedef Global_name_key Name_key;
   typedef Void_key Aux_key;
-  typedef Collection<Tablespace_file*> Tablespace_file_collection;
+  typedef Collection<Tablespace_file *> Tablespace_file_collection;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
 
-  static bool update_name_key(Name_key *key,
-                              const String_type &name);
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  virtual ~Tablespace()
-  { };
-
+ public:
+  virtual ~Tablespace(){};
 
   /**
     Check if the tablespace is empty, i.e., whether it has any tables.
@@ -90,7 +87,7 @@ public:
     @return true if error, false if success.
   */
 
-  virtual bool is_empty(THD *thd, bool *empty) const= 0;
+  virtual bool is_empty(THD *thd, bool *empty) const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // comment.
@@ -115,7 +112,8 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(
+      const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Engine.
@@ -142,7 +140,6 @@ public:
   */
   virtual Tablespace *clone() const = 0;
 
-
   /**
     Converts *this into json.
 
@@ -156,7 +153,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -201,8 +197,7 @@ struct sdi_vector {
   Needed to keep track of information when querying the dd to find
   tables in a tablespace.
  */
-struct Tablespace_table_ref
-{
+struct Tablespace_table_ref {
   Object_id m_id;
   String_type m_name;
   Object_id m_schema_id;
@@ -210,7 +205,7 @@ struct Tablespace_table_ref
   Tablespace_table_ref() = default; /* purecov: inspected */
   Tablespace_table_ref(Object_id id, const String_type &&name,
                        Object_id schema_id)
-    : m_id{id}, m_name{std::move(name)}, m_schema_id{schema_id} {}
+      : m_id{id}, m_name{std::move(name)}, m_schema_id{schema_id} {}
 };
 
 bool operator==(const Tablespace_table_ref &a, const Tablespace_table_ref &b);
@@ -240,6 +235,6 @@ bool fetch_tablespace_table_refs(THD *thd, const Tablespace &tso,
  */
 MDL_request *mdl_req(THD *thd, const Tablespace_table_ref &tref);
 
-} // namespace dd
+}  // namespace dd
 
-#endif // DD__TABLESPACE_INCLUDED
+#endif  // DD__TABLESPACE_INCLUDED

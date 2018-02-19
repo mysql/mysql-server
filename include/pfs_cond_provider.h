@@ -40,36 +40,28 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_cond.h"
 
-#define PSI_COND_CALL(M) pfs_ ## M ## _v1
+#define PSI_COND_CALL(M) pfs_##M##_v1
 
-C_MODE_START
-
-void pfs_register_cond_v1(const char *category,
-                          PSI_cond_info_v1 *info,
+void pfs_register_cond_v1(const char *category, PSI_cond_info_v1 *info,
                           int count);
 
-PSI_cond*
-pfs_init_cond_v1(PSI_cond_key key, const void *identity);
+PSI_cond *pfs_init_cond_v1(PSI_cond_key key, const void *identity);
 
-void pfs_destroy_cond_v1(PSI_cond* cond);
+void pfs_destroy_cond_v1(PSI_cond *cond);
 
-PSI_cond_locker*
-pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
-                       PSI_cond *cond, PSI_mutex *mutex,
-                       PSI_cond_operation op,
-                       const char *src_file, uint src_line);
+PSI_cond_locker *pfs_start_cond_wait_v1(PSI_cond_locker_state *state,
+                                        PSI_cond *cond, PSI_mutex *mutex,
+                                        PSI_cond_operation op,
+                                        const char *src_file, uint src_line);
 
-void pfs_signal_cond_v1(PSI_cond* cond);
+void pfs_signal_cond_v1(PSI_cond *cond);
 
-void pfs_broadcast_cond_v1(PSI_cond* cond);
+void pfs_broadcast_cond_v1(PSI_cond *cond);
 
-void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc);
-
-C_MODE_END
+void pfs_end_cond_wait_v1(PSI_cond_locker *locker, int rc);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #endif
-

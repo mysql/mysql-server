@@ -30,16 +30,15 @@
 #include "client/dump/i_data_object.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Base class for all main DB objects.
  */
-class Abstract_data_object : public I_data_object
-{
-public:
+class Abstract_data_object : public I_data_object {
+ public:
   virtual ~Abstract_data_object();
 
   /**
@@ -56,11 +55,11 @@ public:
    */
   std::string get_name() const;
 
-protected:
-  Abstract_data_object(uint64 id, const std::string& name,
-    const std::string& schema);
+ protected:
+  Abstract_data_object(uint64 id, const std::string &name,
+                       const std::string &schema);
 
-private:
+ private:
   /**
     An unique ID of this DB object. This helps progress watching with multiple
     parts of chain during object processing (including queuing).
@@ -76,8 +75,8 @@ private:
   std::string m_name;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

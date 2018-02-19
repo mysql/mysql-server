@@ -50,7 +50,7 @@ ADD_CONVENIENCE_LIBRARY(ndbNDBT
         NDBT_Table.cpp
         NdbSchemaCon.cpp
         NdbSchemaOp.cpp
-        getarg.c
+        getarg.cpp
         CpcClient.cpp
 	SocketInputStream2.cpp
         AtrtClient.cpp

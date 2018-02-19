@@ -154,11 +154,9 @@ use events_test;
 #
 # Privilege checks
 #
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user mysqltest_user1@localhost;
 grant create, insert, select, delete on mysqltest_db2.*
   to mysqltest_user1@localhost;
-set sql_mode= @orig_sql_mode;
 create database mysqltest_db2;
 connect (conn1,localhost,mysqltest_user1,,mysqltest_db2);
 set autocommit=off;

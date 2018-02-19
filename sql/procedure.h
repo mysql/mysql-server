@@ -23,7 +23,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /* When using sql procedures */
 
 #include <string.h>
@@ -33,91 +32,81 @@
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
-#include "mysql_com.h"
+#include "mysql_time.h"
 #include "sql/item.h"
-#include "sql/my_decimal.h"
-#include "sql/system_variables.h"
 #include "sql_string.h"
 
-/* Procedure items used by procedures to store values for send_result_set_metadata */
+class my_decimal;
 
-class Item_proc :public Item
-{
-public:
-  Item_proc(const char *name_par): Item()
-  {
-     item_name.set(name_par);
-  }
+/* Procedure items used by procedures to store values for
+ * send_result_set_metadata */
+
+class Item_proc : public Item {
+ public:
+  Item_proc(const char *name_par) : Item() { item_name.set(name_par); }
   enum Type type() const override { return Item::PROC_ITEM; }
-  virtual void set(const char *str, size_t length, const CHARSET_INFO *cs)= 0;
-  virtual void set(longlong nr)= 0;
+  virtual void set(const char *str, size_t length, const CHARSET_INFO *cs) = 0;
+  virtual void set(longlong nr) = 0;
   void set(const char *str) { set(str, strlen(str), default_charset()); }
 };
 
-
-class Item_proc_int :public Item_proc
-{
+class Item_proc_int : public Item_proc {
   longlong value;
-public:
-  Item_proc_int(const char *name_par) :Item_proc(name_par)
-  {
+
+ public:
+  Item_proc_int(const char *name_par) : Item_proc(name_par) {
     set_data_type_longlong();
-    max_length=11;
+    max_length = 11;
   }
   enum Item_result result_type() const override { return INT_RESULT; }
-  void set(longlong nr) override { value= nr; }
-  void set(const char *str, size_t length, const CHARSET_INFO *cs) override
-  { int err; value=my_strntoll(cs,str,length,10,NULL,&err); }
-  double val_real() override { return (double) value; }
+  void set(longlong nr) override { value = nr; }
+  void set(const char *str, size_t length, const CHARSET_INFO *cs) override {
+    int err;
+    value = my_strntoll(cs, str, length, 10, NULL, &err);
+  }
+  double val_real() override { return (double)value; }
   longlong val_int() override { return value; }
-  String *val_str(String *s) override
-  { s->set(value, default_charset()); return s; }
+  String *val_str(String *s) override {
+    s->set(value, default_charset());
+    return s;
+  }
   my_decimal *val_decimal(my_decimal *) override;
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
-  {
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_int(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime) override
-  {
-    return get_time_from_int(ltime);
-  }
+  bool get_time(MYSQL_TIME *ltime) override { return get_time_from_int(ltime); }
 };
 
-
-class Item_proc_string :public Item_proc
-{
-public:
-  Item_proc_string(const char *name_par,uint length) :Item_proc(name_par)
-  { set_data_type_string(length); }
+class Item_proc_string : public Item_proc {
+ public:
+  Item_proc_string(const char *name_par, uint length) : Item_proc(name_par) {
+    set_data_type_string(length);
+  }
   enum Item_result result_type() const override { return STRING_RESULT; }
   void set(longlong nr) override { str_value.set(nr, default_charset()); }
-  void set(const char *str, size_t length, const CHARSET_INFO *cs) override
-  { str_value.copy(str,length,cs); }
-  double val_real() override
-  {
+  void set(const char *str, size_t length, const CHARSET_INFO *cs) override {
+    str_value.copy(str, length, cs);
+  }
+  double val_real() override {
     int err_not_used;
     char *end_not_used;
-    const CHARSET_INFO *cs= str_value.charset();
-    return my_strntod(cs, (char*) str_value.ptr(), str_value.length(),
-		      &end_not_used, &err_not_used);
+    const CHARSET_INFO *cs = str_value.charset();
+    return my_strntod(cs, (char *)str_value.ptr(), str_value.length(),
+                      &end_not_used, &err_not_used);
   }
-  longlong val_int() override
-  {
+  longlong val_int() override {
     int err;
-    const CHARSET_INFO *cs=str_value.charset();
-    return my_strntoll(cs,str_value.ptr(),str_value.length(),10,NULL,&err);
+    const CHARSET_INFO *cs = str_value.charset();
+    return my_strntoll(cs, str_value.ptr(), str_value.length(), 10, NULL, &err);
   }
-  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override
-  {
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate) override {
     return get_date_from_string(ltime, fuzzydate);
   }
-  bool get_time(MYSQL_TIME *ltime) override
-  {
+  bool get_time(MYSQL_TIME *ltime) override {
     return get_time_from_string(ltime);
   }
-  String *val_str(String *) override
-  {
-    return null_value ? (String *) 0 : &str_value;
+  String *val_str(String *) override {
+    return null_value ? (String *)0 : &str_value;
   }
   my_decimal *val_decimal(my_decimal *) override;
 };

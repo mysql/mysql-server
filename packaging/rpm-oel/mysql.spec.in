@@ -70,7 +70,7 @@
 # multiarch
 %global multiarchs            ppc %{power64} %{ix86} x86_64 %{sparc}
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{version}
 
 # No debuginfo for now, ships /usr/sbin/mysqld-debug and libmysqlcliet-debug.a
 %if 0%{?nodebuginfo}
@@ -93,7 +93,7 @@ Name:           mysql%{?cluster:-cluster}-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_RPM_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
+Release:        1%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -765,7 +765,7 @@ mkdir release
 %if 0%{?compatlib}
 # Install compat libs
 dirs="libmysql libmysql_r"
-%{?el7:dirs="build/libmysql build/libmysqld"}
+%{?el7:dirs="build/libmysql build/libmysqld build/sql/share"}
 for dir in $dirs ; do
     pushd mysql-%{compatver}/$dir
     make DESTDIR=%{buildroot} install
@@ -809,14 +809,16 @@ install -p -m 0755 packaging/rpm-common/mysql_config.sh %{buildroot}/%{_bindir}/
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
-rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
-rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
-rm -f %{buildroot}%{_datadir}/mysql/win_install_firewall.sql 
-rm -f %{buildroot}%{_datadir}/mysql/audit_log_filter_win_install.sql
+rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
+rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
+rm -f %{buildroot}%{_datadir}/mysql-*/win_install_firewall.sql
+rm -f %{buildroot}%{_datadir}/mysql-*/audit_log_filter_win_install.sql
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+
+# Remove removed manpages here until they are removed from the docs repo
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -1002,7 +1004,7 @@ fi
 %endif
 %if 0%{?commercial}
 %attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
-%attr(644, root, root) %{_datadir}/mysql/audit_log_filter_linux_install.sql
+%attr(644, root, root) %{_datadir}/mysql-*/audit_log_filter_linux_install.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_sasl.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/authentication_ldap_simple.so
@@ -1012,7 +1014,7 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
-%attr(644, root, root) %{_datadir}/mysql/linux_install_firewall.sql
+%attr(644, root, root) %{_datadir}/mysql-*/linux_install_firewall.sql
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_ldap_sasl.so
@@ -1028,17 +1030,17 @@ fi
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/keyring_aws.so
 %endif
 %endif
-%attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/mysql/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/magic
+%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/magic
 %if 0%{?systemd}
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_unitdir}/mysqld@.service
@@ -1053,38 +1055,38 @@ fi
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %if 0%{?cluster}
-%attr(644, root, root) %{_datadir}/mysql/ndb_dist_priv.sql
+%attr(644, root, root) %{_datadir}/mysql-*/ndb_dist_priv.sql
 %endif
 
 %files common
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql/charsets/
-%{_datadir}/mysql/errmsg-utf8.txt
-%{_datadir}/mysql/bulgarian/
-%{_datadir}/mysql/czech/
-%{_datadir}/mysql/danish/
-%{_datadir}/mysql/dutch/
-%{_datadir}/mysql/english/
-%{_datadir}/mysql/estonian/
-%{_datadir}/mysql/french/
-%{_datadir}/mysql/german/
-%{_datadir}/mysql/greek/
-%{_datadir}/mysql/hungarian/
-%{_datadir}/mysql/italian/
-%{_datadir}/mysql/japanese/
-%{_datadir}/mysql/korean/
-%{_datadir}/mysql/norwegian-ny/
-%{_datadir}/mysql/norwegian/
-%{_datadir}/mysql/polish/
-%{_datadir}/mysql/portuguese/
-%{_datadir}/mysql/romanian/
-%{_datadir}/mysql/russian/
-%{_datadir}/mysql/serbian/
-%{_datadir}/mysql/slovak/
-%{_datadir}/mysql/spanish/
-%{_datadir}/mysql/swedish/
-%{_datadir}/mysql/ukrainian/
+%{_datadir}/mysql-*/charsets/
+%{_datadir}/mysql-*/errmsg-utf8.txt
+%{_datadir}/mysql-*/bulgarian/
+%{_datadir}/mysql-*/czech/
+%{_datadir}/mysql-*/danish/
+%{_datadir}/mysql-*/dutch/
+%{_datadir}/mysql-*/english/
+%{_datadir}/mysql-*/estonian/
+%{_datadir}/mysql-*/french/
+%{_datadir}/mysql-*/german/
+%{_datadir}/mysql-*/greek/
+%{_datadir}/mysql-*/hungarian/
+%{_datadir}/mysql-*/italian/
+%{_datadir}/mysql-*/japanese/
+%{_datadir}/mysql-*/korean/
+%{_datadir}/mysql-*/norwegian-ny/
+%{_datadir}/mysql-*/norwegian/
+%{_datadir}/mysql-*/polish/
+%{_datadir}/mysql-*/portuguese/
+%{_datadir}/mysql-*/romanian/
+%{_datadir}/mysql-*/russian/
+%{_datadir}/mysql-*/serbian/
+%{_datadir}/mysql-*/slovak/
+%{_datadir}/mysql-*/spanish/
+%{_datadir}/mysql-*/swedish/
+%{_datadir}/mysql-*/ukrainian/
 
 %files client
 %defattr(-, root, root, -)
@@ -1359,6 +1361,33 @@ fi
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
+%{_datadir}/mysql/charsets/
+%{_datadir}/mysql/errmsg-utf8.txt
+%{_datadir}/mysql/bulgarian/
+%{_datadir}/mysql/czech/
+%{_datadir}/mysql/danish/
+%{_datadir}/mysql/dutch/
+%{_datadir}/mysql/english/
+%{_datadir}/mysql/estonian/
+%{_datadir}/mysql/french/
+%{_datadir}/mysql/german/
+%{_datadir}/mysql/greek/
+%{_datadir}/mysql/hungarian/
+%{_datadir}/mysql/italian/
+%{_datadir}/mysql/japanese/
+%{_datadir}/mysql/korean/
+%{_datadir}/mysql/norwegian-ny/
+%{_datadir}/mysql/norwegian/
+%{_datadir}/mysql/polish/
+%{_datadir}/mysql/portuguese/
+%{_datadir}/mysql/romanian/
+%{_datadir}/mysql/russian/
+%{_datadir}/mysql/serbian/
+%{_datadir}/mysql/slovak/
+%{_datadir}/mysql/spanish/
+%{_datadir}/mysql/swedish/
+%{_datadir}/mysql/ukrainian/
+%exclude %{_datadir}/mysql/dictionary.txt
 %endif
 
 %if 0%{?cluster}
@@ -1424,12 +1453,13 @@ fi
 %endif
 
 %changelog
-* Wed Jan 24 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
+* Wed Jan 31 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-1
 - Removed milestone marker
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - No longer need to remove obsoleted mysqltest man pages
 - Add perl modules for test subpackage
+- Fixed the package names for GA release
 
 * Thu Dec 07 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.4-0.1
 - Add meb as sub package
@@ -1438,15 +1468,10 @@ fi
 - Include udf_example.so in test package
 - Add component_validate_password component
 - Add License Book, remove COPYING
+- No longer need to remove obsoleted mysqltest man pages
+- Add perl modules for test subpackage
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
-- Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
 
 * Fri May 26 2017 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.2-0.1

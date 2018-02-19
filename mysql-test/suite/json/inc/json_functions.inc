@@ -2723,11 +2723,11 @@ SET GLOBAL net_buffer_length = default;
 --echo # Test that very deep documents are rejected.
 --echo #
 
-# Currently, the maximum accepted depth is 100. Make some documents that are
-# nested to that exact depth.
+# Currently, we cannot nest more than 100 levels of objects and arrays. Make
+# some documents that are nested to that exact depth.
 CREATE TABLE t(jarray JSON, jobject JSON, jmix JSON) ROW_FORMAT=DYNAMIC;
 INSERT INTO t VALUES ('1', '1', '1');
-let $depth=1;
+let $depth=0;
 while ($depth < 100)
 {
   eval UPDATE t SET jarray  = JSON_ARRAY(jarray),

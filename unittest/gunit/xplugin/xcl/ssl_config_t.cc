@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,19 +28,17 @@
 
 #include "plugin/x/client/xssl_config.h"
 
-
 namespace xcl {
 namespace test {
 
 using ::testing::Test;
-using ::testing::WithParamInterface;
 using ::testing::Values;
+using ::testing::WithParamInterface;
 
 using Ssl_string_field = std::string Ssl_config::*;
-using Ssl_mode_field   = Ssl_config::Mode Ssl_config::*;
+using Ssl_mode_field = Ssl_config::Mode Ssl_config::*;
 
-class Xcl_ssl_config_tests :
-    public Test {
+class Xcl_ssl_config_tests : public Test {
  public:
   bool assert_mode_requires_ssl(const Ssl_config::Mode m) {
     m_sut.reset(new Ssl_config());
@@ -49,25 +47,19 @@ class Xcl_ssl_config_tests :
     return m_sut->does_mode_requires_ssl();
   }
 
-  template <typename Value_type, typename Method , typename Field>
-  bool assert_value(
-      Field field,
-      Method method,
-      const Value_type value,
-      const bool reset = true) {
-    if (reset)
-      m_sut.reset(new Ssl_config());
+  template <typename Value_type, typename Method, typename Field>
+  bool assert_value(Field field, Method method, const Value_type value,
+                    const bool reset = true) {
+    if (reset) m_sut.reset(new Ssl_config());
     auto sut = m_sut.get();
     sut->*field = value;
 
     return (sut->*method)();
   }
 
-  std::unique_ptr<Ssl_config> m_sut {
-    new Ssl_config()
-  };
+  std::unique_ptr<Ssl_config> m_sut{new Ssl_config()};
 
-  Ssl_mode_field   mode = &Ssl_config::m_mode;
+  Ssl_mode_field mode = &Ssl_config::m_mode;
   Ssl_string_field tls_version = &Ssl_config::m_tls_version;
   Ssl_string_field key = &Ssl_config::m_key;
   Ssl_string_field ca = &Ssl_config::m_ca;
@@ -86,24 +78,22 @@ TEST_F(Xcl_ssl_config_tests, is_configured) {
   ASSERT_TRUE(assert_value(mode, is_conf, Ssl_config::Mode::Ssl_preferred));
   ASSERT_TRUE(assert_value(mode, is_conf, Ssl_config::Mode::Ssl_required));
   ASSERT_TRUE(assert_value(mode, is_conf, Ssl_config::Mode::Ssl_verify_ca));
-  ASSERT_TRUE(assert_value(mode,
-                           is_conf,
-                           Ssl_config::Mode::Ssl_verify_identity));
+  ASSERT_TRUE(
+      assert_value(mode, is_conf, Ssl_config::Mode::Ssl_verify_identity));
 }
 
 TEST_F(Xcl_ssl_config_tests, is_ca_configured) {
   auto is_ca_conf = &Ssl_config::is_ca_configured;
 
   ASSERT_TRUE(m_sut->is_configured());
-  ASSERT_FALSE(assert_value(mode,     is_ca_conf,
-                            Ssl_config::Mode::Ssl_required));
+  ASSERT_FALSE(assert_value(mode, is_ca_conf, Ssl_config::Mode::Ssl_required));
   ASSERT_FALSE(assert_value(tls_version, is_ca_conf, "text value"));
-  ASSERT_FALSE(assert_value(key,      is_ca_conf, "text value"));
-  ASSERT_TRUE(assert_value(ca,        is_ca_conf, "text value"));
-  ASSERT_TRUE(assert_value(ca_path,   is_ca_conf, "text value"));
-  ASSERT_FALSE(assert_value(cert,     is_ca_conf, "text value"));
-  ASSERT_FALSE(assert_value(cipher,   is_ca_conf, "text value"));
-  ASSERT_FALSE(assert_value(crl,      is_ca_conf, "text value"));
+  ASSERT_FALSE(assert_value(key, is_ca_conf, "text value"));
+  ASSERT_TRUE(assert_value(ca, is_ca_conf, "text value"));
+  ASSERT_TRUE(assert_value(ca_path, is_ca_conf, "text value"));
+  ASSERT_FALSE(assert_value(cert, is_ca_conf, "text value"));
+  ASSERT_FALSE(assert_value(cipher, is_ca_conf, "text value"));
+  ASSERT_FALSE(assert_value(crl, is_ca_conf, "text value"));
   ASSERT_FALSE(assert_value(crl_path, is_ca_conf, "text value"));
 }
 
@@ -119,13 +109,12 @@ TEST_F(Xcl_ssl_config_tests, requires_ca) {
   auto requires_ca = &Ssl_config::does_mode_requires_ca;
 
   ASSERT_FALSE(assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_disabled));
-  ASSERT_FALSE(assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_preferred));
+  ASSERT_FALSE(
+      assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_preferred));
   ASSERT_FALSE(assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_required));
   ASSERT_TRUE(assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_verify_ca));
-  ASSERT_TRUE(assert_value(
-      mode,
-      requires_ca,
-      Ssl_config::Mode::Ssl_verify_identity));
+  ASSERT_TRUE(
+      assert_value(mode, requires_ca, Ssl_config::Mode::Ssl_verify_identity));
 }
 
 }  // namespace test

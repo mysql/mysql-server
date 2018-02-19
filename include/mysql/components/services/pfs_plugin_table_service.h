@@ -32,7 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   Any plugin/component, which exposes tables in performance schema, has to
   - provide implementation of interface PFS_engine_table_proxy.
 
-  As there is no storage engine here to handle table data, plugin/component has to:
+  As there is no storage engine here to handle table data, plugin/component has
+  to:
   - maintain storage for table being exposed.
   - take care of handling any duplicate check (Primary/Unique Key, etc.)
 
@@ -59,7 +60,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
    VARCHAR    | char array   |        -do-
    BLOB       | char array   |        -do-
 
-   @section STEPS Steps to write a plugin/component exposing tables in Performance Schema
+   @section STEPS Steps to write a plugin/component exposing tables in
+  Performance Schema
    - TBD
 
    Following are the example implementations of a plugin and a component which
@@ -79,8 +81,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define PFS_HA_ERR_RECORD_FILE_FULL 135
 
 /* Helper macro */
-struct PFS_string
-{
+struct PFS_string {
   char *str;
   unsigned int length;
 };
@@ -95,7 +96,8 @@ typedef struct PSI_field PSI_field;
 */
 typedef struct PSI_table_handle PSI_table_handle;
 /**
-  This is an opaque structure to denote cursor position in plugin/component code.
+  This is an opaque structure to denote cursor position in plugin/component
+  code.
 */
 typedef struct PSI_pos PSI_pos;
 /**
@@ -107,39 +109,33 @@ typedef struct PSI_key_reader PSI_key_reader;
 */
 typedef struct PSI_index_handle PSI_index_handle;
 
-
-struct PSI_long
-{
-  long val;               /* Column value */
-  bool is_null;           /* If Column value is NULL */
+struct PSI_long {
+  long val;     /* Column value */
+  bool is_null; /* If Column value is NULL */
 };
 typedef struct PSI_long PSI_long;
 
-struct PSI_ulong
-{
-  unsigned long val;      /* Column value */
-  bool is_null;           /* If Column value is NULL */
+struct PSI_ulong {
+  unsigned long val; /* Column value */
+  bool is_null;      /* If Column value is NULL */
 };
 typedef struct PSI_ulong PSI_ulong;
 
-struct PSI_longlong
-{
-  long long val;          /* Column value */
-  bool is_null            /* If Column value is NULL */;
+struct PSI_longlong {
+  long long val; /* Column value */
+  bool is_null /* If Column value is NULL */;
 };
 typedef struct PSI_longlong PSI_longlong;
 
-struct PSI_ulonglong
-{
+struct PSI_ulonglong {
   unsigned long long val; /* Column value */
-  bool is_null            /* If Column value is NULL */;
+  bool is_null /* If Column value is NULL */;
 };
 typedef struct PSI_ulonglong PSI_ulonglong;
 
-struct PSI_double
-{
-  double val;             /* Column value */
-  bool is_null            /* If Column value is NULL */;
+struct PSI_double {
+  double val; /* Column value */
+  bool is_null /* If Column value is NULL */;
 };
 typedef struct PSI_double PSI_double;
 
@@ -161,8 +157,7 @@ typedef struct PSI_double PSI_double;
 /**
   A structure to denote a key of type long in an index.
 */
-struct PSI_plugin_key_integer
-{
+struct PSI_plugin_key_integer {
   /* name of the key column */
   const char *m_name;
   /* find flags */
@@ -177,8 +172,7 @@ typedef struct PSI_plugin_key_integer PSI_plugin_key_integer;
 /**
   A structure to denote a key of type string in an index.
 */
-struct PSI_plugin_key_string
-{
+struct PSI_plugin_key_string {
   /* name of the key column */
   const char *m_name;
   /* find flags */
@@ -203,7 +197,7 @@ typedef struct PSI_plugin_key_string PSI_plugin_key_string;
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*rnd_next_t)(PSI_table_handle* handle);
+typedef int (*rnd_next_t)(PSI_table_handle *handle);
 
 /**
   API to initialize for random scan or read.
@@ -215,7 +209,7 @@ typedef int (*rnd_next_t)(PSI_table_handle* handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*rnd_init_t)(PSI_table_handle* handle, bool scan);
+typedef int (*rnd_init_t)(PSI_table_handle *handle, bool scan);
 
 /**
   API to read row from a position which is set in table handle.
@@ -225,7 +219,7 @@ typedef int (*rnd_init_t)(PSI_table_handle* handle, bool scan);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*rnd_pos_t)(PSI_table_handle* handle);
+typedef int (*rnd_pos_t)(PSI_table_handle *handle);
 
 /**
   API to initialize index(es).
@@ -239,8 +233,8 @@ typedef int (*rnd_pos_t)(PSI_table_handle* handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_init_t)(PSI_table_handle* table, unsigned int idx,
-                            bool sorted, PSI_index_handle ** index);
+typedef int (*index_init_t)(PSI_table_handle *table, unsigned int idx,
+                            bool sorted, PSI_index_handle **index);
 /**
   API to read keys in index.
   @param index      Index handle.
@@ -252,7 +246,7 @@ typedef int (*index_init_t)(PSI_table_handle* table, unsigned int idx,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*index_read_t)(PSI_index_handle *index, PSI_key_reader* reader,
+typedef int (*index_read_t)(PSI_index_handle *index, PSI_key_reader *reader,
                             unsigned int idx, int find_flag);
 
 /**
@@ -269,7 +263,7 @@ typedef int (*index_next_t)(PSI_table_handle *table);
   API to reset cursor position
   @param handle Table handle.
 */
-typedef void (*reset_position_t)(PSI_table_handle* handle);
+typedef void (*reset_position_t)(PSI_table_handle *handle);
 
 /**
   API to read a column value from table.
@@ -281,8 +275,7 @@ typedef void (*reset_position_t)(PSI_table_handle* handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*read_column_value_t)(PSI_table_handle* handle,
-                                   PSI_field *field,
+typedef int (*read_column_value_t)(PSI_table_handle *handle, PSI_field *field,
                                    unsigned int index);
 
 /**
@@ -295,14 +288,13 @@ typedef int (*read_column_value_t)(PSI_table_handle* handle,
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*write_column_value_t)(PSI_table_handle* handle,
-                                    PSI_field* fields,
+typedef int (*write_column_value_t)(PSI_table_handle *handle, PSI_field *fields,
                                     unsigned int index);
 /**
   API to write a record in table.
   @param handle Table handle having new record to be written.
 */
-typedef int (*write_row_values_t)(PSI_table_handle* handle);
+typedef int (*write_row_values_t)(PSI_table_handle *handle);
 
 /**
   API to update a column value in table.
@@ -314,20 +306,19 @@ typedef int (*write_row_values_t)(PSI_table_handle* handle);
   @retval 0    Success
   @retval !=0  Error
 */
-typedef int (*update_column_value_t)(PSI_table_handle* handle,
-                                     PSI_field* fields,
-                                     unsigned int index);
+typedef int (*update_column_value_t)(PSI_table_handle *handle,
+                                     PSI_field *fields, unsigned int index);
 /**
   API to write a record in table.
   @param handle Table handle having updated record to be updated.
 */
-typedef int (*update_row_values_t)(PSI_table_handle* handle);
+typedef int (*update_row_values_t)(PSI_table_handle *handle);
 
 /**
   API to delete record from table.
   @param handle Table handle having record to be deleted.
 */
-typedef int (*delete_row_values_t)(PSI_table_handle* handle);
+typedef int (*delete_row_values_t)(PSI_table_handle *handle);
 
 /**
   API to Open a table handle in plugin/component code and reset position
@@ -336,47 +327,45 @@ typedef int (*delete_row_values_t)(PSI_table_handle* handle);
 
   @return initialized table handle.
 */
-typedef PSI_table_handle* (*open_table_t)(PSI_pos** pos);
+typedef PSI_table_handle *(*open_table_t)(PSI_pos **pos);
 
 /**
   API to Close a table handle in plugin/component code and reset position
   pointer when a table handle in closed in Performance Schema.
   @param handle table handle
 */
-typedef void (*close_table_t)(PSI_table_handle* handle);
+typedef void (*close_table_t)(PSI_table_handle *handle);
 
 /**
  A structure to keep callback functions to be implemented by
  plugin/component.
 */
-struct PFS_engine_table_proxy
-{
-  rnd_next_t            rnd_next;
-  rnd_init_t            rnd_init;
-  rnd_pos_t             rnd_pos;
-  index_init_t          index_init;
-  index_read_t          index_read;
-  index_next_t          index_next;
-  read_column_value_t   read_column_value;
-  reset_position_t      reset_position;
-  write_column_value_t  write_column_value;
-  write_row_values_t    write_row_values;
+struct PFS_engine_table_proxy {
+  rnd_next_t rnd_next;
+  rnd_init_t rnd_init;
+  rnd_pos_t rnd_pos;
+  index_init_t index_init;
+  index_read_t index_read;
+  index_next_t index_next;
+  read_column_value_t read_column_value;
+  reset_position_t reset_position;
+  write_column_value_t write_column_value;
+  write_row_values_t write_row_values;
   update_column_value_t update_column_value;
-  update_row_values_t   update_row_values;
-  delete_row_values_t   delete_row_values;
-  open_table_t          open_table;
-  close_table_t         close_table;
-  PFS_engine_table_proxy()= default;
+  update_row_values_t update_row_values;
+  delete_row_values_t delete_row_values;
+  open_table_t open_table;
+  close_table_t close_table;
+  PFS_engine_table_proxy() = default;
 };
 typedef struct PFS_engine_table_proxy PFS_engine_table_proxy;
 
 /**
   Types of access allowed to tables.
 */
-enum Access_control
-{
+enum Access_control {
   /* Only Read is allowed */
-  READONLY =0,
+  READONLY = 0,
   /* Read/Truncate allowed but no Update/Insert/Delete. */
   TRUNCATABLE,
   /* Read/Truncate/Update allowed but no Insert/Delete. */
@@ -401,19 +390,18 @@ typedef unsigned long long (*get_row_count_t)(void);
   A share to be initialized by plugin/component code and to be provided
   to add_table() service method of pfs_plugin_table service.
  */
-struct PFS_engine_table_share_proxy
-{
-public:
+struct PFS_engine_table_share_proxy {
+ public:
   /* Callback functions list of APIs */
   PFS_engine_table_proxy m_proxy_engine_table;
 
   /* Name of the table to be added */
-  const char* m_table_name;
+  const char *m_table_name;
   /* Length of the table name */
   unsigned int m_table_name_length;
 
   /* Table Columns definition */
-  const char* m_table_definition;
+  const char *m_table_definition;
   unsigned int m_ref_length;
 
   /* Access allowed on the table */
@@ -428,148 +416,126 @@ typedef struct PFS_engine_table_share_proxy PFS_engine_table_share_proxy;
   Definition of pfs_plugin_table service and its methods.
 */
 BEGIN_SERVICE_DEFINITION(pfs_plugin_table)
-  /* Methods to add tables in Performance Schema */
-  DECLARE_METHOD(int, add_tables,
-    (PFS_engine_table_share_proxy** st_share, unsigned int share_count));
+/* Methods to add tables in Performance Schema */
+DECLARE_METHOD(int, add_tables,
+               (PFS_engine_table_share_proxy * *st_share,
+                unsigned int share_count));
 
-  /* Methods to delete tables in Performance Schema */
-  DECLARE_METHOD(int, delete_tables,
-    (PFS_engine_table_share_proxy** st_share, unsigned int share_count));
+/* Methods to delete tables in Performance Schema */
+DECLARE_METHOD(int, delete_tables,
+               (PFS_engine_table_share_proxy * *st_share,
+                unsigned int share_count));
 
+/* TINYINT */
+DECLARE_METHOD(void, set_field_tinyint, (PSI_field * f, PSI_tinyint value));
+DECLARE_METHOD(void, set_field_utinyint, (PSI_field * f, PSI_utinyint value));
+DECLARE_METHOD(void, get_field_tinyint, (PSI_field * f, PSI_tinyint *value));
 
-  /* TINYINT */
-  DECLARE_METHOD(void, set_field_tinyint,
-    (PSI_field *f, PSI_tinyint value));
-  DECLARE_METHOD(void, set_field_utinyint,
-    (PSI_field *f, PSI_utinyint value));
-  DECLARE_METHOD(void, get_field_tinyint,
-      (PSI_field *f, PSI_tinyint *value));
+/* SMALLINT */
+DECLARE_METHOD(void, set_field_smallint, (PSI_field * f, PSI_smallint value));
+DECLARE_METHOD(void, set_field_usmallint, (PSI_field * f, PSI_usmallint value));
+DECLARE_METHOD(void, get_field_smallint, (PSI_field * f, PSI_smallint *value));
 
-  /* SMALLINT */
-  DECLARE_METHOD(void, set_field_smallint,
-    (PSI_field *f, PSI_smallint value));
-  DECLARE_METHOD(void, set_field_usmallint,
-    (PSI_field *f, PSI_usmallint value));
-  DECLARE_METHOD(void, get_field_smallint,
-    (PSI_field *f, PSI_smallint *value));
+/* MIDIUMINT */
+DECLARE_METHOD(void, set_field_mediumint, (PSI_field * f, PSI_mediumint value));
+DECLARE_METHOD(void, set_field_umediumint,
+               (PSI_field * f, PSI_umediumint value));
+DECLARE_METHOD(void, get_field_mediumint,
+               (PSI_field * f, PSI_mediumint *value));
 
-  /* MIDIUMINT */
-  DECLARE_METHOD(void, set_field_mediumint,
-    (PSI_field *f, PSI_mediumint value));
-  DECLARE_METHOD(void, set_field_umediumint,
-    (PSI_field *f, PSI_umediumint value));
-  DECLARE_METHOD(void, get_field_mediumint,
-    (PSI_field *f, PSI_mediumint *value));
+/* INTEGER(INT) */
+DECLARE_METHOD(void, set_field_integer, (PSI_field * f, PSI_int value));
+DECLARE_METHOD(void, set_field_uinteger, (PSI_field * f, PSI_uint value));
+DECLARE_METHOD(void, get_field_integer, (PSI_field * f, PSI_int *value));
+DECLARE_METHOD(void, read_key_integer,
+               (PSI_key_reader * reader, PSI_plugin_key_integer *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key_integer,
+               (bool record_null, long record_value,
+                PSI_plugin_key_integer *key));
 
-  /* INTEGER(INT) */
-  DECLARE_METHOD(void, set_field_integer,
-    (PSI_field *f, PSI_int value));
-  DECLARE_METHOD(void, set_field_uinteger,
-    (PSI_field *f, PSI_uint value));
-  DECLARE_METHOD(void, get_field_integer,
-    (PSI_field *f, PSI_int *value));
-  DECLARE_METHOD(void, read_key_integer,
-    (PSI_key_reader* reader, PSI_plugin_key_integer *key, int find_flag));
-  DECLARE_METHOD(bool, match_key_integer,
-    (bool record_null, long record_value, PSI_plugin_key_integer *key));
+/* BIGINT */
+DECLARE_METHOD(void, set_field_bigint, (PSI_field * f, PSI_bigint value));
+DECLARE_METHOD(void, set_field_ubigint, (PSI_field * f, PSI_ubigint value));
+DECLARE_METHOD(void, get_field_bigint, (PSI_field * f, PSI_bigint *value));
 
-  /* BIGINT */
-  DECLARE_METHOD(void, set_field_bigint,
-    (PSI_field *f, PSI_bigint  value));
-  DECLARE_METHOD(void, set_field_ubigint,
-    (PSI_field *f, PSI_ubigint value));
-  DECLARE_METHOD(void , get_field_bigint,
-    (PSI_field *f, PSI_bigint *value));
+/* DECIMAL */
+DECLARE_METHOD(void, set_field_decimal, (PSI_field * f, PSI_double value));
+DECLARE_METHOD(void, get_field_decimal, (PSI_field * f, PSI_double *value));
 
-  /* DECIMAL */
-  DECLARE_METHOD(void, set_field_decimal,
-    (PSI_field *f, PSI_double value));
-  DECLARE_METHOD(void, get_field_decimal,
-    (PSI_field *f, PSI_double *value));
+/* FLOAT */
+DECLARE_METHOD(void, set_field_float, (PSI_field * f, PSI_double value));
+DECLARE_METHOD(void, get_field_float, (PSI_field * f, PSI_double *value));
 
-  /* FLOAT */
-  DECLARE_METHOD(void, set_field_float,
-    (PSI_field *f, PSI_double value));
-  DECLARE_METHOD(void, get_field_float,
-    (PSI_field *f, PSI_double *value));
+/* DOUBLE */
+DECLARE_METHOD(void, set_field_double, (PSI_field * f, PSI_double value));
+DECLARE_METHOD(void, get_field_double, (PSI_field * f, PSI_double *value));
 
-  /* DOUBLE */
-  DECLARE_METHOD(void, set_field_double,
-    (PSI_field *f, PSI_double value));
-  DECLARE_METHOD(void, get_field_double,
-    (PSI_field *f, PSI_double *value));
+/* CHAR */
+DECLARE_METHOD(void, set_field_char_utf8,
+               (PSI_field * f, const char *value, unsigned int length));
+DECLARE_METHOD(void, get_field_char_utf8,
+               (PSI_field * f, char *str, unsigned int *length));
+DECLARE_METHOD(void, read_key_string,
+               (PSI_key_reader * reader, PSI_plugin_key_string *key,
+                int find_flag));
+DECLARE_METHOD(bool, match_key_string,
+               (bool record_null, const char *record_string_value,
+                unsigned int record_string_length, PSI_plugin_key_string *key));
 
-  /* CHAR */
-  DECLARE_METHOD(void, set_field_char_utf8,
-    (PSI_field *f, const char *value, unsigned int length));
-  DECLARE_METHOD(void, get_field_char_utf8,
-    (PSI_field *f, char *str, unsigned int *length));
-  DECLARE_METHOD(void, read_key_string,
-    (PSI_key_reader* reader, PSI_plugin_key_string *key, int find_flag));
-  DECLARE_METHOD(bool, match_key_string,
-    (bool record_null, const char* record_string_value,
-     unsigned int record_string_length, PSI_plugin_key_string *key));
+/* VARCHAR */
+DECLARE_METHOD(void, set_field_varchar_utf8, (PSI_field * f, const char *str));
+DECLARE_METHOD(void, set_field_varchar_utf8_len,
+               (PSI_field * f, const char *str, unsigned int len));
+DECLARE_METHOD(void, get_field_varchar_utf8,
+               (PSI_field * f, char *str, unsigned int *length));
 
-  /* VARCHAR */
-  DECLARE_METHOD(void, set_field_varchar_utf8,
-    (PSI_field *f, const char *str));
-  DECLARE_METHOD(void, set_field_varchar_utf8_len,
-    (PSI_field *f, const char *str, unsigned int len));
-  DECLARE_METHOD(void, get_field_varchar_utf8,
-    (PSI_field *f, char *str, unsigned int *length));
+DECLARE_METHOD(void, set_field_varchar_utf8mb4,
+               (PSI_field * f, const char *str));
+DECLARE_METHOD(void, set_field_varchar_utf8mb4_len,
+               (PSI_field * f, const char *str, unsigned int len));
 
-  DECLARE_METHOD(void, set_field_varchar_utf8mb4,
-    (PSI_field *f, const char *str));
-  DECLARE_METHOD(void, set_field_varchar_utf8mb4_len,
-    (PSI_field *f, const char *str, unsigned int len));
+/* BLOB/TEXT */
+DECLARE_METHOD(void, set_field_blob,
+               (PSI_field * f, const char *val, unsigned int len));
+DECLARE_METHOD(void, get_field_blob,
+               (PSI_field * f, char *val, unsigned int *len));
 
-  /* BLOB/TEXT */
-  DECLARE_METHOD(void, set_field_blob,
-    (PSI_field *f, const char *val, unsigned int len));
-  DECLARE_METHOD(void, get_field_blob,
-    (PSI_field *f, char *val, unsigned int* len));
+/* ENUM */
+DECLARE_METHOD(void, set_field_enum, (PSI_field * f, PSI_enum value));
+DECLARE_METHOD(void, get_field_enum, (PSI_field * f, PSI_enum *value));
 
-  /* ENUM */
-  DECLARE_METHOD(void, set_field_enum,
-    (PSI_field *f, PSI_enum value));
-  DECLARE_METHOD(void, get_field_enum,
-    (PSI_field *f, PSI_enum *value));
+/* DATE */
+DECLARE_METHOD(void, set_field_date,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get_field_date,
+               (PSI_field * f, char *val, unsigned int *len));
 
-  /* DATE */
-  DECLARE_METHOD(void, set_field_date,
-    (PSI_field *f, const char* str, unsigned int length));
-  DECLARE_METHOD(void, get_field_date,
-    (PSI_field *f, char* val, unsigned int* len));
+/* TIME */
+DECLARE_METHOD(void, set_field_time,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get_field_time,
+               (PSI_field * f, char *val, unsigned int *len));
 
-  /* TIME */
-  DECLARE_METHOD(void, set_field_time,
-    (PSI_field *f, const char* str, unsigned int length));
-  DECLARE_METHOD(void, get_field_time,
-    (PSI_field *f, char* val, unsigned int* len));
+/* DATETIME */
+DECLARE_METHOD(void, set_field_datetime,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get_field_datetime,
+               (PSI_field * f, char *val, unsigned int *len));
 
-  /* DATETIME */
-  DECLARE_METHOD(void, set_field_datetime,
-    (PSI_field *f, const char* str, unsigned int length));
-  DECLARE_METHOD(void, get_field_datetime,
-    (PSI_field *f, char* val, unsigned int* len));
+/* TIMESTAMP */
+DECLARE_METHOD(void, set_field_timestamp,
+               (PSI_field * f, const char *str, unsigned int length));
+DECLARE_METHOD(void, get_field_timestamp,
+               (PSI_field * f, char *val, unsigned int *len));
 
-  /* TIMESTAMP */
-  DECLARE_METHOD(void, set_field_timestamp,
-    (PSI_field *f, const char* str, unsigned int length));
-  DECLARE_METHOD(void, get_field_timestamp,
-    (PSI_field *f, char* val, unsigned int* len));
+/* YEAR */
+DECLARE_METHOD(void, set_field_year, (PSI_field * f, PSI_year value));
+DECLARE_METHOD(void, get_field_year, (PSI_field * f, PSI_year *value));
 
-  /* YEAR */
-  DECLARE_METHOD(void, set_field_year,
-    (PSI_field *f, PSI_year value));
-  DECLARE_METHOD(void, get_field_year,
-    (PSI_field *f, PSI_year *value));
+/* NULL */
+DECLARE_METHOD(void, set_field_null, (PSI_field * f));
 
-  /* NULL */
-  DECLARE_METHOD(void, set_field_null,
-      (PSI_field *f));
-
-  END_SERVICE_DEFINITION(pfs_plugin_table)
+END_SERVICE_DEFINITION(pfs_plugin_table)
 
 #endif
-

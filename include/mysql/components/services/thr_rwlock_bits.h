@@ -52,11 +52,10 @@
 #include <mysql/components/services/thr_mutex_bits.h>
 
 #ifdef _WIN32
-typedef struct st_my_rw_lock_t
-{
+struct native_rw_lock_t {
   SRWLOCK srwlock;             /* native reader writer lock */
   BOOL have_exclusive_srwlock; /* used for unlock */
-} native_rw_lock_t;
+};
 #else
 typedef pthread_rwlock_t native_rw_lock_t;
 #endif
@@ -92,7 +91,7 @@ typedef pthread_rwlock_t native_rw_lock_t;
   it blocks us from doing certain performance optimizations.
 */
 
-typedef struct st_rw_pr_lock_t {
+struct rw_pr_lock_t {
   /**
     Lock which protects the structure.
     Also held for the duration of wr-lock.
@@ -111,6 +110,6 @@ typedef struct st_rw_pr_lock_t {
   bool active_writer;
   /** Thread holding wr-lock (for debug purposes only). */
   my_thread_t writer_thread;
-} rw_pr_lock_t;
+};
 
 #endif /* COMPONENTS_SERVICES_THR_RWLOCK_BITS_H */

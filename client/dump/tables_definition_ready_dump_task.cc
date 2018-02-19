@@ -29,5 +29,4 @@
 using namespace Mysql::Tools::Dump;
 
 Tables_definition_ready_dump_task::Tables_definition_ready_dump_task()
-  : Abstract_dump_task(NULL)
-{}
+    : Abstract_dump_task(NULL) {}

@@ -44,11 +44,12 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define Select Lex->current_select()
 
 #include <limits>
+#include <type_traits>                       // for std::remove_reference
 
 #include "my_dbug.h"
 #include "myisam.h"
 #include "myisammrg.h"
-#include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
+#include "mysql/plugin.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
 #include "sql/binlog.h"                          // for MAX_LOG_UNIQUE_FN_EXT
@@ -56,6 +57,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/dd/types/abstract_table.h"         // TT_BASE_TABLE
 #include "sql/derror.h"
 #include "sql/event_parse_data.h"
+                                             // used in RESET_MASTER parsing check
+#include "sql/gis/srid.h"                    // gis::srid_t
 #include "sql/item_cmpfunc.h"
 #include "sql/item_create.h"
 #include "sql/item_geofunc.h"
@@ -99,15 +102,11 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/sql_servers.h"
 #include "sql/sql_show_status.h"                 // build_show_session_status, ...
 #include "sql/sql_signal.h"
-#include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_table.h"                        /* primary_key_name */
+#include "sql/sql_tablespace.h"                  // Sql_cmd_alter_tablespace
 #include "sql/sql_trigger.h"                     // Sql_cmd_create_trigger,
                                              // Sql_cmd_create_trigger
 #include "sql/sql_truncate.h"                      // Sql_cmd_truncate_table
-                                             // used in RESET_MASTER parsing check
-#include "sql/gis/srid.h"                    // gis::srid_t
-
-#include <type_traits>                       // for std::remove_reference
 
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
@@ -250,7 +249,7 @@ static void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
   /* "parse error" changed into "syntax error" between bison 1.75 and 1.875 */
   if (strcmp(s,"parse error") == 0 || strcmp(s,"syntax error") == 0)
     s= ER_THD(thd, ER_SYNTAX_ERROR);
-  thd->syntax_error(s);
+  thd->syntax_error("%s", s);
 }
 
 
@@ -1450,7 +1449,7 @@ void warn_about_deprecated_national(THD *thd)
 %type <keyword> ident_keyword label_keyword role_keyword
         role_or_label_keyword role_or_ident_keyword
 
-%type <lex_user> user grant_user user_func role
+%type <lex_user> user create_or_alter_user user_func role
 
 %type <charset>
         opt_collate
@@ -2138,14 +2137,14 @@ prepare_src:
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->prepared_stmt_code= $1;
-            lex->prepared_stmt_code_is_varref= FALSE;
+            lex->prepared_stmt_code_is_varref= false;
           }
         | '@' ident_or_text
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             lex->prepared_stmt_code= $2;
-            lex->prepared_stmt_code_is_varref= TRUE;
+            lex->prepared_stmt_code_is_varref= true;
           }
         ;
 
@@ -2701,7 +2700,7 @@ create:
           }
         | CREATE view_or_trigger_or_sp_or_event
           {}
-        | CREATE USER opt_if_not_exists grant_list default_role_clause
+        | CREATE USER opt_if_not_exists create_or_alter_user_list default_role_clause
                       require_clause connect_options
                       opt_account_lock_password_expire_options
           {
@@ -3111,7 +3110,7 @@ ev_sql_stmt:
             sp_finish_parsing(thd);
 
             lex->sp_chistics.suid= SP_IS_SUID;  //always the definer!
-            lex->event_parse_data->body_changed= TRUE;
+            lex->event_parse_data->body_changed= true;
           }
         ;
 
@@ -3195,8 +3194,8 @@ sp_chistic:
 /* Create characteristics */
 sp_c_chistic:
           sp_chistic            { }
-        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= TRUE; }
-        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= FALSE; }
+        | DETERMINISTIC_SYM     { Lex->sp_chistics.detistic= true; }
+        | not DETERMINISTIC_SYM { Lex->sp_chistics.detistic= false; }
         ;
 
 sp_suid:
@@ -3253,7 +3252,7 @@ sp_fdparam:
             if (sp_check_name(&$1))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($1, TRUE))
+            if (pctx->find_variable($1, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -3306,7 +3305,7 @@ sp_pdparam:
             if (sp_check_name(&$2))
               MYSQL_YYABORT;
 
-            if (pctx->find_variable($2, TRUE))
+            if (pctx->find_variable($2, true))
             {
               my_error(ER_SP_DUP_PARAM, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3493,7 +3492,7 @@ sp_decl:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_condition($2, TRUE))
+            if (pctx->find_condition($2, true))
             {
               my_error(ER_SP_DUP_COND, MYF(0), $2.str);
               MYSQL_YYABORT;
@@ -3617,7 +3616,7 @@ sp_decl:
 
             uint offp;
 
-            if (pctx->find_cursor($2, &offp, TRUE))
+            if (pctx->find_cursor($2, &offp, true))
             {
               my_error(ER_SP_DUP_CURS, MYF(0), $2.str);
               delete cursor_lex;
@@ -4092,7 +4091,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($1, TRUE))
+            if (pctx->find_variable($1, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $1.str);
               MYSQL_YYABORT;
@@ -4112,7 +4111,7 @@ sp_decl_idents:
             LEX *lex= thd->lex;
             sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
-            if (pctx->find_variable($3, TRUE))
+            if (pctx->find_variable($3, true))
             {
               my_error(ER_SP_DUP_VAR, MYF(0), $3.str);
               MYSQL_YYABORT;
@@ -4376,7 +4375,7 @@ sp_proc_stmt_iterate:
             uint ip= sp->instructions();
 
             /* Inclusive the dest. */
-            size_t n= pctx->diff_handlers(lab->ctx, FALSE);
+            size_t n= pctx->diff_handlers(lab->ctx, false);
 
             if (n)
             {
@@ -4387,7 +4386,7 @@ sp_proc_stmt_iterate:
             }
 
             /* Inclusive the dest. */
-            n= pctx->diff_cursors(lab->ctx, FALSE);
+            n= pctx->diff_cursors(lab->ctx, false);
 
             if (n)
             {
@@ -5139,7 +5138,7 @@ opt_tablespace_options:
 tablespace_option_list:
           tablespace_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5171,7 +5170,7 @@ opt_alter_tablespace_options:
 alter_tablespace_option_list:
           alter_tablespace_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5199,7 +5198,7 @@ opt_logfile_group_options:
 logfile_group_option_list:
           logfile_group_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5229,7 +5228,7 @@ opt_alter_logfile_group_options:
 alter_logfile_group_option_list:
           alter_logfile_group_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -5602,7 +5601,7 @@ opt_part_defs:
 part_def_list:
           part_definition
           {
-            $$= NEW_PTN Trivial_array<PT_part_definition*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_part_definition*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5659,7 +5658,7 @@ part_value_list:
           part_value_item_list_paren
           {
             $$= NEW_PTN
-              Trivial_array<PT_part_value_item_list_paren *>(YYMEM_ROOT);
+              Mem_root_array<PT_part_value_item_list_paren *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5692,7 +5691,7 @@ part_value_item_list_paren:
 part_value_item_list:
           part_value_item
           {
-            $$= NEW_PTN Trivial_array<PT_part_value_item *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_part_value_item *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5718,7 +5717,7 @@ opt_sub_partition:
 sub_part_list:
           sub_part_definition
           {
-            $$= NEW_PTN Trivial_array<PT_subpartition *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_subpartition *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5751,7 +5750,7 @@ part_option_list:
           }
         | part_option
           {
-            $$= NEW_PTN Trivial_array<PT_partition_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_partition_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5811,7 +5810,7 @@ opt_if_not_exists:
 create_table_options_space_separated:
           create_table_option
           {
-            $$= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -5826,7 +5825,7 @@ create_table_options_space_separated:
 create_table_options:
           create_table_option
           {
-            $$= NEW_PTN Trivial_array<PT_create_table_option *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_create_table_option *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -6026,7 +6025,7 @@ udf_type:
 table_element_list:
           table_element
           {
-            $$= NEW_PTN Trivial_array<PT_table_element *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_table_element *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -6142,7 +6141,7 @@ field_def:
               if (opt_attrs == NULL)
               {
                 opt_attrs= NEW_PTN
-                  Trivial_array<PT_column_attr_base *>(YYMEM_ROOT);
+                  Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
                 if (opt_attrs == NULL)
                   MYSQL_YYABORT; // OOM
               }
@@ -6273,10 +6272,7 @@ type:
           }
         | TIMESTAMP_SYM type_datetime_precision
           {
-            if (YYTHD->variables.sql_mode & MODE_MAXDB)
-              $$= NEW_PTN PT_time_type(Time_type::DATETIME, $2);
-            else
-              $$= NEW_PTN PT_timestamp_type($2);
+            $$= NEW_PTN PT_timestamp_type($2);
           }
         | DATETIME_SYM type_datetime_precision
           {
@@ -6511,7 +6507,7 @@ column_attribute_list:
         | column_attribute
           {
             $$=
-              NEW_PTN Trivial_array<PT_column_attr_base *>(YYMEM_ROOT);
+              NEW_PTN Mem_root_array<PT_column_attr_base *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -7326,7 +7322,7 @@ alter_server_stmt:
         ;
 
 alter_user_stmt:
-          alter_user_command grant_list require_clause
+          alter_user_command create_or_alter_user_list require_clause
           connect_options opt_account_lock_password_expire_options
         | alter_user_command user_func IDENTIFIED_SYM BY TEXT_STRING
           {
@@ -7426,7 +7422,7 @@ opt_account_lock_password_expire_option:
             if ($4 == 0 || $4 > UINT_MAX16)
             {
               char buf[MAX_BIGINT_WIDTH + 1];
-              my_snprintf(buf, sizeof(buf), "%lu", $4);
+              snprintf(buf, sizeof(buf), "%lu", $4);
               my_error(ER_WRONG_VALUE, MYF(0), "DAY", buf);
               MYSQL_YYABORT;
             }
@@ -7523,10 +7519,10 @@ user_func:
           {
             /* empty LEX_USER means current_user */
             LEX_USER *curr_user;
-            if (!(curr_user= (LEX_USER*) Lex->thd->alloc(sizeof(st_lex_user))))
+            if (!(curr_user= (LEX_USER*) Lex->thd->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
 
-            memset(curr_user, 0, sizeof(st_lex_user));
+            memset(curr_user, 0, sizeof(LEX_USER));
             Lex->users_list.push_back(curr_user);
             $$= curr_user;
           }
@@ -7569,7 +7565,7 @@ opt_alter_table_actions:
             $$= $1;
             if ($$.actions == NULL)
             {
-              $$.actions= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+              $$.actions= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
               if ($$.actions == NULL)
                 MYSQL_YYABORT; // OOM
             }
@@ -7744,7 +7740,7 @@ alter_list:
           alter_list_item
           {
             $$.flags.init();
-            $$.actions= NEW_PTN Trivial_array<PT_ddl_table_option *>(YYMEM_ROOT);
+            $$.actions= NEW_PTN Mem_root_array<PT_ddl_table_option *>(YYMEM_ROOT);
             if ($$.actions == NULL || $$.actions->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -8438,7 +8434,7 @@ keycache_stmt:
 keycache_list:
           assign_to_keycache
           {
-            $$= NEW_PTN Trivial_array<PT_assign_to_keycache *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_assign_to_keycache *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -8477,7 +8473,7 @@ preload_stmt:
 preload_list:
           preload_keys
           {
-            $$= NEW_PTN Trivial_array<PT_preload_keys *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_preload_keys *>(YYMEM_ROOT);
             if ($$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -9591,10 +9587,6 @@ function_call_conflict:
           {
             $$= NEW_PTN Item_func_mod(@$, $3, $5);
           }
-        | PASSWORD '(' expr ')'
-          {
-            $$= NEW_PTN PTI_password(@$, $3);
-          }
         | QUARTER_SYM '(' expr ')'
           {
             $$= NEW_PTN Item_func_quarter(@$, $3);
@@ -9769,11 +9761,11 @@ set_function_specification:
 sum_expr:
           AVG_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $3, FALSE, $5);
+            $$= NEW_PTN Item_sum_avg(@$, $3, false, $5);
           }
         | AVG_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_avg(@$, $4, TRUE, $6);
+            $$= NEW_PTN Item_sum_avg(@$, $4, true, $6);
           }
         | BIT_AND  '(' in_sum_expr ')' opt_windowing_clause
           {
@@ -9846,11 +9838,11 @@ sum_expr:
           }
         | SUM_SYM '(' in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $3, FALSE, $5);
+            $$= NEW_PTN Item_sum_sum(@$, $3, false, $5);
           }
         | SUM_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
           {
-            $$= NEW_PTN Item_sum_sum(@$, $4, TRUE, $6);
+            $$= NEW_PTN Item_sum_sum(@$, $4, true, $6);
           }
         | GROUP_CONCAT_SYM '(' opt_distinct
           expr_list opt_gorder_clause
@@ -10036,7 +10028,17 @@ window_spec_details:
            opt_window_order_by_clause
            opt_window_frame_clause
            {
-             $$= NEW_PTN PT_window($2, $3, $4, $1);
+             auto frame= $4;
+             if (!frame) // build an equivalent frame spec
+             {
+               auto start_bound= NEW_PTN PT_border(WBT_UNBOUNDED_PRECEDING);
+               auto end_bound= NEW_PTN PT_border($3 ? WBT_CURRENT_ROW :
+                 WBT_UNBOUNDED_FOLLOWING);
+               auto bounds= NEW_PTN PT_borders(start_bound, end_bound);
+               frame= NEW_PTN PT_frame(WFU_RANGE, bounds, nullptr);
+               frame->m_originally_absent= true;
+             }
+             $$= NEW_PTN PT_window($2, $3, frame, $1);
            }
          ;
 
@@ -10688,7 +10690,7 @@ columns_clause:
 columns_list:
           jt_column
           {
-            $$= NEW_PTN Trivial_array<PT_json_table_column *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_json_table_column *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -11601,7 +11603,7 @@ drop_role_stmt:
 table_list:
           table_ident
           {
-            $$= NEW_PTN Trivial_array<Table_ident *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<Table_ident *>(YYMEM_ROOT);
             if ($$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -11646,7 +11648,7 @@ opt_drop_ts_options:
 drop_ts_option_list:
           drop_ts_option
           {
-            $$= NEW_PTN Trivial_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_alter_tablespace_option_base*>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; /* purecov: inspected */ // OOM
           }
@@ -13545,17 +13547,17 @@ role_ident_or_text:
 user:
           ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
               MYSQL_YYABORT;
           }
         | ident_or_text '@' ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
           }
         | CURRENT_USER optional_braces
           {
-            if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(st_lex_user))))
+            if (!($$=(LEX_USER*) YYTHD->alloc(sizeof(LEX_USER))))
               MYSQL_YYABORT;
             /*
               empty LEX_USER means current_user and
@@ -13569,12 +13571,12 @@ user:
 role:
           role_ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, NULL)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, NULL)))
               MYSQL_YYABORT;
           }
         | role_ident_or_text '@' ident_or_text
           {
-            if (!($$= st_lex_user::alloc(YYTHD, &$1, &$3)))
+            if (!($$= LEX_USER::alloc(YYTHD, &$1, &$3)))
               MYSQL_YYABORT;
           }
         ;
@@ -14077,24 +14079,9 @@ start_option_value_list:
           {
             $$= NEW_PTN PT_option_value_no_option_type_password($3, @3);
           }
-        | PASSWORD equal PASSWORD '(' password ')'
-          {
-            push_deprecated_warn(YYTHD, "SET PASSWORD = "
-                                 "PASSWORD('<plaintext_password>')",
-                                 "SET PASSWORD = '<plaintext_password>'");
-            $$= NEW_PTN PT_option_value_no_option_type_password($5, @5);
-          }
         | PASSWORD FOR_SYM user equal password
           {
             $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $5, @5);
-          }
-        | PASSWORD FOR_SYM user equal PASSWORD '(' password ')'
-          {
-            push_deprecated_warn(YYTHD, "SET PASSWORD FOR <user> = "
-                                 "PASSWORD('<plaintext_password>')",
-                                 "SET PASSWORD FOR <user> = "
-                                 "'<plaintext_password>'");
-            $$= NEW_PTN PT_option_value_no_option_type_password_for($3, $7, @7);
           }
         ;
 
@@ -14154,7 +14141,7 @@ set_resource_group_stmt:
 thread_id_list:
           real_ulong_num
           {
-            $$= NEW_PTN Trivial_array<ulonglong>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<ulonglong>(YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -14649,8 +14636,8 @@ grant:
             auto *tmp= NEW_PTN PT_grant_roles($2, $4, $5);
             MAKE_CMD(tmp);
           }
-        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM grant_list
-          require_clause grant_options
+        | GRANT role_or_privilege_list ON_SYM opt_acl_type grant_ident TO_SYM user_list
+          grant_options
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -14663,14 +14650,14 @@ grant:
               MYSQL_YYABORT;
             }
             lex->type= static_cast<ulong>($4);
+            lex->users_list= *$7;
           }
         | GRANT ALL opt_privileges
           {
             Lex->all_privileges= 1;
             Lex->grant= GLOBAL_ACLS;
           }
-          ON_SYM opt_acl_type grant_ident TO_SYM grant_list
-          require_clause grant_options
+          ON_SYM opt_acl_type grant_ident TO_SYM user_list grant_options
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
@@ -14680,13 +14667,15 @@ grant:
               MYSQL_YYABORT;
             }
             lex->type= static_cast<ulong>($6);
+            lex->users_list= *$9;
           }
-        | GRANT PROXY_SYM ON_SYM user TO_SYM grant_list opt_grant_option
+        | GRANT PROXY_SYM ON_SYM user TO_SYM user_list opt_grant_option
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_GRANT;
             if ($7)
               lex->grant |= GRANT_ACL;
+            lex->users_list= *$6;
             lex->users_list.push_front ($4);
             lex->type= TYPE_ENUM_PROXY;
           }
@@ -14707,7 +14696,7 @@ opt_privileges:
 role_or_privilege_list:
           role_or_privilege
           {
-            $$= NEW_PTN Trivial_array<PT_role_or_privilege *>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<PT_role_or_privilege *>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back($1))
               MYSQL_YYABORT; // OOM
           }
@@ -14938,20 +14927,20 @@ role_list:
           }
         ;
 
-grant_list:
-          grant_user
+create_or_alter_user_list:
+          create_or_alter_user
           {
             if (Lex->users_list.push_back($1))
               MYSQL_YYABORT;
           }
-        | grant_list ',' grant_user
+        | create_or_alter_user_list ',' create_or_alter_user
           {
             if (Lex->users_list.push_back($3))
               MYSQL_YYABORT;
           }
         ;
 
-grant_user:
+create_or_alter_user:
           user IDENTIFIED_SYM BY TEXT_STRING
           {
             $$=$1;
@@ -14959,21 +14948,6 @@ grant_user:
             $1->auth.length= $4.length;
             $1->uses_identified_by_clause= true;
             Lex->contains_plaintext_password= true;
-          }
-        | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
-          {
-            $$= $1;
-            $1->auth.str= $5.str;
-            $1->auth.length= $5.length;
-            $1->uses_identified_by_password_clause= true;
-            if (Lex->sql_command == SQLCOM_ALTER_USER)
-            {
-              YYTHD->syntax_error();
-              MYSQL_YYABORT;
-            }
-            else
-              push_deprecated_warn(YYTHD, "IDENTIFIED BY PASSWORD",
-                                   "IDENTIFIED WITH <plugin> AS <hash>");
           }
         | user IDENTIFIED_SYM WITH ident_or_text
           {
@@ -15019,7 +14993,7 @@ opt_column_list:
 column_list:
           ident
           {
-            $$= NEW_PTN Trivial_array<LEX_CSTRING>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<LEX_CSTRING>(YYMEM_ROOT);
             if ($$ == NULL || $$->push_back(to_lex_cstring($1)))
               MYSQL_YYABORT; // OOM
           }
@@ -15053,45 +15027,13 @@ require_clause:
 
 grant_options:
           /* empty */ {}
-        | WITH grant_option_list
+        | WITH GRANT OPTION
+          { Lex->grant |= GRANT_ACL;}
         ;
 
 opt_grant_option:
           /* empty */       { $$= false; }
         | WITH GRANT OPTION { $$= true; }
-        ;
-
-grant_option_list:
-          grant_option_list grant_option {}
-        | grant_option {}
-        ;
-
-grant_option:
-          GRANT OPTION { Lex->grant |= GRANT_ACL;}
-        | MAX_QUERIES_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.questions=$2;
-            lex->mqh.specified_limits|= USER_RESOURCES::QUERIES_PER_HOUR;
-          }
-        | MAX_UPDATES_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.updates=$2;
-            lex->mqh.specified_limits|= USER_RESOURCES::UPDATES_PER_HOUR;
-          }
-        | MAX_CONNECTIONS_PER_HOUR ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.conn_per_hour= $2;
-            lex->mqh.specified_limits|= USER_RESOURCES::CONNECTIONS_PER_HOUR;
-          }
-        | MAX_USER_CONNECTIONS_SYM ulong_num
-          {
-            LEX *lex=Lex;
-            lex->mqh.user_conn= $2;
-            lex->mqh.specified_limits|= USER_RESOURCES::USER_CONNECTIONS;
-          }
         ;
 
 begin_stmt:
@@ -15377,8 +15319,8 @@ view_select:
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
-            lex->parsing_options.allows_variable= FALSE;
-            lex->parsing_options.allows_select_into= FALSE;
+            lex->parsing_options.allows_variable= false;
+            lex->parsing_options.allows_select_into= false;
 
             /*
               In CREATE VIEW v ... the table_list initially contains
@@ -15418,8 +15360,8 @@ view_select:
             lex->create_view_select.length= len;
             trim_whitespace(thd->charset(), &lex->create_view_select);
 
-            lex->parsing_options.allows_variable= TRUE;
-            lex->parsing_options.allows_select_into= TRUE;
+            lex->parsing_options.allows_variable= true;
+            lex->parsing_options.allows_select_into= true;
           }
         ;
 
@@ -15962,7 +15904,7 @@ opt_resource_group_vcpu_list:
           /* empty */
           {
             /* Make an empty list. */
-            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<resourcegroups::Range>(YYMEM_ROOT);
             if ($$ == nullptr)
               MYSQL_YYABORT;
           }
@@ -15973,7 +15915,7 @@ vcpu_range_spec_list:
           vcpu_num_or_range
           {
             resourcegroups::Range r($1.start, $1.end);
-            $$= NEW_PTN Trivial_array<resourcegroups::Range>(YYMEM_ROOT);
+            $$= NEW_PTN Mem_root_array<resourcegroups::Range>(YYMEM_ROOT);
             if ($$ == nullptr || $$->push_back(r))
               MYSQL_YYABORT;
           }

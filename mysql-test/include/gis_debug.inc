@@ -133,7 +133,6 @@ CALL p1(-1, 'MultiLineString((2 2,2 8,-2 8),(-6 -6, 6 6),(10 10, 14 14))');
 --echo # Invalid geometry in input
 CALL p1(-1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))');
 --echo # Invalid geometry in input
---error ER_BOOST_GEOMETRY_INCONSISTENT_TURNS_EXCEPTION
 CALL p1(-1, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))');
 #
 --error ER_WRONG_ARGUMENTS

@@ -32,29 +32,27 @@
 #if defined(_WIN32)
 #include <windows.h>
 #else
-#include <pthread.h>                // IWYU pragma: export
-#include <sched.h>                  // IWYU pragma: export
+#include <pthread.h>  // IWYU pragma: export
+#include <sched.h>    // IWYU pragma: export
 #endif
 #endif /* MYSQL_ABI_CHECK */
 
 #ifdef _WIN32
-typedef DWORD            my_thread_t;
-typedef struct thread_attr
-{
+typedef DWORD my_thread_t;
+typedef struct thread_attr {
   DWORD dwStackSize;
   int detachstate;
 } my_thread_attr_t;
 #else
-typedef pthread_t        my_thread_t;
-typedef pthread_attr_t   my_thread_attr_t;
+typedef pthread_t my_thread_t;
+typedef pthread_attr_t my_thread_attr_t;
 #endif
 
-typedef struct st_my_thread_handle
-{
-  my_thread_t thread;
+struct my_thread_handle {
+  my_thread_t thread{0};
 #ifdef _WIN32
-  HANDLE handle;
+  HANDLE handle{INVALID_HANDLE_VALUE};
 #endif
-} my_thread_handle;
+};
 
 #endif /* COMPONENTS_SERVICES_MY_THREAD_BITS_H */

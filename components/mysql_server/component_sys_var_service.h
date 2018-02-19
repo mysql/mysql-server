@@ -30,9 +30,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   An implementation of the configutration system variables Service to register
   variable and unregister variable.
 */
-class mysql_component_sys_variable_imp
-{
-public:
+class mysql_component_sys_variable_imp {
+ public:
   /**
     Register's component system variables.
     @param component_name  name of the componentnt
@@ -48,14 +47,11 @@ public:
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(register_variable,
-  (const char *component_name,
-   const char *var_name,
-   int flags,
-   const char *comment,
-   mysql_sys_var_check_func check_func,
-   mysql_sys_var_update_func update_func,
-   void *check_arg,
-   void *variable_value));
+                            (const char *component_name, const char *var_name,
+                             int flags, const char *comment,
+                             mysql_sys_var_check_func check_func,
+                             mysql_sys_var_update_func update_func,
+                             void *check_arg, void *variable_value));
 
   /**
     Get the component system variable value from the global structure.
@@ -68,9 +64,8 @@ public:
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(get_variable,
-  (const char *component_name,
-   const char *var_name, void **val,
-   size_t *out_length_of_val));
+                            (const char *component_name, const char *var_name,
+                             void **val, size_t *out_length_of_val));
 
   /**
     Unregister's component system variable.
@@ -81,7 +76,6 @@ public:
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(unregister_variable,
-  (const char *component_name,
-   const char *var_name));
+                            (const char *component_name, const char *var_name));
 };
 #endif /* COMPONENT_SYSTEM_VAR_SERVICE_H */

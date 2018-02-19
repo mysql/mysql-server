@@ -38,9 +38,8 @@
 // possible to run only benchmarks separate from unit tests (as well as
 // making a nicely printed table), but that would necessitate actually
 // making a registration framework.
-#define BENCHMARK(func) TEST(Microbenchmarks, func) { \
-  internal_do_microbenchmark(#func, func); \
-}
+#define BENCHMARK(func) \
+  TEST(Microbenchmarks, func) { internal_do_microbenchmark(#func, func); }
 
 void internal_do_microbenchmark(const char *name, void (*func)(size_t));
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,12 +26,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "my_compiler.h"
 
-/**************************************************//**
-@file include/row0purge.h
-Purge obsolete records
+/** @file include/row0purge.h
+ Purge obsolete records
 
-Created 3/14/1997 Heikki Tuuri
-*******************************************************/
+ Created 3/14/1997 Heikki Tuuri
+ *******************************************************/
 
 #ifndef row0purge_h
 #define row0purge_h
@@ -50,141 +49,128 @@ Created 3/14/1997 Heikki Tuuri
 @param[in]	parent	parent node, i.e., a thr node
 @param[in]	heap	memory heap where created
 @return own: purge node */
-purge_node_t*
-row_purge_node_create(
-	que_thr_t*	parent,
-	mem_heap_t*	heap)
-	MY_ATTRIBUTE((warn_unused_result));
+purge_node_t *row_purge_node_create(que_thr_t *parent, mem_heap_t *heap)
+    MY_ATTRIBUTE((warn_unused_result));
 
-/***********************************************************//**
-Determines if it is possible to remove a secondary index entry.
-Removal is possible if the secondary index entry does not refer to any
-not delete marked version of a clustered index record where DB_TRX_ID
-is newer than the purge view.
+/** Determines if it is possible to remove a secondary index entry.
+ Removal is possible if the secondary index entry does not refer to any
+ not delete marked version of a clustered index record where DB_TRX_ID
+ is newer than the purge view.
 
-NOTE: This function should only be called by the purge thread, only
-while holding a latch on the leaf page of the secondary index entry
-(or keeping the buffer pool watch on the page).  It is possible that
-this function first returns true and then false, if a user transaction
-inserts a record that the secondary index entry would refer to.
-However, in that case, the user transaction would also re-insert the
-secondary index entry after purge has removed it and released the leaf
-page latch.
-@return true if the secondary index record can be purged */
-bool
-row_purge_poss_sec(
-/*===============*/
-	purge_node_t*	node,	/*!< in/out: row purge node */
-	dict_index_t*	index,	/*!< in: secondary index */
-	const dtuple_t*	entry)	/*!< in: secondary index entry */
-	MY_ATTRIBUTE((warn_unused_result));
+ NOTE: This function should only be called by the purge thread, only
+ while holding a latch on the leaf page of the secondary index entry
+ (or keeping the buffer pool watch on the page).  It is possible that
+ this function first returns true and then false, if a user transaction
+ inserts a record that the secondary index entry would refer to.
+ However, in that case, the user transaction would also re-insert the
+ secondary index entry after purge has removed it and released the leaf
+ page latch.
+ @return true if the secondary index record can be purged */
+bool row_purge_poss_sec(purge_node_t *node,    /*!< in/out: row purge node */
+                        dict_index_t *index,   /*!< in: secondary index */
+                        const dtuple_t *entry) /*!< in: secondary index entry */
+    MY_ATTRIBUTE((warn_unused_result));
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph.
 @return query thread to run next or NULL */
-que_thr_t*
-row_purge_step(
-/*===========*/
-	que_thr_t*	thr)	/*!< in: query thread */
-	MY_ATTRIBUTE((warn_unused_result));
+que_thr_t *row_purge_step(que_thr_t *thr) /*!< in: query thread */
+    MY_ATTRIBUTE((warn_unused_result));
 
 /* Purge node structure */
 
 struct purge_node_t {
+  /** Info required to purge a record */
+  struct rec_t {
+    /** Record to purge */
+    trx_undo_rec_t *undo_rec;
 
-	/** Info required to purge a record */
-	struct rec_t {
+    /** File pointer to UNDO record */
+    roll_ptr_t roll_ptr;
 
-		/** Record to purge */
-		trx_undo_rec_t*	undo_rec;
+    /** Trx that created this undo record */
+    trx_id_t modifier_trx_id;
+  };
 
-		/** File pointer to UNDO record */
-		roll_ptr_t	roll_ptr;
+  using Recs = std::list<rec_t, mem_heap_allocator<rec_t>>;
 
-		/** Trx that created this undo record */
-		trx_id_t	modifier_trx_id;
-	};
+  /** node type: QUE_NODE_PURGE */
+  que_common_t common;
 
-	using Recs = std::list<rec_t, mem_heap_allocator<rec_t>>;
+  /* Local storage for this graph node */
 
-	/** node type: QUE_NODE_PURGE */
-	que_common_t		common;
+  /** roll pointer to undo log record */
+  roll_ptr_t roll_ptr;
 
-	/* Local storage for this graph node */
+  /** undo number of the record */
+  undo_no_t undo_no;
 
-	/** roll pointer to undo log record */
-	roll_ptr_t		roll_ptr;
+  /** undo log record type: TRX_UNDO_INSERT_REC, ... */
+  ulint rec_type;
 
-	/** undo number of the record */
-	undo_no_t		undo_no;
+  /** table where purge is done */
+  dict_table_t *table;
 
-	/** undo log record type: TRX_UNDO_INSERT_REC, ... */
-	ulint			rec_type;
+  /** MDL ticket for the table name */
+  MDL_ticket *mdl;
 
-	/** table where purge is done */
-	dict_table_t*		table;
+  /** parent table for an FTS AUX TABLE */
+  dict_table_t *parent;
 
-	/** MDL ticket for the table name */
-	MDL_ticket*		mdl;
+  /** MDL ticket for the parent table of an FTS AUX TABLE */
+  MDL_ticket *parent_mdl;
 
-	/** parent table for an FTS AUX TABLE */
-	dict_table_t*		parent;
+  /** MySQL table instance */
+  TABLE *mysql_table;
 
-	/** MDL ticket for the parent table of an FTS AUX TABLE */
-	MDL_ticket*		parent_mdl;
+  /** compiler analysis info of an update */
+  ulint cmpl_info;
 
-	/** MySQL table instance */
-	TABLE*			mysql_table;
+  /** update vector for a clustered index record */
+  upd_t *update;
 
-	/** compiler analysis info of an update */
-	ulint			cmpl_info;
+  /** NULL, or row reference to the next row to handle */
+  dtuple_t *ref;
 
-	/** update vector for a clustered index record */
-	upd_t*			update;
+  /** NULL, or a copy (also fields copied to heap) of the indexed
+  fields of the row to handle */
+  dtuple_t *row;
 
-	/** NULL, or row reference to the next row to handle */
-	dtuple_t*		ref;
+  /** NULL, or the next index whose record should be handled */
+  dict_index_t *index;
 
-	/** NULL, or a copy (also fields copied to heap) of the indexed
-	fields of the row to handle */
-	dtuple_t*		row;
+  /** The heap is owned by purge_sys and is reset after a purge
+  batch has completed. */
+  mem_heap_t *heap;
 
-	/** NULL, or the next index whose record should be handled */
-	dict_index_t*		index;
+  /** true if the clustered index record determined by ref was
+  found in the clustered index, and we were able to position pcur on it */
+  bool found_clust;
 
-	/** The heap is owned by purge_sys and is reset after a purge
-	batch has completed. */
-	mem_heap_t*		heap;
+  /** persistent cursor used in searching the clustered index record */
+  btr_pcur_t pcur;
 
-	/** true if the clustered index record determined by ref was
-	found in the clustered index, and we were able to position pcur on it */
-	bool			found_clust;
+  /** Debug flag */
+  bool done;
 
-	/** persistent cursor used in searching the clustered index record */
-	btr_pcur_t		pcur;
+  /** trx id for this purging record */
+  trx_id_t trx_id;
 
-	/** Debug flag */
-	bool			done;
+  /** trx id for this purging record */
+  trx_id_t modifier_trx_id;
 
-	/** trx id for this purging record */
-	trx_id_t		trx_id;
+  /** Undo recs to purge */
+  Recs *recs;
 
-	/** trx id for this purging record */
-	trx_id_t		modifier_trx_id;
-
-	/** Undo recs to purge */
-	Recs*			recs;
-
-	trx_rseg_t*		rseg;
+  trx_rseg_t *rseg;
 #ifdef UNIV_DEBUG
-	/***********************************************************//**
-	Validate the persisent cursor. The purge node has two references
-	to the clustered index record - one via the ref member, and the
-	other via the persistent cursor.  These two references must match
-	each other if the found_clust flag is set.
-	@return true if the persistent cursor is consistent with
-	the ref member.*/
-	bool	validate_pcur();
+  /**   Validate the persisent cursor. The purge node has two references
+     to the clustered index record - one via the ref member, and the
+     other via the persistent cursor.  These two references must match
+     each other if the found_clust flag is set.
+     @return true if the persistent cursor is consistent with
+     the ref member.*/
+  bool validate_pcur();
 #endif
 };
 

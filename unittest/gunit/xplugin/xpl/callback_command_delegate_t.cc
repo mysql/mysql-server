@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,80 +30,60 @@
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
 #include "plugin/x/src/callback_command_delegate.h"
 
+namespace ngs {
 
-namespace ngs
-{
-
-void PrintTo(const Command_delegate::Info &x, ::std::ostream* os) {
+void PrintTo(const Command_delegate::Info &x, ::std::ostream *os) {
   *os << "Command_delegate::Info { rows:" << x.affected_rows
       << ", las_insert_id:" << x.last_insert_id
-      << ", num_warnings:" << x.num_warnings
-      << ", message:" << x.message
-      << ", server_status:" << x.server_status
-      << " }";
+      << ", num_warnings:" << x.num_warnings << ", message:" << x.message
+      << ", server_status:" << x.server_status << " }";
 }
 
-} //namespace ngs
+}  // namespace ngs
 
-namespace xpl
-{
-namespace test
-{
-namespace
-{
+namespace xpl {
+namespace test {
+namespace {
 
-const longlong   EXPECTED_VALUE_INTEGER = 1;
-const longlong   EXPECTED_VALUE_LONGLONG = 2;
-const longlong   EXPECTED_IS_LONGLONG_UNSIGNED = true;
-const longlong   EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
-const decimal_t  EXPECTED_VALUE_DECIMAL = { 0, 1, 2, FALSE, NULL };
-const double     EXPECTED_VALUE_DOUBLE = 20.0;
-const MYSQL_TIME EXPECTED_VALUE_DATATIME = { 2017, 12, 20, 20, 30, 00, 0, 0, MYSQL_TIMESTAMP_DATETIME };
-const char      *EXPECTED_VALUE_STRING = "TEST STRING";
+const longlong EXPECTED_VALUE_INTEGER = 1;
+const longlong EXPECTED_VALUE_LONGLONG = 2;
+const longlong EXPECTED_IS_LONGLONG_UNSIGNED = true;
+const longlong EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT = false;
+const decimal_t EXPECTED_VALUE_DECIMAL = {0, 1, 2, false, NULL};
+const double EXPECTED_VALUE_DOUBLE = 20.0;
+const MYSQL_TIME EXPECTED_VALUE_DATATIME = {
+    2017, 12, 20, 20, 30, 00, 0, 0, MYSQL_TIMESTAMP_DATETIME};
+const char *EXPECTED_VALUE_STRING = "TEST STRING";
 
-} // namespace
-
+}  // namespace
 
 using namespace ::testing;
 
-class Mock_callback_commands
-{
-public:
-    MOCK_METHOD0(start_row, xpl::Callback_command_delegate::Row_data *());
-    MOCK_METHOD1(end_row, bool (xpl::Callback_command_delegate::Row_data *));
+class Mock_callback_commands {
+ public:
+  MOCK_METHOD0(start_row, xpl::Callback_command_delegate::Row_data *());
+  MOCK_METHOD1(end_row, bool(xpl::Callback_command_delegate::Row_data *));
 };
 
-MATCHER_P(Eq_mysql_time, n, "")
-{
-  if ((arg.year != n.year) ||
-      (arg.month != n.month) ||
-      (arg.day != n.day) ||
-      (arg.hour != n.hour) ||
-      (arg.minute != n.minute) ||
-      (arg.second != n.second) ||
-      (arg.second_part != n.second_part) ||
-      (arg.neg != n.neg) ||
-      (arg.time_type != n.time_type))
+MATCHER_P(Eq_mysql_time, n, "") {
+  if ((arg.year != n.year) || (arg.month != n.month) || (arg.day != n.day) ||
+      (arg.hour != n.hour) || (arg.minute != n.minute) ||
+      (arg.second != n.second) || (arg.second_part != n.second_part) ||
+      (arg.neg != n.neg) || (arg.time_type != n.time_type))
     return false;
 
   return true;
 }
 
-MATCHER_P(Eq_decimal, n, "")
-{
-  if ((arg.intg != n.intg) ||
-      (arg.frac != n.frac) ||
-      (arg.len != n.len) ||
-      (arg.sign != n.sign) ||
-      (arg.buf != n.buf))
+MATCHER_P(Eq_decimal, n, "") {
+  if ((arg.intg != n.intg) || (arg.frac != n.frac) || (arg.len != n.len) ||
+      (arg.sign != n.sign) || (arg.buf != n.buf))
     return false;
 
   return true;
 }
 
-
-MATCHER_P(Eq_info, param, "")
-{
+MATCHER_P(Eq_info, param, "") {
   return ((arg.affected_rows == param.affected_rows) &&
           (arg.last_insert_id == param.last_insert_id) &&
           (arg.num_warnings == param.num_warnings) &&
@@ -111,27 +91,21 @@ MATCHER_P(Eq_info, param, "")
           (arg.server_status == param.server_status));
 }
 
+class Callback_command_delegate_testsuite : public Test {
+ public:
+  void SetUp() { m_sut.reset(new xpl::Callback_command_delegate()); }
 
-class Callback_command_delegate_testsuite: public Test
-{
-public:
-  void SetUp()
-  {
-    m_sut.reset(new xpl::Callback_command_delegate());
-  }
-
-  void create_sut_with_callback_mock()
-  {
+  void create_sut_with_callback_mock() {
     xpl::Callback_command_delegate::Start_row_callback start_row =
         ngs::bind(&Mock_callback_commands::start_row, &m_mock_callbacks);
     xpl::Callback_command_delegate::End_row_callback end_row =
-        ngs::bind(&Mock_callback_commands::end_row, &m_mock_callbacks, ngs::placeholders::_1);
+        ngs::bind(&Mock_callback_commands::end_row, &m_mock_callbacks,
+                  ngs::placeholders::_1);
 
     m_sut.reset(new xpl::Callback_command_delegate(start_row, end_row));
   }
 
-  void assert_row_and_data_functions(const bool expected_result)
-  {
+  void assert_row_and_data_functions(const bool expected_result) {
     const int expect_success = 0;
 
     // Processing of data should be always successful
@@ -139,25 +113,26 @@ public:
     ASSERT_EQ(expected_result, m_sut->start_row());
     ASSERT_EQ(expect_success, m_sut->get_null());
     ASSERT_EQ(expect_success, m_sut->get_integer(EXPECTED_VALUE_INTEGER));
-    ASSERT_EQ(expect_success, m_sut->get_longlong(EXPECTED_VALUE_LONGLONG,
-                                                        EXPECTED_IS_LONGLONG_UNSIGNED));
+    ASSERT_EQ(expect_success,
+              m_sut->get_longlong(EXPECTED_VALUE_LONGLONG,
+                                  EXPECTED_IS_LONGLONG_UNSIGNED));
     ASSERT_EQ(expect_success, m_sut->get_decimal(&EXPECTED_VALUE_DECIMAL));
     ASSERT_EQ(expect_success, m_sut->get_double(EXPECTED_VALUE_DOUBLE, 0));
     ASSERT_EQ(expect_success, m_sut->get_date(&EXPECTED_VALUE_DATATIME));
     ASSERT_EQ(expect_success, m_sut->get_time(&EXPECTED_VALUE_DATATIME, 0));
     ASSERT_EQ(expect_success, m_sut->get_datetime(&EXPECTED_VALUE_DATATIME, 0));
-    ASSERT_EQ(expect_success, m_sut->get_string(EXPECTED_VALUE_STRING, strlen(EXPECTED_VALUE_STRING), NULL));
+    ASSERT_EQ(expect_success,
+              m_sut->get_string(EXPECTED_VALUE_STRING,
+                                strlen(EXPECTED_VALUE_STRING), NULL));
     ASSERT_EQ(expected_result, m_sut->end_row());
   }
 
-  void assert_sut_status_should_be_empty()
-  {
+  void assert_sut_status_should_be_empty() {
     ngs::Command_delegate::Info expect_empty;
     ASSERT_THAT(m_sut->get_info(), Eq_info(expect_empty));
   }
 
-  void assert_sut_handle_ok_and_its_status()
-  {
+  void assert_sut_handle_ok_and_its_status() {
     const uint expected_status = 1;
     const uint expected_wrn_count = 2;
     const ulonglong expected_affected_rows = 3;
@@ -178,46 +153,50 @@ public:
     ASSERT_THAT(m_sut->get_info(), Eq_info(expect));
   }
 
-  void assert_row_container(xpl::Callback_command_delegate::Row_data &row_data)
-  {
+  void assert_row_container(
+      xpl::Callback_command_delegate::Row_data &row_data) {
     // assert_row_and_data_functions
     const std::size_t expected_size_inserted_by_testsuite = 9;
 
     ASSERT_EQ(expected_size_inserted_by_testsuite, row_data.fields.size());
 
-    ASSERT_THAT(row_data.fields,
-               ElementsAre(IsNull(), NotNull(), NotNull(), NotNull(), NotNull(),
-               NotNull(), NotNull(), NotNull(), NotNull()));
+    ASSERT_THAT(row_data.fields, ElementsAre(IsNull(), NotNull(), NotNull(),
+                                             NotNull(), NotNull(), NotNull(),
+                                             NotNull(), NotNull(), NotNull()));
 
     ASSERT_EQ(EXPECTED_VALUE_INTEGER, row_data.fields[1]->value.v_long);
-    ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT, row_data.fields[1]->is_unsigned);
+    ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED_DEFAULT,
+              row_data.fields[1]->is_unsigned);
     ASSERT_FALSE(row_data.fields[1]->is_string);
 
     ASSERT_EQ(EXPECTED_VALUE_LONGLONG, row_data.fields[2]->value.v_long);
     ASSERT_EQ(EXPECTED_IS_LONGLONG_UNSIGNED, row_data.fields[2]->is_unsigned);
     ASSERT_FALSE(row_data.fields[2]->is_string);
 
-    ASSERT_THAT(row_data.fields[3]->value.v_decimal, Eq_decimal(EXPECTED_VALUE_DECIMAL));
+    ASSERT_THAT(row_data.fields[3]->value.v_decimal,
+                Eq_decimal(EXPECTED_VALUE_DECIMAL));
     ASSERT_FALSE(row_data.fields[3]->is_string);
 
     ASSERT_EQ(EXPECTED_VALUE_DOUBLE, row_data.fields[4]->value.v_double);
     ASSERT_FALSE(row_data.fields[4]->is_string);
 
-    ASSERT_THAT(row_data.fields[5]->value.v_time, Eq_mysql_time(EXPECTED_VALUE_DATATIME));
+    ASSERT_THAT(row_data.fields[5]->value.v_time,
+                Eq_mysql_time(EXPECTED_VALUE_DATATIME));
     ASSERT_FALSE(row_data.fields[5]->is_string);
 
-    ASSERT_THAT(row_data.fields[6]->value.v_time, Eq_mysql_time(EXPECTED_VALUE_DATATIME));
+    ASSERT_THAT(row_data.fields[6]->value.v_time,
+                Eq_mysql_time(EXPECTED_VALUE_DATATIME));
     ASSERT_FALSE(row_data.fields[6]->is_string);
 
-    ASSERT_THAT(row_data.fields[7]->value.v_time, Eq_mysql_time(EXPECTED_VALUE_DATATIME));
+    ASSERT_THAT(row_data.fields[7]->value.v_time,
+                Eq_mysql_time(EXPECTED_VALUE_DATATIME));
     ASSERT_FALSE(row_data.fields[7]->is_string);
 
     ASSERT_EQ(EXPECTED_VALUE_STRING, *row_data.fields[8]->value.v_string);
     ASSERT_TRUE(row_data.fields[8]->is_string);
   }
 
-  void assert_sut_constant_parameters()
-  {
+  void assert_sut_constant_parameters() {
     ASSERT_EQ(CS_TEXT_REPRESENTATION, m_sut->representation());
     ASSERT_EQ(CLIENT_DEPRECATE_EOF, m_sut->get_client_capabilities());
   }
@@ -226,9 +205,8 @@ public:
   ngs::unique_ptr<ngs::Command_delegate> m_sut;
 };
 
-
-TEST_F(Callback_command_delegate_testsuite, process_data_without_callback_functions)
-{
+TEST_F(Callback_command_delegate_testsuite,
+       process_data_without_callback_functions) {
   const bool expect_success = false;
 
   ASSERT_NO_FATAL_FAILURE(assert_sut_constant_parameters());
@@ -240,8 +218,8 @@ TEST_F(Callback_command_delegate_testsuite, process_data_without_callback_functi
   ASSERT_NO_FATAL_FAILURE(assert_sut_status_should_be_empty());
 }
 
-TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_are_called_but_container_is_missing)
-{
+TEST_F(Callback_command_delegate_testsuite,
+       process_data_verify_that_callbacks_are_called_but_container_is_missing) {
   const bool expect_failure = true;
   xpl::Callback_command_delegate::Row_data *expected_container = NULL;
 
@@ -250,15 +228,17 @@ TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_a
   ASSERT_NO_FATAL_FAILURE(assert_sut_constant_parameters());
   ASSERT_NO_FATAL_FAILURE(assert_sut_status_should_be_empty());
 
-  EXPECT_CALL(m_mock_callbacks, start_row()).WillOnce(Return(expected_container));
-  EXPECT_CALL(m_mock_callbacks, end_row(expected_container)).WillOnce(Return(!expect_failure));
+  EXPECT_CALL(m_mock_callbacks, start_row())
+      .WillOnce(Return(expected_container));
+  EXPECT_CALL(m_mock_callbacks, end_row(expected_container))
+      .WillOnce(Return(!expect_failure));
   ASSERT_NO_FATAL_FAILURE(assert_row_and_data_functions(expect_failure));
 
   ASSERT_NO_FATAL_FAILURE(assert_sut_status_should_be_empty());
 }
 
-TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_are_called_and_data_in_container)
-{
+TEST_F(Callback_command_delegate_testsuite,
+       process_data_verify_that_callbacks_are_called_and_data_in_container) {
   const bool expect_success = false;
   xpl::Callback_command_delegate::Row_data expected_container;
 
@@ -267,13 +247,17 @@ TEST_F(Callback_command_delegate_testsuite, process_data_verify_that_callbacks_a
   ASSERT_NO_FATAL_FAILURE(assert_sut_constant_parameters());
   ASSERT_NO_FATAL_FAILURE(assert_sut_status_should_be_empty());
 
-  EXPECT_CALL(m_mock_callbacks, start_row()).WillOnce(Return(&expected_container));
-  EXPECT_CALL(m_mock_callbacks, end_row(&expected_container)).WillOnce(Return(!expect_success));
+  EXPECT_CALL(m_mock_callbacks, start_row())
+      .WillOnce(Return(&expected_container));
+  EXPECT_CALL(m_mock_callbacks, end_row(&expected_container))
+      .WillOnce(Return(!expect_success));
   ASSERT_NO_FATAL_FAILURE(assert_row_and_data_functions(expect_success));
-  ASSERT_NO_FATAL_FAILURE(assert_row_container(expected_container)); // assert data filled in assert_row_and_data_functions
+  ASSERT_NO_FATAL_FAILURE(assert_row_container(
+      expected_container));  // assert data filled in
+                             // assert_row_and_data_functions
 
   ASSERT_NO_FATAL_FAILURE(assert_sut_status_should_be_empty());
 }
 
-} // namespace test
-} // namespace xpl
+}  // namespace test
+}  // namespace xpl

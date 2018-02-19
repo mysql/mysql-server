@@ -1,0 +1,78 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+create user 'foo'@'fakehost';
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
+create user 'foo1'@'fakehost' IDENTIFIED BY 'foo1', 'foo2'@'fakehost'
+  IDENTIFIED WITH 'mysql_native_password' AS '*1111111111111111111111111111111111111111',
+'foo3'@'fakehost';
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	foo
+fakehost	foo1
+fakehost	foo2
+fakehost	foo3
+rename user 'foo'@'fakehost' to 'foofoo'@'fakehost';
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost','bar'@'fakehost'
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	foo1
+fakehost	foo2
+fakehost	foo3
+fakehost	foofoo
+drop user 'foofoo'@'fakehost';
+drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost';
+drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','barbar'@'fakehost'
+drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+include/sync_slave_sql_with_master.inc
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+#
+# WL2392: "Change Password at next login" (initial default for root)
+#
+CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
+ALTER USER must_change2@localhost PASSWORD EXPIRE;
+include/sync_slave_sql_with_master.inc
+select Host,User,password_expired from mysql.user where user='must_change2';
+Host	User	password_expired
+localhost	must_change2	Y
+# must throw an error
+SELECT USER();
+ERROR HY000: You must reset your password using ALTER USER statement before executing this statement.
+# setting a password unlocks it
+SET PASSWORD = 'aha2';
+include/sync_slave_sql_with_master.inc
+# must not throw an error
+SELECT USER();
+USER()
+must_change2@localhost
+DROP USER must_change2@localhost;
+include/sync_slave_sql_with_master.inc
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Query	#	#	BEGIN
+server-binary-log.000001	#	Query	#	#	COMMIT
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost' IDENTIFIED WITH 'caching_sha2_password'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+server-binary-log.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
+server-binary-log.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
+server-binary-log.000001	#	Query	#	#	use `test`; drop user 'foo1'@'fakehost', 'foo2'@'fakehost', 'foo3'@'fakehost'
+server-binary-log.000001	#	Query	#	#	use `test`; CREATE USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' PASSWORD EXPIRE
+server-binary-log.000001	#	Query	#	#	use `test`; ALTER USER 'must_change2'@'localhost' IDENTIFIED WITH 'caching_sha2_password' AS '<non-deterministic-password-hash>'
+server-binary-log.000001	#	Query	#	#	use `test`; DROP USER must_change2@localhost
+include/group_replication_end.inc

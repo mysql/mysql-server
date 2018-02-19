@@ -62,9 +62,7 @@ PFS_table_stat PFS_table_stat::g_reset_template;
 static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
-void
-pre_initialize_performance_schema()
-{
+void pre_initialize_performance_schema() {
   pfs_initialized = false;
 
   init_all_builtin_memory_class();
@@ -83,30 +81,24 @@ pre_initialize_performance_schema()
     in the instrumented code, to explicitly cleanup the instrumentation.
   */
   THR_PFS = nullptr;
-  for (int i = 0; i < THR_PFS_NUM_KEYS; ++i)
-  {
+  for (int i = 0; i < THR_PFS_NUM_KEYS; ++i) {
     THR_PFS_contexts[i] = nullptr;
   }
 }
 
-int
-initialize_performance_schema(PFS_global_param* param,
-                              PSI_thread_bootstrap** thread_bootstrap,
-                              PSI_mutex_bootstrap** mutex_bootstrap,
-                              PSI_rwlock_bootstrap** rwlock_bootstrap,
-                              PSI_cond_bootstrap** cond_bootstrap,
-                              PSI_file_bootstrap** file_bootstrap,
-                              PSI_socket_bootstrap** socket_bootstrap,
-                              PSI_table_bootstrap** table_bootstrap,
-                              PSI_mdl_bootstrap** mdl_bootstrap,
-                              PSI_idle_bootstrap** idle_bootstrap,
-                              PSI_stage_bootstrap** stage_bootstrap,
-                              PSI_statement_bootstrap** statement_bootstrap,
-                              PSI_transaction_bootstrap** transaction_bootstrap,
-                              PSI_memory_bootstrap** memory_bootstrap,
-                              PSI_error_bootstrap** error_bootstrap,
-                              PSI_data_lock_bootstrap** data_lock_bootstrap)
-{
+int initialize_performance_schema(
+    PFS_global_param *param, PSI_thread_bootstrap **thread_bootstrap,
+    PSI_mutex_bootstrap **mutex_bootstrap,
+    PSI_rwlock_bootstrap **rwlock_bootstrap,
+    PSI_cond_bootstrap **cond_bootstrap, PSI_file_bootstrap **file_bootstrap,
+    PSI_socket_bootstrap **socket_bootstrap,
+    PSI_table_bootstrap **table_bootstrap, PSI_mdl_bootstrap **mdl_bootstrap,
+    PSI_idle_bootstrap **idle_bootstrap, PSI_stage_bootstrap **stage_bootstrap,
+    PSI_statement_bootstrap **statement_bootstrap,
+    PSI_transaction_bootstrap **transaction_bootstrap,
+    PSI_memory_bootstrap **memory_bootstrap,
+    PSI_error_bootstrap **error_bootstrap,
+    PSI_data_lock_bootstrap **data_lock_bootstrap) {
   *thread_bootstrap = NULL;
   *mutex_bootstrap = NULL;
   *rwlock_bootstrap = NULL;
@@ -130,8 +122,7 @@ initialize_performance_schema(PFS_global_param* param,
   init_event_name_sizing(param);
   register_global_classes();
 
-  if (init_sync_class(param->m_mutex_class_sizing,
-                      param->m_rwlock_class_sizing,
+  if (init_sync_class(param->m_mutex_class_sizing, param->m_rwlock_class_sizing,
                       param->m_cond_class_sizing) ||
       init_thread_class(param->m_thread_class_sizing) ||
       init_table_share(param->m_table_share_sizing) ||
@@ -142,14 +133,15 @@ initialize_performance_schema(PFS_global_param* param,
       init_statement_class(param->m_statement_class_sizing) ||
       init_socket_class(param->m_socket_class_sizing) ||
       init_memory_class(param->m_memory_class_sizing) ||
-      init_instruments(param) || init_events_waits_history_long(
-                                   param->m_events_waits_history_long_sizing) ||
+      init_instruments(param) ||
+      init_events_waits_history_long(
+          param->m_events_waits_history_long_sizing) ||
       init_events_stages_history_long(
-        param->m_events_stages_history_long_sizing) ||
+          param->m_events_stages_history_long_sizing) ||
       init_events_statements_history_long(
-        param->m_events_statements_history_long_sizing) ||
+          param->m_events_statements_history_long_sizing) ||
       init_events_transactions_history_long(
-        param->m_events_transactions_history_long_sizing) ||
+          param->m_events_transactions_history_long_sizing) ||
       init_file_hash(param) || init_table_share_hash(param) ||
       init_setup_actor(param) || init_setup_actor_hash(param) ||
       init_setup_object(param) || init_setup_object_hash(param) ||
@@ -158,8 +150,7 @@ initialize_performance_schema(PFS_global_param* param,
       init_account_hash(param) || init_digest(param) ||
       init_digest_hash(param) || init_program(param) ||
       init_program_hash(param) || init_prepared_stmt(param) ||
-      init_error(param))
-  {
+      init_error(param)) {
     /*
       The performance schema initialization failed.
       Free the memory used, and disable the instrumentation.
@@ -168,39 +159,36 @@ initialize_performance_schema(PFS_global_param* param,
     return 2;
   }
 
-  if (param->m_enabled)
-  {
+  if (param->m_enabled) {
     /** Default values for SETUP_CONSUMERS */
     flag_events_stages_current =
-      param->m_consumer_events_stages_current_enabled;
+        param->m_consumer_events_stages_current_enabled;
     flag_events_stages_history =
-      param->m_consumer_events_stages_history_enabled;
+        param->m_consumer_events_stages_history_enabled;
     flag_events_stages_history_long =
-      param->m_consumer_events_stages_history_long_enabled;
+        param->m_consumer_events_stages_history_long_enabled;
     flag_events_statements_current =
-      param->m_consumer_events_statements_current_enabled;
+        param->m_consumer_events_statements_current_enabled;
     flag_events_statements_history =
-      param->m_consumer_events_statements_history_enabled;
+        param->m_consumer_events_statements_history_enabled;
     flag_events_statements_history_long =
-      param->m_consumer_events_statements_history_long_enabled;
+        param->m_consumer_events_statements_history_long_enabled;
     flag_events_transactions_current =
-      param->m_consumer_events_transactions_current_enabled;
+        param->m_consumer_events_transactions_current_enabled;
     flag_events_transactions_history =
-      param->m_consumer_events_transactions_history_enabled;
+        param->m_consumer_events_transactions_history_enabled;
     flag_events_transactions_history_long =
-      param->m_consumer_events_transactions_history_long_enabled;
+        param->m_consumer_events_transactions_history_long_enabled;
     flag_events_waits_current = param->m_consumer_events_waits_current_enabled;
     flag_events_waits_history = param->m_consumer_events_waits_history_enabled;
     flag_events_waits_history_long =
-      param->m_consumer_events_waits_history_long_enabled;
+        param->m_consumer_events_waits_history_long_enabled;
     flag_global_instrumentation =
-      param->m_consumer_global_instrumentation_enabled;
+        param->m_consumer_global_instrumentation_enabled;
     flag_thread_instrumentation =
-      param->m_consumer_thread_instrumentation_enabled;
+        param->m_consumer_thread_instrumentation_enabled;
     flag_statements_digest = param->m_consumer_statement_digest_enabled;
-  }
-  else
-  {
+  } else {
     flag_events_stages_current = false;
     flag_events_stages_history = false;
     flag_events_stages_history_long = false;
@@ -220,8 +208,7 @@ initialize_performance_schema(PFS_global_param* param,
 
   pfs_initialized = true;
 
-  if (param->m_enabled)
-  {
+  if (param->m_enabled) {
     install_default_setup(&pfs_thread_bootstrap);
     *thread_bootstrap = &pfs_thread_bootstrap;
     *mutex_bootstrap = &pfs_mutex_bootstrap;
@@ -246,9 +233,7 @@ initialize_performance_schema(PFS_global_param* param,
   return 0;
 }
 
-static void
-cleanup_performance_schema(void)
-{
+static void cleanup_performance_schema(void) {
   /*
     my.cnf options
   */
@@ -318,9 +303,7 @@ cleanup_performance_schema(void)
   cleanup_instruments();
 }
 
-void
-shutdown_performance_schema(void)
-{
+void shutdown_performance_schema(void) {
   pfs_initialized = false;
 
   /* disable everything, especially for this thread. */
@@ -354,20 +337,15 @@ shutdown_performance_schema(void)
   Initialize the dynamic array used to hold PFS_INSTRUMENT configuration
   options.
 */
-void
-init_pfs_instrument_array()
-{
+void init_pfs_instrument_array() {
   pfs_instr_config_array = new Pfs_instr_config_array(PSI_NOT_INSTRUMENTED);
 }
 
 /**
   Deallocate the PFS_INSTRUMENT array.
 */
-void
-cleanup_instrument_config()
-{
-  if (pfs_instr_config_array != NULL)
-  {
+void cleanup_instrument_config() {
+  if (pfs_instr_config_array != NULL) {
     my_free_container_pointers(*pfs_instr_config_array);
   }
   delete pfs_instr_config_array;
@@ -384,59 +362,48 @@ cleanup_instrument_config()
   @return 0 for success, non zero for errors
 */
 
-int
-add_pfs_instr_to_array(const char* name, const char* value)
-{
+int add_pfs_instr_to_array(const char *name, const char *value) {
   size_t name_length = strlen(name);
   size_t value_length = strlen(value);
 
   /* Allocate structure plus string buffers plus null terminators */
-  PFS_instr_config* e = (PFS_instr_config*)my_malloc(
-    PSI_NOT_INSTRUMENTED,
-    sizeof(PFS_instr_config) + name_length + 1 + value_length + 1,
-    MYF(MY_WME));
-  if (!e)
-  {
+  PFS_instr_config *e = (PFS_instr_config *)my_malloc(
+      PSI_NOT_INSTRUMENTED,
+      sizeof(PFS_instr_config) + name_length + 1 + value_length + 1,
+      MYF(MY_WME));
+  if (!e) {
     return 1;
   }
 
   /* Copy the instrument name */
-  e->m_name = (char*)e + sizeof(PFS_instr_config);
+  e->m_name = (char *)e + sizeof(PFS_instr_config);
   memcpy(e->m_name, name, name_length);
   e->m_name_length = (uint)name_length;
   e->m_name[name_length] = '\0';
 
   /* Set flags accordingly */
-  if (!my_strcasecmp(&my_charset_latin1, value, "counted"))
-  {
+  if (!my_strcasecmp(&my_charset_latin1, value, "counted")) {
     e->m_enabled = true;
     e->m_timed = false;
-  }
-  else if (!my_strcasecmp(&my_charset_latin1, value, "true") ||
-           !my_strcasecmp(&my_charset_latin1, value, "on") ||
-           !my_strcasecmp(&my_charset_latin1, value, "1") ||
-           !my_strcasecmp(&my_charset_latin1, value, "yes"))
-  {
+  } else if (!my_strcasecmp(&my_charset_latin1, value, "true") ||
+             !my_strcasecmp(&my_charset_latin1, value, "on") ||
+             !my_strcasecmp(&my_charset_latin1, value, "1") ||
+             !my_strcasecmp(&my_charset_latin1, value, "yes")) {
     e->m_enabled = true;
     e->m_timed = true;
-  }
-  else if (!my_strcasecmp(&my_charset_latin1, value, "false") ||
-           !my_strcasecmp(&my_charset_latin1, value, "off") ||
-           !my_strcasecmp(&my_charset_latin1, value, "0") ||
-           !my_strcasecmp(&my_charset_latin1, value, "no"))
-  {
+  } else if (!my_strcasecmp(&my_charset_latin1, value, "false") ||
+             !my_strcasecmp(&my_charset_latin1, value, "off") ||
+             !my_strcasecmp(&my_charset_latin1, value, "0") ||
+             !my_strcasecmp(&my_charset_latin1, value, "no")) {
     e->m_enabled = false;
     e->m_timed = false;
-  }
-  else
-  {
+  } else {
     my_free(e);
     return 1;
   }
 
   /* Add to the array of default startup options */
-  if (pfs_instr_config_array->push_back(e))
-  {
+  if (pfs_instr_config_array->push_back(e)) {
     my_free(e);
     return 1;
   }

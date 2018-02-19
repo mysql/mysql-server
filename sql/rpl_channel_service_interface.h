@@ -23,37 +23,36 @@
 #ifndef RPL_SERVICE_INTERFACE_INCLUDE
 #define RPL_SERVICE_INTERFACE_INCLUDE
 
-//Channel errors
+// Channel errors
 
-#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR      -1
+#define RPL_CHANNEL_SERVICE_RECEIVER_CONNECTION_ERROR -1
 #define RPL_CHANNEL_SERVICE_DEFAULT_CHANNEL_CREATION_ERROR -2
-#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE      -3
-#define RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR  -4
-//Error for the wait event consumption, equal to the server wait for GTID method
+#define RPL_CHANNEL_SERVICE_SLAVE_SKIP_COUNTER_ACTIVE -3
+#define RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR -4
+// Error for the wait event consumption, equal to the server wait for GTID
+// method
 #define REPLICATION_THREAD_WAIT_TIMEOUT_ERROR -1
 #define REPLICATION_THREAD_WAIT_NO_INFO_ERROR -2
 
-//Settings
+// Settings
 
-//Used whenever a parameter should take the server default value
+// Used whenever a parameter should take the server default value
 #define RPL_SERVICE_SERVER_DEFAULT -1
 
-//Channel creation settings
+// Channel creation settings
 
 /**
   Types of channels
 */
-enum enum_channel_type
-{
-  SLAVE_REPLICATION_CHANNEL,  //Master slave replication channels
-  GROUP_REPLICATION_CHANNEL   //Group replication channels
+enum enum_channel_type {
+  SLAVE_REPLICATION_CHANNEL,  // Master slave replication channels
+  GROUP_REPLICATION_CHANNEL   // Group replication channels
 };
 
 /**
   Know parallelization options that can be applied to channel appliers
 */
-enum enum_multi_threaded_workers_type
-{
+enum enum_multi_threaded_workers_type {
   CHANNEL_MTS_PARALLEL_TYPE_DB_NAME,
   CHANNEL_MTS_PARALLEL_TYPE_LOGICAL_CLOCK
 };
@@ -62,70 +61,65 @@ enum enum_multi_threaded_workers_type
  SSL information to be used when creating a channel.
  It maps the SSL options present in a CHANGE MASTER.
 */
-struct st_ssl_info
-{
-  int   use_ssl;                //use SSL
-  char* ssl_ca_file_name;       //SSL list of trusted certificate authorities
-  char* ssl_ca_directory;       //SSL certificate authorities directory
-  char* ssl_cert_file_name;     //SSL connection certificate
-  char* ssl_crl_file_name;      //SSL certificate revocation list
-  char* ssl_crl_directory;      //SSL certificate revocation list file directory
-  char* ssl_key;                //SSL key file for connections
-  char* ssl_cipher;             //list of permissible ciphers to use for SSL
-  int   ssl_verify_server_cert; //check the server's Common Name value
-  char* tls_version;            //TLS version to use for SSL
+struct Channel_ssl_info {
+  int use_ssl;                 // use SSL
+  char *ssl_ca_file_name;      // SSL list of trusted certificate authorities
+  char *ssl_ca_directory;      // SSL certificate authorities directory
+  char *ssl_cert_file_name;    // SSL connection certificate
+  char *ssl_crl_file_name;     // SSL certificate revocation list
+  char *ssl_crl_directory;     // SSL certificate revocation list file directory
+  char *ssl_key;               // SSL key file for connections
+  char *ssl_cipher;            // list of permissible ciphers to use for SSL
+  int ssl_verify_server_cert;  // check the server's Common Name value
+  char *tls_version;           // TLS version to use for SSL
 };
-typedef struct st_ssl_info Channel_ssl_info;
 
-void initialize_channel_ssl_info(Channel_ssl_info* channel_ssl_info);
+void initialize_channel_ssl_info(Channel_ssl_info *channel_ssl_info);
 
 /**
  Creation information for a channel.
  It includes the data that is usually associated to a change master command
 */
-struct st_channel_info
-{
+struct Channel_creation_info {
   enum_channel_type type;
-  char* hostname;
+  char *hostname;
   int port;
-  char* user;
-  char* password;
-  Channel_ssl_info* ssl_info;
+  char *user;
+  char *password;
+  Channel_ssl_info *ssl_info;
   int auto_position;
   int channel_mts_parallel_type;
   int channel_mts_parallel_workers;
   int channel_mts_checkpoint_group;
   int replicate_same_server_id;
-  int thd_tx_priority;           //The applier thread priority
+  int thd_tx_priority;  // The applier thread priority
   int sql_delay;
-  int connect_retry;             //How many seconds to wait between retries.
-  int retry_count;               //Limits the number of reconnection attempts
-  bool preserve_relay_logs;      //If the logs should be preserved on creation
-  char* public_key_path;         //RSA Public key information
-  int get_public_key;            //Preference to get public key from donor if not available
+  int connect_retry;         // How many seconds to wait between retries.
+  int retry_count;           // Limits the number of reconnection attempts
+  bool preserve_relay_logs;  // If the logs should be preserved on creation
+  char *public_key_path;     // RSA Public key information
+  int get_public_key;        // Preference to get public key from donor if not
+                             // available
 };
-typedef struct st_channel_info Channel_creation_info;
 
-void initialize_channel_creation_info(Channel_creation_info* channel_info);
+void initialize_channel_creation_info(Channel_creation_info *channel_info);
 
-//Start settings
+// Start settings
 
 /**
   The known types of channel threads.
   All new types should be power of 2
 */
-enum enum_channel_thread_types
-{
-  CHANNEL_NO_THD=0,
-  CHANNEL_RECEIVER_THREAD=1,
-  CHANNEL_APPLIER_THREAD=2
+enum enum_channel_thread_types {
+  CHANNEL_NO_THD = 0,
+  CHANNEL_RECEIVER_THREAD = 1,
+  CHANNEL_APPLIER_THREAD = 2
 };
 
 /**
   The known until conditions that can be applied to channels
 */
-enum enum_channel_until_condition
-{
+enum enum_channel_until_condition {
   CHANNEL_NO_UNTIL_CONDITION,
   CHANNEL_UNTIL_APPLIER_BEFORE_GTIDS,
   CHANNEL_UNTIL_APPLIER_AFTER_GTIDS,
@@ -136,17 +130,13 @@ enum enum_channel_until_condition
 /**
   Channel information to connect to a receiver
 */
-struct st_channel_connection_info
-{
-  int until_condition; //base on enum_channel_until_condition
-  char* gtid;          //Gtids to wait on a until condition
-  char* view_id;       //The view id to wait on a until condition
+struct Channel_connection_info {
+  int until_condition;  // base on enum_channel_until_condition
+  char *gtid;           // Gtids to wait on a until condition
+  char *view_id;        // The view id to wait on a until condition
 };
 
-typedef struct st_channel_connection_info Channel_connection_info;
-
-void
-initialize_channel_connection_info(Channel_connection_info* channel_info);
+void initialize_channel_connection_info(Channel_connection_info *channel_info);
 
 /**
   Initializes a channel connection in a similar way to a change master command.
@@ -162,8 +152,8 @@ initialize_channel_connection_info(Channel_connection_info* channel_info);
     @retval 0      OK
     @retval !=0    Error on channel creation
 */
-int channel_create(const char* channel,
-                   Channel_creation_info* channel_information);
+int channel_create(const char *channel,
+                   Channel_creation_info *channel_information);
 
 /**
   Start the Applier/Receiver threads according to the given options.
@@ -180,10 +170,8 @@ int channel_create(const char* channel,
     @retval 0      OK
     @retval !=0    Error
  */
-int channel_start(const char* channel,
-                  Channel_connection_info* connection_info,
-                  int threads_to_start,
-                  int wait_for_connection);
+int channel_start(const char *channel, Channel_connection_info *connection_info,
+                  int threads_to_start, int wait_for_connection);
 
 /**
   Stops the channel threads according to the given options.
@@ -195,9 +183,7 @@ int channel_start(const char* channel,
     @retval 0      OK
     @retval !=0    Error
 */
-int channel_stop(const char* channel,
-                 int threads_to_stop,
-                 long timeout);
+int channel_stop(const char *channel, int threads_to_stop, long timeout);
 
 /**
   Stops all the running channel threads according to the given options.
@@ -210,8 +196,7 @@ int channel_stop(const char* channel,
     @retval 0      OK
     @retval !=0    Error
 */
-int channel_stop_all(int threads_to_stop, long timeout,
-                     char **error_message);
+int channel_stop_all(int threads_to_stop, long timeout, char **error_message);
 
 /**
   Purges the channel logs
@@ -224,7 +209,7 @@ int channel_stop_all(int threads_to_stop, long timeout,
     @retval 0      OK
     @retval !=0    Error
 */
-int channel_purge_queue(const char* channel, bool reset_all);
+int channel_purge_queue(const char *channel, bool reset_all);
 
 /**
   Tells if the selected component of the channel is active or not.
@@ -238,7 +223,7 @@ int channel_purge_queue(const char* channel, bool reset_all);
     @retval true    Yes
     @retval false   No
 */
-bool channel_is_active(const char* channel, enum_channel_thread_types type);
+bool channel_is_active(const char *channel, enum_channel_thread_types type);
 
 /**
   Returns the id(s) of the channel threads: receiver or applier.
@@ -253,9 +238,9 @@ bool channel_is_active(const char* channel, enum_channel_thread_types type);
     @retval -1  the channel does no exists, or the thread is not present
     @retval >0 the number of thread ids returned.
 */
-int channel_get_thread_id(const char* channel,
+int channel_get_thread_id(const char *channel,
                           enum_channel_thread_types thread_type,
-                          unsigned long** thread_id);
+                          unsigned long **thread_id);
 
 /**
   Returns last GNO from applier from a given UUID.
@@ -267,7 +252,7 @@ int channel_get_thread_id(const char* channel,
     @retval <0 the channel does no exists, or the applier is not present
     @retval >0 the gno
 */
-long long channel_get_last_delivered_gno(const char* channel, int sidno);
+long long channel_get_last_delivered_gno(const char *channel, int sidno);
 
 /**
   Adds server executed GTID set to channel received GTID set.
@@ -278,7 +263,7 @@ long long channel_get_last_delivered_gno(const char* channel, int sidno);
     @retval 0      OK
     @retval != 0   Error
 */
-int channel_add_executed_gtids_to_received_gtids(const char* channel);
+int channel_add_executed_gtids_to_received_gtids(const char *channel);
 
 /**
   Queues a event packet into the current active channel.
@@ -291,7 +276,8 @@ int channel_add_executed_gtids_to_received_gtids(const char* channel);
     @retval 0      OK
     @retval != 0   Error on queue
 */
-int channel_queue_packet(const char* channel, const char* buf, unsigned long len);
+int channel_queue_packet(const char *channel, const char *buf,
+                         unsigned long len);
 
 /**
   Checks if all the queued transactions were executed.
@@ -309,8 +295,7 @@ int channel_queue_packet(const char* channel, const char* buf, unsigned long len
     @retval REPLICATION_THREAD_WAIT_TIMEOUT_ERROR     A timeout occurred
     @retval REPLICATION_THREAD_WAIT_NO_INFO_ERROR     An error occurred
 */
-int channel_wait_until_apply_queue_applied(const char* channel,
-                                           double timeout);
+int channel_wait_until_apply_queue_applied(const char *channel, double timeout);
 
 /**
   Checks if the applier, and its workers when parallel applier is
@@ -324,7 +309,7 @@ int channel_wait_until_apply_queue_applied(const char* channel,
     @retval  0  Applier is not waiting
     @retval  1  Applier is waiting
 */
-int channel_is_applier_waiting(const char* channel);
+int channel_is_applier_waiting(const char *channel);
 
 /**
   Checks if the applier thread, and its workers when parallel applier is
@@ -340,7 +325,7 @@ int channel_is_applier_waiting(const char* channel);
     @retval  1  Applier thread is waiting
 */
 int channel_is_applier_thread_waiting(unsigned long thread_id,
-                                      bool worker= false);
+                                      bool worker = false);
 
 /**
   Flush the channel.
@@ -349,7 +334,7 @@ int channel_is_applier_thread_waiting(unsigned long thread_id,
     @retval 0      OK
     @retval != 0   Error on flush
 */
-int channel_flush(const char* channel);
+int channel_flush(const char *channel);
 
 /**
   Initializes channel structures if needed.
@@ -372,8 +357,7 @@ int initialize_channel_service_interface();
     @retval 0    OK
     @retval !=0  Error on retrieval
 */
-int channel_get_retrieved_gtid_set(const char* channel,
-                                   char** retrieved_set);
+int channel_get_retrieved_gtid_set(const char *channel, char **retrieved_set);
 
 /**
   Tells if the selected component of the channel is stopping or not.
@@ -385,7 +369,7 @@ int channel_get_retrieved_gtid_set(const char* channel,
     @retval true    Yes
     @retval false   No, no type was specified or the channel does not exist.
 */
-bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
+bool channel_is_stopping(const char *channel, enum_channel_thread_types type);
 
 /**
   Checks if the given channel's relaylog contains a partial transaction.
@@ -396,7 +380,7 @@ bool channel_is_stopping(const char* channel, enum_channel_thread_types type);
     @retval true    If relaylog contains partial transcation.
     @retval false   If relaylog does not contain partial transaction.
 */
-bool is_partial_transaction_on_channel_relay_log(const char* channel);
+bool is_partial_transaction_on_channel_relay_log(const char *channel);
 
 /**
   Checks if any slave threads of any channel is running
@@ -409,4 +393,4 @@ bool is_partial_transaction_on_channel_relay_log(const char* channel);
 */
 bool is_any_slave_channel_running(int thread_mask);
 
-#endif //RPL_SERVICE_INTERFACE_INCLUDE
+#endif  // RPL_SERVICE_INTERFACE_INCLUDE

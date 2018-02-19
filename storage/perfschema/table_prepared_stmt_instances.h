@@ -43,8 +43,7 @@
   A row of table
   PERFORMANCE_SCHEMA.PREPARED_STATEMENT_INSTANCES.
 */
-struct row_prepared_stmt_instances
-{
+struct row_prepared_stmt_instances {
   /** Column OBJECT_INSTANCE_BEGIN. */
   const void *m_identity;
 
@@ -86,141 +85,107 @@ struct row_prepared_stmt_instances
   PFS_statement_stat_row m_execute_stat;
 };
 
-class PFS_index_prepared_stmt_instances : public PFS_engine_index
-{
-public:
+class PFS_index_prepared_stmt_instances : public PFS_engine_index {
+ public:
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {
-  }
+      : PFS_engine_index(key_1) {}
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,
                                     PFS_engine_key *key_2)
-    : PFS_engine_index(key_1, key_2)
-  {
-  }
+      : PFS_engine_index(key_1, key_2) {}
 
   PFS_index_prepared_stmt_instances(PFS_engine_key *key_1,
                                     PFS_engine_key *key_2,
                                     PFS_engine_key *key_3)
-    : PFS_engine_index(key_1, key_2, key_3)
-  {
-  }
+      : PFS_engine_index(key_1, key_2, key_3) {}
 
-  ~PFS_index_prepared_stmt_instances()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances() {}
 
   virtual bool match(const PFS_prepared_stmt *pfs) = 0;
 };
 
 class PFS_index_prepared_stmt_instances_by_instance
-  : public PFS_index_prepared_stmt_instances
-{
-public:
+    : public PFS_index_prepared_stmt_instances {
+ public:
   PFS_index_prepared_stmt_instances_by_instance()
-    : PFS_index_prepared_stmt_instances(&m_key), m_key("OBJECT_INSTANCE_BEGIN")
-  {
-  }
+      : PFS_index_prepared_stmt_instances(&m_key),
+        m_key("OBJECT_INSTANCE_BEGIN") {}
 
-  ~PFS_index_prepared_stmt_instances_by_instance()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances_by_instance() {}
 
   virtual bool match(const PFS_prepared_stmt *pfs);
 
-private:
+ private:
   PFS_key_object_instance m_key;
 };
 
 class PFS_index_prepared_stmt_instances_by_owner_thread
-  : public PFS_index_prepared_stmt_instances
-{
-public:
+    : public PFS_index_prepared_stmt_instances {
+ public:
   PFS_index_prepared_stmt_instances_by_owner_thread()
-    : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2),
-      m_key_1("OWNER_THREAD_ID"),
-      m_key_2("OWNER_EVENT_ID")
-  {
-  }
+      : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2),
+        m_key_1("OWNER_THREAD_ID"),
+        m_key_2("OWNER_EVENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_thread()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances_by_owner_thread() {}
 
   bool match(const PFS_prepared_stmt *pfs);
 
-private:
+ private:
   PFS_key_thread_id m_key_1;
   PFS_key_event_id m_key_2;
 };
 
 class PFS_index_prepared_stmt_instances_by_statement_id
-  : public PFS_index_prepared_stmt_instances
-{
-public:
+    : public PFS_index_prepared_stmt_instances {
+ public:
   PFS_index_prepared_stmt_instances_by_statement_id()
-    : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_ID")
-  {
-  }
+      : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_ID") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_id()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances_by_statement_id() {}
 
   bool match(const PFS_prepared_stmt *pfs);
 
-private:
+ private:
   PFS_key_statement_id m_key;
 };
 
 class PFS_index_prepared_stmt_instances_by_statement_name
-  : public PFS_index_prepared_stmt_instances
-{
-public:
+    : public PFS_index_prepared_stmt_instances {
+ public:
   PFS_index_prepared_stmt_instances_by_statement_name()
-    : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_NAME")
-  {
-  }
+      : PFS_index_prepared_stmt_instances(&m_key), m_key("STATEMENT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_statement_name()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances_by_statement_name() {}
 
   bool match(const PFS_prepared_stmt *pfs);
 
-private:
+ private:
   PFS_key_statement_name m_key;
 };
 
 class PFS_index_prepared_stmt_instances_by_owner_object
-  : public PFS_index_prepared_stmt_instances
-{
-public:
+    : public PFS_index_prepared_stmt_instances {
+ public:
   PFS_index_prepared_stmt_instances_by_owner_object()
-    : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OWNER_OBJECT_TYPE"),
-      m_key_2("OWNER_OBJECT_SCHEMA"),
-      m_key_3("OWNER_OBJECT_NAME")
-  {
-  }
+      : PFS_index_prepared_stmt_instances(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("OWNER_OBJECT_TYPE"),
+        m_key_2("OWNER_OBJECT_SCHEMA"),
+        m_key_3("OWNER_OBJECT_NAME") {}
 
-  ~PFS_index_prepared_stmt_instances_by_owner_object()
-  {
-  }
+  ~PFS_index_prepared_stmt_instances_by_owner_object() {}
 
   virtual bool match(const PFS_prepared_stmt *table);
 
-private:
+ private:
   PFS_key_object_type_enum m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
 };
 
 /** Table PERFORMANCE_SCHEMA.PREPARED_STATEMENT_INSTANCES. */
-class table_prepared_stmt_instances : public PFS_engine_table
-{
-public:
+class table_prepared_stmt_instances : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -235,20 +200,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_prepared_stmt_instances();
 
-public:
-  ~table_prepared_stmt_instances()
-  {
-  }
+ public:
+  ~table_prepared_stmt_instances() {}
 
-protected:
+ protected:
   int make_row(PFS_prepared_stmt *);
 
   /** Table share lock. */

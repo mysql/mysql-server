@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,7 +33,6 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/expect/expect_condition.h"
 
-
 namespace xpl {
 
 class Expectation {
@@ -48,7 +47,7 @@ class Expectation {
     Make a copy of "other" element while calling assignment operator.
     This way we do not need temporary variable while swapping.
   */
-  Expectation &operator =(Expectation other);
+  Expectation &operator=(Expectation other);
 
   // whether an error occurred previously in a no_error block
   void set_failed(const ngs::Error_code &error) { m_error = error; }
@@ -72,6 +71,5 @@ class Expectation {
 };
 
 }  // namespace xpl
-
 
 #endif  // X_SRC_EXPECT_EXPECT_H_

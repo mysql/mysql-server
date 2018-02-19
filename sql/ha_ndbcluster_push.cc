@@ -39,6 +39,7 @@
 #include "sql/ha_ndbcluster_cond.h"
 #include "sql/ndb_thd.h"
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 #include "storage/ndb/include/ndbapi/NdbInterpretedCode.hpp"

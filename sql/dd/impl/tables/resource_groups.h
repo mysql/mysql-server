@@ -27,26 +27,22 @@
 #include <string>
 
 #include "sql/dd/impl/raw/object_keys.h"
+#include "sql/dd/impl/types/entity_object_table_impl.h"  // dd::Object_table_i...
 #include "sql/dd/impl/types/resource_group_impl.h"
-#include "sql/dd/impl/types/entity_object_table_impl.h"   // dd::Object_table_i...
 #include "sql/dd/types/resource_group.h"
 
-namespace dd
-{
+namespace dd {
 
 class Raw_record;
 
-namespace tables
-{
-class Resource_groups : virtual public Entity_object_table_impl
-{
-public:
+namespace tables {
+class Resource_groups : virtual public Entity_object_table_impl {
+ public:
   Resource_groups();
 
   static const Resource_groups &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_ID,
     FIELD_RESOURCE_GROUP_NAME,
     FIELD_RESOURCE_GROUP_TYPE,
@@ -56,25 +52,22 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_RESOURCE_GROUP_NAME= static_cast<uint>(Common_index::UK_NAME)
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_RESOURCE_GROUP_NAME = static_cast<uint>(Common_index::UK_NAME)
   };
 
-  enum enum_foreign_keys
-  {
-  };
+  enum enum_foreign_keys {};
 
-public:
-  Resource_group *create_entity_object(const Raw_record &) const override
-  { return new (std::nothrow) Resource_group_impl(); }
+ public:
+  Resource_group *create_entity_object(const Raw_record &) const override {
+    return new (std::nothrow) Resource_group_impl();
+  }
 
   static bool update_object_key(Global_name_key *key,
                                 const String_type &resource_group_name);
 };
-} // namespace tables
-} // namespace dd
+}  // namespace tables
+}  // namespace dd
 
-
-#endif // DD_TABLES__RESOURCE_GROUPS_INCLUDED
+#endif  // DD_TABLES__RESOURCE_GROUPS_INCLUDED

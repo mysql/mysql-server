@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 #include "plugin/x/tests/driver/processor/block_processor.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 #include "plugin/x/tests/driver/processor/script_stack.h"
-
 
 std::vector<Block_processor_ptr> create_macro_block_processors(
     Execution_context *context);

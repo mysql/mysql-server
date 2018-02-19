@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 namespace dd {
 
@@ -43,18 +43,16 @@ class Table;
   of the table definitions corresponding to the supported DD versions.
 */
 
-class Object_table_definition
-{
-public:
-  virtual ~Object_table_definition()
-  { };
+class Object_table_definition {
+ public:
+  virtual ~Object_table_definition(){};
 
   /**
     Set the name of the table.
 
     @param name    Table name.
   */
-  virtual void set_table_name(const String_type &name)= 0;
+  virtual void set_table_name(const String_type &name) = 0;
 
   /**
     Add a field to the object table definition.
@@ -64,7 +62,7 @@ public:
     @param field_definition  Complete field definition with name, type etc.
   */
   virtual void add_field(int field_number, const String_type &field_name,
-                 const String_type field_definition)= 0;
+                         const String_type field_definition) = 0;
 
   /**
     Add an index to the object table definition.
@@ -74,21 +72,21 @@ public:
     @param index_definition  Complete index definition.
   */
   virtual void add_index(int index_number, const String_type &index_name,
-                         const String_type &index_definition)= 0;
+                         const String_type &index_definition) = 0;
 
   /**
     Get the SQL DDL statement for creating the dictionary table.
 
     @return String containing the SQL DDL statement for the target table.
   */
-  virtual String_type get_ddl() const= 0;
+  virtual String_type get_ddl() const = 0;
 
   /**
     Get the SQL DML statements for populating the table.
 
     @return Vector of strings containing SQL DML statements
   */
-  virtual const std::vector<String_type> &get_dml() const= 0;
+  virtual const std::vector<String_type> &get_dml() const = 0;
 
   /**
     Store the elements of the object table definition into a property
@@ -98,7 +96,7 @@ public:
                                        definition.
   */
   virtual void store_into_properties(
-    Properties *table_def_properties) const= 0;
+      Properties *table_def_properties) const = 0;
 
   /**
     Restore the elements of the object table definition from a property
@@ -109,12 +107,11 @@ public:
     @return Operation outcome, false if no error.
   */
   virtual bool restore_from_properties(
-    const Properties &table_def_properties)= 0;
+      const Properties &table_def_properties) = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif	// DD__OBJECT_TABLE_DEFINITION_INCLUDED
-
+#endif  // DD__OBJECT_TABLE_DEFINITION_INCLUDED

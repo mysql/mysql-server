@@ -22,4 +22,5 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *plugin_registry_service= (void*)VERSION_plugin_registry_service;
+SERVICE_VERSION *plugin_registry_service =
+    (void **)VERSION_plugin_registry_service;

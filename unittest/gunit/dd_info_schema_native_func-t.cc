@@ -28,6 +28,7 @@
 #include "sql/item_func.h"
 #include "sql/item_timefunc.h"
 #include "sql/parse_tree_helpers.h"
+#include "sql/sql_class.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace dd_info_schema_native_func {
@@ -38,13 +39,9 @@ using my_testing::Server_initializer;
   INFORMATION_SCHEMA.
 */
 
-class ISNativeFuncTest : public ::testing::Test
-{
-protected:
-  virtual void SetUp()
-  {
-    initializer.SetUp();
-  }
+class ISNativeFuncTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() { initializer.SetUp(); }
 
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -54,24 +51,22 @@ protected:
 };
 
 // Test case to verify native functions with all NULL arguments.
-TEST_F(ISNativeFuncTest, AllNullArguments)
-{
-  Item *item= nullptr;
-  Item_null *null= new (thd()->mem_root)Item_null();
-  PT_item_list *null_list= new (thd()->mem_root)PT_item_list;
-  auto prepare_null_list= [](PT_item_list *null_list, Item_null *null, int cnt)
-                          {
-                            for(int i= 0; i < cnt; i++)
-                              null_list->push_front(null);
-                            return null_list;
-                          };
+TEST_F(ISNativeFuncTest, AllNullArguments) {
+  Item *item = nullptr;
+  Item_null *null = new (thd()->mem_root) Item_null();
+  PT_item_list *null_list = new (thd()->mem_root) PT_item_list;
+  auto prepare_null_list = [](PT_item_list *null_list, Item_null *null,
+                              int cnt) {
+    for (int i = 0; i < cnt; i++) null_list->push_front(null);
+    return null_list;
+  };
 
-#define NULL_ARG        null
-#define TWO_NULL_ARGS   NULL_ARG, NULL_ARG
+#define NULL_ARG null
+#define TWO_NULL_ARGS NULL_ARG, NULL_ARG
 #define THREE_NULL_ARGS TWO_NULL_ARGS, NULL_ARG
-#define FOUR_NULL_ARGS  THREE_NULL_ARGS, NULL_ARG
-#define FIVE_NULL_ARGS  FOUR_NULL_ARGS, NULL_ARG
-#define CREATE_ITEM(X, ARGS) item= new (thd()->mem_root)X(POS(), ARGS)
+#define FOUR_NULL_ARGS THREE_NULL_ARGS, NULL_ARG
+#define FIVE_NULL_ARGS FOUR_NULL_ARGS, NULL_ARG
+#define CREATE_ITEM(X, ARGS) item = new (thd()->mem_root) X(POS(), ARGS)
 
   // INTERNAL_TABLE_ROWS(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
   CREATE_ITEM(Item_func_internal_table_rows,
@@ -109,7 +104,8 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   item->val_int();
   EXPECT_EQ(1, item->null_value);
 
-  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)
+  // INTERNAL_AUTO_INCREMENT(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+  // NULL)
   CREATE_ITEM(Item_func_internal_auto_increment,
               prepare_null_list(null_list, null, 9));
   item->val_int();
@@ -268,4 +264,4 @@ TEST_F(ISNativeFuncTest, AllNullArguments)
   CREATE_ITEM(Item_func_internal_tablespace_status, FOUR_NULL_ARGS);
   EXPECT_EQ(nullptr, item->val_str(&str));
 }
-} //namespace
+}  // namespace dd_info_schema_native_func

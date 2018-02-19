@@ -1,0 +1,52 @@
+# Purpose : Test ssl fips mode behavior in not supported OS.
+# Author  : Yashwant Kumar sahu
+#############################################################
+
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+
+-- source include/have_ssl.inc
+-- source include/not_have_fips.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # Fips support in OS without fips enabled openssl.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite");
+call mtr.add_suppression("InnoDB: New log files created");
+
+--enable_query_log
+
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+
+perl;
+my $filetodelete = "$ENV{'MYSQLTEST_VARDIR'}/log/my_restart.err";
+while (-e $filetodelete) {
+  unlink $filetodelete;
+  sleep 1;
+}
+EOF
+
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $MYSQL_SOCKET= `SELECT @@socket`;
+let $MYSQL_PORT= `SELECT @@port`;
+
+--echo ##Test: Restart server and provide ssl-fips-mode at server startup: ON
+--echo Error, Server will fail to start when fips mode is ON/STRICT, OS openssl library not supported fips.
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--ssl-fips-mode=OFF " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+
+--echo # Start server using restart default values
+--echo Start server.
+--exec echo "restart:--ssl-fips-mode=OFF " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc

@@ -32,11 +32,9 @@ namespace system_views {
 /*
   The class representing INFORMATION_SCHEMA.PARTITIONS system view definition.
 */
-class Partitions : public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Partitions : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_TABLE_CATALOG,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
@@ -68,16 +66,14 @@ public:
 
   static const Partitions &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("PARTITIONS");
     return s_view_name;
   }
-  virtual const String_type &name() const
-  { return Partitions::view_name(); }
+  virtual const String_type &name() const { return Partitions::view_name(); }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__PARTITIONS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__PARTITIONS_INCLUDED

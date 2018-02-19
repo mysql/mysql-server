@@ -58,7 +58,7 @@ GRANT SELECT ON *.* TO arthurdent@localhost;
 --echo # A failed alter on multiple user should not alter cache state
 --error ER_CANNOT_USER
 ALTER USER non_existing1 IDENTIFIED BY 'haha', marvintheparanoidandroid@localhost IDENTIFIED BY 'hoho';
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT INSERT ON *.* TO non_existing1, marvintheparanoidandroid@localhost;
 --exec $MYSQL --host=127.0.0.1 --port=$MASTER_MYPORT --ssl-mode=DISABLED -umarvintheparanoidandroid -pefghi -e "SELECT USER(), CURRENT_USER()" 2>&1
 

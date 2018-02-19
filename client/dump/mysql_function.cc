@@ -26,8 +26,8 @@
 
 using namespace Mysql::Tools::Dump;
 
-Mysql_function::Mysql_function(uint64 id, const std::string& name,
-  const std::string& schema, const std::string& sql_formatted_definition)
-  : Abstract_plain_sql_object_dump_task(id, name, schema,
-    sql_formatted_definition)
-{}
+Mysql_function::Mysql_function(uint64 id, const std::string &name,
+                               const std::string &schema,
+                               const std::string &sql_formatted_definition)
+    : Abstract_plain_sql_object_dump_task(id, name, schema,
+                                          sql_formatted_definition) {}

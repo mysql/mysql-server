@@ -34,13 +34,9 @@
   Cyrillic group of characters. May add more in future.
 */
 #define UCA_MAX_CHAR_GRP 4
-enum enum_uca_ver
-{
-  UCA_V400, UCA_V520, UCA_V900
-};
+enum enum_uca_ver { UCA_V400, UCA_V520, UCA_V900 };
 
-enum enum_char_grp
-{
+enum enum_char_grp {
   CHARGRP_NONE,
   CHARGRP_CORE,
   CHARGRP_LATIN,
@@ -50,39 +46,30 @@ enum enum_char_grp
   CHARGRP_OTHERS
 };
 
-struct Weight_boundary
-{
-  uint16  begin;
-  uint16  end;
+struct Weight_boundary {
+  uint16 begin;
+  uint16 end;
 };
 
-struct Reorder_wt_rec
-{
+struct Reorder_wt_rec {
   struct Weight_boundary old_wt_bdy;
   struct Weight_boundary new_wt_bdy;
 };
 
-struct Reorder_param
-{
-  enum enum_char_grp     reorder_grp[UCA_MAX_CHAR_GRP];
-  struct Reorder_wt_rec  wt_rec[2 * UCA_MAX_CHAR_GRP];
-  int                    wt_rec_num;
-  uint16                 max_weight;
+struct Reorder_param {
+  enum enum_char_grp reorder_grp[UCA_MAX_CHAR_GRP];
+  struct Reorder_wt_rec wt_rec[2 * UCA_MAX_CHAR_GRP];
+  int wt_rec_num;
+  uint16 max_weight;
 };
 
-enum enum_case_first
-{
-  CASE_FIRST_OFF,
-  CASE_FIRST_UPPER,
-  CASE_FIRST_LOWER
-};
+enum enum_case_first { CASE_FIRST_OFF, CASE_FIRST_UPPER, CASE_FIRST_LOWER };
 
-struct Coll_param
-{
+struct Coll_param {
   struct Reorder_param *reorder_param;
-  bool                  norm_enabled; // false = normalization off, default;
-                                      // true = on
-  enum enum_case_first  case_first;
+  bool norm_enabled;  // false = normalization off, default;
+                      // true = on
+  enum enum_case_first case_first;
 };
 
 /*
@@ -92,7 +79,7 @@ struct Coll_param
 */
 #define MY_UCA_MAX_CONTRACTION 6
 #define MY_UCA_MAX_WEIGHT_SIZE 25
-#define MY_UCA_WEIGHT_LEVELS   1
+#define MY_UCA_WEIGHT_LEVELS 1
 
 /*
   We store all the contractions in a trie, indexed on the codepoints they
@@ -117,27 +104,25 @@ struct Coll_param
   7. If it is the end of a contraction (is_contraction_tail == true),
      contraction_len shows how many code points this contraction consists of.
 */
-struct MY_CONTRACTION
-{
+struct MY_CONTRACTION {
   my_wc_t ch;
   // Lists of following nodes.
   std::vector<MY_CONTRACTION> child_nodes;
   std::vector<MY_CONTRACTION> child_nodes_context;
 
   // weight and with_context are only useful when is_contraction_tail is true.
-  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE];/* Its weight string, 0-terminated */
+  uint16 weight[MY_UCA_MAX_WEIGHT_SIZE]; /* Its weight string, 0-terminated */
   bool is_contraction_tail;
   size_t contraction_len;
 };
 
-struct MY_UCA_INFO
-{
-  enum enum_uca_ver   version;
+struct MY_UCA_INFO {
+  enum enum_uca_ver version;
 
   // Collation weights.
   my_wc_t maxchar;
-  uchar   *lengths;
-  uint16  **weights;
+  uchar *lengths;
+  uint16 **weights;
   bool have_contractions;
   std::vector<MY_CONTRACTION> *contraction_nodes;
   /*
@@ -167,17 +152,16 @@ struct MY_UCA_INFO
   my_wc_t last_trailing;
   my_wc_t first_variable;
   my_wc_t last_variable;
-
 };
 
 #define MY_UCA_CNT_FLAG_SIZE 4096
 #define MY_UCA_CNT_FLAG_MASK 4095
 
 /** Whether the given character can be the first in any contraction. */
-#define MY_UCA_CNT_HEAD  1
+#define MY_UCA_CNT_HEAD 1
 
 /** Whether the given character can be the last in any contraction. */
-#define MY_UCA_CNT_TAIL  2
+#define MY_UCA_CNT_TAIL 2
 
 /**
  Whether the given character can be the second in any contraction.
@@ -192,7 +176,7 @@ struct MY_UCA_INFO
  bits) since MY_UCA_MAX_CONTRACTION is 6 (so head, four in the middle,
  and then tail).
 */
-#define MY_UCA_CNT_MID1  4
+#define MY_UCA_CNT_MID1 4
 
 /**
  Whether the given character is the first part of a context-sensitive
@@ -218,38 +202,32 @@ struct MY_UCA_INFO
 
 /**
   Check if a code point can be contraction head
-  
+
   @param flags    Pointer to UCA contraction flag data
   @param wc       Code point
-  
+
   @retval   0 - cannot be contraction head
   @retval   1 - can be contraction head
 */
 
-inline bool
-my_uca_can_be_contraction_head(const char *flags, my_wc_t wc)
-{
+inline bool my_uca_can_be_contraction_head(const char *flags, my_wc_t wc) {
   return flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_HEAD;
 }
 
-
 /**
   Check if a code point can be contraction tail
-  
+
   @param flags    Pointer to UCA contraction flag data
   @param wc       Code point
-  
+
   @retval   0 - cannot be contraction tail
   @retval   1 - can be contraction tail
 */
 
-inline bool
-my_uca_can_be_contraction_tail(const char *flags, my_wc_t wc)
-{
+inline bool my_uca_can_be_contraction_tail(const char *flags, my_wc_t wc) {
   return flags[wc & MY_UCA_CNT_FLAG_MASK] & MY_UCA_CNT_TAIL;
 }
 
-const uint16 *
-my_uca_contraction2_weight(const std::vector<MY_CONTRACTION> *cont_nodes,
-                           my_wc_t wc1, my_wc_t wc2);
+const uint16 *my_uca_contraction2_weight(
+    const std::vector<MY_CONTRACTION> *cont_nodes, my_wc_t wc1, my_wc_t wc2);
 #endif

@@ -30,12 +30,18 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "mysql_com.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
-struct st_udf_func;
+class Field;
+class Plugin_table;
+class THD;
+struct TABLE;
+struct THR_LOCK;
+struct udf_func;
 
 /**
   @addtogroup performance_schema_tables
@@ -43,8 +49,7 @@ struct st_udf_func;
 */
 
 /** A row of PERFORMANCE_SCHEMA.USER_DEFINED_FUNCTIONS. */
-struct row_user_defined_functions
-{
+struct row_user_defined_functions {
   /** Column UDF_NAME. */
   char m_name[NAME_CHAR_LEN + 1];
   uint m_name_length;
@@ -61,44 +66,33 @@ struct row_user_defined_functions
   ulonglong m_usage_count;
 };
 
-class PFS_index_user_defined_functions : public PFS_engine_index
-{
-public:
+class PFS_index_user_defined_functions : public PFS_engine_index {
+ public:
   PFS_index_user_defined_functions(PFS_engine_key *key_1)
-    : PFS_engine_index(key_1)
-  {
-  }
+      : PFS_engine_index(key_1) {}
 
-  ~PFS_index_user_defined_functions()
-  {
-  }
+  ~PFS_index_user_defined_functions() {}
 
   virtual bool match(const row_user_defined_functions *row) = 0;
 };
 
 class PFS_index_user_defined_functions_by_name
-  : public PFS_index_user_defined_functions
-{
-public:
+    : public PFS_index_user_defined_functions {
+ public:
   PFS_index_user_defined_functions_by_name()
-    : PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME")
-  {
-  }
+      : PFS_index_user_defined_functions(&m_key), m_key("UDF_NAME") {}
 
-  ~PFS_index_user_defined_functions_by_name()
-  {
-  }
+  ~PFS_index_user_defined_functions_by_name() {}
 
   bool match(const row_user_defined_functions *row);
 
-private:
+ private:
   PFS_key_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.USER_DEFINED_FUNCTIONS. */
-class table_user_defined_functions : public PFS_engine_table
-{
-public:
+class table_user_defined_functions : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -112,22 +106,17 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_user_defined_functions();
 
-public:
-  ~table_user_defined_functions()
-  {
-  }
+ public:
+  ~table_user_defined_functions() {}
 
-private:
+ private:
   void materialize(THD *thd);
-  static int make_row(const struct st_udf_func *entry,
-                      row_user_defined_functions *row);
+  static int make_row(const udf_func *entry, row_user_defined_functions *row);
   static void materialize_udf_funcs(udf_func *udf, void *arg);
 
   /** Table share lock. */

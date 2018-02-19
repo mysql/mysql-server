@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -43,25 +43,19 @@
 #endif
 #include "plugin/x/ngs/include/ngs_common/config.h"
 
-
 namespace ngs {
 
 namespace details {
 
-class Socket: public Socket_interface {
-public:
-  Socket(MYSQL_SOCKET mysql_socket)
-  : m_mysql_socket(mysql_socket) {
-  }
+class Socket : public Socket_interface {
+ public:
+  Socket(MYSQL_SOCKET mysql_socket) : m_mysql_socket(mysql_socket) {}
 
-  Socket(PSI_socket_key key MY_ATTRIBUTE((unused)),
-         int domain, int type, int protocol)
-  : m_mysql_socket(mysql_socket_socket(key, domain, type, protocol)) {
-  }
+  Socket(PSI_socket_key key MY_ATTRIBUTE((unused)), int domain, int type,
+         int protocol)
+      : m_mysql_socket(mysql_socket_socket(key, domain, type, protocol)) {}
 
-  ~Socket() {
-    close();
-  }
+  ~Socket() { close(); }
 
   virtual int bind(const struct sockaddr *addr, socklen_t len) {
     return mysql_socket_bind(m_mysql_socket, addr, len);
@@ -80,12 +74,12 @@ public:
     return mysql_socket_getfd(m_mysql_socket);
   }
 
-  virtual MYSQL_SOCKET get_socket_mysql() {
-    return m_mysql_socket;
-  }
+  virtual MYSQL_SOCKET get_socket_mysql() { return m_mysql_socket; }
 
-  virtual int set_socket_opt(int level, int optname, const SOCKBUF_T *optval, socklen_t optlen) {
-    return mysql_socket_setsockopt(m_mysql_socket, level, optname, optval, optlen);
+  virtual int set_socket_opt(int level, int optname, const SOCKBUF_T *optval,
+                             socklen_t optlen) {
+    return mysql_socket_setsockopt(m_mysql_socket, level, optname, optval,
+                                   optlen);
   }
 
   virtual void close() {
@@ -99,27 +93,24 @@ public:
     mysql_socket_set_thread_owner(m_mysql_socket);
   }
 
-private:
+ private:
   MYSQL_SOCKET m_mysql_socket;
 };
 
-class File: public File_interface {
-public:
-  File(const char* name, int access, int permission)
-  : m_file_descriptor(::open(name, access, permission)) {
-  }
+class File : public File_interface {
+ public:
+  File(const char *name, int access, int permission)
+      : m_file_descriptor(::open(name, access, permission)) {}
 
-  ~File() {
-    close();
-  }
+  ~File() { close(); }
 
   virtual int close() {
     if (INVALID_FILE_DESCRIPTOR != m_file_descriptor) {
-     const int result = ::close(m_file_descriptor);
+      const int result = ::close(m_file_descriptor);
 
-     m_file_descriptor = INVALID_FILE_DESCRIPTOR;
+      m_file_descriptor = INVALID_FILE_DESCRIPTOR;
 
-     return result;
+      return result;
     }
 
     return 0;
@@ -142,77 +133,62 @@ public:
     return ::fsync(m_file_descriptor);
 #else
     return 0;
-#endif // defined(HAVE_SYS_UN_H)
+#endif  // defined(HAVE_SYS_UN_H)
   }
 
-private:
+ private:
   int m_file_descriptor;
   static const int INVALID_FILE_DESCRIPTOR;
 };
 
 const int File::INVALID_FILE_DESCRIPTOR = -1;
 
-
-class System: public System_interface {
-  virtual int unlink(const char* name) {
+class System : public System_interface {
+  virtual int unlink(const char *name) {
     return HAVE_UNIX_SOCKET(::unlink(name), 0);
   }
 
-  virtual int get_errno() {
-    return errno;
-  }
+  virtual int get_errno() { return errno; }
 
-  virtual int get_ppid() {
-    return HAVE_UNIX_SOCKET(::getppid(), 0);
-  }
+  virtual int get_ppid() { return HAVE_UNIX_SOCKET(::getppid(), 0); }
 
-  virtual int get_pid() {
-    return HAVE_UNIX_SOCKET(::getpid(), 0);
-  }
+  virtual int get_pid() { return HAVE_UNIX_SOCKET(::getpid(), 0); }
 
   virtual int kill(int pid, int signal) {
     return HAVE_UNIX_SOCKET(::kill(pid, signal), 0);
   }
 
-  virtual int get_socket_errno() {
-    return socket_errno;
-  }
+  virtual int get_socket_errno() { return socket_errno; }
 
-  virtual void get_socket_error_and_message(int& err, std::string& strerr) {
+  virtual void get_socket_error_and_message(int &err, std::string &strerr) {
     err = socket_errno;
-  #ifdef _WIN32
+#ifdef _WIN32
     char *s = NULL;
-    if (0 == FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-      NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&s, 0, NULL))
-    {
+    if (0 == FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                               FORMAT_MESSAGE_FROM_SYSTEM |
+                               FORMAT_MESSAGE_IGNORE_INSERTS,
+                           NULL, err, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                           (LPSTR)&s, 0, NULL)) {
       char text[256];
-      my_snprintf(text, sizeof(text), "Error %i", err);
+      snprintf(text, sizeof(text), "Error %i", err);
       strerr = text;
-    }
-    else
-    {
+    } else {
       strerr = s;
       LocalFree(s);
     }
-  #else
+#else
     strerr = strerror(err);
-  #endif
+#endif
   }
 
-  virtual void freeaddrinfo(addrinfo *ai) {
-    return ::freeaddrinfo(ai);
-  }
+  virtual void freeaddrinfo(addrinfo *ai) { return ::freeaddrinfo(ai); }
 
-  virtual int getaddrinfo(const char *node,
-                          const char *service,
-                          const addrinfo *hints,
-                          addrinfo **res) {
+  virtual int getaddrinfo(const char *node, const char *service,
+                          const addrinfo *hints, addrinfo **res) {
     return ::getaddrinfo(node, service, hints, res);
   }
 
-  virtual void sleep(uint32 seconds) {
-    ::sleep(seconds);
-  }
+  virtual void sleep(uint32 seconds) { ::sleep(seconds); }
 };
 
 }  // namespace details
@@ -227,13 +203,15 @@ ngs::shared_ptr<Socket_interface> Operations_factory::create_socket(
   return ngs::allocate_shared<details::Socket>(mysql_socket);
 }
 
-ngs::shared_ptr<File_interface> Operations_factory::open_file(
-    const char* name, int access, int permission) {
+ngs::shared_ptr<File_interface> Operations_factory::open_file(const char *name,
+                                                              int access,
+                                                              int permission) {
   return ngs::allocate_shared<details::File>(name, access, permission);
 }
 
-ngs::shared_ptr<System_interface> Operations_factory::create_system_interface() {
+ngs::shared_ptr<System_interface>
+Operations_factory::create_system_interface() {
   return ngs::allocate_shared<details::System>();
 }
 
-} // namespace ngs
+}  // namespace ngs

@@ -1,7 +1,6 @@
 /*
- Copyright (c) 2009 Sun Microsystems, Inc.
- Use is subject to license terms.
- 
+ Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
  as published by the Free Software Foundation.
@@ -23,18 +22,16 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /* Check stack direction (0-down, 1-up) */
-int f(int *a) 
-{
+int f(int *a) {
   int b;
-  return(&b > a)?1:0; 
+  return (&b > a) ? 1 : 0;
 }
 /*
- Prevent compiler optimizations by calling function 
+ Prevent compiler optimizations by calling function
  through pointer.
 */
 volatile int (*ptr_f)(int *) = f;
-int main() 
-{
+int main() {
   int a;
   return ptr_f(&a);
 }

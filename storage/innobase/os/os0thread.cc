@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,17 +24,16 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file os/os0thread.cc
-The interface to the operating system thread control primitives
+/** @file os/os0thread.cc
+ The interface to the operating system thread control primitives
 
-Created 9/8/1995 Heikki Tuuri
-*******************************************************/
+ Created 9/8/1995 Heikki Tuuri
+ *******************************************************/
 
 #include "univ.i"
 
-#include <thread>
 #include <atomic>
+#include <thread>
 
 /** We are prepared for a situation that we have this many threads waiting for
 a semaphore inside InnoDB. innodb_init_params() sets the value. */
@@ -46,14 +45,10 @@ std::atomic_int os_thread_count;
 /** Returns the thread identifier of current thread. Currently the thread
 identifier in Unix is the thread handle itself.
 @return current thread native handle */
-os_thread_id_t
-os_thread_get_curr_id()
-{
+os_thread_id_t os_thread_get_curr_id() {
 #ifdef _WIN32
-	return(reinterpret_cast<os_thread_id_t>(
-			(UINT_PTR)::GetCurrentThreadId()));
+  return (reinterpret_cast<os_thread_id_t>((UINT_PTR)::GetCurrentThreadId()));
 #else
-	return(::pthread_self());
+  return (::pthread_self());
 #endif /* _WIN32 */
 }
-

@@ -32,9 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   Self destroying THD.
 */
-class Auto_THD : public Internal_error_handler
-{
-public:
+class Auto_THD : public Internal_error_handler {
+ public:
   /**
     Create THD object and initialize internal variables.
   */
@@ -56,14 +55,15 @@ public:
 
     @return This function always return false.
   */
-  virtual bool handle_condition(class THD* thd MY_ATTRIBUTE((unused)),
-    uint sql_errno MY_ATTRIBUTE((unused)),
-    const char* sqlstate MY_ATTRIBUTE((unused)),
-    Sql_condition::enum_severity_level* level MY_ATTRIBUTE((unused)),
-    const char* msg);
+  virtual bool handle_condition(class THD *thd MY_ATTRIBUTE((unused)),
+                                uint sql_errno MY_ATTRIBUTE((unused)),
+                                const char *sqlstate MY_ATTRIBUTE((unused)),
+                                Sql_condition::enum_severity_level *level
+                                    MY_ATTRIBUTE((unused)),
+                                const char *msg);
 
   /** Thd associated with the object. */
-  class THD* thd;
+  class THD *thd;
 };
 
-#endif // AUTO_THD_H
+#endif  // AUTO_THD_H

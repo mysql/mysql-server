@@ -1821,7 +1821,7 @@ struct NdbThread* NdbThread_GetNdbThread()
   return NDB_THREAD_TLS_NDB_THREAD;
 }
 
-extern "C" int
+int
 NdbThread_Init()
 {
 #ifdef _WIN32
@@ -1833,7 +1833,7 @@ NdbThread_Init()
   return 0;
 }
 
-extern "C" void
+void
 NdbThread_End()
 {
   if (ndb_thread_mutex)

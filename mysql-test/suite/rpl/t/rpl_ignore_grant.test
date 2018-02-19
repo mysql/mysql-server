@@ -21,10 +21,8 @@ flush privileges;
 
 # test non-replication of GRANT
 connection master;
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user rpl_ignore_grant@localhost;
 grant select on *.* to rpl_ignore_grant@localhost;
-set sql_mode= @orig_sql_mode;
 grant drop on test.* to rpl_ignore_grant@localhost;
 show grants for rpl_ignore_grant@localhost;
 save_master_pos;
@@ -40,10 +38,8 @@ select count(*) from mysql.db where user=_binary'rpl_ignore_grant';
 # first force creation of the user on slave (because as the user does not exist
 # on slave, the SET PASSWORD may be replicated but silently do nothing; this is
 # not what we want; we want it to be not-replicated).
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user rpl_ignore_grant@localhost;
 grant select on *.* to rpl_ignore_grant@localhost;
-set sql_mode= @orig_sql_mode;
 connection master;
 set password for rpl_ignore_grant@localhost="does it work?";
 save_master_pos;

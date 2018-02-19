@@ -20,35 +20,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+extern CHARSET_INFO *system_charset_info;
 
-extern "C" CHARSET_INFO *system_charset_info;
-
-TEST(StringTest, EmptyString)
-{
+TEST(StringTest, EmptyString) {
   String s;
-  const uint32 len= 0;
+  const uint32 len = 0;
   EXPECT_EQ(len, s.length());
   EXPECT_EQ(len, s.alloced_length());
 }
 
-
-TEST(StringTest, ShrinkString)
-{
-  const uint32 len= 3;
-  char foo[len]= {'a', 'b', 0};
+TEST(StringTest, ShrinkString) {
+  const uint32 len = 3;
+  char foo[len] = {'a', 'b', 0};
   String foos(foo, len, &my_charset_bin);
   foos.shrink(1);
   EXPECT_EQ(len, foos.length());
   EXPECT_STREQ("ab", foo);
 }
 
-
-TEST(StringDeathTest, AppendEmptyString)
-{
+TEST(StringDeathTest, AppendEmptyString) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   String tbl_name;
-  const char db_name[]= "aaaaaaa";
-  const char table_name[]= "";
+  const char db_name[] = "aaaaaaa";
+  const char table_name[] = "";
   tbl_name.append(String(db_name, system_charset_info));
   tbl_name.append('.');
   tbl_name.append(String(table_name, system_charset_info));
@@ -59,9 +53,7 @@ TEST(StringDeathTest, AppendEmptyString)
   EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());
 }
 
-
-TEST(StringTest, StringBuffer)
-{
+TEST(StringTest, StringBuffer) {
   StringBuffer<3> sb("abc", 3, &my_charset_bin);
   sb.append("def");
   EXPECT_STREQ("abcdef", sb.c_ptr());

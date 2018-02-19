@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2016, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,94 +24,71 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file include/lock0lock.ic
-The transaction lock system
+/** @file include/lock0lock.ic
+ The transaction lock system
 
-Created 5/7/1996 Heikki Tuuri
-*******************************************************/
+ Created 5/7/1996 Heikki Tuuri
+ *******************************************************/
 
-#include "srv0srv.h"
+#include "btr0cur.h"
+#include "buf0buf.h"
 #include "dict0dict.h"
+#include "log0recv.h"
+#include "page0cur.h"
+#include "page0page.h"
+#include "que0que.h"
+#include "read0read.h"
 #include "row0row.h"
+#include "row0vers.h"
+#include "srv0srv.h"
 #include "trx0sys.h"
 #include "trx0trx.h"
-#include "buf0buf.h"
-#include "page0page.h"
-#include "page0cur.h"
-#include "row0vers.h"
-#include "que0que.h"
-#include "btr0cur.h"
-#include "read0read.h"
-#include "log0recv.h"
 
-/*********************************************************************//**
-Calculates the fold value of a page file address: used in inserting or
-searching for a lock in the hash table.
-@return folded value */
+/** Calculates the fold value of a page file address: used in inserting or
+ searching for a lock in the hash table.
+ @return folded value */
 UNIV_INLINE
-ulint
-lock_rec_fold(
-/*==========*/
-	space_id_t	space,	/*!< in: space */
-	page_no_t	page_no)/*!< in: page number */
+ulint lock_rec_fold(space_id_t space,  /*!< in: space */
+                    page_no_t page_no) /*!< in: page number */
 {
-	return(ut_fold_ulint_pair(space, page_no));
+  return (ut_fold_ulint_pair(space, page_no));
 }
 
-/*********************************************************************//**
-Calculates the hash value of a page file address: used in inserting or
-searching for a lock in the hash table.
-@return hashed value */
+/** Calculates the hash value of a page file address: used in inserting or
+ searching for a lock in the hash table.
+ @return hashed value */
 UNIV_INLINE
-ulint
-lock_rec_hash(
-/*==========*/
-	space_id_t	space,	/*!< in: space */
-	page_no_t	page_no)/*!< in: page number */
+ulint lock_rec_hash(space_id_t space,  /*!< in: space */
+                    page_no_t page_no) /*!< in: page number */
 {
-	return(hash_calc_hash(lock_rec_fold(space, page_no),
-			      lock_sys->rec_hash));
+  return (hash_calc_hash(lock_rec_fold(space, page_no), lock_sys->rec_hash));
 }
 
-/*********************************************************************//**
-Gets the heap_no of the smallest user record on a page.
-@return heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
+/** Gets the heap_no of the smallest user record on a page.
+ @return heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
 UNIV_INLINE
-ulint
-lock_get_min_heap_no(
-/*=================*/
-	const buf_block_t*	block)	/*!< in: buffer block */
+ulint lock_get_min_heap_no(const buf_block_t *block) /*!< in: buffer block */
 {
-	const page_t*	page	= block->frame;
+  const page_t *page = block->frame;
 
-	if (page_is_comp(page)) {
-		return(rec_get_heap_no_new(
-			       page
-			       + rec_get_next_offs(page + PAGE_NEW_INFIMUM,
-						   TRUE)));
-	} else {
-		return(rec_get_heap_no_old(
-			       page
-			       + rec_get_next_offs(page + PAGE_OLD_INFIMUM,
-						   FALSE)));
-	}
+  if (page_is_comp(page)) {
+    return (rec_get_heap_no_new(
+        page + rec_get_next_offs(page + PAGE_NEW_INFIMUM, TRUE)));
+  } else {
+    return (rec_get_heap_no_old(
+        page + rec_get_next_offs(page + PAGE_OLD_INFIMUM, FALSE)));
+  }
 }
 
-/*************************************************************//**
-Get the lock hash table */
+/** Get the lock hash table */
 UNIV_INLINE
-hash_table_t*
-lock_hash_get(
-/*==========*/
-	ulint	mode)	/*!< in: lock mode */
+hash_table_t *lock_hash_get(ulint mode) /*!< in: lock mode */
 {
-	if (mode & LOCK_PREDICATE) {
-		return(lock_sys->prdt_hash);
-	} else if (mode & LOCK_PRDT_PAGE) {
-		return(lock_sys->prdt_page_hash);
-	} else {
-		return(lock_sys->rec_hash);
-	}
+  if (mode & LOCK_PREDICATE) {
+    return (lock_sys->prdt_hash);
+  } else if (mode & LOCK_PRDT_PAGE) {
+    return (lock_sys->prdt_page_hash);
+  } else {
+    return (lock_sys->rec_hash);
+  }
 }
-

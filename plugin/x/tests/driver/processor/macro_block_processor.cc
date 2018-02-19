@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -27,7 +27,6 @@
 #include <list>
 
 #include "plugin/x/tests/driver/common/utils_string_parsing.h"
-
 
 Block_processor::Result Macro_block_processor::feed(std::istream &input,
                                                     const char *linebuf) {
@@ -49,17 +48,11 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
   }
 
   // -->command
-  const char cmd_macro[]  = "-->macro ";
+  const char cmd_macro[] = "-->macro ";
   const char cmd_macrov[] = "-->macro_varg ";
 
-  const bool is_macrov = 0 == strncmp(
-      linebuf,
-      cmd_macrov,
-      strlen(cmd_macrov));
-  const bool is_macro = 0 == strncmp(
-      linebuf,
-      cmd_macro,
-      strlen(cmd_macro));
+  const bool is_macrov = 0 == strncmp(linebuf, cmd_macrov, strlen(cmd_macrov));
+  const bool is_macro = 0 == strncmp(linebuf, cmd_macro, strlen(cmd_macro));
 
   if (is_macrov || is_macro) {
     std::list<std::string> args;
@@ -68,9 +61,8 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
     aux::split(args, t, " \t", true);
 
     if (args.empty()) {
-      m_context->print_error(
-          m_context->m_script_stack,
-          "Missing macro name argument for -->macro\n");
+      m_context->print_error(m_context->m_script_stack,
+                             "Missing macro name argument for -->macro\n");
       return Result::Indigestion;
     }
 
@@ -88,7 +80,7 @@ Block_processor::Result Macro_block_processor::feed(std::istream &input,
 bool Macro_block_processor::feed_ended_is_state_ok() {
   if (m_macro) {
     m_context->print_error(m_context->m_script_stack,
-                          "Unclosed -->macro directive\n");
+                           "Unclosed -->macro directive\n");
     return false;
   }
 

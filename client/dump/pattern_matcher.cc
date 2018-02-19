@@ -26,39 +26,29 @@
 
 using namespace Mysql::Tools::Dump::Detail;
 
+Pattern_matcher::Pattern_matcher() {}
 
-Pattern_matcher::Pattern_matcher()
-{}
-
-bool Pattern_matcher::is_pattern_matched(
-  const std::string& to_match, const std::string& pattern,
-  size_t i/*= 0*/, size_t j/*= 0*/)
-{
-  while (i < to_match.size() && j < pattern.size())
-  {
-    if (pattern[j] == '%')
-    {
+bool Pattern_matcher::is_pattern_matched(const std::string &to_match,
+                                         const std::string &pattern,
+                                         size_t i /*= 0*/, size_t j /*= 0*/) {
+  while (i < to_match.size() && j < pattern.size()) {
+    if (pattern[j] == '%') {
       /*
       Check two possibilities: either we stop consuming to_match with
       this instance or we consume one more character.
       */
-      if (is_pattern_matched(to_match, pattern, i + 1, j))
-        return true;
+      if (is_pattern_matched(to_match, pattern, i + 1, j)) return true;
       j++;
-    }
-    else if (pattern[j] == '_' || pattern[j] == to_match[i])
-    {
+    } else if (pattern[j] == '_' || pattern[j] == to_match[i]) {
       i++;
       j++;
-    }
-    else
+    } else
       return false;
   }
   /*
   There might be % pattern matching characters on the end of pattern, we
   can omit them.
   */
-  while (j < pattern.size() && pattern[j] == '%')
-    j++;
+  while (j < pattern.size() && pattern[j] == '%') j++;
   return i == to_match.size() && j == pattern.size();
 }

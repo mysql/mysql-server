@@ -29,8 +29,7 @@
 
 namespace float_compare_unittest {
 
-TEST(FloatCompare, AlmostEqualDouble)
-{
+TEST(FloatCompare, AlmostEqualDouble) {
   double val1 = 0.0;
   double val2 = 1.0;
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
@@ -91,9 +90,7 @@ TEST(FloatCompare, AlmostEqualDouble)
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2, 6));
 }
 
-
-TEST(FloatCompare, AlmostEqualFloat)
-{
+TEST(FloatCompare, AlmostEqualFloat) {
   float val1 = 0.0;
   float val2 = 1.0;
   EXPECT_FALSE(Float_compare::almost_equal(val1, val2));
@@ -154,4 +151,4 @@ TEST(FloatCompare, AlmostEqualFloat)
   EXPECT_TRUE(Float_compare::almost_equal(val1, val2, 6));
 }
 
-}
+}  // namespace float_compare_unittest

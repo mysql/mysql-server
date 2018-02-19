@@ -1,4 +1,4 @@
-# Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -85,7 +85,7 @@ endif()
 configure_file("config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/host_info_config.h")
 include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
 
-MYSQL_ADD_EXECUTABLE(host_info host_info.c
+MYSQL_ADD_EXECUTABLE(host_info host_info.cpp
   DESTINATION "${MCC_INSTALL_SUBDIR}/host_info/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}"
   COMPONENT ClusterTools)
 

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,14 +30,13 @@
 
 #include <cstdint>
 
-
 namespace xcl {
 
 class Connection_config {
  public:
-  int64_t m_timeout_connect{ -1 };
-  int64_t m_timeout_read{ -1 };
-  int64_t m_timeout_write{ -1 };
+  int64_t m_timeout_connect{-1};
+  int64_t m_timeout_read{-1};
+  int64_t m_timeout_write{-1};
 };
 
 }  // namespace xcl

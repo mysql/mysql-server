@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,37 +30,26 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 REQUIRES_SERVICE_PLACEHOLDER(greetings_localization);
 
 BEGIN_COMPONENT_REQUIRES(cyclic_dependency_test_component_2)
-  REQUIRES_SERVICE(greetings_localization)
-END_COMPONENT_REQUIRES()
+REQUIRES_SERVICE(greetings_localization), END_COMPONENT_REQUIRES();
 
-class greetings_imp
-{
-public:
-  static DEFINE_BOOL_METHOD(say_hello,
-    (const char**))
-  {
-    return true;
-  }
+class greetings_imp {
+ public:
+  static DEFINE_BOOL_METHOD(say_hello, (const char **)) { return true; }
 };
 
-BEGIN_SERVICE_IMPLEMENTATION(cyclic_dependency_test_component_2,
-    greetings)
-  greetings_imp::say_hello,
-END_SERVICE_IMPLEMENTATION()
+BEGIN_SERVICE_IMPLEMENTATION(cyclic_dependency_test_component_2, greetings)
+greetings_imp::say_hello, END_SERVICE_IMPLEMENTATION();
 
 BEGIN_COMPONENT_PROVIDES(cyclic_dependency_test_component_2)
-  PROVIDES_SERVICE(cyclic_dependency_test_component_2, greetings)
-END_COMPONENT_PROVIDES()
+PROVIDES_SERVICE(cyclic_dependency_test_component_2, greetings),
+    END_COMPONENT_PROVIDES();
 
 BEGIN_COMPONENT_METADATA(cyclic_dependency_test_component_2)
-END_COMPONENT_METADATA()
+END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(cyclic_dependency_test_component_2,
-    "mysql:cyclic_dependency_test_component_2")
-  NULL,
-  NULL
-END_DECLARE_COMPONENT()
+                  "mysql:cyclic_dependency_test_component_2")
+NULL, NULL END_DECLARE_COMPONENT();
 
-DECLARE_LIBRARY_COMPONENTS
-  &COMPONENT_REF(cyclic_dependency_test_component_2)
-END_DECLARE_LIBRARY_COMPONENTS
+DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(cyclic_dependency_test_component_2)
+    END_DECLARE_LIBRARY_COMPONENTS

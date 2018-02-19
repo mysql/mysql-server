@@ -20,25 +20,28 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/dd/info_schema/table_stats.h"   // dd::info_schema::*
+#include "sql/dd/info_schema/table_stats.h"  // dd::info_schema::*
 
-#include "my_time.h"                          // TIME_to_ulonglong_datetime
-#include "sql/dd/dd.h"                        // dd::create_object
-#include "sql/dd/types/index_stat.h"          // dd::Index_stat
-#include "sql/dd/types/table_stat.h"          // dd::Table_stat
-#include "sql/debug_sync.h"                   // DEBUG_SYNC
-#include "sql/error_handler.h"                // Info_schema_error_handler
-#include "sql/mysqld.h"                       // super_read_only
-#include "sql/partition_info.h"               // partition_info
-#include "sql/partitioning/partition_handler.h" // Partition_handler
-#include "sql/sql_base.h"                     // open_tables_for_query
-#include "sql/sql_class.h"                    // THD
-#include "sql/sql_show.h"                     // make_table_list
-#include "sql/sql_time.h"                     // my_longlong_to_datetime_with_warn
-#include "sql/strfunc.h"                      // lex_cstring_handle
-#include "sql/transaction.h"                  // trans_commit
-#include "sql/tztime.h"                       // Time_zone
-
+#include "my_time.h"  // TIME_to_ulonglong_datetime
+#include "sql/dd/cache/dictionary_client.h"
+#include "sql/dd/dd.h"  // dd::create_object
+#include "sql/dd/properties.h"
+#include "sql/dd/types/index_stat.h"             // dd::Index_stat
+#include "sql/dd/types/table_stat.h"             // dd::Table_stat
+#include "sql/debug_sync.h"                      // DEBUG_SYNC
+#include "sql/error_handler.h"                   // Info_schema_error_handler
+#include "sql/mysqld.h"                          // super_read_only
+#include "sql/partition_info.h"                  // partition_info
+#include "sql/partitioning/partition_handler.h"  // Partition_handler
+#include "sql/sql_base.h"                        // open_tables_for_query
+#include "sql/sql_class.h"                       // THD
+#include "sql/sql_lex.h"
+#include "sql/sql_show.h"  // make_table_list
+#include "sql/sql_time.h"  // my_longlong_to_datetime_with_warn
+#include "sql/strfunc.h"   // lex_cstring_handle
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"  // trans_commit
+#include "sql/tztime.h"       // Time_zone
 
 namespace {
 
@@ -60,31 +63,26 @@ namespace {
 */
 inline bool can_persist_I_S_dynamic_statistics(THD *thd,
                                                const char *schema_name,
-                                               const char* partition_name)
-{
-  handlerton *ddse= ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
-  if (ddse == nullptr || ddse->is_dict_readonly())
-    return false;
+                                               const char *partition_name) {
+  handlerton *ddse = ha_resolve_by_legacy_type(thd, DB_TYPE_INNODB);
+  if (ddse == nullptr || ddse->is_dict_readonly()) return false;
 
   return (thd->variables.information_schema_stats_expiry &&
-          !thd->variables.transaction_read_only &&
-          !super_read_only && !read_only &&
-          !partition_name &&
-          (strcmp(schema_name,"performance_schema") != 0));
+          !thd->variables.transaction_read_only && !super_read_only &&
+          !read_only && !partition_name &&
+          (strcmp(schema_name, "performance_schema") != 0));
 }
 
-
-inline bool is_persistent_statistics_expired(THD *thd,
-                                             const ulonglong &cached_timestamp)
-{
+inline bool is_persistent_statistics_expired(
+    THD *thd, const ulonglong &cached_timestamp) {
   // Consider it as expired if timestamp or timeout is ZERO.
   if (!cached_timestamp || !thd->variables.information_schema_stats_expiry)
     return true;
 
   // Convert longlong time to MYSQL_TIME format
   MYSQL_TIME cached_mysql_time;
-  my_longlong_to_datetime_with_warn(cached_timestamp,
-                                    &cached_mysql_time, MYF(0));
+  my_longlong_to_datetime_with_warn(cached_timestamp, &cached_mysql_time,
+                                    MYF(0));
 
   /*
     Convert MYSQL_TIME to epoc second according to local time_zone as
@@ -92,14 +90,13 @@ inline bool is_persistent_statistics_expired(THD *thd,
   */
   my_time_t cached_epoc_secs;
   bool not_used;
-  cached_epoc_secs= thd->variables.time_zone->TIME_to_gmt_sec(
-                                                &cached_mysql_time, &not_used);
-  long curtime= thd->query_start_in_secs();
-  ulonglong time_diff= curtime  - static_cast<long>(cached_epoc_secs);
+  cached_epoc_secs =
+      thd->variables.time_zone->TIME_to_gmt_sec(&cached_mysql_time, &not_used);
+  long curtime = thd->query_start_in_secs();
+  ulonglong time_diff = curtime - static_cast<long>(cached_epoc_secs);
 
   return (time_diff > thd->variables.information_schema_stats_expiry);
 }
-
 
 /**
   A RAII to used to allow updates in the DD tables mysql.index_stats and
@@ -113,44 +110,35 @@ inline bool is_persistent_statistics_expired(THD *thd,
   to use attachable read-write transaction for this purpose.
 */
 
-class Update_I_S_statistics_ctx
-{
-public:
-  Update_I_S_statistics_ctx(THD *thd)
-    : m_thd(thd)
-  {
+class Update_I_S_statistics_ctx {
+ public:
+  Update_I_S_statistics_ctx(THD *thd) : m_thd(thd) {
     m_thd->begin_attachable_rw_transaction();
     /*
       Turn Autocommit OFF to avoid assert in dictionary write.
       Autocommit was switched ON by Attachable transaction.
     */
-    thd->variables.option_bits&= ~OPTION_AUTOCOMMIT;
-    thd->variables.option_bits|= OPTION_NOT_AUTOCOMMIT;
+    thd->variables.option_bits &= ~OPTION_AUTOCOMMIT;
+    thd->variables.option_bits |= OPTION_NOT_AUTOCOMMIT;
   }
 
-  ~Update_I_S_statistics_ctx()
-  {
-    m_thd->end_attachable_transaction();
-  }
+  ~Update_I_S_statistics_ctx() { m_thd->end_attachable_transaction(); }
 
-private:
+ private:
   THD *m_thd;
 };
-
 
 /**
   Store the statistics into DD tables mysql.table_stats and
   mysql.index_stats.
 */
-template<typename T>
-bool store_statistics_record(THD *thd, T* object)
-{
+template <typename T>
+bool store_statistics_record(THD *thd, T *object) {
   Update_I_S_statistics_ctx ctx(thd);
   Disable_gtid_state_update_guard disabler(thd);
 
   // Store tablespace object in dictionary
-  if (thd->dd_client()->store(object))
-  {
+  if (thd->dd_client()->store(object)) {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
     return true;
@@ -162,16 +150,12 @@ bool store_statistics_record(THD *thd, T* object)
 template bool store_statistics_record(THD *thd, dd::Table_stat *);
 template bool store_statistics_record(THD *thd, dd::Index_stat *);
 
-
-inline void setup_table_stats_record(THD *thd,
-                                     dd::Table_stat *obj,
+inline void setup_table_stats_record(THD *thd, dd::Table_stat *obj,
                                      dd::String_type schema_name,
                                      dd::String_type table_name,
                                      const ha_statistics &stats,
-                                     ulonglong checksum,
-                                     bool has_checksum,
-                                     bool has_autoinc)
-{
+                                     ulonglong checksum, bool has_checksum,
+                                     bool has_autoinc) {
   MYSQL_TIME time;
 
   obj->set_schema_name(schema_name);
@@ -184,40 +168,34 @@ inline void setup_table_stats_record(THD *thd,
   obj->set_data_free(stats.delete_length);
 
   if (stats.update_time) {
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t) stats.update_time);
-    ulonglong ull_time= TIME_to_ulonglong_datetime(&time);
+    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t)stats.update_time);
+    ulonglong ull_time = TIME_to_ulonglong_datetime(&time);
     obj->set_update_time(ull_time);
   }
 
   if (stats.check_time) {
-    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t) stats.check_time);
-    ulonglong ull_time= TIME_to_ulonglong_datetime(&time);
+    my_tz_OFFSET0->gmt_sec_to_TIME(&time, (my_time_t)stats.check_time);
+    ulonglong ull_time = TIME_to_ulonglong_datetime(&time);
     obj->set_check_time(ull_time);
   }
 
-  if (has_checksum)
-    obj->set_checksum(checksum);
+  if (has_checksum) obj->set_checksum(checksum);
 
-  if (has_autoinc)
-    obj->set_auto_increment(stats.auto_increment_value);
+  if (has_autoinc) obj->set_auto_increment(stats.auto_increment_value);
 
   // Store statement start time.
   MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime,
-                                  thd->query_start_in_secs());
-  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
+  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
   obj->set_cached_time(ull_curtime);
 }
 
-
-inline void setup_index_stats_record(THD *thd,
-                                     dd::Index_stat *obj,
+inline void setup_index_stats_record(THD *thd, dd::Index_stat *obj,
                                      dd::String_type schema_name,
                                      dd::String_type table_name,
                                      dd::String_type index_name,
                                      dd::String_type column_name,
-                                     ulonglong records)
-{
+                                     ulonglong records) {
   obj->set_schema_name(schema_name);
   obj->set_table_name(table_name);
   obj->set_index_name(index_name);
@@ -226,13 +204,11 @@ inline void setup_index_stats_record(THD *thd,
 
   // Calculate time to be stored as cached time.
   MYSQL_TIME curtime;
-  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime,
-                                 thd->query_start_in_secs());
-  ulonglong ull_curtime= TIME_to_ulonglong_datetime(&curtime);
+  my_tz_OFFSET0->gmt_sec_to_TIME(&curtime, thd->query_start_in_secs());
+  ulonglong ull_curtime = TIME_to_ulonglong_datetime(&curtime);
 
   obj->set_cached_time(ull_curtime);
 }
-
 
 /**
   Get dynamic table statistics of a table and store them into
@@ -246,23 +222,21 @@ inline void setup_index_stats_record(THD *thd,
 
   @returns false on success, otherwise true.
 */
-static bool persist_i_s_table_stats(THD *thd,
-                                  const ha_statistics &stats,
-                                  const String &schema_name_ptr,
-                                  const String &table_name_ptr,
-                                  const ulonglong &checksum)
-{
+static bool persist_i_s_table_stats(THD *thd, const ha_statistics &stats,
+                                    const String &schema_name_ptr,
+                                    const String &table_name_ptr,
+                                    const ulonglong &checksum) {
   // Create a object to be stored.
   std::unique_ptr<dd::Table_stat> ts_obj(dd::create_object<dd::Table_stat>());
 
-  setup_table_stats_record(thd, ts_obj.get(),
-    dd::String_type(schema_name_ptr.ptr(), schema_name_ptr.length()),
-    dd::String_type(table_name_ptr.ptr(), table_name_ptr.length()),
-    stats, checksum, true, true);
+  setup_table_stats_record(
+      thd, ts_obj.get(),
+      dd::String_type(schema_name_ptr.ptr(), schema_name_ptr.length()),
+      dd::String_type(table_name_ptr.ptr(), table_name_ptr.length()), stats,
+      checksum, true, true);
 
   return store_statistics_record(thd, ts_obj.get());
 }
-
 
 /**
   Get dynamic index statistics of a table and store them into
@@ -278,47 +252,38 @@ static bool persist_i_s_table_stats(THD *thd,
   @returns false on success, otherwise true.
 */
 
-static bool persist_i_s_index_stats(THD *thd,
-                                   const String &schema_name_ptr,
-                                   const String &table_name_ptr,
-                                   const String &index_name_ptr,
-                                   const String &column_name_ptr,
-                                   ulonglong records)
-{
+static bool persist_i_s_index_stats(THD *thd, const String &schema_name_ptr,
+                                    const String &table_name_ptr,
+                                    const String &index_name_ptr,
+                                    const String &column_name_ptr,
+                                    ulonglong records) {
   // Create a object to be stored.
   std::unique_ptr<dd::Index_stat> obj(dd::create_object<dd::Index_stat>());
 
-  setup_index_stats_record(thd, obj.get(),
-    dd::String_type(schema_name_ptr.ptr(), schema_name_ptr.length()),
-    dd::String_type(table_name_ptr.ptr(), table_name_ptr.length()),
-    dd::String_type(index_name_ptr.ptr(), index_name_ptr.length()),
-    dd::String_type(column_name_ptr.ptr(), column_name_ptr.length()),
-    records);
+  setup_index_stats_record(
+      thd, obj.get(),
+      dd::String_type(schema_name_ptr.ptr(), schema_name_ptr.length()),
+      dd::String_type(table_name_ptr.ptr(), table_name_ptr.length()),
+      dd::String_type(index_name_ptr.ptr(), index_name_ptr.length()),
+      dd::String_type(column_name_ptr.ptr(), column_name_ptr.length()),
+      records);
 
   return store_statistics_record(thd, obj.get());
 }
 
-
-
-
-} // Anonymous namespace
-
+}  // Anonymous namespace
 
 namespace dd {
-  namespace info_schema {
+namespace info_schema {
 
-bool update_table_stats(THD *thd, TABLE_LIST *table)
-{
+bool update_table_stats(THD *thd, TABLE_LIST *table) {
   // Update the object properties
   HA_CREATE_INFO create_info;
-  memset(&create_info, 0, sizeof(create_info));
 
-  TABLE *analyze_table= table->table;
-  handler *file= analyze_table->file;
-  if (analyze_table->file->info(HA_STATUS_VARIABLE |
-                                HA_STATUS_TIME |
-                                HA_STATUS_VARIABLE_EXTRA |
-                                HA_STATUS_AUTO) != 0)
+  TABLE *analyze_table = table->table;
+  handler *file = analyze_table->file;
+  if (analyze_table->file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME |
+                                HA_STATUS_VARIABLE_EXTRA | HA_STATUS_AUTO) != 0)
     return true;
 
   file->update_create_info(&create_info);
@@ -326,16 +291,14 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
   // Create a object to be stored.
   std::unique_ptr<Table_stat> ts_obj(create_object<Table_stat>());
 
-  setup_table_stats_record(thd, ts_obj.get(),
-    dd::String_type(table->db, strlen(table->db)),
-    dd::String_type(table->alias, strlen(table->alias)),
-    file->stats, file->checksum(),
-    file->ha_table_flags() & (ulong) HA_HAS_CHECKSUM,
-    analyze_table->found_next_number_field);
+  setup_table_stats_record(
+      thd, ts_obj.get(), dd::String_type(table->db, strlen(table->db)),
+      dd::String_type(table->alias, strlen(table->alias)), file->stats,
+      file->checksum(), file->ha_table_flags() & (ulong)HA_HAS_CHECKSUM,
+      analyze_table->found_next_number_field);
 
   // Store the object
-  if (thd->dd_client()->store(ts_obj.get()))
-  {
+  if (thd->dd_client()->store(ts_obj.get())) {
     my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "table");
     return true;
   }
@@ -343,69 +306,57 @@ bool update_table_stats(THD *thd, TABLE_LIST *table)
   return false;
 }
 
-bool update_index_stats(THD *thd, TABLE_LIST *table)
-{
+bool update_index_stats(THD *thd, TABLE_LIST *table) {
   // Update the object properties
-  TABLE *analyze_table= table->table;
-  KEY *key_info=analyze_table->s->key_info;
-  if (analyze_table->file->info(HA_STATUS_VARIABLE |
-                                HA_STATUS_TIME |
-                                HA_STATUS_VARIABLE_EXTRA |
-                                HA_STATUS_AUTO) != 0)
+  TABLE *analyze_table = table->table;
+  KEY *key_info = analyze_table->s->key_info;
+  if (analyze_table->file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME |
+                                HA_STATUS_VARIABLE_EXTRA | HA_STATUS_AUTO) != 0)
     return true;
 
   // Create a object to be stored.
   std::unique_ptr<Index_stat> obj(create_object<Index_stat>());
 
-  for (uint i=0; i < analyze_table->s->keys; i++, key_info++)
-  {
-    KEY_PART_INFO *key_part= key_info->key_part;
+  for (uint i = 0; i < analyze_table->s->keys; i++, key_info++) {
+    KEY_PART_INFO *key_part = key_info->key_part;
     const char *str;
     ha_rows records;
-    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
-    {
-      str=(key_part->field ? key_part->field->field_name :
-             "?unknown field?");
+    for (uint j = 0; j < key_info->user_defined_key_parts; j++, key_part++) {
+      str = (key_part->field ? key_part->field->field_name : "?unknown field?");
 
-      KEY *key=analyze_table->key_info+i;
-      if (key->has_records_per_key(j))
-      {
-        double recs=(analyze_table->file->stats.records / key->records_per_key(j));
-        records= static_cast<longlong>(round(recs));
-      }
-      else
-        records= -1; // Treated as NULL
+      KEY *key = analyze_table->key_info + i;
+      if (key->has_records_per_key(j)) {
+        double recs =
+            (analyze_table->file->stats.records / key->records_per_key(j));
+        records = static_cast<longlong>(round(recs));
+      } else
+        records = -1;  // Treated as NULL
 
-      setup_index_stats_record(thd, obj.get(),
-        dd::String_type(table->db, strlen(table->db)),
-        dd::String_type(table->alias, strlen(table->alias)),
-        dd::String_type(key_info->name, strlen(key_info->name)),
-        dd::String_type(str, strlen(str)),
-        records);
+      setup_index_stats_record(
+          thd, obj.get(), dd::String_type(table->db, strlen(table->db)),
+          dd::String_type(table->alias, strlen(table->alias)),
+          dd::String_type(key_info->name, strlen(key_info->name)),
+          dd::String_type(str, strlen(str)), records);
 
       // Store the object
-      if (thd->dd_client()->store(obj.get()))
-      {
+      if (thd->dd_client()->store(obj.get())) {
         my_error(ER_UNABLE_TO_STORE_STATISTICS, MYF(0), "index");
         return true;
       }
 
-    } // Key part info
+    }  // Key part info
 
-  } // Keys
+  }  // Keys
 
   return false;
 }
 
-
 // Convert IS db to lowercase and table case upper case.
-bool convert_table_name_case(char *db, char *table_name)
-{
-  if (db && is_infoschema_db(db))
-  {
+bool convert_table_name_case(char *db, char *table_name) {
+  if (db && is_infoschema_db(db)) {
     my_casedn_str(system_charset_info, db);
     if (table_name && strncmp(table_name, "ndb", 3))
-        my_caseup_str(system_charset_info, table_name);
+      my_caseup_str(system_charset_info, table_name);
 
     return true;
   }
@@ -413,81 +364,66 @@ bool convert_table_name_case(char *db, char *table_name)
   return false;
 }
 
-
 // Returns the required statistics from the cache.
 ulonglong Table_statistics::get_stat(ha_statistics &stat,
-                                     enum_table_stats_type stype)
-{
-  switch (stype)
-  {
-  case enum_table_stats_type::TABLE_ROWS:
-    return(stat.records);
+                                     enum_table_stats_type stype) {
+  switch (stype) {
+    case enum_table_stats_type::TABLE_ROWS:
+      return (stat.records);
 
-  case enum_table_stats_type::TABLE_AVG_ROW_LENGTH:
-    return(stat.mean_rec_length);
+    case enum_table_stats_type::TABLE_AVG_ROW_LENGTH:
+      return (stat.mean_rec_length);
 
-  case enum_table_stats_type::DATA_LENGTH:
-    return(stat.data_file_length);
+    case enum_table_stats_type::DATA_LENGTH:
+      return (stat.data_file_length);
 
-  case enum_table_stats_type::MAX_DATA_LENGTH:
-    return(stat.max_data_file_length);
+    case enum_table_stats_type::MAX_DATA_LENGTH:
+      return (stat.max_data_file_length);
 
-  case enum_table_stats_type::INDEX_LENGTH:
-    return(stat.index_file_length);
+    case enum_table_stats_type::INDEX_LENGTH:
+      return (stat.index_file_length);
 
-  case enum_table_stats_type::DATA_FREE:
-    return(stat.delete_length);
+    case enum_table_stats_type::DATA_FREE:
+      return (stat.delete_length);
 
-  case enum_table_stats_type::AUTO_INCREMENT:
-    return(stat.auto_increment_value);
+    case enum_table_stats_type::AUTO_INCREMENT:
+      return (stat.auto_increment_value);
 
-  case enum_table_stats_type::CHECKSUM:
-    return(get_checksum());
+    case enum_table_stats_type::CHECKSUM:
+      return (get_checksum());
 
-  case enum_table_stats_type::TABLE_UPDATE_TIME:
-    return(stat.update_time);
+    case enum_table_stats_type::TABLE_UPDATE_TIME:
+      return (stat.update_time);
 
-  case enum_table_stats_type::CHECK_TIME:
-    return(stat.check_time);
+    case enum_table_stats_type::CHECK_TIME:
+      return (stat.check_time);
 
-  default:
-    DBUG_ASSERT(!"Should not hit here");
+    default:
+      DBUG_ASSERT(!"Should not hit here");
   }
 
   return 0;
 }
 
-
 // Read dynamic table statistics from SE by opening the user table
 // provided OR by reading cached statistics from SELECT_LEX.
 ulonglong Table_statistics::read_stat(
-            THD *thd,
-            const String &schema_name_ptr,
-            const String &table_name_ptr,
-            const String &index_name_ptr,
-            const char* partition_name,
-            const String &column_name_ptr,
-            uint index_ordinal_position,
-            uint column_ordinal_position,
-            const String &engine_name_ptr,
-            Object_id se_private_id,
-            const char* ts_se_private_data,
-            const char* tbl_se_private_data,
-            const ulonglong &table_stat_data,
-            const ulonglong &cached_timestamp,
-            enum_table_stats_type stype)
-{
+    THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+    const String &index_name_ptr, const char *partition_name,
+    const String &column_name_ptr, uint index_ordinal_position,
+    uint column_ordinal_position, const String &engine_name_ptr,
+    Object_id se_private_id, const char *ts_se_private_data,
+    const char *tbl_se_private_data, const ulonglong &table_stat_data,
+    const ulonglong &cached_timestamp, enum_table_stats_type stype) {
   DBUG_ENTER("Table_statistics::read_stat");
   ulonglong result;
 
   // Stop we have see and error already for this table.
-  if (check_error_for_key(schema_name_ptr, table_name_ptr))
-    DBUG_RETURN(0);
+  if (check_error_for_key(schema_name_ptr, table_name_ptr)) DBUG_RETURN(0);
 
   // Check if we can directly use the value passed from mysql.stats tables.
-  if (!is_persistent_statistics_expired(thd, cached_timestamp))
-  {
-      DBUG_RETURN(table_stat_data);
+  if (!is_persistent_statistics_expired(thd, cached_timestamp)) {
+    DBUG_RETURN(table_stat_data);
   }
 
   /*
@@ -507,7 +443,7 @@ ulonglong Table_statistics::read_stat(
   // Diagnostics_area, so "useful warnings" get rejected. In order to avoid
   // that problem we create a Diagnostics_area instance, which is capable of
   // storing "unlimited" number of warnings.
-  Diagnostics_area *da= thd->get_stmt_da();
+  Diagnostics_area *da = thd->get_stmt_da();
   Diagnostics_area tmp_da(true);
 
   // Don't copy existing conditions from the old DA so we don't get them twice
@@ -515,52 +451,32 @@ ulonglong Table_statistics::read_stat(
   thd->push_diagnostics_area(&tmp_da, false);
 
   // Check if engine supports fetching table statistics.
-  plugin_ref tmp_plugin=
-    ha_resolve_by_name_raw(thd, lex_cstring_handle(
-                           dd::String_type(engine_name_ptr.ptr())));
-  handlerton *hton= nullptr;
-  const bool hton_implements_get_statistics=
-               (tmp_plugin &&
-                (hton= plugin_data<handlerton*>(tmp_plugin)) &&
-                hton->get_index_column_cardinality &&
-                hton->get_table_statistics);
+  plugin_ref tmp_plugin = ha_resolve_by_name_raw(
+      thd, lex_cstring_handle(dd::String_type(engine_name_ptr.ptr())));
+  handlerton *hton = nullptr;
+  const bool hton_implements_get_statistics =
+      (tmp_plugin && (hton = plugin_data<handlerton *>(tmp_plugin)) &&
+       hton->get_index_column_cardinality && hton->get_table_statistics);
 
   // Try to get statistics without opening the table.
   if (!partition_name && hton_implements_get_statistics)
-    result= read_stat_from_SE(thd,
-                              schema_name_ptr,
-                              table_name_ptr,
-                              index_name_ptr,
-                              column_name_ptr,
-                              index_ordinal_position,
-                              column_ordinal_position,
-                              se_private_id,
-                              ts_se_private_data,
-                              tbl_se_private_data,
-                              stype, hton);
+    result = read_stat_from_SE(
+        thd, schema_name_ptr, table_name_ptr, index_name_ptr, column_name_ptr,
+        index_ordinal_position, column_ordinal_position, se_private_id,
+        ts_se_private_data, tbl_se_private_data, stype, hton);
   else
-    result= read_stat_by_open_table(thd,
-                                    schema_name_ptr,
-                                    table_name_ptr,
-                                    index_name_ptr,
-                                    partition_name,
-                                    column_name_ptr,
-                                    column_ordinal_position,
-                                    stype);
+    result = read_stat_by_open_table(
+        thd, schema_name_ptr, table_name_ptr, index_name_ptr, partition_name,
+        column_name_ptr, column_ordinal_position, stype);
 
   thd->pop_diagnostics_area();
 
   // Pass an error if any.
-  if (!thd->is_error() && tmp_da.is_error())
-  {
-    da->set_error_status(tmp_da.mysql_errno(),
-                         tmp_da.message_text(),
+  if (!thd->is_error() && tmp_da.is_error()) {
+    da->set_error_status(tmp_da.mysql_errno(), tmp_da.message_text(),
                          tmp_da.returned_sqlstate());
-    da->push_warning(thd,
-                     tmp_da.mysql_errno(),
-                     tmp_da.returned_sqlstate(),
-                     Sql_condition::SL_ERROR,
-                     tmp_da.message_text());
+    da->push_warning(thd, tmp_da.mysql_errno(), tmp_da.returned_sqlstate(),
+                     Sql_condition::SL_ERROR, tmp_da.message_text());
   }
 
   // Pass warnings (if any).
@@ -569,29 +485,20 @@ ulonglong Table_statistics::read_stat(
   // correspond to the errors which were filtered out in fill_table().
   da->copy_non_errors_from_da(thd, &tmp_da);
 
-
   DBUG_RETURN(result);
 }
 
-
 // Fetch stats from SE
 ulonglong Table_statistics::read_stat_from_SE(
-            THD *thd,
-            const String &schema_name_ptr,
-            const String &table_name_ptr,
-            const String &index_name_ptr,
-            const String &column_name_ptr,
-            uint index_ordinal_position,
-            uint column_ordinal_position,
-            Object_id se_private_id,
-            const char* ts_se_private_data,
-            const char* tbl_se_private_data,
-            enum_table_stats_type stype,
-            handlerton *hton)
-{
+    THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+    const String &index_name_ptr, const String &column_name_ptr,
+    uint index_ordinal_position, uint column_ordinal_position,
+    Object_id se_private_id, const char *ts_se_private_data,
+    const char *tbl_se_private_data, enum_table_stats_type stype,
+    handlerton *hton) {
   DBUG_ENTER("Table_statistics::read_stat_from_SE");
 
-  ulonglong return_value= 0;
+  ulonglong return_value = 0;
 
   DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
                   DBUG_ASSERT(strncmp(table_name_ptr.ptr(), "fts", 3)););
@@ -605,70 +512,57 @@ ulonglong Table_statistics::read_stat_from_SE(
   // Get statistics from SE
   //
   ha_statistics ha_stat;
-  uint error= 0;
+  uint error = 0;
 
   // Acquire MDL_EXPLICIT lock on table.
   MDL_request mdl_request;
-  MDL_REQUEST_INIT(&mdl_request,
-                   MDL_key::TABLE,
-                   schema_name_ptr.ptr(),
-                   table_name_ptr.ptr(),
-                   MDL_SHARED_HIGH_PRIO, MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&mdl_request, MDL_key::TABLE, schema_name_ptr.ptr(),
+                   table_name_ptr.ptr(), MDL_SHARED_HIGH_PRIO, MDL_EXPLICIT);
 
   // Push deadlock error handler
   Info_schema_error_handler info_schema_error_handler(thd, &schema_name_ptr,
                                                       &table_name_ptr);
   thd->push_internal_handler(&info_schema_error_handler);
   if (thd->mdl_context.acquire_lock(&mdl_request,
-                                    thd->variables.lock_wait_timeout))
-  {
-    error= -1;
+                                    thd->variables.lock_wait_timeout)) {
+    error = -1;
   }
   thd->pop_internal_handler();
 
   DEBUG_SYNC(thd, "after_acquiring_mdl_shared_to_fetch_stats");
 
-  if (error == 0)
-  {
-    error= -1;
+  if (error == 0) {
+    error = -1;
 
     // Prepare dd::Properties objects for se_private_data and send it to SE.
     std::unique_ptr<dd::Properties> ts_se_private_data_obj(
-      dd::Properties::parse_properties(
-        ts_se_private_data ? ts_se_private_data : ""));
+        dd::Properties::parse_properties(ts_se_private_data ? ts_se_private_data
+                                                            : ""));
     std::unique_ptr<dd::Properties> tbl_se_private_data_obj(
-      dd::Properties::parse_properties(
-        tbl_se_private_data ? tbl_se_private_data : ""));
+        dd::Properties::parse_properties(
+            tbl_se_private_data ? tbl_se_private_data : ""));
 
     DBUG_ASSERT(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
     //
-    return_value= -1;
+    return_value = -1;
 
     if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY &&
         !hton->get_index_column_cardinality(
-                 schema_name_ptr.ptr(),
-                 table_name_ptr.ptr(),
-                 index_name_ptr.ptr(),
-                 index_ordinal_position,
-                 column_ordinal_position,
-                 se_private_id,
-                 &return_value))
-    {
-      error= 0;
-    }
-    else if (!hton->get_table_statistics(schema_name_ptr.ptr(),
-                      table_name_ptr.ptr(),
-                      se_private_id,
-                      *ts_se_private_data_obj.get(),
-                      *tbl_se_private_data_obj.get(),
-                      HA_STATUS_VARIABLE|HA_STATUS_TIME|
-                      HA_STATUS_VARIABLE_EXTRA|HA_STATUS_AUTO,
-                      &ha_stat))
-    {
-      error= 0;
+            schema_name_ptr.ptr(), table_name_ptr.ptr(), index_name_ptr.ptr(),
+            index_ordinal_position, column_ordinal_position, se_private_id,
+            &return_value)) {
+      error = 0;
+    } else if (!hton->get_table_statistics(
+                   schema_name_ptr.ptr(), table_name_ptr.ptr(), se_private_id,
+                   *ts_se_private_data_obj.get(),
+                   *tbl_se_private_data_obj.get(),
+                   HA_STATUS_VARIABLE | HA_STATUS_TIME |
+                       HA_STATUS_VARIABLE_EXTRA | HA_STATUS_AUTO,
+                   &ha_stat)) {
+      error = 0;
     }
 
     // Release the lock we got
@@ -676,10 +570,8 @@ ulonglong Table_statistics::read_stat_from_SE(
   }
 
   // Cache and return the statistics
-  if (error == 0)
-  {
-    if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY)
-    {
+  if (error == 0) {
+    if (stype != enum_table_stats_type::INDEX_COLUMN_CARDINALITY) {
       cache_stats_in_mem(schema_name_ptr, table_name_ptr, ha_stat);
 
       /*
@@ -688,13 +580,11 @@ ulonglong Table_statistics::read_stat_from_SE(
       */
       if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(),
                                              nullptr) &&
-          persist_i_s_table_stats(thd, m_stats, schema_name_ptr,
-                                  table_name_ptr, 0))
-      {
-        error= -1;
-      }
-      else
-        return_value= get_stat(ha_stat, stype);
+          persist_i_s_table_stats(thd, m_stats, schema_name_ptr, table_name_ptr,
+                                  0)) {
+        error = -1;
+      } else
+        return_value = get_stat(ha_stat, stype);
 
     }
     /*
@@ -705,18 +595,15 @@ ulonglong Table_statistics::read_stat_from_SE(
                                                 nullptr) &&
              persist_i_s_index_stats(thd, schema_name_ptr, table_name_ptr,
                                      index_name_ptr, column_name_ptr,
-                                     return_value))
-    {
-      error= -1;
+                                     return_value)) {
+      error = -1;
     }
 
-    if (error == 0)
-      DBUG_RETURN(return_value);
+    if (error == 0) DBUG_RETURN(return_value);
   }
 
   // If we have a error, push a warning and clear the DA.
-  if (thd->is_error())
-  {
+  if (thd->is_error()) {
     /*
       Hide error for a non-existing table.
       For example, this error can occur when we use a where condition
@@ -736,21 +623,15 @@ ulonglong Table_statistics::read_stat_from_SE(
   DBUG_RETURN(error);
 }
 
-
 // Fetch stats by opening the table.
 ulonglong Table_statistics::read_stat_by_open_table(
-            THD *thd,
-            const String &schema_name_ptr,
-            const String &table_name_ptr,
-            const String &index_name_ptr,
-            const char* partition_name,
-            const String &column_name_ptr,
-            uint column_ordinal_position,
-            enum_table_stats_type stype)
-{
+    THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
+    const String &index_name_ptr, const char *partition_name,
+    const String &column_name_ptr, uint column_ordinal_position,
+    enum_table_stats_type stype) {
   DBUG_ENTER("Table_statistics::read_stat_by_open_table");
-  ulonglong return_value= 0;
-  ulonglong error= 0;
+  ulonglong return_value = 0;
+  ulonglong error = 0;
   ha_statistics ha_stat;
 
   DEBUG_SYNC(thd, "before_open_in_IS_query");
@@ -766,38 +647,36 @@ ulonglong Table_statistics::read_stat_by_open_table(
 
   Query_arena i_s_arena(thd->mem_root,
                         Query_arena::STMT_CONVENTIONAL_EXECUTION);
-  Query_arena *old_arena= thd->stmt_arena;
-  thd->stmt_arena= &i_s_arena;
+  Query_arena *old_arena = thd->stmt_arena;
+  thd->stmt_arena = &i_s_arena;
   Query_arena backup_arena;
   thd->set_n_backup_active_arena(&i_s_arena, &backup_arena);
 
   LEX temp_lex, *lex;
-  LEX *old_lex= thd->lex;
-  thd->lex= lex= &temp_lex;
+  LEX *old_lex = thd->lex;
+  thd->lex = lex = &temp_lex;
 
   lex_start(thd);
-  lex->context_analysis_only= CONTEXT_ANALYSIS_ONLY_VIEW;
+  lex->context_analysis_only = CONTEXT_ANALYSIS_ONLY_VIEW;
 
   LEX_CSTRING db_name_lex_cstr, table_name_lex_cstr;
   if (!thd->make_lex_string(&db_name_lex_cstr, schema_name_ptr.ptr(),
-                            schema_name_ptr.length(), FALSE) ||
+                            schema_name_ptr.length(), false) ||
       !thd->make_lex_string(&table_name_lex_cstr, table_name_ptr.ptr(),
-                            table_name_ptr.length(), FALSE))
-  {
-    error= -1;
+                            table_name_ptr.length(), false)) {
+    error = -1;
     goto end;
   }
 
   if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
-                      table_name_lex_cstr))
-  {
-    error= -1;
+                      table_name_lex_cstr)) {
+    error = -1;
     goto end;
   }
 
   TABLE_LIST *table_list;
-  table_list= lex->select_lex->table_list.first;
-  table_list->required_type= dd::enum_table_type::BASE_TABLE;
+  table_list = lex->select_lex->table_list.first;
+  table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*
     Let us set fake sql_command so views won't try to merge
@@ -806,7 +685,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
     SQLCOM_SHOW_FIELDS is used because it satisfies
     'only_view_structure()'.
    */
-  lex->sql_command= SQLCOM_SELECT;
+  lex->sql_command = SQLCOM_SELECT;
 
   DBUG_EXECUTE_IF("simulate_kill_query_on_open_table",
                   DBUG_SET("+d,kill_query_on_open_table_from_tz_find"););
@@ -815,9 +694,9 @@ ulonglong Table_statistics::read_stat_by_open_table(
   thd->push_internal_handler(&info_schema_error_handler);
 
   bool open_result;
-  open_result= open_tables_for_query(thd, table_list,
-                                     MYSQL_OPEN_IGNORE_FLUSH |
-                                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
+  open_result = open_tables_for_query(
+      thd, table_list,
+      MYSQL_OPEN_IGNORE_FLUSH | MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL);
 
   thd->pop_internal_handler();
 
@@ -825,25 +704,21 @@ ulonglong Table_statistics::read_stat_by_open_table(
                   DBUG_SET("-d,kill_query_on_open_table_from_tz_find"););
   DEBUG_SYNC(thd, "after_open_table_mdl_shared_to_fetch_stats");
 
-  if (!open_result && table_list->is_view_or_derived())
-  {
-    open_result= table_list->resolve_derived(thd, false);
-    if (!open_result)
-      open_result= table_list->setup_materialized_derived(thd);
+  if (!open_result && table_list->is_view_or_derived()) {
+    open_result = table_list->resolve_derived(thd, false);
+    if (!open_result) open_result = table_list->setup_materialized_derived(thd);
   }
 
   /*
     Restore old value of sql_command back as it is being looked at in
     process_table() function.
    */
-  lex->sql_command= old_lex->sql_command;
+  lex->sql_command = old_lex->sql_command;
 
-  if (open_result)
-  {
+  if (open_result) {
     DBUG_ASSERT(thd->is_error() || thd->is_killed());
 
-    if (thd->is_error())
-    {
+    if (thd->is_error()) {
       /*
         Hide error for a non-existing table.
         For example, this error can occur when we use a where condition
@@ -858,61 +733,49 @@ ulonglong Table_statistics::read_stat_by_open_table(
       store_error_message(schema_name_ptr, table_name_ptr, partition_name,
                           thd->get_stmt_da()->message_text());
       thd->clear_error();
-    }
-    else
-    {
+    } else {
       /*
         Table open fails even when query or connection is killed. In this
         case Diagnostics_area might not be set. So just returning error from
         here. Query is later terminated by call to send_kill_message() when
         we check thd->killed flag.
       */
-      error= -1;
+      error = -1;
     }
 
     goto end;
-  }
-  else if (!table_list->is_view() && !table_list->schema_table)
-  {
-    ha_checksum check_sum= 0;
-    bool have_partition_checksum= false;
+  } else if (!table_list->is_view() && !table_list->schema_table) {
+    ha_checksum check_sum = 0;
+    bool have_partition_checksum = false;
 
     // Get statistics for just single partition.
-    Partition_handler *part_handler=
-      table_list->table->file->get_partition_handler();
-    if (partition_name && part_handler)
-    {
-      partition_info *part_info= table_list->table->part_info;
+    Partition_handler *part_handler =
+        table_list->table->file->get_partition_handler();
+    if (partition_name && part_handler) {
+      partition_info *part_info = table_list->table->part_info;
       DBUG_ASSERT(part_info);
 
       uint part_id;
-      if(part_info->get_part_elem(partition_name, nullptr, &part_id) &&
-         part_id != NOT_A_PARTITION_ID)
-      {
+      if (part_info->get_part_elem(partition_name, nullptr, &part_id) &&
+          part_id != NOT_A_PARTITION_ID) {
         part_handler->get_dynamic_partition_info(&ha_stat, &check_sum, part_id);
-        table_list->table->file->stats= ha_stat;
-        have_partition_checksum= true;
-      }
-      else
-      {
+        table_list->table->file->stats = ha_stat;
+        have_partition_checksum = true;
+      } else {
         my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name,
                  table_list->table->alias);
-        error= -1;
+        error = -1;
       }
     }
     // Get statistics for whole table.
-    else if (table_list->table->file->info(HA_STATUS_VARIABLE |
-                                           HA_STATUS_TIME |
+    else if (table_list->table->file->info(HA_STATUS_VARIABLE | HA_STATUS_TIME |
                                            HA_STATUS_VARIABLE_EXTRA |
-                                           HA_STATUS_AUTO) != 0)
-    {
-      error= -1;
+                                           HA_STATUS_AUTO) != 0) {
+      error = -1;
     }
 
-    if (error)
-    {
-      if (thd->is_error())
-      {
+    if (error) {
+      if (thd->is_error()) {
         push_warning(thd, Sql_condition::SL_WARNING,
                      thd->get_stmt_da()->mysql_errno(),
                      thd->get_stmt_da()->message_text());
@@ -920,56 +783,50 @@ ulonglong Table_statistics::read_stat_by_open_table(
         store_error_message(schema_name_ptr, table_name_ptr, partition_name,
                             thd->get_stmt_da()->message_text());
         thd->clear_error();
-      }
-      else
-        error= -1;
+      } else
+        error = -1;
 
       goto end;
     }
 
     // If we are reading cardinality, just read and do not cache it.
-    if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY)
-    {
-      TABLE *table= table_list->table;
-      uint key_index= 0;
+    if (stype == enum_table_stats_type::INDEX_COLUMN_CARDINALITY) {
+      TABLE *table = table_list->table;
+      uint key_index = 0;
 
       // Search for key with the index name.
-      while (key_index < table->s->keys)
-      {
+      while (key_index < table->s->keys) {
         if (!my_strcasecmp(system_charset_info,
-                           (table->key_info+key_index)->name,
+                           (table->key_info + key_index)->name,
                            index_name_ptr.ptr()))
           break;
 
         key_index++;
       }
 
-      KEY *key= table->s->key_info + key_index;
+      KEY *key = table->s->key_info + key_index;
 
       // Calculate the cardinality.
       ha_rows records;
       if (key_index < table->s->keys &&
-          key->has_records_per_key(column_ordinal_position))
-      {
-        records=(table->file->stats.records /
-                 key->records_per_key(column_ordinal_position));
-        records= static_cast<longlong>(round(records));
-      }
-      else
-        records= -1; // Treated as NULL
+          key->has_records_per_key(column_ordinal_position)) {
+        records = (table->file->stats.records /
+                   key->records_per_key(column_ordinal_position));
+        records = static_cast<longlong>(round(records));
+      } else
+        records = -1;  // Treated as NULL
 
-      return_value= (ulonglong) records;
+      return_value = (ulonglong)records;
 
       // Update index statistics in the cache.
-      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(), partition_name) &&
+      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(),
+                                             partition_name) &&
           persist_i_s_index_stats(thd, schema_name_ptr, table_name_ptr,
                                   index_name_ptr, column_name_ptr,
-                                  (ulonglong) records))
-      {
-        error= -1;
+                                  (ulonglong)records)) {
+        error = -1;
       }
-    }
-    else // Get all statistics and cache them.
+    } else  // Get all statistics and cache them.
     {
       cache_stats_in_mem(schema_name_ptr, table_name_ptr, partition_name,
                          table_list->table->file);
@@ -978,22 +835,19 @@ ulonglong Table_statistics::read_stat_by_open_table(
         set_checksum(static_cast<ulonglong>(check_sum));
 
       // Update table statistics in the cache.
-      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(), partition_name) &&
-          persist_i_s_table_stats(thd, m_stats, schema_name_ptr,
-                                  table_name_ptr, m_checksum))
-      {
-        error= -1;
+      if (can_persist_I_S_dynamic_statistics(thd, schema_name_ptr.ptr(),
+                                             partition_name) &&
+          persist_i_s_table_stats(thd, m_stats, schema_name_ptr, table_name_ptr,
+                                  m_checksum)) {
+        error = -1;
       }
 
-      return_value= get_stat(stype);
+      return_value = get_stat(stype);
     }
-  }
-  else
-  {
-    error= -1;
+  } else {
+    error = -1;
     goto end;
   }
-
 
 end:
   lex->unit->cleanup(true);
@@ -1014,11 +868,12 @@ end:
     Release metadata lock we might have acquired.
     See comment in fill_schema_table_from_frm() for details.
    */
-  thd->mdl_context.rollback_to_savepoint(open_tables_state_backup.mdl_system_tables_svp);
+  thd->mdl_context.rollback_to_savepoint(
+      open_tables_state_backup.mdl_system_tables_svp);
 
-  thd->lex= old_lex;
+  thd->lex = old_lex;
 
-  thd->stmt_arena= old_arena;
+  thd->stmt_arena = old_arena;
   thd->restore_active_arena(&i_s_arena, &backup_arena);
 
   thd->restore_backup_open_tables_state(&open_tables_state_backup);
@@ -1031,11 +886,10 @@ end:
   */
   if (info_schema_error_handler.is_error_handled() &&
       thd->transaction_rollback_request)
-    thd->transaction_rollback_request= false;
+    thd->transaction_rollback_request = false;
 
-  DBUG_RETURN(error==0 ? return_value : error);
+  DBUG_RETURN(error == 0 ? return_value : error);
 }
 
-}
-}
-
+}  // namespace info_schema
+}  // namespace dd

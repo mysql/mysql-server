@@ -40,43 +40,37 @@ class Raw_record_set;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Raw_table
-{
-public:
+class Raw_table {
+ public:
   Raw_table(thr_lock_type lock_type, const String_type &name);
 
-  virtual ~Raw_table()
-  { }
+  virtual ~Raw_table() {}
 
-public:
-  TABLE *get_table()
-  { return m_table_list.table; }
+ public:
+  TABLE *get_table() { return m_table_list.table; }
 
-  TABLE_LIST *get_table_list()
-  { return &m_table_list; }
+  TABLE_LIST *get_table_list() { return &m_table_list; }
 
-public:
-  bool find_record(const Object_key &key,
-                   std::unique_ptr<Raw_record> &r);
+ public:
+  bool find_record(const Object_key &key, std::unique_ptr<Raw_record> &r);
 
-  bool find_last_record(const Object_key &key,
-                        std::unique_ptr<Raw_record> &r);
+  bool find_last_record(const Object_key &key, std::unique_ptr<Raw_record> &r);
 
   bool prepare_record_for_update(const Object_key &key,
                                  std::unique_ptr<Raw_record> &r);
 
   Raw_new_record *prepare_record_for_insert();
 
-public:
+ public:
   bool open_record_set(const Object_key *key,
                        std::unique_ptr<Raw_record_set> &rs);
 
-protected:
+ protected:
   TABLE_LIST m_table_list;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__RAW_TABLE_INCLUDED
+#endif  // DD__RAW_TABLE_INCLUDED

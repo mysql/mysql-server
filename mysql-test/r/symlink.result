@@ -169,16 +169,12 @@ CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='TEST_DIR/master-data_var';
 ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2 - No such file or directory)
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(a INT) DATA DIRECTORY='MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='MYSQLTEST_VARDIR/tmp';
 Warnings:
 Warning	1618	<DATA DIRECTORY> option ignored
 Warning	1618	<INDEX DIRECTORY> option ignored
 DROP TABLE t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 #
 # BUG#40980 - Drop table can remove another MyISAM table's
 #             data and index files

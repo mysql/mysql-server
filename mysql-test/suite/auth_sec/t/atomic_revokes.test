@@ -109,10 +109,10 @@ SHOW GRANTS FOR userX;
 
 --echo # Case 1 : Revoke from non-existing user
 
---error ER_NONEXISTING_GRANT
+--error ER_NONEXISTING_TABLE_GRANT
 REVOKE SELECT ON db1.table1 FROM userX, userZ;
 
---error ER_NONEXISTING_GRANT
+--error ER_NONEXISTING_TABLE_GRANT
 REVOKE INSERT(c1, c2) ON db1.table1 FROM userX, userZ;
 
 --echo # userX's grants must not have changed
@@ -189,7 +189,7 @@ SHOW GRANTS FOR userX;
 
 --echo Case 1 : Revoke from non-existing user
 
---error ER_NONEXISTING_GRANT
+--error ER_NONEXISTING_PROC_GRANT
 REVOKE EXECUTE ON PROCEDURE db1.proc1 FROM userX, userZ;
 
 --echo # userX's grants must not have changed

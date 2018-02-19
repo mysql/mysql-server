@@ -20,9 +20,8 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-#include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <gtest/gtest.h>
 
 #include "plugin/x/src/sha256_password_cache.h"
 
@@ -30,20 +29,18 @@ namespace xpl {
 
 namespace test {
 
+using ::testing::DoAll;
+using ::testing::Expectation;
+using ::testing::Return;
+using ::testing::ReturnPointee;
+using ::testing::SetArrayArgument;
+using ::testing::SetErrnoAndReturn;
 using ::testing::StrictMock;
 using ::testing::_;
-using ::testing::Return;
-using ::testing::Expectation;
-using ::testing::SetArrayArgument;
-using ::testing::DoAll;
-using ::testing::SetErrnoAndReturn;
-using ::testing::ReturnPointee;
 
 class Sha256_cache_test_suite : public ::testing::Test {
-public:
-  void SetUp() {
-    m_cache.enable();
-  }
+ public:
+  void SetUp() { m_cache.enable(); }
 
   Sha256_cache_test_suite() = default;
 
@@ -139,5 +136,5 @@ TEST_F(Sha256_cache_test_suite, clear_cache) {
   ASSERT_TRUE(m_cache.size() == 0);
 }
 
-} // namespace test
-} // namespace xpl
+}  // namespace test
+}  // namespace xpl

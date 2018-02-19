@@ -25,18 +25,16 @@
 
 #include <sys/types.h>
 
+#include "my_alloc.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "my_sys.h"                        // free_root
+#include "my_sys.h"  // free_root
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
 #include "mysql/psi/mysql_rwlock.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/udf_registration_types.h"
-#include "sql/sql_list.h"                  // List
-#include "sql/sql_plugin_ref.h"            // plugin_ref
-#include "sql/thr_malloc.h"
+#include "sql/sql_list.h"        // List
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class Master_info;
 class String;
@@ -47,11 +45,9 @@ struct Binlog_storage_observer;
 struct Binlog_transmit_observer;
 struct Server_state_observer;
 struct Trans_observer;
-struct Trans_table_info;
-
 
 class Observer_info {
-public:
+ public:
   void *observer;
   st_plugin_int *plugin_int;
   plugin_ref plugin;
@@ -60,104 +56,81 @@ public:
 };
 
 class Delegate {
-public:
+ public:
   typedef List<Observer_info> Observer_info_list;
   typedef List_iterator<Observer_info> Observer_info_iterator;
 
-  int add_observer(void *observer, st_plugin_int *plugin)
-  {
-    int ret= FALSE;
-    if (!inited)
-      return TRUE;
+  int add_observer(void *observer, st_plugin_int *plugin) {
+    int ret = false;
+    if (!inited) return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
-    Observer_info *info= iter++;
-    while (info && info->observer != observer)
-      info= iter++;
-    if (!info)
-    {
-      info= new Observer_info(observer, plugin);
-      if (!info || observer_info_list.push_back(info, &memroot))
-        ret= TRUE;
-    }
-    else
-      ret= TRUE;
+    Observer_info *info = iter++;
+    while (info && info->observer != observer) info = iter++;
+    if (!info) {
+      info = new Observer_info(observer, plugin);
+      if (!info || observer_info_list.push_back(info, &memroot)) ret = true;
+    } else
+      ret = true;
     unlock();
     return ret;
   }
 
-  int remove_observer(void *observer)
-  {
-    int ret= FALSE;
-    if (!inited)
-      return TRUE;
+  int remove_observer(void *observer) {
+    int ret = false;
+    if (!inited) return true;
     write_lock();
     Observer_info_iterator iter(observer_info_list);
-    Observer_info *info= iter++;
-    while (info && info->observer != observer)
-      info= iter++;
-    if (info)
-    {
+    Observer_info *info = iter++;
+    while (info && info->observer != observer) info = iter++;
+    if (info) {
       iter.remove();
       delete info;
-    }
-    else
-      ret= TRUE;
+    } else
+      ret = true;
     unlock();
     return ret;
   }
 
-  inline Observer_info_iterator observer_info_iter()
-  {
+  inline Observer_info_iterator observer_info_iter() {
     return Observer_info_iterator(observer_info_list);
   }
 
-  inline bool is_empty()
-  {
+  inline bool is_empty() {
     DBUG_PRINT("debug", ("is_empty: %d", observer_info_list.is_empty()));
     return observer_info_list.is_empty();
   }
 
-  inline int read_lock()
-  {
-    if (!inited)
-      return TRUE;
+  inline int read_lock() {
+    if (!inited) return true;
     return mysql_rwlock_rdlock(&lock);
   }
 
-  inline int write_lock()
-  {
-    if (!inited)
-      return TRUE;
+  inline int write_lock() {
+    if (!inited) return true;
     return mysql_rwlock_wrlock(&lock);
   }
 
-  inline int unlock()
-  {
-    if (!inited)
-      return TRUE;
+  inline int unlock() {
+    if (!inited) return true;
     return mysql_rwlock_unlock(&lock);
   }
 
-  inline bool is_inited()
-  {
-    return inited;
-  }
+  inline bool is_inited() { return inited; }
 
   explicit Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-           PSI_rwlock_key key
+      PSI_rwlock_key key
 #endif
-                    );
+  );
 
-  ~Delegate()
-  {
-    inited= FALSE;
+  ~Delegate() {
+    inited = false;
     mysql_rwlock_destroy(&lock);
     free_root(&memroot, MYF(0));
   }
 
-private:
+ private:
   Observer_info_list observer_info_list;
   mysql_rwlock_t lock;
   MEM_ROOT memroot;
@@ -168,25 +141,22 @@ private:
 extern PSI_rwlock_key key_rwlock_Trans_delegate_lock;
 #endif
 
-class Trans_delegate
-  :public Delegate {
-public:
-
+class Trans_delegate : public Delegate {
+ public:
   Trans_delegate()
-  : Delegate(
+      : Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-             key_rwlock_Trans_delegate_lock
+            key_rwlock_Trans_delegate_lock
 #endif
-             )
-  {}
+        ) {
+  }
 
   typedef Trans_observer Observer;
 
-  int before_dml(THD *thd, int& result);
-  int before_commit(THD *thd, bool all,
-                    IO_CACHE *trx_cache_log,
-                    IO_CACHE *stmt_cache_log,
-                    ulonglong cache_log_max_size, bool is_atomic_ddl);
+  int before_dml(THD *thd, int &result);
+  int before_commit(THD *thd, bool all, IO_CACHE *trx_cache_log,
+                    IO_CACHE *stmt_cache_log, ulonglong cache_log_max_size,
+                    bool is_atomic_ddl);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);
@@ -196,17 +166,15 @@ public:
 extern PSI_rwlock_key key_rwlock_Server_state_delegate_lock;
 #endif
 
-class Server_state_delegate
-  :public Delegate {
-public:
-
+class Server_state_delegate : public Delegate {
+ public:
   Server_state_delegate()
-  : Delegate(
+      : Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-             key_rwlock_Server_state_delegate_lock
+            key_rwlock_Server_state_delegate_lock
 #endif
-             )
-  {}
+        ) {
+  }
 
   typedef Server_state_observer Observer;
   int before_handle_connection(THD *thd);
@@ -221,53 +189,44 @@ public:
 extern PSI_rwlock_key key_rwlock_Binlog_storage_delegate_lock;
 #endif
 
-class Binlog_storage_delegate
-  :public Delegate {
-public:
-
+class Binlog_storage_delegate : public Delegate {
+ public:
   Binlog_storage_delegate()
-  : Delegate(
+      : Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-             key_rwlock_Binlog_storage_delegate_lock
+            key_rwlock_Binlog_storage_delegate_lock
 #endif
-             )
-  {}
+        ) {
+  }
 
   typedef Binlog_storage_observer Observer;
-  int after_flush(THD *thd, const char *log_file,
-                  my_off_t log_pos);
-  int after_sync(THD *thd, const char *log_file,
-                 my_off_t log_pos);
+  int after_flush(THD *thd, const char *log_file, my_off_t log_pos);
+  int after_sync(THD *thd, const char *log_file, my_off_t log_pos);
 };
 
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
 extern PSI_rwlock_key key_rwlock_Binlog_transmit_delegate_lock;
 #endif
 
-class Binlog_transmit_delegate
-  :public Delegate {
-public:
-
+class Binlog_transmit_delegate : public Delegate {
+ public:
   Binlog_transmit_delegate()
-  : Delegate(
+      : Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-             key_rwlock_Binlog_transmit_delegate_lock
+            key_rwlock_Binlog_transmit_delegate_lock
 #endif
-             )
-  {}
+        ) {
+  }
 
   typedef Binlog_transmit_observer Observer;
-  int transmit_start(THD *thd, ushort flags,
-                     const char *log_file, my_off_t log_pos,
-                     bool *observe_transmission);
+  int transmit_start(THD *thd, ushort flags, const char *log_file,
+                     my_off_t log_pos, bool *observe_transmission);
   int transmit_stop(THD *thd, ushort flags);
   int reserve_header(THD *thd, ushort flags, String *packet);
-  int before_send_event(THD *thd, ushort flags,
-                        String *packet, const
-                        char *log_file, my_off_t log_pos );
-  int after_send_event(THD *thd, ushort flags,
-                       String *packet, const char *skipped_log_file,
-                       my_off_t skipped_log_pos);
+  int before_send_event(THD *thd, ushort flags, String *packet,
+                        const char *log_file, my_off_t log_pos);
+  int after_send_event(THD *thd, ushort flags, String *packet,
+                       const char *skipped_log_file, my_off_t skipped_log_pos);
   int after_reset_master(THD *thd, ushort flags);
 };
 
@@ -275,17 +234,15 @@ public:
 extern PSI_rwlock_key key_rwlock_Binlog_relay_IO_delegate_lock;
 #endif
 
-class Binlog_relay_IO_delegate
-  :public Delegate {
-public:
-
+class Binlog_relay_IO_delegate : public Delegate {
+ public:
   Binlog_relay_IO_delegate()
-  : Delegate(
+      : Delegate(
 #ifdef HAVE_PSI_RWLOCK_INTERFACE
-             key_rwlock_Binlog_relay_IO_delegate_lock
+            key_rwlock_Binlog_relay_IO_delegate_lock
 #endif
-             )
-  {}
+        ) {
+  }
 
   typedef Binlog_relay_IO_observer Observer;
   int thread_start(THD *thd, Master_info *mi);
@@ -293,15 +250,14 @@ public:
   int applier_start(THD *thd, Master_info *mi);
   int applier_stop(THD *thd, Master_info *mi, bool aborted);
   int before_request_transmit(THD *thd, Master_info *mi, ushort flags);
-  int after_read_event(THD *thd, Master_info *mi,
-                       const char *packet, ulong len,
+  int after_read_event(THD *thd, Master_info *mi, const char *packet, ulong len,
                        const char **event_buf, ulong *event_len);
-  int after_queue_event(THD *thd, Master_info *mi,
-                        const char *event_buf, ulong event_len,
-                        bool synced);
+  int after_queue_event(THD *thd, Master_info *mi, const char *event_buf,
+                        ulong event_len, bool synced);
   int after_reset_slave(THD *thd, Master_info *mi);
-  int applier_log_event(THD *thd, int& out);
-private:
+  int applier_log_event(THD *thd, int &out);
+
+ private:
   void init_param(Binlog_relay_IO_param *param, Master_info *mi);
 };
 
@@ -318,10 +274,9 @@ extern Binlog_relay_IO_delegate *binlog_relay_io_delegate;
   if there is no observers in the delegate, we can return 0
   immediately.
 */
-#define RUN_HOOK(group, hook, args)             \
-  (group ##_delegate->is_empty() ?              \
-   0 : group ##_delegate->hook args)
+#define RUN_HOOK(group, hook, args) \
+  (group##_delegate->is_empty() ? 0 : group##_delegate->hook args)
 
-#define NO_HOOK(group) (group ##_delegate->is_empty())
+#define NO_HOOK(group) (group##_delegate->is_empty())
 
 #endif /* RPL_HANDLER_H */

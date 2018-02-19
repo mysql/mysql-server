@@ -32,38 +32,37 @@
 #include "client/dump/i_chain_element.h"
 #include "client/dump/i_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Data structure for objects that are processed in any chain.
  */
-class Item_processing_data
-{
-public:
-  Item_processing_data(Chain_data* chain_data,
-    I_dump_task* process_task_object,
-    I_chain_element* chain_element,
-    const std::function<void(Item_processing_data*)>* completion_callback,
-    Item_processing_data* parent_item_data);
+class Item_processing_data {
+ public:
+  Item_processing_data(
+      Chain_data *chain_data, I_dump_task *process_task_object,
+      I_chain_element *chain_element,
+      const std::function<void(Item_processing_data *)> *completion_callback,
+      Item_processing_data *parent_item_data);
 
   ~Item_processing_data();
 
   /**
     Returns chain data in which this item is being processed.
    */
-  Chain_data* get_chain() const;
+  Chain_data *get_chain() const;
 
-  Item_processing_data* get_parent_item_data() const;
+  Item_processing_data *get_parent_item_data() const;
 
   void start_processing();
 
   bool end_processing();
 
-  I_dump_task* get_process_task_object() const;
+  I_dump_task *get_process_task_object() const;
 
-  I_chain_element* get_processing_chain_element() const;
+  I_chain_element *get_processing_chain_element() const;
 
   bool have_completion_callback();
 
@@ -71,32 +70,32 @@ public:
 
   void set_had_chain_created();
 
-  void set_chain(Chain_data*);
+  void set_chain(Chain_data *);
 
   bool call_completion_callback_at_end();
-  
-private:
+
+ private:
   /**
     Chain in which current processing item is processed.
    */
-  Chain_data* m_chain_data;
+  Chain_data *m_chain_data;
   /**
     Instance of task object that is being processing.
    */
-  I_dump_task* m_process_task_object;
+  I_dump_task *m_process_task_object;
   /**
     Instance of chain element that is processing specified element.
    */
-  I_chain_element* m_chain_element;
+  I_chain_element *m_chain_element;
   /**
     Callback to call after element is fully processed to the output. Can be
     NULL.
    */
-  const std::function<void(Item_processing_data*)>* m_completion_callback;
+  const std::function<void(Item_processing_data *)> *m_completion_callback;
   /**
     Link to item process information of parent module execution, if exists.
    */
-  Item_processing_data* m_parent_item_data;
+  Item_processing_data *m_parent_item_data;
   /**
     Number of modules that have pending or are executing this task.
    */
@@ -107,8 +106,8 @@ private:
   bool m_had_chain_created;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -23,6 +23,8 @@
 # NOTE: "vendor" is used in upgrade/downgrade check, so you can't
 # change these, has to be exactly as is.
 
+%global milestone    dmr
+
 %global mysql_vendor Oracle and/or its affiliates
 %global mysqldatadir /var/lib/mysql
 
@@ -45,7 +47,7 @@
 %global compatsrc             https://cdn.mysql.com/Downloads/MySQL-5.6/mysql-%{compatver}.tar.gz
 %endif
 
-%global src_dir               %{src_base}-%{version}%{?milestone:-%{milestone}}
+%global src_dir               %{src_base}-%{version}
 
 # No debuginfo for now
 %if 0%{?nodebuginfo}
@@ -68,7 +70,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?dist}
+Release:        1%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 Source1:        https://downloads.sourceforge.net/boost/@BOOST_PACKAGE_NAME@.tar.bz2
@@ -508,7 +510,7 @@ mkdir release
 %install
 # Install compat libs
 %if 0%{?compatlib}
-for dir in libmysql libmysqld ; do
+for dir in libmysql libmysqld sql/share ; do
     pushd mysql-%{compatver}/build/$dir
     make DESTDIR=%{buildroot} install
     popd
@@ -546,12 +548,14 @@ fi
 
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_infodir}/mysql.info*
-rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
-rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
+rm -rf %{buildroot}%{_datadir}/mysql-*/mysql.server
+rm -rf %{buildroot}%{_datadir}/mysql-*/mysqld_multi.server
 
 # Remove upcoming man pages, to avoid breakage when they materialize
 # Keep this comment as a placeholder for future cases
 # rm -f %{buildroot}%{_mandir}/man1/<manpage>.1
+
+# Remove removed manpages here until they are removed from the docs repo
 
 %check
 %if 0%{?runselftest} || 0%{?with_unittests}
@@ -703,17 +707,17 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 
-%attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_sys_schema.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql_test_data_timezone.sql
-%attr(644, root, root) %{_datadir}/mysql/mysql-log-rotate
-%attr(644, root, root) %{_datadir}/mysql/dictionary.txt
-%attr(644, root, root) %{_datadir}/mysql/innodb_memcached_config.sql
-%attr(644, root, root) %{_datadir}/mysql/install_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/uninstall_rewriter.sql
-%attr(644, root, root) %{_datadir}/mysql/magic
+%attr(644, root, root) %{_datadir}/mysql-*/fill_help_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_sys_schema.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_system_tables_data.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql_test_data_timezone.sql
+%attr(644, root, root) %{_datadir}/mysql-*/mysql-log-rotate
+%attr(644, root, root) %{_datadir}/mysql-*/dictionary.txt
+%attr(644, root, root) %{_datadir}/mysql-*/innodb_memcached_config.sql
+%attr(644, root, root) %{_datadir}/mysql-*/install_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/uninstall_rewriter.sql
+%attr(644, root, root) %{_datadir}/mysql-*/magic
 %attr(644, root, root) %{_prefix}/lib/tmpfiles.d/mysql.conf
 %attr(644, root, root) %{_unitdir}/mysqld.service
 %attr(644, root, root) %{_unitdir}/mysqld@.service
@@ -726,32 +730,32 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %files common
 %defattr(-, root, root, -)
 %doc %{?license_files_server}
-%{_datadir}/mysql/charsets/
-%{_datadir}/mysql/errmsg-utf8.txt
-%{_datadir}/mysql/bulgarian/
-%{_datadir}/mysql/czech/
-%{_datadir}/mysql/danish/
-%{_datadir}/mysql/dutch/
-%{_datadir}/mysql/english/
-%{_datadir}/mysql/estonian/
-%{_datadir}/mysql/french/
-%{_datadir}/mysql/german/
-%{_datadir}/mysql/greek/
-%{_datadir}/mysql/hungarian/
-%{_datadir}/mysql/italian/
-%{_datadir}/mysql/japanese/
-%{_datadir}/mysql/korean/
-%{_datadir}/mysql/norwegian-ny/
-%{_datadir}/mysql/norwegian/
-%{_datadir}/mysql/polish/
-%{_datadir}/mysql/portuguese/
-%{_datadir}/mysql/romanian/
-%{_datadir}/mysql/russian/
-%{_datadir}/mysql/serbian/
-%{_datadir}/mysql/slovak/
-%{_datadir}/mysql/spanish/
-%{_datadir}/mysql/swedish/
-%{_datadir}/mysql/ukrainian/
+%{_datadir}/mysql-*/charsets/
+%{_datadir}/mysql-*/errmsg-utf8.txt
+%{_datadir}/mysql-*/bulgarian/
+%{_datadir}/mysql-*/czech/
+%{_datadir}/mysql-*/danish/
+%{_datadir}/mysql-*/dutch/
+%{_datadir}/mysql-*/english/
+%{_datadir}/mysql-*/estonian/
+%{_datadir}/mysql-*/french/
+%{_datadir}/mysql-*/german/
+%{_datadir}/mysql-*/greek/
+%{_datadir}/mysql-*/hungarian/
+%{_datadir}/mysql-*/italian/
+%{_datadir}/mysql-*/japanese/
+%{_datadir}/mysql-*/korean/
+%{_datadir}/mysql-*/norwegian-ny/
+%{_datadir}/mysql-*/norwegian/
+%{_datadir}/mysql-*/polish/
+%{_datadir}/mysql-*/portuguese/
+%{_datadir}/mysql-*/romanian/
+%{_datadir}/mysql-*/russian/
+%{_datadir}/mysql-*/serbian/
+%{_datadir}/mysql-*/slovak/
+%{_datadir}/mysql-*/spanish/
+%{_datadir}/mysql-*/swedish/
+%{_datadir}/mysql-*/ukrainian/
 
 %files client
 %defattr(-, root, root, -)
@@ -964,31 +968,56 @@ datadir=$(/usr/bin/my_print_defaults server mysqld | grep '^--datadir=' | sed -n
 %dir %attr(755, root, root) %{_libdir}/mysql
 %attr(644, root, root) %{_sysconfdir}/ld.so.conf.d/mysql-%{_arch}.conf
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so.18*
+%{_datadir}/mysql/charsets/
+%{_datadir}/mysql/errmsg-utf8.txt
+%{_datadir}/mysql/bulgarian/
+%{_datadir}/mysql/czech/
+%{_datadir}/mysql/danish/
+%{_datadir}/mysql/dutch/
+%{_datadir}/mysql/english/
+%{_datadir}/mysql/estonian/
+%{_datadir}/mysql/french/
+%{_datadir}/mysql/german/
+%{_datadir}/mysql/greek/
+%{_datadir}/mysql/hungarian/
+%{_datadir}/mysql/italian/
+%{_datadir}/mysql/japanese/
+%{_datadir}/mysql/korean/
+%{_datadir}/mysql/norwegian-ny/
+%{_datadir}/mysql/norwegian/
+%{_datadir}/mysql/polish/
+%{_datadir}/mysql/portuguese/
+%{_datadir}/mysql/romanian/
+%{_datadir}/mysql/russian/
+%{_datadir}/mysql/serbian/
+%{_datadir}/mysql/slovak/
+%{_datadir}/mysql/spanish/
+%{_datadir}/mysql/swedish/
+%{_datadir}/mysql/ukrainian/
+%exclude %{_datadir}/mysql/dictionary.txt
 %endif # compatlib
 
 %changelog
-* Wed Jan 24 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-0.1
+* Wed Jan 31 2018 Erlend Dahl <erlend.dahl@oracle.com> - 8.0.5-1
 - Removed milestone marker
 - Move mysqlx to default plugin
 - Add component_mysqlx_global_reset.so
 - No longer need to remove obsoleted mysqltest man pages
 - Add perl modules for test subpackage
+- Fixed the package names for GA release
 
 * Thu Dec 07 2017 Bjorn Munch <bjorn.munch@oracle.com> - 8.0.4-0.1
 - Remove obsoleted mysqltest man pages
 - Do not pass SSL option to 5.6 compat build, just use bundled
 - Add component_validate_password component
 - Include udf_example.so in test package
+- Remove obsoleted mysqltest man pages
+- Do not pass SSL option to 5.6 compat build, just use bundled
 - Add License Book, remove COPYING
+- No longer need to remove obsoleted mysqltest man pages
+- Add perl modules for test subpackage
 
 * Fri Jul 28 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Tue Jul 19 2017 V S Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.3-0.1
-- Add component_test_status_var_service plugin
-
-* Thu Jun 08 2017 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 8.0.3-0.1
-- Updated for 8.0.3 release
 - Add component_test_status_var_service plugin
 
 * Thu May 11 2017 Horst Hunger <horst.hunger@oracle.com> - 8.0.2-0.1

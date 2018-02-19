@@ -43,10 +43,11 @@
 #include <vector>
 
 #include "binlog_event.h"
+#include "byteorder.h"
 #include "template_utils.h"
+#include "uuid.h"
 
-namespace binary_log
-{
+namespace binary_log {
 /**
   @class Rotate_event
 
@@ -102,36 +103,35 @@ namespace binary_log
 
   </table>
 */
-class Rotate_event: public Binary_log_event
-{
-public:
-  const char* new_log_ident;
+class Rotate_event : public Binary_log_event {
+ public:
+  const char *new_log_ident;
   size_t ident_len;
   unsigned int flags;
   uint64_t pos;
 
   enum {
     /* Values taken by the flag member variable */
-    DUP_NAME= 2, // if constructor should dup the string argument
-    RELAY_LOG= 4 // rotate event for the relay log
+    DUP_NAME = 2,  // if constructor should dup the string argument
+    RELAY_LOG = 4  // rotate event for the relay log
   };
 
   enum {
     /* Rotate event post_header */
-    R_POS_OFFSET= 0,
-    R_IDENT_OFFSET= 8
+    R_POS_OFFSET = 0,
+    R_IDENT_OFFSET = 8
   };
 
   /**
     This is the minimal constructor, it will set the type code as ROTATE_EVENT.
   */
-  Rotate_event(const char* new_log_ident_arg, size_t ident_len_arg,
+  Rotate_event(const char *new_log_ident_arg, size_t ident_len_arg,
                unsigned int flags_arg, uint64_t pos_arg)
-    : Binary_log_event(ROTATE_EVENT),
-      new_log_ident(new_log_ident_arg),
-      ident_len(ident_len_arg ? ident_len_arg : strlen(new_log_ident_arg)),
-      flags(flags_arg), pos(pos_arg)
-  {}
+      : Binary_log_event(ROTATE_EVENT),
+        new_log_ident(new_log_ident_arg),
+        ident_len(ident_len_arg ? ident_len_arg : strlen(new_log_ident_arg)),
+        flags(flags_arg),
+        pos(pos_arg) {}
 
   /**
     <pre>
@@ -152,21 +152,18 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Rotate_event(const char* buf, unsigned int event_len,
+  Rotate_event(const char *buf, unsigned int event_len,
                const Format_description_event *description_event);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream&);
-  void print_long_info(std::ostream&);
+  void print_event_info(std::ostream &);
+  void print_long_info(std::ostream &);
 #endif
 
-  ~Rotate_event()
-  {
-    if (flags & DUP_NAME)
-      bapi_free(const_cast<char*>(new_log_ident));
+  ~Rotate_event() {
+    if (flags & DUP_NAME) bapi_free(const_cast<char *>(new_log_ident));
   }
 };
-
 
 /**
   @class Format_description_event
@@ -231,28 +228,27 @@ public:
   </tr>
   </table>
 */
-class Format_description_event: public Binary_log_event
-{
-public:
-/**
-   If this event is at the start of the first binary log since server
-   startup 'created' should be the timestamp when the event (and the
-   binary log) was created.  In the other case (i.e. this event is at
-   the start of a binary log created by FLUSH LOGS or automatic
-   rotation), 'created' should be 0.  This "trick" is used by MySQL
-   >=4.0.14 slaves to know whether they must drop stale temporary
-   tables and whether they should abort unfinished transaction.
+class Format_description_event : public Binary_log_event {
+ public:
+  /**
+     If this event is at the start of the first binary log since server
+     startup 'created' should be the timestamp when the event (and the
+     binary log) was created.  In the other case (i.e. this event is at
+     the start of a binary log created by FLUSH LOGS or automatic
+     rotation), 'created' should be 0.  This "trick" is used by MySQL
+     >=4.0.14 slaves to know whether they must drop stale temporary
+     tables and whether they should abort unfinished transaction.
 
-   Note that when 'created'!=0, it is always equal to the event's
-   timestamp; indeed Format_description_event is written only in binlog.cc where
-   the first constructor below is called, in which 'created' is set
-   to 'when'.  So in fact 'created' is a useless variable. When it is
-   0 we can read the actual value from timestamp ('when') and when it
-   is non-zero we can read the same value from timestamp
-   ('when'). Conclusion:
-   - we use timestamp to print when the binlog was created.
-   - we use 'created' only to know if this is a first binlog or not.
-*/
+     Note that when 'created'!=0, it is always equal to the event's
+     timestamp; indeed Format_description_event is written only in binlog.cc
+     where the first constructor below is called, in which 'created' is set to
+     'when'.  So in fact 'created' is a useless variable. When it is 0 we can
+     read the actual value from timestamp ('when') and when it is non-zero we
+     can read the same value from timestamp
+     ('when'). Conclusion:
+     - we use timestamp to print when the binlog was created.
+     - we use 'created' only to know if this is a first binlog or not.
+  */
   time_t created;
   uint16_t binlog_version;
   char server_version[ST_SERVER_VER_LEN];
@@ -287,8 +283,7 @@ public:
      since 8.0.2.
      @param server_ver             The MySQL server's version.
   */
-  Format_description_event(uint8_t binlog_ver,
-                           const char* server_ver);
+  Format_description_event(uint8_t binlog_ver, const char *server_ver);
   /**
      The layout of the event data part  in  Format_description_event
      <pre>
@@ -319,7 +314,7 @@ public:
      @note The description_event passed to this constructor was created
      through another constructor of FDE class
   */
-  Format_description_event(const char* buf, unsigned int event_len,
+  Format_description_event(const char *buf, unsigned int event_len,
                            const Format_description_event *description_event);
 
   uint8_t number_of_event_types;
@@ -327,8 +322,8 @@ public:
   bool is_version_before_checksum() const;
   void calc_server_version_split();
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
   ~Format_description_event();
 };
@@ -347,17 +342,15 @@ public:
   the Common-Header.
 */
 
-class Stop_event: public Binary_log_event
-{
-public:
+class Stop_event : public Binary_log_event {
+ public:
   /**
     It is the minimal constructor, and all it will do is set the type_code as
     STOP_EVENT in the header object in Binary_log_event.
   */
-  Stop_event() : Binary_log_event(STOP_EVENT)
-  {}
-  //buf is advanced in Binary_log_event constructor to point to beginning of
-  //post-header
+  Stop_event() : Binary_log_event(STOP_EVENT) {}
+  // buf is advanced in Binary_log_event constructor to point to beginning of
+  // post-header
 
   /**
     A Stop_event is occurs under these circumstances:
@@ -374,17 +367,14 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Stop_event(const char* buf,
-             const Format_description_event *description_event)
-    :Binary_log_event(&buf, description_event->binlog_version)
-  {}
+  Stop_event(const char *buf, const Format_description_event *description_event)
+      : Binary_log_event(&buf, description_event->binlog_version) {}
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream&) {};
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &){};
+  void print_long_info(std::ostream &info);
 #endif
 };
-
 
 /**
   @class Incident_event
@@ -423,41 +413,32 @@ public:
    </table>
 
 */
-class Incident_event: public Binary_log_event
-{
-public:
+class Incident_event : public Binary_log_event {
+ public:
   /**
     Enumeration of the incidents that can occur for the server.
   */
   enum enum_incident {
-  /** No incident */
-  INCIDENT_NONE = 0,
-  /** There are possibly lost events in the replication stream */
-  INCIDENT_LOST_EVENTS = 1,
-  /** Shall be last event of the enumeration */
-  INCIDENT_COUNT
+    /** No incident */
+    INCIDENT_NONE = 0,
+    /** There are possibly lost events in the replication stream */
+    INCIDENT_LOST_EVENTS = 1,
+    /** Shall be last event of the enumeration */
+    INCIDENT_COUNT
   };
 
-  enum_incident get_incident_type()
-  {
-    return incident;
-  }
-  char* get_message()
-  {
-    return message;
-  }
-
+  enum_incident get_incident_type() { return incident; }
+  char *get_message() { return message; }
 
   /**
     This will create an Incident_event with an empty message and set the
     type_code as INCIDENT_EVENT in the header object in Binary_log_event.
   */
   explicit Incident_event(enum_incident incident_arg)
-    : Binary_log_event(INCIDENT_EVENT),
-      incident(incident_arg),
-      message(NULL),
-      message_length(0)
-  {}
+      : Binary_log_event(INCIDENT_EVENT),
+        incident(incident_arg),
+        message(NULL),
+        message_length(0) {}
 
   /**
     Constructor of Incident_event
@@ -487,15 +468,14 @@ public:
   Incident_event(const char *buf, unsigned int event_len,
                  const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
-protected:
+ protected:
   enum_incident incident;
   char *message;
   size_t message_length;
 };
-
 
 /**
   @class Xid_event
@@ -525,19 +505,15 @@ The Body has the following component:
   The Post-Header and Body for this event type are empty; it only has
   the common header.
 */
-class Xid_event: public Binary_log_event
-{
-public:
+class Xid_event : public Binary_log_event {
+ public:
   /**
     The minimal constructor of Xid_event, it initializes the instance variable
     xid and set the type_code as XID_EVENT in the header object in
     Binary_log_event
   */
   explicit Xid_event(uint64_t xid_arg)
-    : Binary_log_event(XID_EVENT),
-      xid(xid_arg)
-  {
-  }
+      : Binary_log_event(XID_EVENT), xid(xid_arg) {}
 
   /**
     An XID event is generated for a commit of a transaction that modifies one or
@@ -555,8 +531,8 @@ public:
   Xid_event(const char *buf, const Format_description_event *description_event);
   uint64_t xid;
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream& info);
-  void print_long_info(std::ostream& info);
+  void print_event_info(std::ostream &info);
+  void print_long_info(std::ostream &info);
 #endif
 };
 
@@ -601,64 +577,60 @@ The Body has the following component:
   the common header.
 */
 
-class XA_prepare_event: public Binary_log_event
-{
+class XA_prepare_event : public Binary_log_event {
   /*
     Struct def is copied from $MYSQL/include/mysql/plugin.h,
     consult there about fine details.
   */
-  static const int MY_XIDDATASIZE= 128;
+  static const int MY_XIDDATASIZE = 128;
 
-  struct st_mysql_xid {
+  struct MY_XID {
     long formatID;
     long gtrid_length;
     long bqual_length;
-    char data[MY_XIDDATASIZE];  /* Not \0-terminated */
+    char data[MY_XIDDATASIZE]; /* Not \0-terminated */
   };
-  typedef struct st_mysql_xid MY_XID;
 
-protected:
+ protected:
   /* size of serialization buffer is explained in $MYSQL/sql/xa.h. */
-  static const uint16_t ser_buf_size=
-    8 + 2 * MY_XIDDATASIZE + 4 * sizeof(long) + 1;
+  static const uint16_t ser_buf_size =
+      8 + 2 * MY_XIDDATASIZE + 4 * sizeof(long) + 1;
   MY_XID my_xid;
   void *xid; /* Master side only */
   bool one_phase;
 
-public:
+ public:
   /**
     The minimal constructor of XA_prepare_event, it initializes the
     instance variable xid and set the type_code as XID_EVENT in the
     header object in Binary_log_event
   */
   XA_prepare_event(void *xid_arg, bool oph_arg)
-    : Binary_log_event(XA_PREPARE_LOG_EVENT), xid(xid_arg), one_phase(oph_arg)
-  {
-  }
+      : Binary_log_event(XA_PREPARE_LOG_EVENT),
+        xid(xid_arg),
+        one_phase(oph_arg) {}
 
   /**
     An XID event is generated for a commit of a transaction that modifies one or
     more tables of an XA-capable storage engine
     @param buf    Contains the serialized event.
-    @param description_event    An FDE event, used to get the following information
-                     -binlog_version
-                     -server_version
-                     -post_header_len
+    @param description_event    An FDE event, used to get the following
+    information -binlog_version -server_version -post_header_len
                      -common_header_len
                      The content of this object
                      depends on the binlog-version currently in use.
   */
-  XA_prepare_event(const char *buf, const Format_description_event *description_event);
+  XA_prepare_event(const char *buf,
+                   const Format_description_event *description_event);
 #ifndef HAVE_MYSYS
   /*
     todo: we need to find way how to exploit server's code of
     serialize_xid()
   */
-  void print_event_info(std::ostream&) {};
-  void print_long_info(std::ostream&)  {};
+  void print_event_info(std::ostream &){};
+  void print_long_info(std::ostream &){};
 #endif
 };
-
 
 /**
   @class Ignorable_event
@@ -682,19 +654,17 @@ public:
   The Post-Header and Body for this event type are empty; it only has
   the Common-Header.
 */
-class Ignorable_event: public Binary_log_event
-{
-public:
-  //buf is advanced in Binary_log_event constructor to point to beginning of
-  //post-header
+class Ignorable_event : public Binary_log_event {
+ public:
+  // buf is advanced in Binary_log_event constructor to point to beginning of
+  // post-header
 
   /**
     The minimal constructor and all it will do is set the type_code as
     IGNORABLE_LOG_EVENT in the header object in Binary_log_event.
   */
-  explicit Ignorable_event(Log_event_type type_arg= IGNORABLE_LOG_EVENT)
-    : Binary_log_event(type_arg)
-  {}
+  explicit Ignorable_event(Log_event_type type_arg = IGNORABLE_LOG_EVENT)
+      : Binary_log_event(type_arg) {}
   /*
    @param buf                Contains the serialized event.
    @param description_event  An FDE event, used to get the
@@ -708,11 +678,10 @@ public:
   */
   Ignorable_event(const char *buf, const Format_description_event *descr_event);
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 };
-
 
 /**
   @struct  gtid_info
@@ -744,153 +713,10 @@ public:
   </tr>
   </table>
 */
-struct gtid_info
-{
-  int32_t  rpl_gtid_sidno;
-  int64_t  rpl_gtid_gno;
+struct gtid_info {
+  int32_t rpl_gtid_sidno;
+  int64_t rpl_gtid_gno;
 };
-
-/**
-  @struct  Uuid
-
-  This is a POD.  It has to be a POD because it is a member of
-  Sid_map::Node which is stored in HASH in mysql-server code.
-  The structure contains the following components.
-  <table>
-  <caption>Structure gtid_info</caption>
-
-  <tr>
-    <th>Name</th>
-    <th>Format</th>
-    <th>Description</th>
-  </tr>
-  <tr>
-    <td>byte</td>
-    <td>unsigned char array</td>
-    <td>This stores the Uuid of the server on which transaction
-        is originated</td>
-  </tr>
-  </table>
-*/
-
-struct Uuid
-{
-
-   /// Set to all zeros.
-  void clear() { memset(bytes, 0, BYTE_LENGTH); }
-   /// Copies the given 16-byte data to this UUID.
-  void copy_from(const unsigned char *data)
-  {
-    memcpy(bytes, data, BYTE_LENGTH);
-  }
-  /// Copies the given UUID object to this UUID.
-  void copy_from(const Uuid &data) { copy_from((unsigned char *)data.bytes); }
-  /// Copies the given UUID object to this UUID.
-  void copy_to(unsigned char *data) const { memcpy(data, bytes,
-                                           BYTE_LENGTH); }
-  /// Returns true if this UUID is equal the given UUID.
-  bool equals(const Uuid &other) const
-  { return memcmp(bytes, other.bytes, BYTE_LENGTH) == 0; }
-  /**
-    Returns true if parse() would succeed, but doesn't store the result.
-
-     @param string String that needs to be checked.
-     @param len    Length of that string.
-
-     @retval true  valid string.
-     @retval false invalid string.
-  */
-  static bool is_valid(const char *string, size_t len);
-
-  /**
-    Stores the UUID represented by a string of the form
-    XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX or
-    XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX or
-    {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
-    in this object.
-
-     @param string String to be parsed and stored.
-     @param len    Length of that string.
-
-     @retval   0   success.
-     @retval  >0   failure.
-  */
-  int parse(const char *string, size_t len);
-
-  /**
-    Parses the UUID passed as argument in in_string and functions and writes
-    the binary representation in out_binary_string.
-    Depends on UUID's read_section method and the constants for text length.
-
-     @param[in] in_string           String to be parsed.
-     @param[in] len                 Length of that string.
-     @param[out] out_binary_string  String where the binary UUID will be stored
-
-     @retval   0   success.
-     @retval  >0   failure.
-  */
-  static int parse(const char *in_string, size_t len,
-                   const unsigned char *out_binary_string);
-  /**
-    Helper method used to validate and parse one section of a uuid.
-    If the last parameter, out_binary_str, is NULL then the function will
-    just validate the section.
-
-     @param[in]      section_len      Length of the section to be parsed.
-     @param[in,out]  section_str      Pointer to a string containing the
-                                      section. It will be updated during the
-                                      execution as the string is parsed.
-     @param[out]     out_binary_str   String where the section will be stored
-                                      in binary format. If null, the function
-                                      will just validate the input string.
-
-     @retval  false   success.
-     @retval  true    failure.
-  */
-  static bool read_section(int section_len, const char **section_str,
-                           const unsigned char **out_binary_str);
-  /** The number of bytes in the data of a Uuid. */
-  static const size_t BYTE_LENGTH= 16;
-  /** The data for this Uuid. */
-  unsigned char bytes[BYTE_LENGTH];
-  /**
-    Generates a 36+1 character long representation of this UUID object
-    in the given string buffer.
-
-    @retval 36 - the length of the resulting string.
-  */
-  size_t to_string(char *buf) const;
-  /// Convert the given binary buffer to a UUID
-  static size_t to_string(const unsigned char* bytes_arg, char *buf);
-  void print() const
-  {
-    char buf[TEXT_LENGTH + 1];
-    to_string(buf);
-    printf("%s\n", buf);
-  }
-  /// The number of bytes in the textual representation of a Uuid.
-  static const size_t TEXT_LENGTH= 36;
-  /// The number of bits in the data of a Uuid.
-  static const size_t BIT_LENGTH= 128;
-  static const int NUMBER_OF_SECTIONS= 5;
-  static const int bytes_per_section[NUMBER_OF_SECTIONS];
-  static const int hex_to_byte[256];
-};
-
-struct Hash_Uuid
-{
-  size_t operator() (const Uuid &uuid) const
-  {
-    return std::hash<std::string>()
-      (std::string(pointer_cast<const char *>(uuid.bytes), Uuid::BYTE_LENGTH));
-  }
-};
-
-inline bool operator== (const Uuid &a, const Uuid &b)
-{
-  return a.equals(b);
-}
-
 
 /**
   @class Gtid_event
@@ -966,9 +792,8 @@ inline bool operator== (const Uuid &a, const Uuid &b)
   </table>
 
 */
-class Gtid_event: public Binary_log_event
-{
-public:
+class Gtid_event : public Binary_log_event {
+ public:
   /*
     The transaction's logical timestamps used for MTS: see
     Transaction_ctx::last_committed and
@@ -978,7 +803,7 @@ public:
   long long int last_committed;
   long long int sequence_number;
   /** GTID flags constants */
-  unsigned const char FLAG_MAY_HAVE_SBR= 1;
+  unsigned const char FLAG_MAY_HAVE_SBR = 1;
   /** Transaction might have changes logged with SBR */
   bool may_have_sbr_stmts;
   /** Timestamp when the transaction was committed on the originating master. */
@@ -988,7 +813,8 @@ public:
   bool has_commit_timestamps;
   /** The length of the transaction in bytes. */
   unsigned long long int transaction_length;
-public:
+
+ public:
   /**
     Ctor of Gtid_event
 
@@ -1021,45 +847,43 @@ public:
                       bool may_have_sbr_stmts_arg,
                       unsigned long long int original_commit_timestamp_arg,
                       unsigned long long int immediate_commit_timestamp_arg)
-    : Binary_log_event(GTID_LOG_EVENT),
-      last_committed(last_committed_arg),
-      sequence_number(sequence_number_arg),
-      may_have_sbr_stmts(may_have_sbr_stmts_arg),
-      original_commit_timestamp(original_commit_timestamp_arg),
-      immediate_commit_timestamp(immediate_commit_timestamp_arg),
-      transaction_length(0)
-  {}
+      : Binary_log_event(GTID_LOG_EVENT),
+        last_committed(last_committed_arg),
+        sequence_number(sequence_number_arg),
+        may_have_sbr_stmts(may_have_sbr_stmts_arg),
+        original_commit_timestamp(original_commit_timestamp_arg),
+        immediate_commit_timestamp(immediate_commit_timestamp_arg),
+        transaction_length(0) {}
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info
+  // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
-protected:
-  static const int ENCODED_FLAG_LENGTH= 1;
-  static const int ENCODED_SID_LENGTH= 16;// Uuid::BYTE_LENGTH;
-  static const int ENCODED_GNO_LENGTH= 8;
+ protected:
+  static const int ENCODED_FLAG_LENGTH = 1;
+  static const int ENCODED_SID_LENGTH = 16;  // Uuid::BYTE_LENGTH;
+  static const int ENCODED_GNO_LENGTH = 8;
   /// Length of typecode for logical timestamps.
-  static const int LOGICAL_TIMESTAMP_TYPECODE_LENGTH= 1;
+  static const int LOGICAL_TIMESTAMP_TYPECODE_LENGTH = 1;
   /// Length of two logical timestamps.
-  static const int LOGICAL_TIMESTAMP_LENGTH= 16;
+  static const int LOGICAL_TIMESTAMP_LENGTH = 16;
   // Type code used before the logical timestamps.
-  static const int LOGICAL_TIMESTAMP_TYPECODE= 2;
+  static const int LOGICAL_TIMESTAMP_TYPECODE = 2;
 
-  static const int IMMEDIATE_COMMIT_TIMESTAMP_LENGTH= 7;
-  static const int ORIGINAL_COMMIT_TIMESTAMP_LENGTH= 7;
+  static const int IMMEDIATE_COMMIT_TIMESTAMP_LENGTH = 7;
+  static const int ORIGINAL_COMMIT_TIMESTAMP_LENGTH = 7;
   // Length of two timestamps (from original/immediate masters)
-  static const int FULL_COMMIT_TIMESTAMP_LENGTH=
-    IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
+  static const int FULL_COMMIT_TIMESTAMP_LENGTH =
+      IMMEDIATE_COMMIT_TIMESTAMP_LENGTH + ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
   // We use 7 bytes out of which 1 bit is used as a flag.
-  static const int ENCODED_COMMIT_TIMESTAMP_LENGTH= 55;
+  static const int ENCODED_COMMIT_TIMESTAMP_LENGTH = 55;
   // Minimum and maximum lengths of transaction length field.
-  static const int TRANSACTION_LENGTH_MIN_LENGTH= 1;
-  static const int TRANSACTION_LENGTH_MAX_LENGTH= 9;
+  static const int TRANSACTION_LENGTH_MIN_LENGTH = 1;
+  static const int TRANSACTION_LENGTH_MAX_LENGTH = 9;
 
   /* We have only original commit timestamp if both timestamps are equal. */
-  int get_commit_timestamp_length() const
-  {
+  int get_commit_timestamp_length() const {
     if (original_commit_timestamp != immediate_commit_timestamp)
       return FULL_COMMIT_TIMESTAMP_LENGTH;
     return ORIGINAL_COMMIT_TIMESTAMP_LENGTH;
@@ -1067,14 +891,15 @@ protected:
 
   gtid_info gtid_info_struct;
   Uuid Uuid_parent_struct;
-public:
+
+ public:
   /// Total length of post header
-  static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH               +  /* flags */
-    ENCODED_SID_LENGTH                +  /* SID length */
-    ENCODED_GNO_LENGTH                +  /* GNO length */
-    LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
-    LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
+  static const int POST_HEADER_LENGTH =
+      ENCODED_FLAG_LENGTH +               /* flags */
+      ENCODED_SID_LENGTH +                /* SID length */
+      ENCODED_GNO_LENGTH +                /* GNO length */
+      LOGICAL_TIMESTAMP_TYPECODE_LENGTH + /* length of typecode */
+      LOGICAL_TIMESTAMP_LENGTH;           /* length of two logical timestamps */
 
   /*
     Length of two timestamps used for monitoring.
@@ -1083,10 +908,10 @@ public:
     On the originating master, the event has only one timestamp as the two
     timestamps are equal. On every other server we have two timestamps.
   */
-  static const int MAX_DATA_LENGTH= FULL_COMMIT_TIMESTAMP_LENGTH +
-                                    TRANSACTION_LENGTH_MAX_LENGTH;
-  static const int MAX_EVENT_LENGTH=
-    LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
+  static const int MAX_DATA_LENGTH =
+      FULL_COMMIT_TIMESTAMP_LENGTH + TRANSACTION_LENGTH_MAX_LENGTH;
+  static const int MAX_EVENT_LENGTH =
+      LOG_EVENT_HEADER_LEN + POST_HEADER_LENGTH + MAX_DATA_LENGTH;
   /**
    Set the transaction length information.
 
@@ -1095,12 +920,10 @@ public:
 
     @param transaction_length_arg The transaction length.
   */
-  void set_trx_length(unsigned long long int transaction_length_arg)
-  {
-    transaction_length= transaction_length_arg;
+  void set_trx_length(unsigned long long int transaction_length_arg) {
+    transaction_length = transaction_length_arg;
   }
 };
-
 
 /**
   @class Previous_gtids_event
@@ -1133,10 +956,8 @@ public:
   </tr>
   </table>
 */
-class Previous_gtids_event : public Binary_log_event
-{
-public:
-
+class Previous_gtids_event : public Binary_log_event {
+ public:
   /**
     Decodes the gtid_executed in the last binlog file
 
@@ -1164,16 +985,14 @@ public:
     type_code as PREVIOUS_GTIDS_LOG_EVENT in the header object in
     Binary_log_event
   */
-  Previous_gtids_event()
-    : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT)
-  {}
+  Previous_gtids_event() : Binary_log_event(PREVIOUS_GTIDS_LOG_EVENT) {}
 #ifndef HAVE_MYSYS
-  //TODO(WL#7684): Implement the method print_event_info and print_long_info
+  // TODO(WL#7684): Implement the method print_event_info and print_long_info
   //               for all the events supported  in  MySQL Binlog
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
-protected:
+ protected:
   size_t buf_size;
   const unsigned char *buf;
 };
@@ -1200,8 +1019,8 @@ protected:
   <tr>
     <td>gtid_specified</td>
     <td>bool type variable</td>
-    <td>Variable to identify whether the Gtid have been specified for the ongoing
-        transaction or not.
+    <td>Variable to identify whether the Gtid have been specified for the
+  ongoing transaction or not.
     </td>
   </tr>
 
@@ -1228,14 +1047,14 @@ protected:
 
   <tr>
     <td>read_set</td>
-    <td>variable length list to store the read set values. Currently empty. </td>
-    <td>Will be used to store the read set values of the current transaction.</td>
+    <td>variable length list to store the read set values. Currently empty.
+  </td> <td>Will be used to store the read set values of the current
+  transaction.</td>
   </tr>
 
 */
-class Transaction_context_event : public Binary_log_event
-{
-public:
+class Transaction_context_event : public Binary_log_event {
+ public:
   /**
     Decodes the transaction_context_log_event of the ongoing transaction.
 
@@ -1259,52 +1078,52 @@ public:
 
   Transaction_context_event(unsigned int thread_id_arg,
                             bool is_gtid_specified_arg)
-    : Binary_log_event(TRANSACTION_CONTEXT_EVENT),
-      thread_id(thread_id_arg), gtid_specified(is_gtid_specified_arg)
-  {}
+      : Binary_log_event(TRANSACTION_CONTEXT_EVENT),
+        thread_id(thread_id_arg),
+        gtid_specified(is_gtid_specified_arg) {}
 
   virtual ~Transaction_context_event();
 
   static const char *read_data_set(const char *pos, uint32_t set_len,
-                                   std::list<const char*> *set,
+                                   std::list<const char *> *set,
                                    uint32_t remaining_buffer);
 
-  static void clear_set(std::list<const char*> *set);
+  static void clear_set(std::list<const char *> *set);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 
-protected:
+ protected:
   const char *server_uuid;
   uint32_t thread_id;
   bool gtid_specified;
   const unsigned char *encoded_snapshot_version;
   uint32_t encoded_snapshot_version_length;
-  std::list<const char*> write_set;
-  std::list<const char*> read_set;
+  std::list<const char *> write_set;
+  std::list<const char *> read_set;
 
   // The values mentioned on the next class constants is the offset where the
   // data that will be copied in the buffer.
 
   // 1 byte length.
-  static const int ENCODED_SERVER_UUID_LEN_OFFSET= 0;
+  static const int ENCODED_SERVER_UUID_LEN_OFFSET = 0;
   // 4 bytes length.
-  static const int ENCODED_THREAD_ID_OFFSET= 1;
+  static const int ENCODED_THREAD_ID_OFFSET = 1;
   // 1 byte length.
-  static const int ENCODED_GTID_SPECIFIED_OFFSET= 5;
+  static const int ENCODED_GTID_SPECIFIED_OFFSET = 5;
   // 4 bytes length
-  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET= 6;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN_OFFSET = 6;
   // 4 bytes length.
-  static const int ENCODED_WRITE_SET_ITEMS_OFFSET= 10;
+  static const int ENCODED_WRITE_SET_ITEMS_OFFSET = 10;
   // 4 bytes length.
-  static const int ENCODED_READ_SET_ITEMS_OFFSET=  14;
+  static const int ENCODED_READ_SET_ITEMS_OFFSET = 14;
 
   // The values mentioned on the next class's constants is the length of the
   // data that will be copied in the buffer.
-  static const int ENCODED_READ_WRITE_SET_ITEM_LEN= 2;
-  static const int ENCODED_SNAPSHOT_VERSION_LEN= 2;
+  static const int ENCODED_READ_WRITE_SET_ITEM_LEN = 2;
+  static const int ENCODED_SNAPSHOT_VERSION_LEN = 2;
 };
 
 /**
@@ -1322,15 +1141,16 @@ protected:
   <tr>
     <td>view_id</td>
     <td>40 length character array</td>
-    <td>This is used to store the view id value of the new view change when a node add or
-        leaves the group.
+    <td>This is used to store the view id value of the new view change when a
+  node add or leaves the group.
     </td>
   </tr>
 
   <tr>
     <td>seq_number</td>
     <td>8 bytes integer</td>
-    <td>Variable to identify the next sequence number to be alloted to the certified transaction.</td>
+    <td>Variable to identify the next sequence number to be alloted to the
+  certified transaction.</td>
   </tr>
 
   <tr>
@@ -1342,9 +1162,8 @@ protected:
   </tr>
 
 */
-class View_change_event : public Binary_log_event
-{
-public:
+class View_change_event : public Binary_log_event {
+ public:
   /**
     Decodes the view_change_log_event generated incase a server enters or
     leaves the group.
@@ -1367,7 +1186,7 @@ public:
   View_change_event(const char *buf, unsigned int event_len,
                     const Format_description_event *descr_event);
 
-  explicit View_change_event(char* raw_view_id);
+  explicit View_change_event(char *raw_view_id);
 
   virtual ~View_change_event();
 
@@ -1376,21 +1195,20 @@ public:
                              uint32_t consumable);
 
 #ifndef HAVE_MYSYS
-  void print_event_info(std::ostream&) { }
-  void print_long_info(std::ostream&) { }
+  void print_event_info(std::ostream &) {}
+  void print_long_info(std::ostream &) {}
 #endif
 
-protected:
+ protected:
   // The values mentioned on the next class constants is the offset where the
   // data that will be copied in the buffer.
 
   // 40 bytes length.
-  static const int ENCODED_VIEW_ID_OFFSET= 0;
+  static const int ENCODED_VIEW_ID_OFFSET = 0;
   // 8 bytes length.
-  static const int ENCODED_SEQ_NUMBER_OFFSET= 40;
+  static const int ENCODED_SEQ_NUMBER_OFFSET = 40;
   // 4 bytes length.
-  static const int ENCODED_CERT_INFO_SIZE_OFFSET= 48;
-
+  static const int ENCODED_CERT_INFO_SIZE_OFFSET = 48;
 
   /*
     The layout of the buffer is as follows
@@ -1404,10 +1222,10 @@ protected:
   // The values mentioned on the next class constants is the length of the data
   // that will be copied in the buffer.
 
-  //Field sizes on serialization
-  static const int ENCODED_VIEW_ID_MAX_LEN= 40;
-  static const int ENCODED_CERT_INFO_KEY_SIZE_LEN= 2;
-  static const int ENCODED_CERT_INFO_VALUE_LEN= 4;
+  // Field sizes on serialization
+  static const int ENCODED_VIEW_ID_MAX_LEN = 40;
+  static const int ENCODED_CERT_INFO_KEY_SIZE_LEN = 2;
+  static const int ENCODED_CERT_INFO_VALUE_LEN = 4;
 
   char view_id[ENCODED_VIEW_ID_MAX_LEN];
 
@@ -1415,7 +1233,6 @@ protected:
 
   std::map<std::string, std::string> certification_info;
 };
-
 
 /**
   @class Heartbeat_event
@@ -1451,10 +1268,8 @@ protected:
   </tr>
   </table>
 */
-class Heartbeat_event: public Binary_log_event
-{
-public:
-
+class Heartbeat_event : public Binary_log_event {
+ public:
   /**
     Sent by a master to a slave to let the slave know that the master is
     still alive. Events of this type do not appear in the binary or relay logs.
@@ -1472,19 +1287,19 @@ public:
                               The content of this object
                               depends on the binlog-version currently in use.
   */
-  Heartbeat_event(const char* buf, unsigned int event_len,
+  Heartbeat_event(const char *buf, unsigned int event_len,
                   const Format_description_event *description_event);
 
-  const char* get_log_ident() { return log_ident; }
+  const char *get_log_ident() { return log_ident; }
   unsigned int get_ident_len() { return ident_len; }
 
-protected:
-  const char* log_ident;
-  unsigned int ident_len;                      /** filename length */
+ protected:
+  const char *log_ident;
+  unsigned int ident_len; /** filename length */
 };
 
-} // end namespace binary_log
+}  // end namespace binary_log
 /**
   @} (end of group Replication)
 */
-#endif	/* CONTROL_EVENTS_INCLUDED */
+#endif /* CONTROL_EVENTS_INCLUDED */

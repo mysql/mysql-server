@@ -33,25 +33,20 @@ using thread::Thread;
 
 namespace {
 
-const int counter_start_value= 42;
+const int counter_start_value = 42;
 
-class NotificationThread : public Thread
-{
-public:
+class NotificationThread : public Thread {
+ public:
   NotificationThread(Notification *start_notification,
-                      Notification *end_notfication,
-                      int *counter)
-    : m_start_notification(start_notification),
-      m_end_notification(end_notfication),
-      m_counter(counter)
-  {
-  }
+                     Notification *end_notfication, int *counter)
+      : m_start_notification(start_notification),
+        m_end_notification(end_notfication),
+        m_counter(counter) {}
 
-  virtual void run()
-  {
+  virtual void run() {
     // Verify counter, increment it, notify the main thread.
     EXPECT_EQ(counter_start_value, *m_counter);
-    (*m_counter)+= 1;
+    (*m_counter) += 1;
     m_start_notification->notify();
 
     // Wait for notification from other thread.
@@ -59,24 +54,22 @@ public:
     EXPECT_EQ(counter_start_value, *m_counter);
 
     // Set counter again before returning from thread.
-    (*m_counter)+= 1;
+    (*m_counter) += 1;
   }
 
-private:
+ private:
   Notification *m_start_notification;
   Notification *m_end_notification;
-  int          *m_counter;
+  int *m_counter;
 
-  NotificationThread(const NotificationThread&); // Not copyable.
-  void operator=(const NotificationThread&);      // Not assignable.
+  NotificationThread(const NotificationThread &);  // Not copyable.
+  void operator=(const NotificationThread &);      // Not assignable.
 };
-
 
 /*
   A basic, single-threaded test of Notification.
  */
-TEST(Notification, Notify)
-{
+TEST(Notification, Notify) {
   Notification notification;
   EXPECT_FALSE(notification.has_been_notified());
   notification.notify();
@@ -87,13 +80,12 @@ TEST(Notification, Notify)
   Starts a thread, and verifies that the notification/synchronization
   mechanism works.
  */
-TEST(NotificationThread, StartAndWait)
-{
+TEST(NotificationThread, StartAndWait) {
   Notification start_notification;
   Notification end_notfication;
-  int counter= counter_start_value;
-  NotificationThread
-    notification_thread(&start_notification, &end_notfication, &counter);
+  int counter = counter_start_value;
+  NotificationThread notification_thread(&start_notification, &end_notfication,
+                                         &counter);
   notification_thread.start();
 
   // Wait for the other thread to increment counter, and notify us.
@@ -102,7 +94,7 @@ TEST(NotificationThread, StartAndWait)
   EXPECT_TRUE(start_notification.has_been_notified());
 
   // Reset counter, and notify other thread.
-  counter= counter_start_value;
+  counter = counter_start_value;
   end_notfication.notify();
   notification_thread.join();
 

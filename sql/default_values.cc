@@ -34,20 +34,20 @@
 #include "my_macros.h"
 #include "my_pointer_arithmetic.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/dd/properties.h" // dd::Properties
+#include "sql/dd/properties.h"  // dd::Properties
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/column.h" // dd::Column
-#include "sql/dd/types/table.h" // dd::Table
-#include "sql/dd_table_share.h" // dd_get_old_field_type
-#include "sql/field.h"         // calc_pack_length
-#include "sql/handler.h"       // handler
-#include "sql/item.h"          // Item
-#include "sql/my_decimal.h"    // DECIMAL_MAX_SCALE
-#include "sql/sql_class.h"     // THD
-#include "sql/sql_list.h"      // List
+#include "sql/dd/types/column.h"  // dd::Column
+#include "sql/dd/types/table.h"   // dd::Table
+#include "sql/dd_table_share.h"   // dd_get_old_field_type
+#include "sql/field.h"            // calc_pack_length
+#include "sql/gis/srid.h"
+#include "sql/handler.h"     // handler
+#include "sql/item.h"        // Item
+#include "sql/my_decimal.h"  // DECIMAL_MAX_SCALE
+#include "sql/sql_class.h"   // THD
+#include "sql/sql_list.h"    // List
 #include "sql/table.h"
 
 /**
@@ -67,62 +67,55 @@
   @return           In-memory length of values of the submitted column.
 */
 
-static size_t column_pack_length(const dd::Column &col_obj)
-{
-  size_t pack_length= 0;
+static size_t column_pack_length(const dd::Column &col_obj) {
+  size_t pack_length = 0;
 
   switch (col_obj.type()) {
-  case dd::enum_column_types::TINY_BLOB:
-  case dd::enum_column_types::MEDIUM_BLOB:
-  case dd::enum_column_types::LONG_BLOB:
-  case dd::enum_column_types::BLOB:
-  case dd::enum_column_types::GEOMETRY:
-  case dd::enum_column_types::VAR_STRING:
-  case dd::enum_column_types::STRING:
-  case dd::enum_column_types::VARCHAR:
-    // The length is already calculated in number of bytes, no need
-    // to multiply by number of bytes per symbol.
-    pack_length= calc_pack_length(dd_get_old_field_type(col_obj.type()),
-                                  col_obj.char_length());
-    break;
-  case dd::enum_column_types::ENUM:
-    pack_length= get_enum_pack_length(col_obj.elements_count());
-    break;
-  case dd::enum_column_types::SET:
-    pack_length= get_set_pack_length(col_obj.elements_count());
-    break;
-  case dd::enum_column_types::BIT:
-    {
+    case dd::enum_column_types::TINY_BLOB:
+    case dd::enum_column_types::MEDIUM_BLOB:
+    case dd::enum_column_types::LONG_BLOB:
+    case dd::enum_column_types::BLOB:
+    case dd::enum_column_types::GEOMETRY:
+    case dd::enum_column_types::VAR_STRING:
+    case dd::enum_column_types::STRING:
+    case dd::enum_column_types::VARCHAR:
+      // The length is already calculated in number of bytes, no need
+      // to multiply by number of bytes per symbol.
+      pack_length = calc_pack_length(dd_get_old_field_type(col_obj.type()),
+                                     col_obj.char_length());
+      break;
+    case dd::enum_column_types::ENUM:
+      pack_length = get_enum_pack_length(col_obj.elements_count());
+      break;
+    case dd::enum_column_types::SET:
+      pack_length = get_set_pack_length(col_obj.elements_count());
+      break;
+    case dd::enum_column_types::BIT: {
       bool treat_bit_as_char;
       if (col_obj.options().get_bool("treat_bit_as_char", &treat_bit_as_char))
         DBUG_ASSERT(false); /* purecov: deadcode */
 
       if (treat_bit_as_char)
-        pack_length= ((col_obj.char_length() + 7) & ~7) / 8;
+        pack_length = ((col_obj.char_length() + 7) & ~7) / 8;
       else
-        pack_length= col_obj.char_length() / 8;
-    }
-    break;
-  case dd::enum_column_types::NEWDECIMAL:
-    {
-      uint decimals= col_obj.numeric_scale();
-      ulong precision= my_decimal_length_to_precision(col_obj.char_length(),
-                                                      decimals,
-                                                      col_obj.is_unsigned());
+        pack_length = col_obj.char_length() / 8;
+    } break;
+    case dd::enum_column_types::NEWDECIMAL: {
+      uint decimals = col_obj.numeric_scale();
+      ulong precision = my_decimal_length_to_precision(
+          col_obj.char_length(), decimals, col_obj.is_unsigned());
       set_if_smaller(precision, DECIMAL_MAX_PRECISION);
       DBUG_ASSERT((precision <= DECIMAL_MAX_PRECISION) &&
                   (decimals <= DECIMAL_MAX_SCALE));
-      pack_length= my_decimal_get_binary_size(precision, decimals);
-    }
-    break;
-  default:
-    pack_length= calc_pack_length(dd_get_old_field_type(col_obj.type()),
-                                  col_obj.char_length());
-    break;
+      pack_length = my_decimal_get_binary_size(precision, decimals);
+    } break;
+    default:
+      pack_length = calc_pack_length(dd_get_old_field_type(col_obj.type()),
+                                     col_obj.char_length());
+      break;
   }
   return pack_length;
 }
-
 
 /**
   Find the required length of an empty record.
@@ -141,59 +134,52 @@ static size_t column_pack_length(const dd::Column &col_obj)
 */
 
 static bool find_record_length(const dd::Table &table, size_t min_length,
-                               TABLE_SHARE *share)
-{
+                               TABLE_SHARE *share) {
   // Get the table property 'pack_record' and initialize out parameters.
   bool pack_record;
-  if (table.options().get_bool("pack_record", &pack_record))
-    return true;
+  if (table.options().get_bool("pack_record", &pack_record)) return true;
 
   DBUG_ASSERT(share);
-  share->fields= 0;
-  share->null_fields= 0;
-  share->reclength= 0;
-  ulong leftover_bits= pack_record ? 0 : 1;
+  share->fields = 0;
+  share->null_fields = 0;
+  share->reclength = 0;
+  ulong leftover_bits = pack_record ? 0 : 1;
 
   // Loop over columns, count nullable and bit fields and find record length.
-  for (const dd::Column *col_obj : table.columns())
-  {
+  for (const dd::Column *col_obj : table.columns()) {
     // Skip hidden columns
-    if (col_obj->is_hidden())
-      continue;
+    if (col_obj->is_hidden()) continue;
 
     // Check if the field may be NULL.
-    if (col_obj->is_nullable())
-      share->null_fields++;
+    if (col_obj->is_nullable()) share->null_fields++;
 
     // Check if this is a BIT field with leftover bits in the preamble, and
     // adjust record length accordingly.
-    if (col_obj->type() == dd::enum_column_types::BIT)
-    {
+    if (col_obj->type() == dd::enum_column_types::BIT) {
       bool treat_bit_as_char;
       if (col_obj->options().get_bool("treat_bit_as_char", &treat_bit_as_char))
         return true;
 
-      if (! treat_bit_as_char && (col_obj->char_length() & 7))
-        leftover_bits+= col_obj->char_length() & 7;
+      if (!treat_bit_as_char && (col_obj->char_length() & 7))
+        leftover_bits += col_obj->char_length() & 7;
     }
 
     // Increment record length.
-    share->reclength+= column_pack_length(*col_obj);
+    share->reclength += column_pack_length(*col_obj);
     share->fields++;
   }
 
   // Find preamble length and add it to the total record length.
-  share->null_bytes= (share->null_fields + leftover_bits + 7) / 8;
-  share->last_null_bit_pos= (share->null_fields + leftover_bits) & 7;
-  share->reclength+= share->null_bytes;
+  share->null_bytes = (share->null_fields + leftover_bits + 7) / 8;
+  share->last_null_bit_pos = (share->null_fields + leftover_bits) & 7;
+  share->reclength += share->null_bytes;
 
   // Hack to avoid bugs with small static rows in MySQL.
-  share->reclength= std::max<size_t>(min_length, share->reclength);
-  share->stored_rec_length= share->reclength;
+  share->reclength = std::max<size_t>(min_length, share->reclength);
+  share->stored_rec_length = share->reclength;
 
   return false;
 }
-
 
 /**
   Set the unused bits in the preamble of a default value buffer.
@@ -213,91 +199,64 @@ static bool find_record_length(const dd::Table &table, size_t min_length,
 
 static void set_pack_record_and_unused_preamble_bits(bool pack_record,
                                                      ulong preamble_bits,
-                                                     uchar *default_values)
-{
+                                                     uchar *default_values) {
   DBUG_ASSERT(default_values);
 
   // Set first bit if the HA_OPTION_PACK_RECORD is not set.
-  if (!pack_record)
-    *default_values|= 1;
+  if (!pack_record) *default_values |= 1;
 
   // We need to set the unused bits to 1. If the number of bits is a multiple
   // of 8 there are no unused bits.
   if (preamble_bits & 7)
-    *(default_values + preamble_bits / 8)|=
-            ~(((uchar) 1 << (preamble_bits & 7)) - 1);
+    *(default_values + preamble_bits / 8) |=
+        ~(((uchar)1 << (preamble_bits & 7)) - 1);
 }
 
-
-size_t max_pack_length(const List<Create_field> &create_fields)
-{
-  size_t max_pack_length= 0;
+size_t max_pack_length(const List<Create_field> &create_fields) {
+  size_t max_pack_length = 0;
   // Iterate over the create fields and find the largest one.
   List_iterator<Create_field> field_it(
-                                const_cast<List<Create_field>&>(create_fields));
+      const_cast<List<Create_field> &>(create_fields));
   Create_field *field;
-  while ((field= field_it++))
-    max_pack_length= std::max<size_t>(field->pack_length, max_pack_length);
+  while ((field = field_it++))
+    max_pack_length = std::max<size_t>(field->pack_length, max_pack_length);
   return max_pack_length;
 }
 
-
 bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
-                           const Create_field &field, dd::Column *col_obj)
-{
+                           const Create_field &field, dd::Column *col_obj) {
   // Create a fake field with a real data buffer in which to store the value.
-  Field *regfield= make_field(table.s,
-                              buf + 1,
-                              field.length,
-                              buf,
-                              0,
-                              field.sql_type,
-                              field.charset,
-                              field.geom_type,
-                              field.auto_flags,
-                              field.interval,
-                              field.field_name,
-                              field.maybe_null,
-                              field.is_zerofill,
-                              field.is_unsigned,
-                              field.decimals,
-                              field.treat_bit_as_char,
-                              field.pack_length_override,
-                              {field.m_srid});
-  bool retval= true;
-  if (!regfield)
-    goto err;
+  Field *regfield = make_field(
+      table.s, buf + 1, field.length, buf, 0, field.sql_type, field.charset,
+      field.geom_type, field.auto_flags, field.interval, field.field_name,
+      field.maybe_null, field.is_zerofill, field.is_unsigned, field.decimals,
+      field.treat_bit_as_char, field.pack_length_override, {field.m_srid});
+  bool retval = true;
+  if (!regfield) goto err;
 
   // save_in_field() will access regfield->table->in_use.
-  regfield->init(const_cast<TABLE*>(&table));
+  regfield->init(const_cast<TABLE *>(&table));
 
   // Set if the field may be NULL.
-  if (!(field.flags & NOT_NULL_FLAG))
-    regfield->set_null();
+  if (!(field.flags & NOT_NULL_FLAG)) regfield->set_null();
 
-  if (field.def)
-  {
+  if (field.def) {
     // Pointless to store the value of a function as it may not be constant.
     DBUG_ASSERT(field.def->type() != Item::FUNC_ITEM);
-    type_conversion_status res= field.def->save_in_field(regfield, true);
+    type_conversion_status res = field.def->save_in_field(regfield, true);
     if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
-        res != TYPE_NOTE_TRUNCATED)
-    {
+        res != TYPE_NOTE_TRUNCATED) {
       // Clear current error and report ER_INVALID_DEFAULT.
-      if (thd->is_error())
-        thd->clear_error();
+      if (thd->is_error()) thd->clear_error();
 
       my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
       goto err;
     }
-  }
-  else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
-           (field.flags & NOT_NULL_FLAG))
-  {
+  } else if (regfield->real_type() == MYSQL_TYPE_ENUM &&
+             (field.flags & NOT_NULL_FLAG)) {
     regfield->set_notnull();
-    regfield->store((longlong) 1, TRUE);
-  }
-  else
+    regfield->store((longlong)1, true);
+  } else
     regfield->reset();
 
   // Save whether column has only type's implicit default value.
@@ -307,28 +266,25 @@ bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
 
   // Save NULL flag, default value and leftover bits.
   col_obj->set_default_value_null(regfield->is_null());
-  if (!col_obj->is_default_value_null())
-  {
+  if (!col_obj->is_default_value_null()) {
     dd::String_type default_value;
-    default_value.assign(reinterpret_cast<char*>(buf + 1), field.pack_length);
+    default_value.assign(reinterpret_cast<char *>(buf + 1), field.pack_length);
 
     // Append leftover bits as the last byte of the default value.
-    if (field.sql_type == MYSQL_TYPE_BIT &&
-        !field.treat_bit_as_char && (field.length & 7))
-    {
+    if (field.sql_type == MYSQL_TYPE_BIT && !field.treat_bit_as_char &&
+        (field.length & 7)) {
       // Downcast and get bits.
-      Field_bit *bitfield= dynamic_cast<Field_bit*>(regfield);
+      Field_bit *bitfield = dynamic_cast<Field_bit *>(regfield);
       // In get_rec_bits(), bitfield->bit_ptr[1] is accessed, so we must be
       // sure that the buffer is at least two bytes long. This is ensured
       // at the point where the buffer is allocated.
-      uchar default_preamble_bits= get_rec_bits(bitfield->bit_ptr,
-                                                bitfield->bit_ofs,
-                                                bitfield->bit_len);
-      default_value.append(reinterpret_cast<char*>(&default_preamble_bits), 1);
+      uchar default_preamble_bits =
+          get_rec_bits(bitfield->bit_ptr, bitfield->bit_ofs, bitfield->bit_len);
+      default_value.append(reinterpret_cast<char *>(&default_preamble_bits), 1);
     }
     col_obj->set_default_value(default_value);
   }
-  retval= false;
+  retval = false;
 
 err:
   // Destroy the field, despite being MEM_ROOT allocated, to avoid memory
@@ -337,43 +293,38 @@ err:
   return retval;
 }
 
-
 bool prepare_default_value_buffer_and_table_share(THD *thd,
                                                   const dd::Table &table,
-                                                  TABLE_SHARE *share)
-{
+                                                  TABLE_SHARE *share) {
   DBUG_ASSERT(share);
 
   // Get the handler temporarily, needed to get minimal record length as
   // well as extra record length.
-  handler *file= NULL;
-  handlerton *engine= share->db_type();
-  if (!(file= get_new_handler(NULL, table.partition_type()!=dd::Table::PT_NONE,
-                              thd->mem_root, engine)))
-  {
+  handler *file = NULL;
+  handlerton *engine = share->db_type();
+  if (!(file =
+            get_new_handler(NULL, table.partition_type() != dd::Table::PT_NONE,
+                            thd->mem_root, engine))) {
     my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
              static_cast<int>(sizeof(handler)));
     return true;
   }
 
   // Get the minimal and extra record buffer lengths from the handler.
-  size_t extra_length= file->extra_rec_buf_length();
-  size_t min_length= static_cast<size_t>(file->min_record_length(
-          share->db_create_options));
+  size_t extra_length = file->extra_rec_buf_length();
+  size_t min_length =
+      static_cast<size_t>(file->min_record_length(share->db_create_options));
   destroy(file);
 
   // Get the number of columns, record length etc.
-  if (find_record_length(table, min_length, share))
-    return true;
+  if (find_record_length(table, min_length, share)) return true;
 
   // Adjust buffer size and allocate the default value buffer.
-  share->rec_buff_length= ALIGN_SIZE(share->reclength + 1 + extra_length);
-  if (share->reclength)
-  {
-    share->default_values= reinterpret_cast<uchar*>(alloc_root(&share->mem_root,
-                                                      share->rec_buff_length));
-    if (!share->default_values)
-      return true;
+  share->rec_buff_length = ALIGN_SIZE(share->reclength + 1 + extra_length);
+  if (share->reclength) {
+    share->default_values = reinterpret_cast<uchar *>(
+        alloc_root(&share->mem_root, share->rec_buff_length));
+    if (!share->default_values) return true;
 
     // Initialize the default value buffer. The default values for the
     // columns are assigned when each individual column is initialized,
@@ -381,14 +332,12 @@ bool prepare_default_value_buffer_and_table_share(THD *thd,
     memset(share->default_values, 0, share->reclength);
 
     // Find the number of used bits in the preamble.
-    ulong preamble_bits= share->last_null_bit_pos;
-    if (share->null_bytes)
-      preamble_bits+= (share->null_bytes - 1 ) * 8;
+    ulong preamble_bits = share->last_null_bit_pos;
+    if (share->null_bytes) preamble_bits += (share->null_bytes - 1) * 8;
 
-    set_pack_record_and_unused_preamble_bits((share->db_create_options &
-                                              HA_OPTION_PACK_RECORD),
-                                             preamble_bits,
-                                             share->default_values);
+    set_pack_record_and_unused_preamble_bits(
+        (share->db_create_options & HA_OPTION_PACK_RECORD), preamble_bits,
+        share->default_values);
   }
 
   return false;

@@ -33,6 +33,8 @@
 #include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
+#include "sql/plugin_table.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"
@@ -42,64 +44,56 @@
 THR_LOCK table_os_global_by_type::m_table_lock;
 
 Plugin_table table_os_global_by_type::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "objects_summary_global_by_type",
-  /* Definition */
-  "  OBJECT_TYPE VARCHAR(64),\n"
-  "  OBJECT_SCHEMA VARCHAR(64),\n"
-  "  OBJECT_NAME VARCHAR(64),\n"
-  "  COUNT_STAR BIGINT unsigned not null,\n"
-  "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
-  "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
-  "                       OBJECT_NAME) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "objects_summary_global_by_type",
+    /* Definition */
+    "  OBJECT_TYPE VARCHAR(64),\n"
+    "  OBJECT_SCHEMA VARCHAR(64),\n"
+    "  OBJECT_NAME VARCHAR(64),\n"
+    "  COUNT_STAR BIGINT unsigned not null,\n"
+    "  SUM_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MIN_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  AVG_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  MAX_TIMER_WAIT BIGINT unsigned not null,\n"
+    "  UNIQUE KEY `OBJECT` (OBJECT_TYPE, OBJECT_SCHEMA,\n"
+    "                       OBJECT_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_os_global_by_type::m_share = {
-  &pfs_truncatable_acl,
-  table_os_global_by_type::create,
-  NULL, /* write_row */
-  table_os_global_by_type::delete_all_rows,
-  table_os_global_by_type::get_row_count,
-  sizeof(pos_os_global_by_type),
-  &m_table_lock,
-  &m_table_def,
-  false, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_truncatable_acl,
+    table_os_global_by_type::create,
+    NULL, /* write_row */
+    table_os_global_by_type::delete_all_rows,
+    table_os_global_by_type::get_row_count,
+    sizeof(pos_os_global_by_type),
+    &m_table_lock,
+    &m_table_def,
+    false, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_os_global_by_type::match(PFS_table_share *pfs)
-{
-  if (m_fields >= 1)
-  {
-    if (!m_key_1.match(OBJECT_TYPE_TABLE))
-    {
+bool PFS_index_os_global_by_type::match(PFS_table_share *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(OBJECT_TYPE_TABLE)) {
       return false;
     }
   }
 
-  if (m_fields >= 2)
-  {
-    if (!m_key_2.match(pfs))
-    {
+  if (m_fields >= 2) {
+    if (!m_key_2.match(pfs)) {
       return false;
     }
   }
 
-  if (m_fields >= 3)
-  {
-    if (!m_key_3.match(pfs))
-    {
+  if (m_fields >= 3) {
+    if (!m_key_3.match(pfs)) {
       return false;
     }
   }
@@ -107,29 +101,21 @@ PFS_index_os_global_by_type::match(PFS_table_share *pfs)
   return true;
 }
 
-bool
-PFS_index_os_global_by_type::match(PFS_program *pfs)
-{
-  if (m_fields >= 1)
-  {
-    if (!m_key_1.match(pfs))
-    {
+bool PFS_index_os_global_by_type::match(PFS_program *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(pfs)) {
       return false;
     }
   }
 
-  if (m_fields >= 2)
-  {
-    if (!m_key_2.match(pfs))
-    {
+  if (m_fields >= 2) {
+    if (!m_key_2.match(pfs)) {
       return false;
     }
   }
 
-  if (m_fields >= 3)
-  {
-    if (!m_key_3.match(pfs))
-    {
+  if (m_fields >= 3) {
+    if (!m_key_3.match(pfs)) {
       return false;
     }
   }
@@ -137,131 +123,99 @@ PFS_index_os_global_by_type::match(PFS_program *pfs)
   return true;
 }
 
-PFS_engine_table *
-table_os_global_by_type::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_os_global_by_type::create(PFS_engine_table_share *) {
   return new table_os_global_by_type();
 }
 
-int
-table_os_global_by_type::delete_all_rows(void)
-{
+int table_os_global_by_type::delete_all_rows(void) {
   reset_table_waits_by_table_handle();
   reset_table_waits_by_table();
   return 0;
 }
 
-ha_rows
-table_os_global_by_type::get_row_count(void)
-{
+ha_rows table_os_global_by_type::get_row_count(void) {
   return global_table_share_container.get_row_count() +
          global_program_container.get_row_count();
 }
 
 table_os_global_by_type::table_os_global_by_type()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
-{
+    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {
   // FIXME, verify
   m_normalizer = time_normalizer::get_wait();
 }
 
-void
-table_os_global_by_type::reset_position(void)
-{
+void table_os_global_by_type::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int
-table_os_global_by_type::rnd_next(void)
-{
-  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
-  {
-    switch (m_pos.m_index_1)
-    {
-    case pos_os_global_by_type::VIEW_TABLE:
-    {
-      PFS_table_share *table_share;
-      bool has_more_share = true;
+int table_os_global_by_type::rnd_next(void) {
+  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view()) {
+    switch (m_pos.m_index_1) {
+      case pos_os_global_by_type::VIEW_TABLE: {
+        PFS_table_share *table_share;
+        bool has_more_share = true;
 
-      for (; has_more_share; m_pos.m_index_2++)
-      {
-        table_share =
-          global_table_share_container.get(m_pos.m_index_2, &has_more_share);
-        if (table_share != NULL)
-        {
-          make_table_row(table_share);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+        for (; has_more_share; m_pos.m_index_2++) {
+          table_share = global_table_share_container.get(m_pos.m_index_2,
+                                                         &has_more_share);
+          if (table_share != NULL) {
+            make_table_row(table_share);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
-      }
-    }
-    break;
-    case pos_os_global_by_type::VIEW_PROGRAM:
-    {
-      PFS_program *pfs_program;
-      bool has_more_program = true;
+      } break;
+      case pos_os_global_by_type::VIEW_PROGRAM: {
+        PFS_program *pfs_program;
+        bool has_more_program = true;
 
-      for (; has_more_program; m_pos.m_index_2++)
-      {
-        pfs_program =
-          global_program_container.get(m_pos.m_index_2, &has_more_program);
-        if (pfs_program != NULL)
-        {
-          make_program_row(pfs_program);
-          m_next_pos.set_after(&m_pos);
-          return 0;
+        for (; has_more_program; m_pos.m_index_2++) {
+          pfs_program =
+              global_program_container.get(m_pos.m_index_2, &has_more_program);
+          if (pfs_program != NULL) {
+            make_program_row(pfs_program);
+            m_next_pos.set_after(&m_pos);
+            return 0;
+          }
         }
-      }
-    }
-    break;
-    default:
-      break;
+      } break;
+      default:
+        break;
     }
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_os_global_by_type::rnd_pos(const void *pos)
-{
+int table_os_global_by_type::rnd_pos(const void *pos) {
   set_position(pos);
 
-  switch (m_pos.m_index_1)
-  {
-  case pos_os_global_by_type::VIEW_TABLE:
-  {
-    PFS_table_share *table_share;
-    table_share = global_table_share_container.get(m_pos.m_index_2);
-    if (table_share != NULL)
-    {
-      make_table_row(table_share);
-      return 0;
-    }
-  }
-  break;
-  case pos_os_global_by_type::VIEW_PROGRAM:
-  {
-    PFS_program *pfs_program;
-    pfs_program = global_program_container.get(m_pos.m_index_2);
-    if (pfs_program != NULL)
-    {
-      make_program_row(pfs_program);
-      return 0;
-    }
-  }
-  break;
-  default:
-    break;
+  switch (m_pos.m_index_1) {
+    case pos_os_global_by_type::VIEW_TABLE: {
+      PFS_table_share *table_share;
+      table_share = global_table_share_container.get(m_pos.m_index_2);
+      if (table_share != NULL) {
+        make_table_row(table_share);
+        return 0;
+      }
+    } break;
+    case pos_os_global_by_type::VIEW_PROGRAM: {
+      PFS_program *pfs_program;
+      pfs_program = global_program_container.get(m_pos.m_index_2);
+      if (pfs_program != NULL) {
+        make_program_row(pfs_program);
+        return 0;
+      }
+    } break;
+    default:
+      break;
   }
 
   return HA_ERR_RECORD_DELETED;
 }
 
-int
-table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
-{
+int table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_os_global_by_type *result;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_os_global_by_type);
@@ -270,66 +224,50 @@ table_os_global_by_type::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
   return 0;
 }
 
-int
-table_os_global_by_type::index_next(void)
-{
-  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view())
-  {
-    switch (m_pos.m_index_1)
-    {
-    case pos_os_global_by_type::VIEW_TABLE:
-    {
-      PFS_table_share *table_share;
-      bool has_more_share = true;
+int table_os_global_by_type::index_next(void) {
+  for (m_pos.set_at(&m_next_pos); m_pos.has_more_view(); m_pos.next_view()) {
+    switch (m_pos.m_index_1) {
+      case pos_os_global_by_type::VIEW_TABLE: {
+        PFS_table_share *table_share;
+        bool has_more_share = true;
 
-      for (; has_more_share; m_pos.m_index_2++)
-      {
-        table_share =
-          global_table_share_container.get(m_pos.m_index_2, &has_more_share);
-        if (table_share != NULL)
-        {
-          if (m_opened_index->match(table_share))
-          {
-            make_table_row(table_share);
-            m_next_pos.set_after(&m_pos);
-            return 0;
+        for (; has_more_share; m_pos.m_index_2++) {
+          table_share = global_table_share_container.get(m_pos.m_index_2,
+                                                         &has_more_share);
+          if (table_share != NULL) {
+            if (m_opened_index->match(table_share)) {
+              make_table_row(table_share);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
           }
         }
-      }
-    }
-    break;
-    case pos_os_global_by_type::VIEW_PROGRAM:
-    {
-      PFS_program *pfs_program;
-      bool has_more_program = true;
+      } break;
+      case pos_os_global_by_type::VIEW_PROGRAM: {
+        PFS_program *pfs_program;
+        bool has_more_program = true;
 
-      for (; has_more_program; m_pos.m_index_2++)
-      {
-        pfs_program =
-          global_program_container.get(m_pos.m_index_2, &has_more_program);
-        if (pfs_program != NULL)
-        {
-          if (m_opened_index->match(pfs_program))
-          {
-            make_program_row(pfs_program);
-            m_next_pos.set_after(&m_pos);
-            return 0;
+        for (; has_more_program; m_pos.m_index_2++) {
+          pfs_program =
+              global_program_container.get(m_pos.m_index_2, &has_more_program);
+          if (pfs_program != NULL) {
+            if (m_opened_index->match(pfs_program)) {
+              make_program_row(pfs_program);
+              m_next_pos.set_after(&m_pos);
+              return 0;
+            }
           }
         }
-      }
-    }
-    break;
-    default:
-      break;
+      } break;
+      default:
+        break;
     }
   }
 
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_os_global_by_type::make_program_row(PFS_program *pfs_program)
-{
+int table_os_global_by_type::make_program_row(PFS_program *pfs_program) {
   pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
 
@@ -339,17 +277,14 @@ table_os_global_by_type::make_program_row(PFS_program *pfs_program)
 
   m_row.m_stat.set(m_normalizer, &pfs_program->m_sp_stat.m_timer1_stat);
 
-  if (!pfs_program->m_lock.end_optimistic_lock(&lock))
-  {
+  if (!pfs_program->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
   return 0;
 }
 
-int
-table_os_global_by_type::make_table_row(PFS_table_share *share)
-{
+int table_os_global_by_type::make_table_row(PFS_table_share *share) {
   pfs_optimistic_state lock;
   PFS_single_stat cumulated_stat;
   uint safe_key_count;
@@ -363,21 +298,17 @@ table_os_global_by_type::make_table_row(PFS_table_share *share)
 
   share->sum(&cumulated_stat, safe_key_count);
 
-  if (!share->m_lock.end_optimistic_lock(&lock))
-  {
+  if (!share->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
-  if (share->get_refcount() > 0)
-  {
+  if (share->get_refcount() > 0) {
     /* For all the table handles still opened ... */
     PFS_table_iterator it = global_table_container.iterate();
     PFS_table *table = it.scan_next();
 
-    while (table != NULL)
-    {
-      if (table->m_share == share)
-      {
+    while (table != NULL) {
+      if (table->m_share == share) {
         /*
           If the opened table handle is for this table share,
           aggregate the table handle statistics.
@@ -393,52 +324,45 @@ table_os_global_by_type::make_table_row(PFS_table_share *share)
   return 0;
 }
 
-int
-table_os_global_by_type::read_row_values(TABLE *table,
-                                         unsigned char *buf,
-                                         Field **fields,
-                                         bool read_all)
-{
+int table_os_global_by_type::read_row_values(TABLE *table, unsigned char *buf,
+                                             Field **fields, bool read_all) {
   Field *f;
 
   /* Set the null bits */
   DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /* OBJECT_TYPE */
-        set_field_object_type(f, m_row.m_object.m_object_type);
-        break;
-      case 1: /* SCHEMA_NAME */
-        set_field_varchar_utf8(
-          f, m_row.m_object.m_schema_name, m_row.m_object.m_schema_name_length);
-        break;
-      case 2: /* OBJECT_NAME */
-        set_field_varchar_utf8(
-          f, m_row.m_object.m_object_name, m_row.m_object.m_object_name_length);
-        break;
-      case 3: /* COUNT */
-        set_field_ulonglong(f, m_row.m_stat.m_count);
-        break;
-      case 4: /* SUM */
-        set_field_ulonglong(f, m_row.m_stat.m_sum);
-        break;
-      case 5: /* MIN */
-        set_field_ulonglong(f, m_row.m_stat.m_min);
-        break;
-      case 6: /* AVG */
-        set_field_ulonglong(f, m_row.m_stat.m_avg);
-        break;
-      case 7: /* MAX */
-        set_field_ulonglong(f, m_row.m_stat.m_max);
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* OBJECT_TYPE */
+          set_field_object_type(f, m_row.m_object.m_object_type);
+          break;
+        case 1: /* SCHEMA_NAME */
+          set_field_varchar_utf8(f, m_row.m_object.m_schema_name,
+                                 m_row.m_object.m_schema_name_length);
+          break;
+        case 2: /* OBJECT_NAME */
+          set_field_varchar_utf8(f, m_row.m_object.m_object_name,
+                                 m_row.m_object.m_object_name_length);
+          break;
+        case 3: /* COUNT */
+          set_field_ulonglong(f, m_row.m_stat.m_count);
+          break;
+        case 4: /* SUM */
+          set_field_ulonglong(f, m_row.m_stat.m_sum);
+          break;
+        case 5: /* MIN */
+          set_field_ulonglong(f, m_row.m_stat.m_min);
+          break;
+        case 6: /* AVG */
+          set_field_ulonglong(f, m_row.m_stat.m_avg);
+          break;
+        case 7: /* MAX */
+          set_field_ulonglong(f, m_row.m_stat.m_max);
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }

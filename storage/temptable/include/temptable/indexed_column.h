@@ -28,9 +28,9 @@ TempTable Indexed Column. */
 
 #include <cstddef> /* size_t */
 
-#include "m_ctype.h" /* CHARSET_INFO, my_charpos() */
+#include "m_ctype.h"   /* CHARSET_INFO, my_charpos() */
 #include "sql/field.h" /* Field */
-#include "sql/key.h" /* KEY */
+#include "sql/key.h"   /* KEY */
 
 namespace temptable {
 
@@ -42,7 +42,7 @@ enum class Cell_hash_function : uint8_t {
 
 class Indexed_column {
  public:
-  explicit Indexed_column(const KEY_PART_INFO& mysql_key_part);
+  explicit Indexed_column(const KEY_PART_INFO &mysql_key_part);
 
   Indexed_column() = default;
 
@@ -56,13 +56,13 @@ class Indexed_column {
 
   uint32_t prefix_length() const;
 
-  const KEY_PART_INFO& key_part() const;
+  const KEY_PART_INFO &key_part() const;
 
-  const Field& field() const;
+  const Field &field() const;
 
-  const CHARSET_INFO* charset() const;
+  const CHARSET_INFO *charset() const;
 
-  static const CHARSET_INFO* field_charset(const Field& field);
+  static const CHARSET_INFO *field_charset(const Field &field);
 
  private:
   Cell_hash_function m_cell_hash_function;
@@ -71,9 +71,9 @@ class Indexed_column {
   uint32_t m_char_length;
   uint32_t m_prefix_length;
 
-  const KEY_PART_INFO* m_mysql_key_part;
-  const Field* m_mysql_field;
-  const CHARSET_INFO* m_cs;
+  const KEY_PART_INFO *m_mysql_key_part;
+  const Field *m_mysql_field;
+  const CHARSET_INFO *m_cs;
 };
 
 /* Implementation of inlined methods. */
@@ -96,13 +96,13 @@ inline uint32_t Indexed_column::prefix_length() const {
   return m_prefix_length;
 }
 
-inline const KEY_PART_INFO& Indexed_column::key_part() const {
+inline const KEY_PART_INFO &Indexed_column::key_part() const {
   return *m_mysql_key_part;
 }
 
-inline const Field& Indexed_column::field() const { return *m_mysql_field; }
+inline const Field &Indexed_column::field() const { return *m_mysql_field; }
 
-inline const CHARSET_INFO* Indexed_column::charset() const { return m_cs; }
+inline const CHARSET_INFO *Indexed_column::charset() const { return m_cs; }
 
 } /* namespace temptable */
 

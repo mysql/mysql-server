@@ -30,10 +30,16 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
+#include "mysql_com.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
+class Plugin_table;
 struct PFS_setup_actor;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -41,8 +47,7 @@ struct PFS_setup_actor;
 */
 
 /** A row of PERFORMANCE_SCHEMA.SETUP_ACTORS. */
-struct row_setup_actors
-{
+struct row_setup_actors {
   /** Column HOST. */
   char m_hostname[HOSTNAME_LENGTH];
   /** Length in bytes of @c m_hostname. */
@@ -61,41 +66,33 @@ struct row_setup_actors
   bool *m_history_ptr;
 };
 
-class PFS_index_setup_actors : public PFS_engine_index
-{
-public:
+class PFS_index_setup_actors : public PFS_engine_index {
+ public:
   PFS_index_setup_actors()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("HOST"),
-      m_key_2("USER"),
-      m_key_3("ROLE")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("HOST"),
+        m_key_2("USER"),
+        m_key_3("ROLE") {}
 
-  ~PFS_index_setup_actors()
-  {
-  }
+  ~PFS_index_setup_actors() {}
 
   virtual bool match(PFS_setup_actor *pfs);
 
-private:
+ private:
   PFS_key_host m_key_1;
   PFS_key_user m_key_2;
   PFS_key_role m_key_3;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_ACTORS. */
-class table_setup_actors : public PFS_engine_table
-{
-public:
+class table_setup_actors : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   /** Table builder. */
   static PFS_engine_table *create(PFS_engine_table_share *);
-  static int write_row(PFS_engine_table *pfs_table,
-                       TABLE *table,
-                       unsigned char *buf,
-                       Field **fields);
+  static int write_row(PFS_engine_table *pfs_table, TABLE *table,
+                       unsigned char *buf, Field **fields);
   static int delete_all_rows();
   static ha_rows get_row_count();
 
@@ -107,29 +104,22 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
 
-  virtual int delete_row_values(TABLE *table,
-                                const unsigned char *buf,
+  virtual int delete_row_values(TABLE *table, const unsigned char *buf,
                                 Field **fields);
 
   table_setup_actors();
 
-public:
-  ~table_setup_actors()
-  {
-  }
+ public:
+  ~table_setup_actors() {}
 
-private:
+ private:
   int make_row(PFS_setup_actor *actor);
 
   /** Table share lock. */
@@ -144,7 +134,7 @@ private:
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   PFS_index_setup_actors *m_opened_index;
 };
 

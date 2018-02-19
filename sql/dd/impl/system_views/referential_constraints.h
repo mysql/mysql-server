@@ -33,12 +33,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS system
   view definition.
 */
-class Referential_constraints :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Referential_constraints
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_CONSTRAINT_CATALOG,
     FIELD_CONSTRAINT_SCHEMA,
     FIELD_CONSTRAINT_NAME,
@@ -56,16 +54,16 @@ public:
 
   static const Referential_constraints &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("REFERENTIAL_CONSTRAINTS");
     return s_view_name;
   }
-  virtual const String_type &name() const
-  { return Referential_constraints::view_name(); }
+  virtual const String_type &name() const {
+    return Referential_constraints::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__REFERENTIAL_CONSTRAINTS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__REFERENTIAL_CONSTRAINTS_INCLUDED

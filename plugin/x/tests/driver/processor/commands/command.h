@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,27 +35,20 @@
 #include "plugin/x/tests/driver/connector/result_fetcher.h"
 #include "plugin/x/tests/driver/processor/execution_context.h"
 
-
 class Command {
  public:
-  enum class Result {
-    Continue,
-    Stop_with_success,
-    Stop_with_failure
-  };
+  enum class Result { Continue, Stop_with_success, Stop_with_failure };
 
   using Any = ::Mysqlx::Datatypes::Any;
 
  public:
   Command();
 
-  bool is_command_registred(
-      const std::string &command_line,
-      std::string *out_command_name = nullptr,
-      bool *out_is_single_line_command = nullptr) const;
+  bool is_command_registred(const std::string &command_line,
+                            std::string *out_command_name = nullptr,
+                            bool *out_is_single_line_command = nullptr) const;
 
-  Result process(std::istream &input,
-                 Execution_context *context,
+  Result process(std::istream &input, Execution_context *context,
                  const std::string &command);
 
  private:
@@ -63,17 +56,17 @@ class Command {
                                              Execution_context *,
                                              const std::string &);
   using Value_callback = std::function<bool(std::string)>;
-  using Command_map    = std::map<std::string, Command_method>;
+  using Command_map = std::map<std::string, Command_method>;
 
   struct Loop_do {
     std::streampos block_begin;
-    int            iterations;
-    int            value;
-    std::string    variable_name;
+    int iterations;
+    int value;
+    std::string variable_name;
   };
 
-  Command_map              m_commands;
-  std::list<Loop_do>       m_loop_stack;
+  Command_map m_commands;
+  std::list<Loop_do> m_loop_stack;
   static ngs::chrono::time_point m_start_measure;
 
   Result cmd_echo(std::istream &input, Execution_context *context,
@@ -82,8 +75,7 @@ class Command {
                    const std::string &args);
   Result cmd_recvtype(std::istream &input, Execution_context *context,
                       const std::string &args);
-  Result cmd_recvok(std::istream &input,
-                    Execution_context *context,
+  Result cmd_recvok(std::istream &input, Execution_context *context,
                     const std::string &args);
   Result cmd_recverror(std::istream &input, Execution_context *context,
                        const std::string &args);
@@ -96,10 +88,8 @@ class Command {
                         const std::string &args, Value_callback value_callback);
   Result cmd_recvuntil(std::istream &input, Execution_context *context,
                        const std::string &args);
-  Result cmd_do_ssl_handshake(
-      std::istream &input,
-      Execution_context *context,
-      const std::string &args);
+  Result cmd_do_ssl_handshake(std::istream &input, Execution_context *context,
+                              const std::string &args);
   Result cmd_stmtsql(std::istream &input, Execution_context *context,
                      const std::string &args);
   Result cmd_stmtadmin(std::istream &input, Execution_context *context,
@@ -148,8 +138,7 @@ class Command {
                               const std::string &args);
   Result cmd_newsession(std::istream &input, Execution_context *context,
                         const std::string &args);
-  Result do_newsession(std::istream &input,
-                       Execution_context *context,
+  Result do_newsession(std::istream &input, Execution_context *context,
                        const std::string &args,
                        const std::vector<std::string> &auth_methods);
   Result cmd_setsession(std::istream &input, Execution_context *context,

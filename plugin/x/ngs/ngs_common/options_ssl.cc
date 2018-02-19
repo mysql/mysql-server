@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,8 +31,7 @@
 
 using namespace ngs;
 
-std::string Options_session_ssl::ssl_cipher() const
-{
+std::string Options_session_ssl::ssl_cipher() const {
   char result[1024];
 
   ssl_wrapper_cipher(m_vio, result, sizeof(result));
@@ -40,8 +39,7 @@ std::string Options_session_ssl::ssl_cipher() const
   return result;
 }
 
-std::string Options_session_ssl::ssl_version() const
-{
+std::string Options_session_ssl::ssl_version() const {
   char result[256];
 
   ssl_wrapper_version(m_vio, result, sizeof(result));
@@ -49,41 +47,34 @@ std::string Options_session_ssl::ssl_version() const
   return result;
 }
 
-std::vector<std::string> Options_session_ssl::ssl_cipher_list() const
-{
+std::vector<std::string> Options_session_ssl::ssl_cipher_list() const {
   std::vector<std::string> result;
   const long num_of_elements = 1024;
   const char *versions[num_of_elements];
 
-  long number_of_items = ssl_wrapper_cipher_list(m_vio, versions, num_of_elements);
+  long number_of_items =
+      ssl_wrapper_cipher_list(m_vio, versions, num_of_elements);
 
   std::copy(versions, versions + number_of_items, std::back_inserter(result));
 
   return result;
 }
 
-long Options_session_ssl::ssl_verify_depth() const
-{
+long Options_session_ssl::ssl_verify_depth() const {
   return ssl_wrapper_verify_depth(m_vio);
 }
 
-long Options_session_ssl::ssl_verify_mode() const
-{
+long Options_session_ssl::ssl_verify_mode() const {
   return ssl_wrapper_verify_mode(m_vio);
 }
 
-long Options_session_ssl::ssl_sessions_reused() const
-{
-  return 0;
-}
+long Options_session_ssl::ssl_sessions_reused() const { return 0; }
 
-long Options_session_ssl::ssl_get_verify_result_and_cert() const
-{
+long Options_session_ssl::ssl_get_verify_result_and_cert() const {
   return ssl_wrapper_get_verify_result_and_cert(m_vio);
 }
 
-std::string Options_session_ssl::ssl_get_peer_certificate_issuer() const
-{
+std::string Options_session_ssl::ssl_get_peer_certificate_issuer() const {
   char issuer[1024];
 
   ssl_wrapper_get_peer_certificate_issuer(m_vio, issuer, sizeof(issuer));
@@ -91,8 +82,7 @@ std::string Options_session_ssl::ssl_get_peer_certificate_issuer() const
   return issuer;
 }
 
-std::string Options_session_ssl::ssl_get_peer_certificate_subject() const
-{
+std::string Options_session_ssl::ssl_get_peer_certificate_subject() const {
   char subject[1024];
 
   ssl_wrapper_get_peer_certificate_subject(m_vio, subject, sizeof(subject));
@@ -100,19 +90,15 @@ std::string Options_session_ssl::ssl_get_peer_certificate_subject() const
   return subject;
 }
 
-
-long Options_context_ssl::ssl_ctx_verify_depth()
-{
+long Options_context_ssl::ssl_ctx_verify_depth() {
   return ssl_wrapper_ctx_verify_depth(m_vio_ssl);
 }
 
-long Options_context_ssl::ssl_ctx_verify_mode()
-{
+long Options_context_ssl::ssl_ctx_verify_mode() {
   return ssl_wrapper_ctx_verify_mode(m_vio_ssl);
 }
 
-std::string Options_context_ssl::ssl_server_not_after()
-{
+std::string Options_context_ssl::ssl_server_not_after() {
   char result[200];
 
   ssl_wrapper_ctx_server_not_after(m_vio_ssl, result, sizeof(result));
@@ -120,8 +106,7 @@ std::string Options_context_ssl::ssl_server_not_after()
   return result;
 }
 
-std::string Options_context_ssl::ssl_server_not_before()
-{
+std::string Options_context_ssl::ssl_server_not_before() {
   char result[200];
 
   ssl_wrapper_ctx_server_not_before(m_vio_ssl, result, sizeof(result));
@@ -129,52 +114,26 @@ std::string Options_context_ssl::ssl_server_not_before()
   return result;
 }
 
-long Options_context_ssl::ssl_sess_accept_good()
-{
+long Options_context_ssl::ssl_sess_accept_good() {
   return ssl_wrapper_sess_accept_good(m_vio_ssl);
 }
 
-long Options_context_ssl::ssl_sess_accept()
-{
+long Options_context_ssl::ssl_sess_accept() {
   return ssl_wrapper_sess_accept(m_vio_ssl);
 }
 
-long Options_context_ssl::ssl_accept_renegotiates()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_accept_renegotiates() { return 0; }
 
-long Options_context_ssl::ssl_session_cache_hits()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_session_cache_hits() { return 0; }
 
-long Options_context_ssl::ssl_session_cache_misses()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_session_cache_misses() { return 0; }
 
-std::string Options_context_ssl::ssl_session_cache_mode()
-{
-  return "OFF";
-}
+std::string Options_context_ssl::ssl_session_cache_mode() { return "OFF"; }
 
-long Options_context_ssl::ssl_session_cache_overflows()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_session_cache_overflows() { return 0; }
 
-long Options_context_ssl::ssl_session_cache_size()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_session_cache_size() { return 0; }
 
-long Options_context_ssl::ssl_session_cache_timeouts()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_session_cache_timeouts() { return 0; }
 
-long Options_context_ssl::ssl_used_session_cache_entries()
-{
-  return 0;
-}
+long Options_context_ssl::ssl_used_session_cache_entries() { return 0; }

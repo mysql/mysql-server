@@ -30,31 +30,30 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 extern "C" {
 #endif
 
+/**
+  @ingroup group_ext_plugin_services
+
+  TODO: Fill in the architecture of your service.
+
+  This is the primary documentation of your new service
+  and will be auto-added to the service description document
+  because of it being a part of the doxygen group
+  group_ext_plugin_services.
+*/
+extern struct foo_service_st {
   /**
-    @ingroup group_ext_plugin_services
-
-    TODO: Fill in the architecture of your service.
-
-    This is the primary documentation of your new service
-    and will be auto-added to the service description document
-    because of it being a part of the doxygen group
-    group_ext_plugin_services.
+    TODO: Interface description of foo_func1_type.
+    Fix the prototype as appropriate.
+    You can add a see-also to the implementation too.
   */
-  extern struct foo_service_st
-  {
-    /**
-      TODO: Interface description of foo_func1_type.
-      Fix the prototype as appropriate.
-      You can add a see-also to the implementation too.
-    */
-    int(*foo_func1_type)(...);
-    /**
-      TODO: Interface description of foo_func2_type.
-      Fix the prototype as appropriate.
-      You can add a see-also to the implementation too.
-    */
-    void(*foo_func2_type)(...);
-  } *foo_service;
+  int (*foo_func1_type)(...);
+  /**
+    TODO: Interface description of foo_func2_type.
+    Fix the prototype as appropriate.
+    You can add a see-also to the implementation too.
+  */
+  void (*foo_func2_type)(...);
+} * foo_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -63,8 +62,8 @@ extern "C" {
 
 #else
 
-  int foo_func1_type(...);  /** TODO: fix the prototype as appropriate */
-  void foo_func2_type(...); /** TODO: fix the prototype as appropriate */
+int foo_func1_type(...);  /** TODO: fix the prototype as appropriate */
+void foo_func2_type(...); /** TODO: fix the prototype as appropriate */
 
 #endif
 
@@ -74,4 +73,3 @@ extern "C" {
 
 #define MYSQL_SERVICE_FOO_INCLUDED
 #endif
-

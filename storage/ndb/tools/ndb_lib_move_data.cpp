@@ -1056,7 +1056,7 @@ Ndb_move_data::set_error_code(int code, const char* fmt, ...)
   require(code != 0);
   Error& e = m_error;
   e.code = code;
-  my_vsnprintf(e.message, sizeof(e.message), fmt, ap);
+  vsnprintf(e.message, sizeof(e.message), fmt, ap);
   va_end(ap);
 }
 

@@ -40,33 +40,26 @@
 #include "my_macros.h"
 #include "mysql/psi/psi_mutex.h"
 
-#define PSI_MUTEX_CALL(M) pfs_ ## M ## _v1
+#define PSI_MUTEX_CALL(M) pfs_##M##_v1
 
-C_MODE_START
-
-void pfs_register_mutex_v1(const char *category,
-                           PSI_mutex_info_v1 *info,
+void pfs_register_mutex_v1(const char *category, PSI_mutex_info_v1 *info,
                            int count);
 
-PSI_mutex*
-pfs_init_mutex_v1(PSI_mutex_key key, const void *identity);
+PSI_mutex *pfs_init_mutex_v1(PSI_mutex_key key, const void *identity);
 
-void pfs_destroy_mutex_v1(PSI_mutex* mutex);
+void pfs_destroy_mutex_v1(PSI_mutex *mutex);
 
-PSI_mutex_locker*
-pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
-                        PSI_mutex *mutex, PSI_mutex_operation op,
-                        const char *src_file, uint src_line);
+PSI_mutex_locker *pfs_start_mutex_wait_v1(PSI_mutex_locker_state *state,
+                                          PSI_mutex *mutex,
+                                          PSI_mutex_operation op,
+                                          const char *src_file, uint src_line);
 
 void pfs_unlock_mutex_v1(PSI_mutex *mutex);
 
-void pfs_end_mutex_wait_v1(PSI_mutex_locker* locker, int rc);
-
-C_MODE_END
+void pfs_end_mutex_wait_v1(PSI_mutex_locker *locker, int rc);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_MUTEX_INTERFACE */
 
 #endif /* PFS_MUTEX_PROVIDER_H */
-

@@ -30,6 +30,8 @@
 #include <NdbSleep.h>
 #include <NDBT.hpp>
 
+#include "my_alloc.h"
+
 static int clear_table(Ndb* pNdb, const NdbDictionary::Table* pTab,
                        bool fetch_across_commit, int parallelism=240);
 

@@ -30,9 +30,15 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_instr_class;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -40,8 +46,7 @@
 */
 
 /** A row of PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
-struct row_setup_instruments
-{
+struct row_setup_instruments {
   /** Columns NAME, ENABLED, TIMED. */
   PFS_instr_class *m_instr_class;
   /** True if column ENABLED can be updated. */
@@ -52,55 +57,38 @@ struct row_setup_instruments
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
 struct pos_setup_instruments : public PFS_double_index,
-                               public PFS_instrument_view_constants
-{
-  pos_setup_instruments() : PFS_double_index(FIRST_INSTRUMENT, 1)
-  {
-  }
+                               public PFS_instrument_view_constants {
+  pos_setup_instruments() : PFS_double_index(FIRST_INSTRUMENT, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = FIRST_INSTRUMENT;
     m_index_2 = 1;
   }
 
-  inline bool
-  has_more_view(void)
-  {
-    return (m_index_1 <= LAST_INSTRUMENT);
-  }
+  inline bool has_more_view(void) { return (m_index_1 <= LAST_INSTRUMENT); }
 
-  inline void
-  next_view(void)
-  {
+  inline void next_view(void) {
     m_index_1++;
     m_index_2 = 1;
   }
 };
 
-class PFS_index_setup_instruments : public PFS_engine_index
-{
-public:
-  PFS_index_setup_instruments() : PFS_engine_index(&m_key), m_key("NAME")
-  {
-  }
+class PFS_index_setup_instruments : public PFS_engine_index {
+ public:
+  PFS_index_setup_instruments() : PFS_engine_index(&m_key), m_key("NAME") {}
 
-  ~PFS_index_setup_instruments()
-  {
-  }
+  ~PFS_index_setup_instruments() {}
 
   bool match_view(uint view);
   bool match(PFS_instr_class *klass);
 
-private:
+ private:
   PFS_key_event_name m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.SETUP_INSTRUMENTS. */
-class table_setup_instruments : public PFS_engine_table
-{
-public:
+class table_setup_instruments : public PFS_engine_table {
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -114,25 +102,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-  virtual int update_row_values(TABLE *table,
-                                const unsigned char *old_buf,
-                                unsigned char *new_buf,
-                                Field **fields);
+  virtual int update_row_values(TABLE *table, const unsigned char *old_buf,
+                                unsigned char *new_buf, Field **fields);
 
   table_setup_instruments();
 
-public:
-  ~table_setup_instruments()
-  {
-  }
+ public:
+  ~table_setup_instruments() {}
 
-private:
+ private:
   int make_row(PFS_instr_class *klass, bool update_enabled);
 
   /** Table share lock. */

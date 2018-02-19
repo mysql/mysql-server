@@ -1,0 +1,98 @@
+################################################################################
+# Validate that even when server is started with server_id=0, on
+# which situation slave infrastructure is not initialized, and even
+# when server_id is changed dynamically, which does not initialize
+# slave infrastructure, START GROUP REPLICATION command errors out
+# properly.
+#
+# Test:
+# 0. The test requires one server.
+# 1. Restart server with server_id=0, slave infrastructure will not be
+#    initialized.
+# 2. Start GR on server should fail. INSTALL PLUGIN should fail.
+# 3. Even after set server_id to different from 0, start GR must fail.
+#    INSTALL PLUGIN should succeed.
+# 4. Cleanup.
+################################################################################
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+# Store runtime configuration
+--let $_server_id= `SELECT @@GLOBAL.server_id`
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+# Error log suppressions
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("For the creation of replication channels the server id must be different from 0");
+call mtr.add_suppression("Failure during Group Replication handler initialization");
+call mtr.add_suppression("Plugin 'group_replication' init function returned error.");
+call mtr.add_suppression("Couldn't load plugin named 'group_replication' with soname 'group_replication.*'");
+call mtr.add_suppression("Failure when cleaning Group Replication server state");
+call mtr.add_suppression("Failure when unregistering the server state observers");
+call mtr.add_suppression("Failure when unregistering the transactions state observers");
+call mtr.add_suppression("Failure when unregistering the binlog state observers");
+call mtr.add_suppression("Group Replication plugin is not installed");
+call mtr.add_suppression("For the creation of replication channels the server id must be different from 0");
+call mtr.add_suppression("Unable to start Group Replication. Replication applier infrastructure is not initialized since the server was started with server_id=0. Please, restart the server with server_id larger than 0.");
+call mtr.add_suppression("Function 'group_replication' already exists");
+SET SESSION sql_log_bin= 1;
+
+
+--echo
+--echo ############################################################
+--echo # 1. Restart server with server_id=0, slave infrastructure
+--echo #    will not be initialized.
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=0
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Both start and install plugin must fail.
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--error ER_CANT_INITIALIZE_UDF
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+
+--echo
+--echo ############################################################
+--echo # 3. Even after set server_id to different from 0, start
+--echo #    must fail.
+--echo #    Install plugin will succeed.
+--eval SET GLOBAL server_id= $_server_id
+--replace_result $GROUP_REPLICATION GROUP_REPLICATION
+--eval INSTALL PLUGIN group_replication SONAME '$GROUP_REPLICATION'
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+
+--echo
+--echo ############################################################
+--echo # 4. Cleanup.
+--echo #    Restart server with server_id different from 0, so that
+--echo #    slave infrastructure will be initialized, and RESET
+--echo #    SLAVE operations on group_replication_end.inc do work.
+--let $allow_rpl_inited= 1
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --server_id=$_server_id
+--replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--source include/restart_mysqld.inc
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 1
+--source include/rpl_reconnect.inc
+
+--source include/group_replication_end.inc

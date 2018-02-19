@@ -98,7 +98,7 @@ send Mysqlx.Sql.StmtExecute {
 
 Got expected error: You must reset your password using ALTER USER statement before executing this statement. (code 1820)
 send Mysqlx.Sql.StmtExecute {
-  stmt: "set password=password(\'a\')"
+  stmt: "set password=\'a\'"
 }
 
 

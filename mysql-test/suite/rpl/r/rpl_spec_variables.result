@@ -162,22 +162,22 @@ DROP TABLE t1;
 
 * max_heap_table_size *
 SET @restore_slave_max_heap_table_size=@@global.max_heap_table_size;
-SET @@global.max_heap_table_size=16384;
-SET @@session.max_heap_table_size=16384;
-CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c CHAR(254)) ENGINE=MEMORY;
-SELECT COUNT(*)=2000 FROM t1;
-COUNT(*)=2000
+SET @@global.max_heap_table_size=HEAP_SIZE;
+SET @@session.max_heap_table_size=HEAP_SIZE;
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY, b VARCHAR(10), c VARCHAR(RECORD_SIZE)) ENGINE=MEMORY;
+SELECT COUNT(*)=ROW_COUNT FROM t1;
+COUNT(*)=ROW_COUNT
 1
 include/sync_slave_sql_with_master.inc
-SELECT COUNT(*)=2000 FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
-COUNT(*)=2000
+SELECT COUNT(*)=ROW_COUNT FROM t1 WHERE b='master' GROUP BY b ORDER BY b;
+COUNT(*)=ROW_COUNT
 1
 TRUNCATE TABLE t1;
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
-COUNT(*)<2000 AND COUNT(*)>0
+SELECT COUNT(*)<ROW_COUNT AND COUNT(*)>0 FROM t1 WHERE b='slave' GROUP BY b ORDER BY b;
+COUNT(*)<ROW_COUNT AND COUNT(*)>0
 1
-SELECT COUNT(*)<2000 AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
-COUNT(*)<2000 AND COUNT(*)>0
+SELECT COUNT(*)<ROW_COUNT AND COUNT(*)>0 FROM t2 WHERE b='slave' GROUP BY b ORDER BY b;
+COUNT(*)<ROW_COUNT AND COUNT(*)>0
 1
 DROP TABLE IF EXISTS t1,t2;
 
@@ -233,11 +233,7 @@ DROP TABLE IF EXISTS t1,t2,t3;
 
 * sql_mode *
 SET @@global.sql_mode=ANSI;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@session.sql_mode=ANSI;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @@global.sql_mode=TRADITIONAL;
 SET @@session.sql_mode=TRADITIONAL;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c DATE);

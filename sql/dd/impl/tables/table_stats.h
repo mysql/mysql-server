@@ -23,14 +23,13 @@
 #ifndef DD_TABLES__TABLE_STATS_INCLUDED
 #define DD_TABLES__TABLE_STATS_INCLUDED
 
-
 #include <new>
 #include <string>
 
-#include "sql/dd/impl/raw/object_keys.h"      // Composite_char_key
+#include "sql/dd/impl/raw/object_keys.h"  // Composite_char_key
 #include "sql/dd/impl/types/entity_object_table_impl.h"
-                                              // Entity_object_table_impl
-#include "sql/dd/impl/types/table_stat_impl.h" // Table_stat
+// Entity_object_table_impl
+#include "sql/dd/impl/types/table_stat_impl.h"  // Table_stat
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/table_stat.h"
 
@@ -42,15 +41,13 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Table_stats: virtual public Entity_object_table_impl
-{
-public:
+class Table_stats : virtual public Entity_object_table_impl {
+ public:
   Table_stats();
 
   static const Table_stats &instance();
 
-  enum enum_fields
-  {
+  enum enum_fields {
     FIELD_SCHEMA_NAME,
     FIELD_TABLE_NAME,
     FIELD_TABLE_ROWS,
@@ -66,23 +63,19 @@ public:
     FIELD_CACHED_TIME
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_SCHEMA_ID_TABLE_NAME
-  };
+  enum enum_indexes { INDEX_PK_SCHEMA_ID_TABLE_NAME };
 
-  enum enum_foreign_keys
-  {
-  };
+  enum enum_foreign_keys {};
 
-  virtual Table_stat *create_entity_object(const Raw_record &) const
-  { return new (std::nothrow) Table_stat_impl(); }
+  virtual Table_stat *create_entity_object(const Raw_record &) const {
+    return new (std::nothrow) Table_stat_impl();
+  }
 
   static Table_stat::Name_key *create_object_key(const String_type &schema_name,
-                                                      const String_type &table_name);
+                                                 const String_type &table_name);
 };
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__TABLE_STATS_INCLUDED
+#endif  // DD_TABLES__TABLE_STATS_INCLUDED

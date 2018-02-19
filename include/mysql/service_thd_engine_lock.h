@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,26 +29,14 @@
   lock related activities.
 
   SYNOPSIS
-  thd_row_lock_wait() - call it just when the engine find a transaction should wait
-                        another transaction to realease a row lock
-  thd                   The session which is waiting  for the row lock to release.
-  thd_wait_for          The session which is holding the row lock.
+  thd_row_lock_wait() - call it just when the engine find a transaction should
+  wait another transaction to realease a row lock thd                   The
+  session which is waiting  for the row lock to release. thd_wait_for
+  The session which is holding the row lock.
 */
 
-#ifdef __cplusplus
 class THD;
-#else
-#define THD void
-#endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-  void thd_report_row_lock_wait(THD* self, THD *wait_for);
-
-#ifdef __cplusplus
-}
-#endif
+void thd_report_row_lock_wait(THD *self, THD *wait_for);
 
 #endif

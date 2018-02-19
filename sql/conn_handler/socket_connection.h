@@ -34,43 +34,36 @@
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_socket.h"  // MYSQL_SOCKET
-#include "mysql/psi/psi_statement.h"
-#include "mysql/udf_registration_types.h"
 #ifdef HAVE_POLL_H
 #include <poll.h>
 #endif
 
 class Channel_info;
 
-
 extern const char *MY_BIND_ALL_ADDRESSES;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 extern PSI_statement_info stmt_info_new_packet;
 #endif
 
-
 /**
   Key Comparator for socket_map_t used in Mysqld_socket_listener
 */
-struct Socket_lt_type
-{
-  bool operator()(const MYSQL_SOCKET& s1, const MYSQL_SOCKET& s2) const
-  {
+struct Socket_lt_type {
+  bool operator()(const MYSQL_SOCKET &s1, const MYSQL_SOCKET &s2) const {
     return mysql_socket_getfd(s1) < mysql_socket_getfd(s2);
   }
 };
 
-
 /**
-  Typedef representing socket map type which hold the sockets and a corresponding
-  bool which is true if it is unix socket and false for tcp socket.
+  Typedef representing socket map type which hold the sockets and a
+  corresponding bool which is true if it is unix socket and false for tcp
+  socket.
 */
 typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type> socket_map_t;
 
 // iterator type for socket map type.
 typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::iterator
-  socket_map_iterator_t;
-
+    socket_map_iterator_t;
 
 /**
   This class represents the Mysqld_socket_listener which prepare the
@@ -80,42 +73,38 @@ typedef std::map<MYSQL_SOCKET, bool, Socket_lt_type>::iterator
   via mysqld command-line  and a unix socket which is bind to a mysqld
   defaul pathname.
 */
-class Mysqld_socket_listener
-{
-  std::string m_bind_addr_str; // IP address string
-  uint m_tcp_port; // TCP port to bind to
-  uint m_backlog; // backlog specifying length of pending connection queue
-  uint m_port_timeout; // port timeout value
-  std::string m_unix_sockname; // unix socket pathname to bind to
-  bool m_unlink_sockname; // Unlink socket & lock file if true.
+class Mysqld_socket_listener {
+  std::string m_bind_addr_str;  // IP address string
+  uint m_tcp_port;              // TCP port to bind to
+  uint m_backlog;       // backlog specifying length of pending connection queue
+  uint m_port_timeout;  // port timeout value
+  std::string m_unix_sockname;  // unix socket pathname to bind to
+  bool m_unlink_sockname;       // Unlink socket & lock file if true.
   /*
     Map indexed by MYSQL socket fds and correspoding bool to distinguish
     between unix and tcp socket.
   */
-  socket_map_t m_socket_map; // map indexed by mysql socket fd and index
+  socket_map_t m_socket_map;  // map indexed by mysql socket fd and index
 
-  uint m_error_count; // Internal variable for maintaining error count.
+  uint m_error_count;  // Internal variable for maintaining error count.
 
 #ifdef HAVE_POLL
-  static const int MAX_SOCKETS=2;
-  struct poll_info_t
-  {
+  static const int MAX_SOCKETS = 2;
+  struct poll_info_t {
     struct pollfd m_fds[MAX_SOCKETS];
     MYSQL_SOCKET m_pfs_fds[MAX_SOCKETS];
   };
   // poll related info. used in poll for listening to connection events.
   poll_info_t m_poll_info;
 #else
-  struct select_info_t
-  {
-    fd_set  m_read_fds,m_client_fds;
+  struct select_info_t {
+    fd_set m_read_fds, m_client_fds;
     my_socket m_max_used_connection;
-    select_info_t() : m_max_used_connection(0)
-    { FD_ZERO(&m_client_fds); }
+    select_info_t() : m_max_used_connection(0) { FD_ZERO(&m_client_fds); }
   };
   // select info for used in select for listening to connection events.
   select_info_t m_select_info;
-#endif // HAVE_POLL
+#endif  // HAVE_POLL
 
 #ifdef HAVE_LIBWRAP
   const char *m_libwrap_name;
@@ -124,24 +113,22 @@ class Mysqld_socket_listener
 
   /** Number of connection errors when selecting on the listening port */
   static ulong connection_errors_select;
-  /** Number of connection errors when accepting sockets in the listening port. */
+  /** Number of connection errors when accepting sockets in the listening port.
+   */
   static ulong connection_errors_accept;
   /** Number of connection errors from TCP wrappers. */
   static ulong connection_errors_tcpwrap;
 
-public:
-  static ulong get_connection_errors_select()
-  {
+ public:
+  static ulong get_connection_errors_select() {
     return connection_errors_select;
   }
 
-  static ulong get_connection_errors_accept()
-  {
+  static ulong get_connection_errors_accept() {
     return connection_errors_accept;
   }
 
-  static ulong get_connection_errors_tcpwrap()
-  {
+  static ulong get_connection_errors_tcpwrap() {
     return connection_errors_tcpwrap;
   }
 
@@ -156,16 +143,15 @@ public:
     @param   port_timeout   portname.
     @param   unix_sockname  pathname for unix socket to bind to
   */
-  Mysqld_socket_listener(std::string bind_addr_str, uint tcp_port,
-                         uint backlog, uint port_timeout,
-                         std::string unix_sockname);
+  Mysqld_socket_listener(std::string bind_addr_str, uint tcp_port, uint backlog,
+                         uint port_timeout, std::string unix_sockname);
 
   /**
     Set up a listener - set of sockets to listen for connection events
     from clients.
 
-    @retval false  listener sockets setup to be used to listen for connect events
-            true   failure in setting up the listener.
+    @retval false  listener sockets setup to be used to listen for connect
+    events true   failure in setting up the listener.
   */
   bool setup_listener();
 
@@ -175,18 +161,16 @@ public:
     @retval Channel_info   Channel_info object abstracting the connected client
                            details for processing this connection.
   */
-  Channel_info* listen_for_connection_event();
+  Channel_info *listen_for_connection_event();
 
   /**
     Close the listener.
   */
   void close_listener();
 
-  ~Mysqld_socket_listener()
-  {
-    if (!m_socket_map.empty())
-      close_listener();
+  ~Mysqld_socket_listener() {
+    if (!m_socket_map.empty()) close_listener();
   }
 };
 
-#endif // SOCKET_CONNECTION_INCLUDED.
+#endif  // SOCKET_CONNECTION_INCLUDED.

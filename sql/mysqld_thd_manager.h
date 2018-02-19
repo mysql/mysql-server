@@ -29,37 +29,26 @@
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_thread_local.h"   // my_thread_id
+#include "my_thread_local.h"  // my_thread_id
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
 #include "prealloced_array.h"
 
 class THD;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void thd_lock_thread_count();
 void thd_unlock_thread_count();
-#ifdef __cplusplus
-}
-#endif
-
 
 /**
   Base class to perform actions on all thds in the thd list.
   Users of do_for_all_thd() need to subclass this and override operator().
 */
 
-class Do_THD_Impl
-{
-public:
+class Do_THD_Impl {
+ public:
   virtual ~Do_THD_Impl() {}
-  virtual void operator()(THD*) = 0;
+  virtual void operator()(THD *) = 0;
 };
-
 
 /**
   Base class to find specific thd from the thd list.
@@ -67,9 +56,8 @@ public:
   to provide implementation to find thd from thd list.
 */
 
-class Find_THD_Impl
-{
-public:
+class Find_THD_Impl {
+ public:
   virtual ~Find_THD_Impl() {}
   /**
     Override this operator to provide implementation to find specific thd.
@@ -80,9 +68,8 @@ public:
       @retval true  for matching thd
               false otherwise
   */
-  virtual bool operator()(THD* thd) = 0;
+  virtual bool operator()(THD *thd) = 0;
 };
-
 
 /**
   Callback function used by kill_one_thread and timer_notify functions
@@ -91,15 +78,13 @@ public:
   @note It acquires LOCK_thd_data mutex when it finds matching thd.
   It is the responsibility of the caller to release this mutex.
 */
-class Find_thd_with_id: public Find_THD_Impl
-{
-public:
-  Find_thd_with_id(my_thread_id value): m_thread_id(value) {}
+class Find_thd_with_id : public Find_THD_Impl {
+ public:
+  Find_thd_with_id(my_thread_id value) : m_thread_id(value) {}
   virtual bool operator()(THD *thd);
 
   const my_thread_id m_thread_id;
 };
-
 
 /**
   This class maintains THD object of all registered threads.
@@ -112,9 +97,8 @@ public:
   Method remove_thd() also broadcasts COND_thd_list.
 */
 
-class Global_THD_manager
-{
-public:
+class Global_THD_manager {
+ public:
   /**
     Value for thread_id reserved for THDs which does not have an
     assigned value yet. get_new_thread_id() will never return this
@@ -125,8 +109,7 @@ public:
   /**
     Retrieves singleton instance
   */
-  static Global_THD_manager* get_instance()
-  {
+  static Global_THD_manager *get_instance() {
     DBUG_ASSERT(thd_manager != NULL);
     return thd_manager;
   }
@@ -148,7 +131,7 @@ public:
     Internally used to bypass code.
     It enables unit test scripts to create dummy THD object for testing.
   */
-  void set_unit_test() { unit_test= true; }
+  void set_unit_test() { unit_test = true; }
 
   /**
     Adds THD to global THD list.
@@ -173,36 +156,24 @@ public:
   /**
     Increments thread running statistic variable.
   */
-  void inc_thread_running()
-  {
-    atomic_num_thread_running++;
-  }
+  void inc_thread_running() { atomic_num_thread_running++; }
 
   /**
     Decrements thread running statistic variable.
   */
-  void dec_thread_running()
-  {
-    atomic_num_thread_running--;
-  }
+  void dec_thread_running() { atomic_num_thread_running--; }
 
   /**
     Retrieves thread created statistic variable.
     @return ulonglong Returns the total number of threads created
                       after server start
   */
-  ulonglong get_num_thread_created() const
-  {
-    return atomic_thread_created;
-  }
+  ulonglong get_num_thread_created() const { return atomic_thread_created; }
 
   /**
     Increments thread created statistic variable.
   */
-  void inc_thread_created()
-  {
-    atomic_thread_created++;
-  }
+  void inc_thread_created() { atomic_thread_created++; }
 
   /**
     Returns an unused thread id.
@@ -262,17 +233,17 @@ public:
       @retval THD* Matching THD
       @retval NULL When THD is not found
   */
-  THD* find_thd(Find_THD_Impl *func);
+  THD *find_thd(Find_THD_Impl *func);
 
-  THD* find_thd(Find_thd_with_id *func);
+  THD *find_thd(Find_thd_with_id *func);
 
   // Declared static as it is referenced in handle_fatal_signal()
   static std::atomic<uint> atomic_global_thd_count;
 
   // Number of THD list partitions.
-  static const int NUM_PARTITIONS= 8;
+  static const int NUM_PARTITIONS = 8;
 
-private:
+ private:
   Global_THD_manager();
   ~Global_THD_manager();
 
@@ -280,7 +251,7 @@ private:
   static Global_THD_manager *thd_manager;
 
   // Array of current THDs. Protected by LOCK_thd_list.
-  typedef Prealloced_array<THD*, 60> THD_array;
+  typedef Prealloced_array<THD *, 60> THD_array;
   THD_array thd_list[NUM_PARTITIONS];
 
   // Array of thread ID in current use. Protected by LOCK_thread_ids.

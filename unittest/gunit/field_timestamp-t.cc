@@ -25,23 +25,21 @@
 
 #include <gtest/gtest.h>
 
+#include "sql/sql_class.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/mock_field_timestamp.h"
 #include "unittest/gunit/test_utils.h"
 
 namespace field_timestamp_unittests {
 
-
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
-
+using my_testing::Server_initializer;
 
 /*
   Tests of the public interface of Field_timestamp.
 */
-class FieldTimestampTest : public ::testing::Test
-{
-protected:
+class FieldTimestampTest : public ::testing::Test {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -50,9 +48,7 @@ protected:
   Server_initializer initializer;
 };
 
-
-TEST_F(FieldTimestampTest, hasInsertDefaultFunction)
-{
+TEST_F(FieldTimestampTest, hasInsertDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
     EXPECT_TRUE(field_dn.has_insert_default_function());
@@ -62,14 +58,12 @@ TEST_F(FieldTimestampTest, hasInsertDefaultFunction)
     EXPECT_FALSE(field_un.has_insert_default_function());
   }
   {
-    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW|Field::ON_UPDATE_NOW);
+    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     EXPECT_TRUE(field_dnun.has_insert_default_function());
   }
 }
 
-
-TEST_F(FieldTimestampTest, hasUpdateDefaultFunction)
-{
+TEST_F(FieldTimestampTest, hasUpdateDefaultFunction) {
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
     EXPECT_FALSE(field_dn.has_update_default_function());
@@ -79,25 +73,23 @@ TEST_F(FieldTimestampTest, hasUpdateDefaultFunction)
     EXPECT_TRUE(field_un.has_update_default_function());
   }
   {
-    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW|Field::ON_UPDATE_NOW);
+    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     EXPECT_TRUE(field_dnun.has_update_default_function());
   }
 }
-
 
 /*
   Test of DEFAULT CURRENT_TIMESTAMP functionality. Note that CURRENT_TIMESTAMP
   should be truncated to whole seconds.
 */
-TEST_F(FieldTimestampTest, EvaluateInsertDefaultFunction)
-{
-  const timeval now= { 1, 1 };
+TEST_F(FieldTimestampTest, EvaluateInsertDefaultFunction) {
+  const timeval now = {1, 1};
   get_thd()->set_time(&now);
 
   {
     Mock_field_timestamp field_dn(Field::DEFAULT_NOW);
     field_dn.evaluate_insert_default_function();
-    EXPECT_EQ(now.tv_sec,  field_dn.to_timeval().tv_sec);
+    EXPECT_EQ(now.tv_sec, field_dn.to_timeval().tv_sec);
     EXPECT_EQ(0, field_dn.to_timeval().tv_usec);
   }
   {
@@ -107,21 +99,19 @@ TEST_F(FieldTimestampTest, EvaluateInsertDefaultFunction)
     EXPECT_EQ(0, field_un.to_timeval().tv_usec);
   }
   {
-    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW|Field::ON_UPDATE_NOW);
+    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     field_dnun.evaluate_insert_default_function();
-    EXPECT_EQ(now.tv_sec,  field_dnun.to_timeval().tv_sec);
+    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().tv_sec);
     EXPECT_EQ(0, field_dnun.to_timeval().tv_usec);
   }
 }
-
 
 /*
   Test of ON UPDATE CURRENT_TIMESTAMP functionality. Note that
   CURRENT_TIMESTAMP should be truncated to whole seconds.
 */
-TEST_F(FieldTimestampTest, EvaluateUpdateDefaultFunction)
-{
-  const timeval now= { 1, 1 };
+TEST_F(FieldTimestampTest, EvaluateUpdateDefaultFunction) {
+  const timeval now = {1, 1};
   get_thd()->set_time(&now);
 
   {
@@ -133,15 +123,15 @@ TEST_F(FieldTimestampTest, EvaluateUpdateDefaultFunction)
   {
     Mock_field_timestamp field_un(Field::ON_UPDATE_NOW);
     field_un.evaluate_update_default_function();
-    EXPECT_EQ(now.tv_sec,  field_un.to_timeval().tv_sec);
+    EXPECT_EQ(now.tv_sec, field_un.to_timeval().tv_sec);
     EXPECT_EQ(0, field_un.to_timeval().tv_usec);
   }
   {
-    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW|Field::ON_UPDATE_NOW);
+    Mock_field_timestamp field_dnun(Field::DEFAULT_NOW | Field::ON_UPDATE_NOW);
     field_dnun.evaluate_update_default_function();
-    EXPECT_EQ(now.tv_sec,  field_dnun.to_timeval().tv_sec);
+    EXPECT_EQ(now.tv_sec, field_dnun.to_timeval().tv_sec);
     EXPECT_EQ(0, field_dnun.to_timeval().tv_usec);
   }
 }
 
-}
+}  // namespace field_timestamp_unittests

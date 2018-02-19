@@ -23,10 +23,10 @@
 #ifndef DD_TABLESPACE_INCLUDED
 #define DD_TABLESPACE_INCLUDED
 
-#include "mem_root_fwd.h"
-#include "sql/lock.h"                // Tablespace_hash_set
+#include "sql/lock.h"  // Tablespace_hash_set
 #include "sql/thr_malloc.h"
 
+struct MEM_ROOT;
 class THD;
 class st_alter_tablespace;
 struct handlerton;
@@ -46,8 +46,7 @@ namespace dd {
   @return true - On failure.
   @return false - On success.
 */
-bool fill_table_and_parts_tablespace_names(THD *thd,
-                                           const char *db_name,
+bool fill_table_and_parts_tablespace_names(THD *thd, const char *db_name,
                                            const char *table_name,
                                            Tablespace_hash_set *tablespace_set);
 
@@ -65,9 +64,8 @@ bool fill_table_and_parts_tablespace_names(THD *thd,
   @return false - On success.
 */
 template <typename T>
-bool get_tablespace_name(THD *thd, const T *obj,
-                         const char** tablespace_name,
+bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
                          MEM_ROOT *mem_root);
 
-} // namespace dd
-#endif // DD_TABLESPACE_INCLUDED
+}  // namespace dd
+#endif  // DD_TABLESPACE_INCLUDED

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2016, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-SET(MYISAMMRG_SOURCES  myrg_close.c myrg_create.c myrg_delete.c myrg_extra.c myrg_info.c
+SET(MYISAMMRG_SOURCES  myrg_close.cc myrg_create.cc myrg_delete.cc myrg_extra.cc myrg_info.cc
 				ha_myisammrg.cc
-				myrg_locking.c myrg_open.c myrg_panic.c myrg_queue.c myrg_range.c
-				myrg_rfirst.c myrg_rkey.c myrg_rlast.c myrg_rnext.c myrg_rnext_same.c
-				myrg_rprev.c myrg_rrnd.c myrg_rsame.c myrg_static.c myrg_update.c
-				myrg_write.c myrg_records.c)
+				myrg_locking.cc myrg_open.cc myrg_panic.cc myrg_queue.cc myrg_range.cc
+				myrg_rfirst.cc myrg_rkey.cc myrg_rlast.cc myrg_rnext.cc myrg_rnext_same.cc
+				myrg_rprev.cc myrg_rrnd.cc myrg_rsame.cc myrg_static.cc myrg_update.cc
+				myrg_write.cc myrg_records.cc)
+
+# MyISAM relies heavily on memset/memcpy of structs, including non-POD ones.
+# As MyISAM is not maintained anymore, it is not worth fixing these,
+# so we turn off the warning instead.
+IF(CMAKE_COMPILER_IS_GNUCXX)
+  ADD_COMPILE_FLAGS(${MYISAMMRG_SOURCES} COMPILE_FLAGS "-Wno-class-memaccess")
+ENDIF()
 
 MYSQL_ADD_PLUGIN(myisammrg ${MYISAMMRG_SOURCES} STORAGE_ENGINE MANDATORY)

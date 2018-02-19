@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,15 +28,13 @@
 #include <cstdint>
 #include <string>
 
-
 namespace xcl {
 namespace password_hasher {
 
 char *octet2hex(char *to, const char *str, size_t len);
 std::string generate_user_salt();
 std::string scramble(const char *message, const char *password);
-bool check_scramble_mysql41_hash(const char *scramble_arg,
-                                 const char *message,
+bool check_scramble_mysql41_hash(const char *scramble_arg, const char *message,
                                  const uint8_t *hash_stage2);
 std::string get_password_from_salt(const std::string &hash_stage2);
 

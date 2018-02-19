@@ -668,8 +668,6 @@ FROM t1 WHERE gid = 2;
 d * (vb | vb)	f * (vb | vb)	dd * (vb | vb)	(vb | vb) / d	(vb | vb) / f	(vb | vb) / dd	d * (i | i)	f * (i | i)	dd * (i | i)	(i | i) / d	(i | i) / f	(i | i) / dd
 -98765.23	-98765.23	-98765.23	-98765.230000	-98765.230000	-98765.230000	98765.00	98765.00	98765.00	98765.0000	98765.000000	98765.000000
 SET sql_mode='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SELECT
 d + BIT_OR(vb), f + BIT_OR(vb), dd + BIT_OR(vb), CAST(BIT_OR(vb) AS DECIMAL(10,2)),
 d + BIT_OR(i), f + BIT_OR(i), dd + BIT_OR(i), CAST(BIT_OR(i) AS DECIMAL(10,2))

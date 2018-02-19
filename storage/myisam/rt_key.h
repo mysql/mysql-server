@@ -34,11 +34,11 @@
 #include "my_inttypes.h"
 #include "myisam.h"
 
-int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-                 uint key_length, uchar *page_buf, my_off_t *new_page);
-int rtree_delete_key(MI_INFO *info, uchar *page, uchar *key, 
-                    uint key_length, uint nod_flag);
-int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
-                    uint key_length, my_off_t child_page);
+int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                  uint key_length, uchar *page_buf, my_off_t *new_page);
+int rtree_delete_key(MI_INFO *info, uchar *page, uchar *key, uint key_length,
+                     uint nod_flag);
+int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
+                      uint key_length, my_off_t child_page);
 
 #endif /* _rt_key_h */

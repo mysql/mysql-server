@@ -32,17 +32,21 @@
 #include <stddef.h>
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "mysql_com.h"
-#include "sql/rpl_info.h" /*CHANNEL_NAME_LENGTH */
-#include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"
+#include "mysql/service_mysql_alloc.h"
+#include "sql/rpl_gtid.h"
+#include "sql/rpl_info.h"      /*CHANNEL_NAME_LENGTH */
 #include "sql/rpl_reporting.h" /* MAX_SLAVE_ERRMSG */
-#include "storage/perfschema/pfs_column_types.h"
+#include "sql/sql_const.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/table_helper.h"
 
+class Field;
 class Master_info;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -51,15 +55,10 @@ class Master_info;
 
 #ifndef ENUM_RPL_YES_NO
 #define ENUM_RPL_YES_NO
-enum enum_rpl_yes_no
-{
-  PS_RPL_YES = 1,
-  PS_RPL_NO
-};
+enum enum_rpl_yes_no { PS_RPL_YES = 1, PS_RPL_NO };
 #endif
 
-enum enum_rpl_connect_status_service_state
-{
+enum enum_rpl_connect_status_service_state {
   PS_RPL_CONNECT_SERVICE_STATE_YES = 1,
   PS_RPL_CONNECT_SERVICE_STATE_NO,
   PS_RPL_CONNECT_SERVICE_STATE_CONNECTING
@@ -69,8 +68,7 @@ enum enum_rpl_connect_status_service_state
   A row in the table. The fields with string values have an additional
   length field denoted by <field_name>_length.
 */
-struct st_row_connect_status
-{
+struct st_row_connect_status {
   char group_name[UUID_LENGTH];
   bool group_name_is_null;
   char channel_name[CHANNEL_NAME_LENGTH];
@@ -100,79 +98,59 @@ struct st_row_connect_status
   ulonglong queueing_trx_immediate_commit_timestamp;
   ulonglong queueing_trx_start_queue_timestamp;
 
-  st_row_connect_status() : received_transaction_set(NULL)
-  {
-  }
+  st_row_connect_status() : received_transaction_set(NULL) {}
 
-  void
-  cleanup()
-  {
-    if (received_transaction_set != NULL)
-    {
+  void cleanup() {
+    if (received_transaction_set != NULL) {
       my_free(received_transaction_set);
       received_transaction_set = NULL;
     }
   }
 };
 
-class PFS_index_rpl_connection_status : public PFS_engine_index
-{
-public:
-  PFS_index_rpl_connection_status(PFS_engine_key *key) : PFS_engine_index(key)
-  {
-  }
+class PFS_index_rpl_connection_status : public PFS_engine_index {
+ public:
+  PFS_index_rpl_connection_status(PFS_engine_key *key)
+      : PFS_engine_index(key) {}
 
-  ~PFS_index_rpl_connection_status()
-  {
-  }
+  ~PFS_index_rpl_connection_status() {}
 
   virtual bool match(Master_info *mi) = 0;
 };
 
 class PFS_index_rpl_connection_status_by_channel
-  : public PFS_index_rpl_connection_status
-{
-public:
+    : public PFS_index_rpl_connection_status {
+ public:
   PFS_index_rpl_connection_status_by_channel()
-    : PFS_index_rpl_connection_status(&m_key), m_key("CHANNEL_NAME")
-  {
-  }
+      : PFS_index_rpl_connection_status(&m_key), m_key("CHANNEL_NAME") {}
 
-  ~PFS_index_rpl_connection_status_by_channel()
-  {
-  }
+  ~PFS_index_rpl_connection_status_by_channel() {}
 
   virtual bool match(Master_info *mi);
 
-private:
+ private:
   PFS_key_name m_key;
 };
 
 class PFS_index_rpl_connection_status_by_thread
-  : public PFS_index_rpl_connection_status
-{
-public:
+    : public PFS_index_rpl_connection_status {
+ public:
   PFS_index_rpl_connection_status_by_thread()
-    : PFS_index_rpl_connection_status(&m_key), m_key("THREAD_ID")
-  {
-  }
+      : PFS_index_rpl_connection_status(&m_key), m_key("THREAD_ID") {}
 
-  ~PFS_index_rpl_connection_status_by_thread()
-  {
-  }
+  ~PFS_index_rpl_connection_status_by_thread() {}
 
   virtual bool match(Master_info *mi);
 
-private:
+ private:
   PFS_key_thread_id m_key;
 };
 
 /** Table PERFORMANCE_SCHEMA.REPLICATION_CONNECTION_STATUS. */
-class table_replication_connection_status : public PFS_engine_table
-{
+class table_replication_connection_status : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-private:
+ private:
   int make_row(Master_info *mi);
 
   /** Table share lock. */
@@ -187,7 +165,7 @@ private:
   /** Next position. */
   pos_t m_next_pos;
 
-protected:
+ protected:
   /**
     Read the current row values.
     @param table            Table handle
@@ -196,14 +174,12 @@ protected:
     @param read_all         true if all columns are read.
   */
 
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_replication_connection_status();
 
-public:
+ public:
   ~table_replication_connection_status();
 
   /** Table share. */
@@ -218,7 +194,7 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
+ private:
   PFS_index_rpl_connection_status *m_opened_index;
 };
 

@@ -23,38 +23,31 @@
 #ifndef _XPL_PROTOUFF_MESSAGE_H_
 #define _XPL_PROTOUFF_MESSAGE_H_
 
+namespace xpl {
 
-namespace xpl
-{
-
-namespace test
-{
+namespace test {
 
 template <class Msg>
-Msg* message_from_buffer(ngs::Buffer* buffer)
-{
+Msg *message_from_buffer(ngs::Buffer *buffer) {
   ngs::Buffer::Page_list &obuffer_pages = buffer->pages();
 
   std::string str_buff;
   ngs::Buffer::Page_list::const_iterator it = obuffer_pages.begin();
-  for (; it != obuffer_pages.end(); ++it)
-  {
+  for (; it != obuffer_pages.end(); ++it) {
     // skip the header (size+type) from the first page
     size_t offset = (it == obuffer_pages.begin()) ? 5 : 0;
 
     str_buff.append((*it)->data + offset, (*it)->length - offset);
   };
-  Msg* result = new Msg();
+  Msg *result = new Msg();
 
   result->ParseFromString(str_buff);
 
   return result;
 }
 
+}  // namespace test
 
-} // namespace test
+}  // namespace xpl
 
-} // namespace xpl
-
-
-#endif // _XPL_PROTOUFF_MESSAGE_H_
+#endif  // _XPL_PROTOUFF_MESSAGE_H_

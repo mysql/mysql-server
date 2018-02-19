@@ -8,8 +8,6 @@ call mtr.add_suppression("Following users were specified in CREATE USER IF NOT E
 call mtr.add_suppression("Following users were specified in ALTER USER IF EXISTS");
 SET SESSION sql_log_bin= 1;
 
-SHOW GLOBAL VARIABLES LIKE 'log_builtin_as_identified_by_password';
-
 --echo #
 --echo # WL#8540: Support IF [NOT] EXISTS clause in CREATE/DROP USER
 --echo #

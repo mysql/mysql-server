@@ -37,12 +37,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 /**
   mysql_string_itrerator structure to provide service to components
 */
-typedef struct st_string_iterator
-{
+struct st_string_iterator {
   String *iterator_str;
   const char *iterator_ptr;
   int ctype;
-} string_iterator;
+};
 
 void mysql_string_services_init();
 
@@ -54,7 +53,7 @@ void mysql_string_services_init();
   methods.
 */
 class mysql_string_imp {
-public: /* service implementations */
+ public: /* service implementations */
   /**
     Creates a new instance of string object
 
@@ -63,8 +62,7 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(create,
-        (my_h_string *out_string));
+  static DEFINE_BOOL_METHOD(create, (my_h_string * out_string));
 
   /**
     Destroys specified string object and data contained by it.
@@ -74,8 +72,7 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_METHOD(void, destroy,
-    (my_h_string string));
+  static DEFINE_METHOD(void, destroy, (my_h_string string));
 
   /**
     Convert a String pointed by handle to lower case. Conversion depends on the
@@ -88,7 +85,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(tolower,
-        (my_h_string *out_string, my_h_string in_string));
+                            (my_h_string * out_string, my_h_string in_string));
 
   /**
     Convert a String pointed by handle to upper case. Conversion depends on the
@@ -101,7 +98,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(toupper,
-        (my_h_string *out_string, my_h_string in_string));
+                            (my_h_string * out_string, my_h_string in_string));
 
   /**
     alocates a string object and converts the character buffer to string
@@ -120,8 +117,8 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(convert_from_buffer,
-    (my_h_string *out_string, const char *in_buffer, uint64 length,
-      const char *charset_name));
+                            (my_h_string * out_string, const char *in_buffer,
+                             uint64 length, const char *charset_name));
 
   /**
     converts the mysql_string to the character set specified by
@@ -138,8 +135,8 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(convert_to_buffer,
-    (my_h_string in_string, char *out_buffer, uint64 length,
-      const char *charset_name));
+                            (my_h_string in_string, char *out_buffer,
+                             uint64 length, const char *charset_name));
 
   /**
     Gets character code of character on specified index position in
@@ -153,7 +150,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(get_char,
-    (my_h_string string, uint index, ulong *out_char));
+                            (my_h_string string, uint index, ulong *out_char));
 
   /**
     Gets length of specified string expressed as number of characters.
@@ -165,7 +162,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(get_char_length,
-    (my_h_string string, uint *out_length));
+                            (my_h_string string, uint *out_length));
 
   /**
     Gets byte code of string at specified index position to a
@@ -179,7 +176,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(get_byte,
-    (my_h_string string, uint index, uint *out_char));
+                            (my_h_string string, uint index, uint *out_char));
 
   /**
     Gets length of specified string expressed as number of bytes.
@@ -191,7 +188,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(get_byte_length,
-    (my_h_string string, uint *out_length));
+                            (my_h_string string, uint *out_length));
 
   /**
     Creates an iterator for a specified string to allow iteration through all
@@ -205,7 +202,8 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(iterator_create,
-    (my_h_string string, my_h_string_iterator *out_iterator));
+                            (my_h_string string,
+                             my_h_string_iterator *out_iterator));
 
   /**
     Retrieves character code at current iterator position and advances the
@@ -219,7 +217,7 @@ public: /* service implementations */
     @retval true failure
   */
   static DEFINE_BOOL_METHOD(iterator_get_next,
-    (my_h_string_iterator iter, int *out_char));
+                            (my_h_string_iterator iter, int *out_char));
 
   /**
     Releases the string iterator object specified.
@@ -229,8 +227,7 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_METHOD(void, iterator_destroy,
-    (my_h_string_iterator iter));
+  static DEFINE_METHOD(void, iterator_destroy, (my_h_string_iterator iter));
 
   /**
     Checks if character on current position the iterator points to is an upper
@@ -243,8 +240,7 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(is_upper,
-    (my_h_string_iterator iter, bool *out));
+  static DEFINE_BOOL_METHOD(is_upper, (my_h_string_iterator iter, bool *out));
 
   /**
     Checks if character on current position the iterator points to is a lower
@@ -257,8 +253,7 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(is_lower,
-    (my_h_string_iterator iter, bool *out));
+  static DEFINE_BOOL_METHOD(is_lower, (my_h_string_iterator iter, bool *out));
 
   /**
     Checks if character on current position the iterator points to is a digit.
@@ -269,7 +264,6 @@ public: /* service implementations */
     @retval false success
     @retval true failure
   */
-  static DEFINE_BOOL_METHOD(is_digit,
-    (my_h_string_iterator iter, bool *out));
+  static DEFINE_BOOL_METHOD(is_digit, (my_h_string_iterator iter, bool *out));
 };
 #endif /* MYSQL_SERVER_STRING_SERVICE_H */

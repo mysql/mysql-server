@@ -36,19 +36,17 @@ extern bool short_form;
 extern ulong opt_server_id_mask;
 extern ulong opt_binlog_rows_event_max_size;
 
-extern Format_description_log_event* glob_description_event;
+extern Format_description_log_event *glob_description_event;
 
 /*
   error() is used in macro BINLOG_ERROR which is invoked in
   rpl_gtid.h, hence the early forward declaration.
 */
-void error(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
-void warning(const char *format, ...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+void error(const char *format, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
+void warning(const char *format, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void error_or_warning(const char *format, va_list args, const char *msg)
-  MY_ATTRIBUTE((format(printf, 1, 0)));
-void sql_print_error(const char *format,...)
-  MY_ATTRIBUTE((format(printf, 1, 2)));
+    MY_ATTRIBUTE((format(printf, 1, 0)));
+void sql_print_error(const char *format, ...)
+    MY_ATTRIBUTE((format(printf, 1, 2)));
 
 #endif  // MYSQLBINLOG_INCLUDED

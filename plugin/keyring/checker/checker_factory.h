@@ -27,12 +27,11 @@
 
 namespace keyring {
 
-class CheckerFactory : public keyring::Keyring_alloc
-{
-public:
-  Checker* getCheckerForVersion(std::string version);
+class CheckerFactory : public keyring::Keyring_alloc {
+ public:
+  Checker *getCheckerForVersion(std::string version);
 };
 
-}//namespace keyring
+}  // namespace keyring
 
-#endif //MYSQL_CHECKER_FACTORY_H
+#endif  // MYSQL_CHECKER_FACTORY_H

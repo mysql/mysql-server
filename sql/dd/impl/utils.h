@@ -23,14 +23,13 @@
 #ifndef DD__UTILS_INCLUDED
 #define DD__UTILS_INCLUDED
 
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
 
 class Properties;
-
 
 /**
   Escaping of a String_type. Escapable characters are '\', '=' and
@@ -43,7 +42,6 @@ class Properties;
 */
 void escape(String_type *dst, const String_type &src);
 
-
 /**
   In place unescaping of String_type. Escapable characters are '\', '='
   and ';'. Escape character is '\'. Iterate over all characters, remove
@@ -55,7 +53,6 @@ void escape(String_type *dst, const String_type &src);
     @retval false     if success
 */
 bool unescape(String_type &dest);
-
 
 /**
   Start at it, iterate until we hit an unescaped c or the end
@@ -77,10 +74,8 @@ bool unescape(String_type &dest);
     @retval true     if an error occurred
     @retval false    if success
 */
-bool eat_to(String_type::const_iterator &it,
-            String_type::const_iterator end,
+bool eat_to(String_type::const_iterator &it, String_type::const_iterator end,
             char c);
-
 
 /**
   Start at it, find first unescaped occorrence of c, create
@@ -104,7 +99,6 @@ bool eat_to(String_type::const_iterator &it,
 bool eat_str(String_type &dest, String_type::const_iterator &it,
              String_type::const_iterator end, char c);
 
-
 /**
   Start at it, find a key and value separated by an unescaped '='. Value
   is supposed to be terminated by an unescaped ';' or by the end of the
@@ -119,13 +113,11 @@ bool eat_str(String_type &dest, String_type::const_iterator &it,
     @retval true      if an error occurred
     @retval false     if success
 */
-bool eat_pairs(String_type::const_iterator &it,
-               String_type::const_iterator end,
+bool eat_pairs(String_type::const_iterator &it, String_type::const_iterator end,
                dd::Properties *props);
-
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__UTILS_INCLUDED
+#endif  // DD__UTILS_INCLUDED

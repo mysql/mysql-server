@@ -36,6 +36,7 @@
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
 #include "consumer_printer.hpp"
 #include "consumer_restore.hpp"
+#include "my_alloc.h"
 
 #define TMP_TABLE_PREFIX "#sql"
 #define TMP_TABLE_PREFIX_LEN 4

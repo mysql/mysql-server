@@ -4,8 +4,6 @@ DROP TABLE IF EXISTS t1, t2, t3, t, tp, tsp, tmp;
 #               ROW_FORMAT WAS SET EXPLICITLY
 #
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Same definition (both have ROW_FORMAT set)
 SET GLOBAL innodb_default_row_format=compact;
 CREATE TABLE t1 (
@@ -553,15 +551,15 @@ a	b
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t IGNORE;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t IGNORE;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t IGNORE' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t IGNORE' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0,p1 WITH TABLE t;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'p1 WITH TABLE t' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',p1 WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION (p0,p1) WITH TABLE t;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(p0,p1) WITH TABLE t' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE (t,t2);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '(t,t2)' at line 1
 ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t,t2;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't2' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',t2' at line 1
 ALTER TABLE tp EXCHANGE PARTITION non_existent WITH TABLE t;
 ERROR HY000: Unknown partition 'non_existent' in table 'tp'
 ALTER TABLE tsp EXCHANGE PARTITION p0 WITH TABLE t;

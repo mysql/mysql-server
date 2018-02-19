@@ -44,31 +44,25 @@
 */
 
 void parse_user(const char *user_id_str, size_t user_id_len,
-                char *user_name_str, size_t *user_name_len,
-                char *host_name_str, size_t *host_name_len)
-{
-  const char *p= strrchr(user_id_str, '@');
+                char *user_name_str, size_t *user_name_len, char *host_name_str,
+                size_t *host_name_len) {
+  const char *p = strrchr(user_id_str, '@');
 
-  if (!p)
-  {
-    *user_name_len= 0;
-    *host_name_len= 0;
-  }
-  else
-  {
-    *user_name_len= (uint) (p - user_id_str);
-    *host_name_len= (uint) (user_id_len - *user_name_len - 1);
+  if (!p) {
+    *user_name_len = 0;
+    *host_name_len = 0;
+  } else {
+    *user_name_len = (uint)(p - user_id_str);
+    *host_name_len = (uint)(user_id_len - *user_name_len - 1);
 
-    if (*user_name_len > USERNAME_LENGTH)
-      *user_name_len= USERNAME_LENGTH;
+    if (*user_name_len > USERNAME_LENGTH) *user_name_len = USERNAME_LENGTH;
 
-    if (*host_name_len > HOSTNAME_LENGTH)
-      *host_name_len= HOSTNAME_LENGTH;
+    if (*host_name_len > HOSTNAME_LENGTH) *host_name_len = HOSTNAME_LENGTH;
 
     memcpy(user_name_str, user_id_str, *user_name_len);
     memcpy(host_name_str, p + 1, *host_name_len);
   }
 
-  user_name_str[*user_name_len]= 0;
-  host_name_str[*host_name_len]= 0;
+  user_name_str[*user_name_len] = 0;
+  host_name_str[*host_name_len] = 0;
 }

@@ -138,9 +138,9 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/Record.cc
     src/TabSeparatedValues.cc
     src/TableSpec.cc
-    src/atomics.c
-    src/debug.c
-    src/hash_item_util.c
+    src/atomics.cc
+    src/debug.cc
+    src/hash_item_util.cc
     src/ndb_configuration.cc
     src/ndb_engine_errors.cc
     src/ndb_engine_private.h
@@ -149,10 +149,10 @@ set(NDB_MEMCACHE_SOURCE_FILES
     src/ndb_pipeline.cc
     src/ndb_worker.cc
     src/schedulers
-    src/thread_identifier.c
-    src/timing.c
-    src/workitem.c
-    src/workqueue.c
+    src/thread_identifier.cc
+    src/timing.cc
+    src/workitem.cc
+    src/workqueue.cc
     src/Scheduler.cc
     src/GlobalConfigManager.cc
     src/SchedulerConfigManager.cc
@@ -271,14 +271,14 @@ target_link_libraries(ndbmemcache
 
 ### Build the module
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # Turn off array-bounds warning in ndb_engine.c wich occurs
+  # Turn off array-bounds warning in ndb_engine.cc wich occurs
   # when it uses the struct engine_info in the external memcached
   # file engine.h to define its engine capabilities.
-  ADD_COMPILE_FLAGS(src/ndb_engine.c
+  ADD_COMPILE_FLAGS(src/ndb_engine.cc
                    COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
 
-add_library(ndb_engine MODULE src/ndb_engine.c src/stub.cc)
+add_library(ndb_engine MODULE src/ndb_engine.cc src/stub.cc)
 
 IF(APPLE)
   SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
@@ -305,6 +305,14 @@ SET_TARGET_PROPERTIES(ndb_engine PROPERTIES
 
 IF(LINUX_INSTALL_RPATH_ORIGIN)
   SET_PROPERTY(TARGET ndb_engine PROPERTY INSTALL_RPATH "\$ORIGIN/")
+ENDIF()
+
+IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  # Turn off array-bounds warning in ndb_engine.c wich occurs
+  # when it uses the struct engine_info in the external memcached
+  # file engine.h to define its engine capabilities.
+  ADD_COMPILE_FLAGS(src/ndb_engine.cc
+                   COMPILE_FLAGS "-Wno-array-bounds")
 ENDIF()
 
 target_link_libraries(ndb_engine ndbmemcache ndbclient_static)

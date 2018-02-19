@@ -30,13 +30,17 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_variable.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 /**
   @addtogroup performance_schema_tables
   @{
@@ -46,28 +50,23 @@
   A row of table
   PERFORMANCE_SCHEMA.GLOBAL_STATUS.
 */
-struct row_global_status
-{
+struct row_global_status {
   /** Column VARIABLE_NAME. */
   PFS_variable_name_row m_variable_name;
   /** Column VARIABLE_VALUE. */
   PFS_variable_value_row m_variable_value;
 };
 
-class PFS_index_global_status : public PFS_engine_index
-{
-public:
-  PFS_index_global_status() : PFS_engine_index(&m_key), m_key("VARIABLE_NAME")
-  {
-  }
+class PFS_index_global_status : public PFS_engine_index {
+ public:
+  PFS_index_global_status()
+      : PFS_engine_index(&m_key), m_key("VARIABLE_NAME") {}
 
-  ~PFS_index_global_status()
-  {
-  }
+  ~PFS_index_global_status() {}
 
   virtual bool match(const Status_variable *pfs);
 
-private:
+ private:
   PFS_key_variable_name m_key;
 };
 
@@ -75,21 +74,17 @@ private:
   Store and retrieve table state information for queries that reinstantiate
   the table object.
 */
-class table_global_status_context : public PFS_table_context
-{
-public:
+class table_global_status_context : public PFS_table_context {
+ public:
   table_global_status_context(ulonglong current_version, bool restore)
-    : PFS_table_context(current_version, restore, THR_PFS_SG)
-  {
-  }
+      : PFS_table_context(current_version, restore, THR_PFS_SG) {}
 };
 
 /** Table PERFORMANCE_SCHEMA.GLOBAL_STATUS. */
-class table_global_status : public PFS_engine_table
-{
+class table_global_status : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
 
-public:
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -105,22 +100,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_global_status();
 
-public:
-  ~table_global_status()
-  {
-  }
+ public:
+  ~table_global_status() {}
 
-protected:
+ protected:
   int make_row(const Status_variable *system_var);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

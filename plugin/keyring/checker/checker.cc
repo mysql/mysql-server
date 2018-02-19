@@ -29,55 +29,52 @@
 
 namespace keyring {
 
-const my_off_t Checker::EOF_TAG_SIZE= 3;
-const std::string Checker::eofTAG= "EOF";
+const my_off_t Checker::EOF_TAG_SIZE = 3;
+const std::string Checker::eofTAG = "EOF";
 
-bool Checker::check_file_structure(File file, size_t file_size, Digest *digest)
-{
-  if (file_size == 0)
-    return is_empty_file_correct(digest) == FALSE;
+bool Checker::check_file_structure(File file, size_t file_size,
+                                   Digest *digest) {
+  if (file_size == 0) return is_empty_file_correct(digest) == false;
 
-  return is_file_size_correct(file_size) == FALSE ||
-     is_file_tag_correct(file) == FALSE ||
-     is_file_version_correct(file) == FALSE ||
-     is_dgst_correct(file, digest) == FALSE;
+  return is_file_size_correct(file_size) == false ||
+         is_file_tag_correct(file) == false ||
+         is_file_version_correct(file) == false ||
+         is_dgst_correct(file, digest) == false;
 }
 
-bool Checker::is_empty_file_correct(Digest *digest)
-{
+bool Checker::is_empty_file_correct(Digest *digest) {
   return strlen(dummy_digest) == digest->length &&
-         strncmp(dummy_digest, reinterpret_cast<const char*>(digest->value),
+         strncmp(dummy_digest, reinterpret_cast<const char *>(digest->value),
                  std::min(static_cast<unsigned int>(strlen(dummy_digest)),
                           digest->length)) == 0;
 }
 
-bool Checker::is_file_tag_correct(File file)
-{
-  uchar tag[EOF_TAG_SIZE+1];
+bool Checker::is_file_tag_correct(File file) {
+  uchar tag[EOF_TAG_SIZE + 1];
   mysql_file_seek(file, 0, MY_SEEK_END, MYF(0));
   if (unlikely(mysql_file_tell(file, MYF(0)) < EOF_TAG_SIZE))
-    return FALSE; // File does not contain tag
+    return false;  // File does not contain tag
 
   if (file_seek_to_tag(file) ||
-      unlikely(mysql_file_read(file, tag, EOF_TAG_SIZE, MYF(0)) != EOF_TAG_SIZE))
-    return FALSE;
-  tag[3]='\0';
+      unlikely(mysql_file_read(file, tag, EOF_TAG_SIZE, MYF(0)) !=
+               EOF_TAG_SIZE))
+    return false;
+  tag[3] = '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
-  return eofTAG == reinterpret_cast<char*>(tag);
+  return eofTAG == reinterpret_cast<char *>(tag);
 }
 
-bool Checker::is_file_version_correct(File file)
-{
-  std::unique_ptr<uchar[]> version(new uchar[file_version.length()+1]);
-  version.get()[file_version.length()]= '\0';
+bool Checker::is_file_version_correct(File file) {
+  std::unique_ptr<uchar[]> version(new uchar[file_version.length() + 1]);
+  version.get()[file_version.length()] = '\0';
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
-  if (unlikely(mysql_file_read(file, version.get(), file_version.length(), MYF(0)) !=
-      file_version.length() || file_version != reinterpret_cast<char*>(version.get())))
-    return FALSE;
+  if (unlikely(mysql_file_read(file, version.get(), file_version.length(),
+                               MYF(0)) != file_version.length() ||
+               file_version != reinterpret_cast<char *>(version.get())))
+    return false;
 
   mysql_file_seek(file, 0, MY_SEEK_SET, MYF(0));
-  return TRUE;
+  return true;
 }
 
-}//namespace keyring
-
+}  // namespace keyring

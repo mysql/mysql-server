@@ -29,9 +29,9 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
-#include "sql/dd/impl/raw/raw_key.h"        // dd::Raw_key
+#include "sql/dd/impl/raw/raw_key.h"  // dd::Raw_key
 #include "sql/handler.h"
-#include "sql/table.h"                      // TABLE
+#include "sql/table.h"  // TABLE
 
 namespace dd {
 
@@ -45,47 +45,40 @@ namespace dd {
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Raw_record_set::open()
-{
+bool Raw_record_set::open() {
   DBUG_ENTER("Raw_record_set::open");
-  uint index_no= 0;
+  uint index_no = 0;
 
   // Use specific index if key submitted.
-  if (m_key)
-    index_no= m_key->index_no;
+  if (m_key) index_no = m_key->index_no;
 
-  int rc=m_table->file->ha_index_init(index_no, true);
+  int rc = m_table->file->ha_index_init(index_no, true);
 
-  if (rc)
-  {
+  if (rc) {
     m_table->file->print_error(rc, MYF(0));
     DBUG_RETURN(true);
   }
 
   if (m_key)
-    rc= m_table->file->ha_index_read_idx_map(m_table->record[0],
-                                             m_key->index_no,
-                                             m_key->key,
-                                             m_key->keypart_map,
-                                             HA_READ_KEY_EXACT);
+    rc = m_table->file->ha_index_read_idx_map(
+        m_table->record[0], m_key->index_no, m_key->key, m_key->keypart_map,
+        HA_READ_KEY_EXACT);
   else
-    rc= m_table->file->ha_index_first(m_table->record[0]);
+    rc = m_table->file->ha_index_first(m_table->record[0]);
 
   // Row not found.
-  if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE)
-  {
+  if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
     DBUG_ASSERT(!m_current_record);
     DBUG_RETURN(false);
   }
 
   // Got unexpected error.
-  if (rc)
-  {
+  if (rc) {
     m_table->file->print_error(rc, MYF(0));
     DBUG_RETURN(true);
   }
 
-  m_current_record= this;
+  m_current_record = this;
 
   DBUG_RETURN(false);
 }
@@ -104,58 +97,50 @@ bool Raw_record_set::open()
                               2) OR Either we don't have any matching rows
   @return true - On failure and my_error() is invoked.
 */
-bool Raw_record_set::next(Raw_record *&r)
-{
+bool Raw_record_set::next(Raw_record *&r) {
   DBUG_ENTER("Raw_record_set::next");
   int rc;
 
-  if (!m_current_record)
-  {
-    m_current_record= NULL;
-    r= NULL;
+  if (!m_current_record) {
+    m_current_record = NULL;
+    r = NULL;
     DBUG_RETURN(false);
   }
 
   if (m_key)
-    rc= m_table->file->ha_index_next_same(m_table->record[0],
-                                          m_key->key,
-                                          m_key->key_len);
+    rc = m_table->file->ha_index_next_same(m_table->record[0], m_key->key,
+                                           m_key->key_len);
   else
-    rc= m_table->file->ha_index_next(m_table->record[0]);
+    rc = m_table->file->ha_index_next(m_table->record[0]);
 
   // Row not found.
-  if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE)
-  {
-    m_current_record= NULL;
-    r= NULL;
+  if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
+    m_current_record = NULL;
+    r = NULL;
     DBUG_RETURN(false);
   }
 
   // Got unexpected error.
-  if (rc)
-  {
+  if (rc) {
     m_table->file->print_error(rc, MYF(0));
-    m_current_record= NULL;
-    r= NULL;
+    m_current_record = NULL;
+    r = NULL;
     DBUG_RETURN(true);
   }
 
-  m_current_record= this;
-  r= this;
+  m_current_record = this;
+  r = this;
 
   DBUG_RETURN(false);
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-Raw_record_set::~Raw_record_set()
-{
-  if (m_table->file->inited != handler::NONE)
-  {
-    int rc= m_table->file->ha_index_end();
+Raw_record_set::~Raw_record_set() {
+  if (m_table->file->inited != handler::NONE) {
+    int rc = m_table->file->ha_index_end();
 
-    if (rc)
-    {
+    if (rc) {
       /* purecov: begin inspected */
       m_table->file->print_error(rc, MYF(ME_ERRORLOG));
       DBUG_ASSERT(false);
@@ -168,4 +153,4 @@ Raw_record_set::~Raw_record_set()
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd

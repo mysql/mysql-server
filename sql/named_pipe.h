@@ -27,15 +27,9 @@
 
 #include "my_macros.h"
 
-C_MODE_START
-
 HANDLE create_server_named_pipe(SECURITY_ATTRIBUTES *sec_attr,
                                 SECURITY_DESCRIPTOR *sec_descr,
-                                DWORD buffer_size,
-                                const char *name,
-                                char *name_buf,
-                                size_t buflen);
-
-C_MODE_END
+                                DWORD buffer_size, const char *name,
+                                char *name_buf, size_t buflen);
 
 #endif /* NAMED_PIPE_INCLUDED */

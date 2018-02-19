@@ -23,4 +23,4 @@
 
 #include "service_versions.h"
 
-SERVICE_VERSION *command_service= (void*)VERSION_command;
+SERVICE_VERSION *command_service = (void **)VERSION_command;

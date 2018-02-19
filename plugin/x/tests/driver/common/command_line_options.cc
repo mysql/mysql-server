@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -42,28 +42,24 @@ bool Command_line_options::check_arg(char **argv, int &argi, const char *arg,
 }
 
 bool Command_line_options::is_quote_char(const char single_char) {
-  return single_char == '\'' ||
-      single_char == '"' ||
-      single_char == '`';
+  return single_char == '\'' || single_char == '"' || single_char == '`';
 }
 
 bool Command_line_options::should_remove_qoutes(const char first,
                                                 const char last) {
-  if (!is_quote_char(first) ||
-      !is_quote_char(last))
-    return false;
+  if (!is_quote_char(first) || !is_quote_char(last)) return false;
 
   return first == last;
 }
 
-bool Command_line_options::check_arg_with_value(char **argv,
-                                                int &argi,
+bool Command_line_options::check_arg_with_value(char **argv, int &argi,
                                                 const char *arg,
                                                 const char *larg,
                                                 char *&value) {
   // --option value or -o value
   if ((arg && strncmp(argv[argi], arg, MAXIMUM_LENGTH_OF_ARGUMENT_NAME) == 0) ||
-      (larg && strncmp(argv[argi], larg, MAXIMUM_LENGTH_OF_ARGUMENT_NAME) == 0)) {
+      (larg &&
+       strncmp(argv[argi], larg, MAXIMUM_LENGTH_OF_ARGUMENT_NAME) == 0)) {
     // value must be in next arg
     if (argv[argi + 1] != NULL) {
       value = argv[++argi];

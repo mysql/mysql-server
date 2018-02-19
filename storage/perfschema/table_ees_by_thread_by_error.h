@@ -30,37 +30,36 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "my_inttypes.h"
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_engine_table.h"
 #include "storage/perfschema/pfs_error.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_thread;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup Performance_schema_tables
   @{
 */
 
-class PFS_index_ees_by_thread_by_error : public PFS_engine_index
-{
-public:
+class PFS_index_ees_by_thread_by_error : public PFS_engine_index {
+ public:
   PFS_index_ees_by_thread_by_error()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("THREAD_ID"),
-      m_key_2("ERROR_NUMBER")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("THREAD_ID"),
+        m_key_2("ERROR_NUMBER") {}
 
-  ~PFS_index_ees_by_thread_by_error()
-  {
-  }
+  ~PFS_index_ees_by_thread_by_error() {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match_error_index(uint error_index);
 
-private:
+ private:
   PFS_key_thread_id m_key_1;
   PFS_key_error_number m_key_2;
 };
@@ -69,8 +68,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR.
 */
-struct row_ees_by_thread_by_error
-{
+struct row_ees_by_thread_by_error {
   /** Column THREAD_ID. */
   ulonglong m_thread_internal_id;
   /** Columns ERROR_NUMBER, ERROR_NAME, COUNT_STAR. */
@@ -83,43 +81,27 @@ struct row_ees_by_thread_by_error
   Index 1 on thread (0 based).
   Index 2 on error (0 based)
 */
-struct pos_ees_by_thread_by_error : public PFS_double_index
-{
-  pos_ees_by_thread_by_error() : PFS_double_index(0, 0)
-  {
-  }
+struct pos_ees_by_thread_by_error : public PFS_double_index {
+  pos_ees_by_thread_by_error() : PFS_double_index(0, 0) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  next_thread(void)
-  {
+  inline void next_thread(void) {
     m_index_1++;
     m_index_2 = 0;
   }
 
-  inline bool
-  has_more_error(void)
-  {
-    return (m_index_2 < max_server_errors);
-  }
+  inline bool has_more_error(void) { return (m_index_2 < max_server_errors); }
 
-  inline void
-  next_error(void)
-  {
-    m_index_2++;
-  }
+  inline void next_error(void) { m_index_2++; }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_ERRORS_SUMMARY_BY_THREAD_BY_ERROR. */
-class table_ees_by_thread_by_error : public PFS_engine_table
-{
-public:
+class table_ees_by_thread_by_error : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -135,23 +117,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_ees_by_thread_by_error();
 
-public:
-  ~table_ees_by_thread_by_error()
-  {
-  }
+ public:
+  ~table_ees_by_thread_by_error() {}
 
-protected:
+ protected:
   int make_row(PFS_thread *thread, int error_index);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

@@ -25,18 +25,17 @@
 namespace dd {
 namespace system_views {
 
-const Innodb_fields &Innodb_fields::instance()
-{
-  static Innodb_fields *s_instance= new Innodb_fields();
+const Innodb_fields &Innodb_fields::instance() {
+  static Innodb_fields *s_instance = new Innodb_fields();
   return *s_instance;
 }
 
-Innodb_fields::Innodb_fields()
-{
+Innodb_fields::Innodb_fields() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_INDEX_ID, "INDEX_ID",
-                 "GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id')");
+  m_target_def.add_field(
+      FIELD_INDEX_ID, "INDEX_ID",
+      "GET_DD_INDEX_PRIVATE_DATA(idx.se_private_data, 'id')");
   m_target_def.add_field(FIELD_NAME, "NAME", "col.name");
   m_target_def.add_field(FIELD_POS, "POS", "fld.ordinal_position - 1");
 
@@ -52,5 +51,5 @@ Innodb_fields::Innodb_fields()
   m_target_def.add_where("AND tbl.engine='INNODB'");
 }
 
-}
-}
+}  // namespace system_views
+}  // namespace dd

@@ -30,14 +30,16 @@
 
 #include <sys/types.h>
 
+#include "my_base.h"
 #include "storage/perfschema/pfs.h"
-#include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_data_lock.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/table_helper.h"
 
-struct PFS_data_lock_waits;
-class PFS_index_data_lock_waits;
+class Field;
+class PSI_engine_data_lock_wait_iterator;
+class Plugin_table;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup Performance_schema_tables
@@ -50,44 +52,32 @@ class PFS_index_data_lock_waits;
   Index 1 on engine (0 based)
   Index 2 on engine index (0 based)
 */
-struct scan_pos_data_lock_wait
-{
-  scan_pos_data_lock_wait()
-  {
+struct scan_pos_data_lock_wait {
+  scan_pos_data_lock_wait() {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 0;
   }
 
-  void
-  set_at(const scan_pos_data_lock_wait *other)
-  {
+  void set_at(const scan_pos_data_lock_wait *other) {
     m_index_1 = other->m_index_1;
     m_index_2 = other->m_index_2;
   }
 
-  void
-  set_after(const scan_pos_data_lock_wait *other)
-  {
+  void set_after(const scan_pos_data_lock_wait *other) {
     m_index_1 = other->m_index_1;
     m_index_2 = other->m_index_2 + 1;
   }
 
-  inline bool
-  has_more_engine()
-  {
+  inline bool has_more_engine() {
     return (m_index_1 < COUNT_DATA_LOCK_ENGINES);
   }
 
-  inline void
-  next_engine()
-  {
+  inline void next_engine() {
     m_index_1++;
     m_index_2 = 0;
   }
@@ -97,12 +87,11 @@ struct scan_pos_data_lock_wait
 };
 
 /** Table PERFORMANCE_SCHEMA.DATA_LOCKS. */
-class table_data_lock_waits : public PFS_engine_table
-{
+class table_data_lock_waits : public PFS_engine_table {
   typedef scan_pos_data_lock_wait scan_pos_t;
   typedef pk_pos_data_lock_wait pk_pos_t;
 
-public:
+ public:
   /** Table share. */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -115,18 +104,16 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-private:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ private:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_data_lock_waits();
 
-public:
+ public:
   ~table_data_lock_waits();
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

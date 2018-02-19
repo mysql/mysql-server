@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,9 +28,8 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/src/xpl_error.h"
 
-
-void xpl::Statement_builder::add_collection(const Collection &collection) const
-{
+void xpl::Statement_builder::add_collection(
+    const Collection &collection) const {
   if (!collection.has_name() || collection.name().empty())
     throw ngs::Error_code(ER_X_BAD_TABLE, "Invalid name of table/collection");
 
@@ -40,48 +39,34 @@ void xpl::Statement_builder::add_collection(const Collection &collection) const
   m_builder.put_identifier(collection.name());
 }
 
-
-void xpl::Crud_statement_builder::add_filter(const Filter &filter) const
-{
-  if (filter.IsInitialized())
-    m_builder.put(" WHERE ").put_expr(filter);
+void xpl::Crud_statement_builder::add_filter(const Filter &filter) const {
+  if (filter.IsInitialized()) m_builder.put(" WHERE ").put_expr(filter);
 }
 
-
-void xpl::Crud_statement_builder::add_order_item(const Order_item &item) const
-{
+void xpl::Crud_statement_builder::add_order_item(const Order_item &item) const {
   m_builder.put_expr(item.expr());
-  if (item.direction() == ::Mysqlx::Crud::Order::DESC)
-    m_builder.put(" DESC");
+  if (item.direction() == ::Mysqlx::Crud::Order::DESC) m_builder.put(" DESC");
 }
 
-
-void xpl::Crud_statement_builder::add_order(const Order_list &order) const
-{
-  if (order.size() == 0)
-    return;
+void xpl::Crud_statement_builder::add_order(const Order_list &order) const {
+  if (order.size() == 0) return;
 
   m_builder.put(" ORDER BY ")
-      .put_list(order, ngs::bind(&Crud_statement_builder::add_order_item,
-                                 this, ngs::placeholders::_1));
+      .put_list(order, ngs::bind(&Crud_statement_builder::add_order_item, this,
+                                 ngs::placeholders::_1));
 }
 
-
 void xpl::Crud_statement_builder::add_limit(const Limit &limit,
-                                            const bool no_offset) const
-{
-  if (!limit.IsInitialized())
-    return;
+                                            const bool no_offset) const {
+  if (!limit.IsInitialized()) return;
 
   m_builder.put(" LIMIT ");
-  if (limit.has_offset())
-  {
+  if (limit.has_offset()) {
     if (no_offset && limit.offset() != 0)
       throw ngs::Error_code(ER_X_INVALID_ARGUMENT,
                             "Invalid parameter: non-zero offset "
                             "value not allowed for this operation");
-    if (!no_offset)
-      m_builder.put(limit.offset()).put(", ");
+    if (!no_offset) m_builder.put(limit.offset()).put(", ");
   }
   m_builder.put(limit.row_count());
 }

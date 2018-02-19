@@ -28,15 +28,12 @@
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_base.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/mem_root_array.h"
-#include "sql/sql_alloc.h"
 #include "sql/sql_list.h"
-#include "sql/thr_malloc.h"
 
 class Create_field;
 class THD;
-
+struct MEM_ROOT;
 
 enum keytype {
   KEYTYPE_PRIMARY,
@@ -63,44 +60,36 @@ enum fk_match_opt {
   FK_MATCH_SIMPLE
 };
 
-enum enum_order {
-  ORDER_NOT_RELEVANT=1,
-  ORDER_ASC,
-  ORDER_DESC
-};
+enum enum_order { ORDER_NOT_RELEVANT = 1, ORDER_ASC, ORDER_DESC };
 
-class KEY_CREATE_INFO
-{
-public:
-  enum ha_key_alg algorithm= HA_KEY_ALG_SE_SPECIFIC;
+class KEY_CREATE_INFO {
+ public:
+  enum ha_key_alg algorithm = HA_KEY_ALG_SE_SPECIFIC;
   /**
     A flag which indicates that index algorithm was explicitly specified
     by user.
   */
-  bool is_algorithm_explicit= false;
-  ulong block_size= 0;
-  LEX_CSTRING parser_name= {NullS, 0};
-  LEX_CSTRING comment= {NullS, 0};
-  bool is_visible= true;
+  bool is_algorithm_explicit = false;
+  ulong block_size = 0;
+  LEX_CSTRING parser_name = {NullS, 0};
+  LEX_CSTRING comment = {NullS, 0};
+  bool is_visible = true;
 
-  KEY_CREATE_INFO()= default;
+  KEY_CREATE_INFO() = default;
 
   explicit KEY_CREATE_INFO(bool is_visible_arg) : is_visible(is_visible_arg) {}
 };
 
-
 extern KEY_CREATE_INFO default_key_create_info;
 
-
-class Key_part_spec : public Sql_alloc
-{
-public:
+class Key_part_spec {
+ public:
   Key_part_spec(const LEX_CSTRING &name, uint len, enum_order ord)
-    : field_name(name), length(len),
-    is_ascending((ord == ORDER_DESC) ? false : true),
-    is_explicit(ord != ORDER_NOT_RELEVANT)
-  { }
-  bool operator==(const Key_part_spec& other) const;
+      : field_name(name),
+        length(len),
+        is_ascending((ord == ORDER_DESC) ? false : true),
+        is_explicit(ord != ORDER_NOT_RELEVANT) {}
+  bool operator==(const Key_part_spec &other) const;
   /**
     Construct a copy of this Key_part_spec. field_name is copied
     by-pointer as it is known to never change. At the same time
@@ -110,24 +99,23 @@ public:
     @return If out of memory, 0 is returned and an error is set in
     THD.
   */
-  Key_part_spec *clone(MEM_ROOT *mem_root) const
-  { return new (mem_root) Key_part_spec(*this); }
+  Key_part_spec *clone(MEM_ROOT *mem_root) const {
+    return new (mem_root) Key_part_spec(*this);
+  }
 
   const LEX_CSTRING field_name;
   const uint length;
-  /// TRUE <=> ascending, FALSE <=> descending.
+  /// true <=> ascending, false <=> descending.
   const bool is_ascending;
-  /// TRUE <=> ASC/DESC is explicitly specified, FALSE <=> implicit ASC
+  /// true <=> ASC/DESC is explicitly specified, false <=> implicit ASC
   const bool is_explicit;
 };
 
-
-class Key_spec : public Sql_alloc
-{
-public:
+class Key_spec {
+ public:
   const keytype type;
   const KEY_CREATE_INFO key_create_info;
-  Mem_root_array<const Key_part_spec*> columns;
+  Mem_root_array<const Key_part_spec *> columns;
   const LEX_CSTRING name;
   const bool generated;
   /**
@@ -138,74 +126,59 @@ public:
   */
   const bool check_for_duplicate_indexes;
 
-  Key_spec(MEM_ROOT *mem_root,
-           keytype type_par,
-           const LEX_CSTRING &name_arg,
-           const KEY_CREATE_INFO *key_info_arg,
-           bool generated_arg,
-           bool check_for_duplicate_indexes_arg,
-           List<Key_part_spec> &cols)
-    :type(type_par),
-    key_create_info(*key_info_arg),
-    columns(mem_root),
-    name(name_arg),
-    generated(generated_arg),
-    check_for_duplicate_indexes(check_for_duplicate_indexes_arg)
-  {
+  Key_spec(MEM_ROOT *mem_root, keytype type_par, const LEX_CSTRING &name_arg,
+           const KEY_CREATE_INFO *key_info_arg, bool generated_arg,
+           bool check_for_duplicate_indexes_arg, List<Key_part_spec> &cols)
+      : type(type_par),
+        key_create_info(*key_info_arg),
+        columns(mem_root),
+        name(name_arg),
+        generated(generated_arg),
+        check_for_duplicate_indexes(check_for_duplicate_indexes_arg) {
     columns.reserve(cols.elements);
     List_iterator<Key_part_spec> it(cols);
     const Key_part_spec *column;
-    while ((column= it++))
-      columns.push_back(column);
+    while ((column = it++)) columns.push_back(column);
   }
 
   virtual ~Key_spec() {}
 };
 
-
-class Foreign_key_spec: public Key_spec
-{
-public:
+class Foreign_key_spec : public Key_spec {
+ public:
   const LEX_CSTRING ref_db;
   const LEX_CSTRING orig_ref_db;
   const LEX_CSTRING ref_table;
   const LEX_CSTRING orig_ref_table;
-  Mem_root_array<const Key_part_spec*> ref_columns;
+  Mem_root_array<const Key_part_spec *> ref_columns;
   const fk_option delete_opt;
   const fk_option update_opt;
   const fk_match_opt match_opt;
 
-  Foreign_key_spec(MEM_ROOT *mem_root,
-                   const LEX_CSTRING &name_arg,
-                   List<Key_part_spec> cols,
-                   const LEX_CSTRING &ref_db_arg,
+  Foreign_key_spec(MEM_ROOT *mem_root, const LEX_CSTRING &name_arg,
+                   List<Key_part_spec> cols, const LEX_CSTRING &ref_db_arg,
                    const LEX_CSTRING &orig_ref_db_arg,
                    const LEX_CSTRING &ref_table_arg,
                    const LEX_CSTRING &orig_ref_table_arg,
-                   List<Key_part_spec> *ref_cols,
-                   fk_option delete_opt_arg,
-                   fk_option update_opt_arg,
-                   fk_match_opt match_opt_arg)
-    :Key_spec(mem_root, KEYTYPE_FOREIGN, name_arg,
-              &default_key_create_info, false,
-              false, // We don't check for duplicate FKs.
-              cols),
-    ref_db(ref_db_arg),
-    orig_ref_db(orig_ref_db_arg),
-    ref_table(ref_table_arg),
-    orig_ref_table(orig_ref_table_arg),
-    ref_columns(mem_root),
-    delete_opt(delete_opt_arg),
-    update_opt(update_opt_arg),
-    match_opt(match_opt_arg)
-  {
-    if (ref_cols)
-    {
+                   List<Key_part_spec> *ref_cols, fk_option delete_opt_arg,
+                   fk_option update_opt_arg, fk_match_opt match_opt_arg)
+      : Key_spec(mem_root, KEYTYPE_FOREIGN, name_arg, &default_key_create_info,
+                 false,
+                 false,  // We don't check for duplicate FKs.
+                 cols),
+        ref_db(ref_db_arg),
+        orig_ref_db(orig_ref_db_arg),
+        ref_table(ref_table_arg),
+        orig_ref_table(orig_ref_table_arg),
+        ref_columns(mem_root),
+        delete_opt(delete_opt_arg),
+        update_opt(update_opt_arg),
+        match_opt(match_opt_arg) {
+    if (ref_cols) {
       ref_columns.reserve(ref_cols->elements);
       List_iterator<Key_part_spec> it(*ref_cols);
       const Key_part_spec *ref_column;
-      while ((ref_column= it++))
-        ref_columns.push_back(ref_column);
+      while ((ref_column = it++)) ref_columns.push_back(ref_column);
     }
   }
 

@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -64,9 +64,8 @@ class Account_verification_handler {
     m_verificators[account_type].reset(verificator);
   }
 
-  virtual const ngs::Account_verification_interface *
-      get_account_verificator(
-          const ngs::Account_verification_interface::Account_type account_type)
+  virtual const ngs::Account_verification_interface *get_account_verificator(
+      const ngs::Account_verification_interface::Account_type account_type)
       const;
 
  private:
@@ -85,18 +84,16 @@ class Account_verification_handler {
     Sql_user_require user_required;
   };
 
-  bool extract_sub_message(
-      const std::string &message,
-      std::size_t &element_position,
-      std::string &sub_message) const;
+  bool extract_sub_message(const std::string &message,
+                           std::size_t &element_position,
+                           std::string &sub_message) const;
 
-  bool extract_last_sub_message(
-      const std::string &message,
-      std::size_t &element_position,
-      std::string &sub_message) const;
+  bool extract_last_sub_message(const std::string &message,
+                                std::size_t &element_position,
+                                std::string &sub_message) const;
 
-  ngs::Account_verification_interface::Account_type
-      get_account_verificator_id(const std::string &plugin_name) const;
+  ngs::Account_verification_interface::Account_type get_account_verificator_id(
+      const std::string &plugin_name) const;
 
   ngs::Error_code get_account_record(const std::string &user,
                                      const std::string &host,

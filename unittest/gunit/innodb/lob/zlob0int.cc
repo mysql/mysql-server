@@ -50,9 +50,9 @@ static std::map<ref_t, page_no_t> g_zlob;
 @param[in]  trxid  purging data belonging to trxid.
 @param[in,out]  lst  the list from which this entry will be removed.
 @param[in,out]  free_list the list to which this entry will be added. */
-fil_addr_t z_index_entry_t::purge_version(trx_id_t trxid, z_first_page_t& first,
-                                          flst_base_node_t* lst,
-                                          flst_base_node_t* free_list) {
+fil_addr_t z_index_entry_t::purge_version(trx_id_t trxid, z_first_page_t &first,
+                                          flst_base_node_t *lst,
+                                          flst_base_node_t *free_list) {
   /* Save the location of next node. */
   fil_addr_t next_loc = get_next();
 
@@ -76,15 +76,15 @@ the index list.  Move the versions list from current entry to older entry.
 @param[in]  trxid  The transaction identifier.
 @param[in]  first  The first lob page containing index list and free list. */
 fil_addr_t z_index_entry_t::make_old_version_current(trx_id_t trxid,
-                                                     z_first_page_t& first) {
-  flst_base_node_t* idx_flst = first.index_list();
-  flst_base_node_t* free_list = first.free_list();
-  flst_base_node_t* version_list = get_versions_list();
+                                                     z_first_page_t &first) {
+  flst_base_node_t *idx_flst = first.index_list();
+  flst_base_node_t *free_list = first.free_list();
+  flst_base_node_t *version_list = get_versions_list();
 
   if (flst_get_len(version_list) > 0) {
     /* Remove the old version from versions list. */
     fil_addr_t old_node_addr = flst_get_first(version_list);
-    flst_node_t* old_node = fut_get_ptr(old_node_addr);
+    flst_node_t *old_node = fut_get_ptr(old_node_addr);
     flst_remove(version_list, old_node);
 
     /* Copy the version base node from current to old entry. */
@@ -104,7 +104,7 @@ fil_addr_t z_index_entry_t::make_old_version_current(trx_id_t trxid,
 /** Purge the current index entry. An index entry points to either a FIRST
 page or DATA page.  That LOB page will be freed if it is DATA page.  A FIRST
 page should not be freed. */
-void z_index_entry_t::purge(z_first_page_t& first) {
+void z_index_entry_t::purge(z_first_page_t &first) {
   set_data_len(0);
 
   while (true) {
@@ -112,7 +112,7 @@ void z_index_entry_t::purge(z_first_page_t& first) {
     if (page_no == FIL_NULL) {
       break;
     }
-    buf_block_t* block = buf_page_get(page_no);
+    buf_block_t *block = buf_page_get(page_no);
     page_type_t type = fil_page_get_type(block->m_frame);
     page_no_t next = block->get_next_page();
     set_z_page_no(next);
@@ -146,9 +146,9 @@ void z_index_entry_t::purge(z_first_page_t& first) {
   init();
 }
 
-std::ostream& z_index_entry_t::print(std::ostream& out) const {
-  out << "[z_index_entry_t: m_node=" << (void*)m_node << ", prev=" << get_prev()
-      << ", next=" << get_next()
+std::ostream &z_index_entry_t::print(std::ostream &out) const {
+  out << "[z_index_entry_t: m_node=" << (void *)m_node
+      << ", prev=" << get_prev() << ", next=" << get_next()
       << ", versions=" << flst_bnode_t(get_versions_list())
       << ", trx_id=" << get_trx_id() << ", z_page_no=" << get_z_page_no()
       << ", z_frag_id=" << get_z_frag_id() << ", data_len=" << get_data_len()
@@ -157,12 +157,12 @@ std::ostream& z_index_entry_t::print(std::ostream& out) const {
   return (out);
 }
 
-std::ostream& z_index_entry_t::print_pages(std::ostream& out) const {
+std::ostream &z_index_entry_t::print_pages(std::ostream &out) const {
   page_no_t page_no = get_z_page_no();
 
   out << "[PAGES: ";
   while (page_no != FIL_NULL) {
-    buf_block_t* block = buf_page_get(page_no);
+    buf_block_t *block = buf_page_get(page_no);
     ulint type = block->get_page_type();
     out << "[page_no=" << page_no << ", type=" << block->get_page_type_str()
         << "]";
@@ -176,7 +176,7 @@ std::ostream& z_index_entry_t::print_pages(std::ostream& out) const {
   return (out);
 }
 
-std::ostream& z_frag_entry_t::print(std::ostream& out) const {
+std::ostream &z_frag_entry_t::print(std::ostream &out) const {
   out << "[z_frag_entry_t: prev=" << get_prev() << ", next=" << get_next()
       << ", page_no=" << get_page_no() << ", n_frags=" << get_n_frags()
       << ", used_len=" << get_used_len()
@@ -185,14 +185,14 @@ std::ostream& z_frag_entry_t::print(std::ostream& out) const {
   return (out);
 }
 
-void z_frag_entry_t::purge(flst_base_node_t* used_lst,
-                           flst_base_node_t* free_lst) {
+void z_frag_entry_t::purge(flst_base_node_t *used_lst,
+                           flst_base_node_t *free_lst) {
   remove(used_lst);
   init();
   push_front(free_lst);
 }
 
-void z_frag_entry_t::update(const z_frag_page_t& frag_page) {
+void z_frag_entry_t::update(const z_frag_page_t &frag_page) {
   set_page_no(frag_page.get_page_no());
   set_n_frags(frag_page.get_n_frags());
   set_used_len(frag_page.get_total_stored_data());
@@ -201,14 +201,14 @@ void z_frag_entry_t::update(const z_frag_page_t& frag_page) {
 }
 
 /** Print the index entries. */
-std::ostream& z_first_page_t::print_index_entries(std::ostream& out) const {
-  flst_base_node_t* flst = index_list();
+std::ostream &z_first_page_t::print_index_entries(std::ostream &out) const {
+  flst_base_node_t *flst = index_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   out << "Index Entries: " << flst_bnode_t(flst) << std::endl;
 
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     z_index_entry_t entry(node);
     out << entry << std::endl;
     node_loc = entry.get_next();
@@ -218,14 +218,14 @@ std::ostream& z_first_page_t::print_index_entries(std::ostream& out) const {
 }
 
 /** Print the frag entries. */
-std::ostream& z_first_page_t::print_frag_entries(std::ostream& out) const {
-  flst_base_node_t* flst = frag_list();
+std::ostream &z_first_page_t::print_frag_entries(std::ostream &out) const {
+  flst_base_node_t *flst = frag_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   out << "Frag Entries: " << flst_bnode_t(flst) << std::endl;
 
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     z_frag_entry_t entry(node);
     out << entry << std::endl;
     node_loc = entry.get_next();
@@ -239,7 +239,7 @@ an index page (a page full of z_index_entry_t objects) and service the
 request.
 @return the allocated index entry. */
 z_index_entry_t z_first_page_t::alloc_index_entry() {
-  flst_base_node_t* free_lst = free_list();
+  flst_base_node_t *free_lst = free_list();
   fil_addr_t first_loc = flst_get_first(free_lst);
   if (fil_addr_is_null(first_loc)) {
     z_index_page_t page;
@@ -247,7 +247,7 @@ z_index_entry_t z_first_page_t::alloc_index_entry() {
     first_loc = flst_get_first(free_lst);
   }
   ut_ad(!fil_addr_is_null(first_loc));
-  flst_node_t* first_ptr = fut_get_ptr(first_loc);
+  flst_node_t *first_ptr = fut_get_ptr(first_loc);
   z_index_entry_t entry(first_ptr);
   entry.remove(free_lst);
   return (entry);
@@ -258,8 +258,8 @@ an frag node page (a page full of z_frag_entry_t objects) and service the
 request.
 @return the allocated frag entry. */
 z_frag_entry_t z_first_page_t::alloc_frag_entry() {
-  flst_base_node_t* free_lst = free_frag_list();
-  flst_base_node_t* used_lst = frag_list();
+  flst_base_node_t *free_lst = free_frag_list();
+  flst_base_node_t *used_lst = frag_list();
   fil_addr_t first_loc = flst_get_first(free_lst);
   if (fil_addr_is_null(first_loc)) {
     z_frag_node_page_t page;
@@ -267,7 +267,7 @@ z_frag_entry_t z_first_page_t::alloc_frag_entry() {
     first_loc = flst_get_first(free_lst);
   }
   ut_ad(!fil_addr_is_null(first_loc));
-  flst_node_t* first_ptr = fut_get_ptr(first_loc);
+  flst_node_t *first_ptr = fut_get_ptr(first_loc);
   z_frag_entry_t entry(first_ptr);
   entry.remove(free_lst);
   entry.push_front(used_lst);
@@ -282,11 +282,11 @@ z_frag_entry_t z_first_page_t::find_frag_page(ulint len) {
   entry and meta data.  Adding a margin to provide for this. */
   const ulint look_size = len + frag_node_t::OFFSET_DATA + 10;
 
-  flst_base_node_t* frag_lst = frag_list();
+  flst_base_node_t *frag_lst = frag_list();
   /* Iterate through the list of frag entries in the page. */
   fil_addr_t loc = flst_get_first(frag_lst);
   while (!fil_addr_is_null(loc)) {
-    flst_node_t* node = fut_get_ptr(loc);
+    flst_node_t *node = fut_get_ptr(loc);
     entry.reset(node);
 
     if (entry.get_big_free_len() >= look_size) {
@@ -311,7 +311,7 @@ z_frag_entry_t z_first_page_t::find_frag_page(ulint len) {
 }
 
 /** Print the page. */
-std::ostream& z_first_page_t::print(std::ostream& out) const {
+std::ostream &z_first_page_t::print(std::ostream &out) const {
   print_index_entries(out);
   print_frag_entries(out);
   return (out);
@@ -349,18 +349,18 @@ void z_first_page_t::free_all_index_pages() {
   }
 }
 
-std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
-                                      byte* blob, ulint len) {
+std::pair<ulint, ulint> z_insert_strm(z_first_page_t &first, trx_id_t trxid,
+                                      byte *blob, ulint len) {
   ulint remain = len;
   page_no_t start_page_no = FIL_NULL;
   frag_id_t frag_id = FRAG_ID_NULL;
   page_no_t prev_page_no;
-  byte* lob_ptr = blob;
+  byte *lob_ptr = blob;
 
   /* If the first page is empty, then make use of it. */
   if (first.get_data_len() == 0) {
     /* First page is unused. Use it. */
-    byte* ptr = first.begin_data_ptr();
+    byte *ptr = first.begin_data_ptr();
     ulint size = first.payload();
 
     ulint to_copy = remain > size ? size : remain;
@@ -380,7 +380,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     z_data_page_t data_page;
     data_page.alloc();
 
-    byte* ptr = data_page.begin_data_ptr();
+    byte *ptr = data_page.begin_data_ptr();
     ulint size = data_page.payload();
     ulint to_copy = remain > size ? size : remain;
     memcpy(ptr, lob_ptr, to_copy);
@@ -400,7 +400,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     frag_page.load(frag_entry.get_page_no());
     frag_id = frag_page.alloc_fragment(remain);
     frag_node_t node = frag_page.get_frag_node(frag_id);
-    byte* ptr = node.frag_begin();
+    byte *ptr = node.frag_begin();
 
     ut_ad(remain == node.payload());
     memcpy(ptr, lob_ptr, remain);
@@ -418,7 +418,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     z_data_page_t data_page;
     data_page.alloc();
 
-    byte* ptr = data_page.begin_data_ptr();
+    byte *ptr = data_page.begin_data_ptr();
     ulint size = data_page.payload();
     ulint to_copy = remain > size ? size : remain;
     memcpy(ptr, lob_ptr, to_copy);
@@ -429,7 +429,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     data_page.set_trx_id(trxid);
 
     /* Get the previous page and update its next page. */
-    buf_block_t* block = buf_page_get(prev_page_no);
+    buf_block_t *block = buf_page_get(prev_page_no);
     block->set_next_page_no(data_page.get_page_no());
 
     prev_page_no = data_page.get_page_no();
@@ -451,7 +451,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     ut_ad(frag_id != FRAG_ID_NULL);
 
     frag_node_t node = frag_page.get_frag_node(frag_id);
-    byte* ptr = node.frag_begin();
+    byte *ptr = node.frag_begin();
 
     ulint pl = node.payload();
     ut_ad(remain == node.payload());
@@ -464,7 +464,7 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
     frag_entry.update(frag_page);
 
     /* Get the previous page and update its next page. */
-    buf_block_t* block = buf_page_get(prev_page_no);
+    buf_block_t *block = buf_page_get(prev_page_no);
     block->set_next_page_no(frag_page.get_page_no());
   }
 
@@ -475,8 +475,8 @@ std::pair<ulint, ulint> z_insert_strm(z_first_page_t& first, trx_id_t trxid,
 @param[in]  blob  the uncompressed LOB.
 @param[out] out_entry the newly inserted index entry. can be NULL.
 */
-dberr_t z_insert_chunk(z_first_page_t& first, trx_id_t trxid, ref_t ref,
-                       byte* blob, ulint len, z_index_entry_t* out_entry) {
+dberr_t z_insert_chunk(z_first_page_t &first, trx_id_t trxid, ref_t ref,
+                       byte *blob, ulint len, z_index_entry_t *out_entry) {
   ut_ad(len <= Z_CHUNK_SIZE);
   z_stream strm;
 
@@ -526,14 +526,14 @@ dberr_t z_insert_chunk(z_first_page_t& first, trx_id_t trxid, ref_t ref,
   return (DB_SUCCESS);
 }
 
-dberr_t z_insert(trx_id_t trxid, ref_t ref, byte* blob, ulint len) {
+dberr_t z_insert(trx_id_t trxid, ref_t ref, byte *blob, ulint len) {
   ulint remain = len;
-  byte* ptr = blob;
+  byte *ptr = blob;
   dberr_t err(DB_SUCCESS);
 
   z_first_page_t first;
   first.alloc();
-  flst_base_node_t* idx_list = first.index_list();
+  flst_base_node_t *idx_list = first.index_list();
 
   while (remain > 0) {
     z_index_entry_t entry;
@@ -554,15 +554,15 @@ dberr_t z_insert(trx_id_t trxid, ref_t ref, byte* blob, ulint len) {
 @param[in,out]  zbuf   the output buffer
 @param[in]  zbuf_size  the size of the output buffer.
 @return the size of the zlib stream.*/
-ulint z_read_strm(z_index_entry_t& entry, byte* zbuf, ulint zbuf_size) {
+ulint z_read_strm(z_index_entry_t &entry, byte *zbuf, ulint zbuf_size) {
   page_no_t page_no = entry.get_z_page_no();
-  byte* ptr = zbuf;
+  byte *ptr = zbuf;
   ulint remain = zbuf_size;
 
   while (remain > 0 && page_no != FIL_NULL) {
-    buf_block_t* block = buf_page_get(page_no);
+    buf_block_t *block = buf_page_get(page_no);
     ulint ptype = block->get_page_type();
-    byte* data = nullptr;
+    byte *data = nullptr;
     ulint data_size = 0;
     if (ptype == FIL_PAGE_TYPE_ZLOB_FRAG) {
       frag_id_t fid = entry.get_z_frag_id();
@@ -600,8 +600,8 @@ ulint z_read_strm(z_index_entry_t& entry, byte* zbuf, ulint zbuf_size) {
                      be greater than the chunk size.
 @param[in,out]  buf  the output buffer.
 */
-ulint z_read_chunk(trx_id_t trxid, z_index_entry_t& entry, ulint offset,
-                   ulint& len, byte*& buf) {
+ulint z_read_chunk(trx_id_t trxid, z_index_entry_t &entry, ulint offset,
+                   ulint &len, byte *&buf) {
   ut_ad(entry.can_see(trxid));
 
   if (entry.get_z_page_no() == FIL_NULL || entry.get_data_len() == 0) {
@@ -651,7 +651,7 @@ ulint z_read_chunk(trx_id_t trxid, z_index_entry_t& entry, ulint offset,
     ut_a(chunk_size == entry.get_data_len());
     ut_a(offset < chunk_size);
 
-    byte* ptr = ubuf + offset;
+    byte *ptr = ubuf + offset;
     ulint remain = chunk_size - offset;
     to_copy = len > remain ? remain : len;
     memcpy(buf, ptr, to_copy);
@@ -670,7 +670,7 @@ ulint z_read_chunk(trx_id_t trxid, z_index_entry_t& entry, ulint offset,
 @param[in] len   the length of LOB data that needs to be fetched.
 @param[out] buf  the output buffer (owned by caller) of minimum len bytes.
 @return the amount of data (in bytes) that was actually read. */
-ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
+ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte *buf) {
   auto it = g_zlob.find(ref);
 
   if (it == g_zlob.end()) {
@@ -688,14 +688,14 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
   z_first_page_t first;
   first.load(first_page_no);
 
-  flst_base_node_t* flst = first.index_list();
+  flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   /* The skip loop. */
   ulint skipped = 0;
   while (!fil_addr_is_null(node_loc)) {
     ulint will_skip = 0;
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     if (cur_entry.can_see(trxid)) {
@@ -704,10 +704,10 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
       will_skip = skipped + data_len;
     } else {
       /* Cannot read the entry. Look at older versions. */
-      flst_base_node_t* ver_lst = cur_entry.get_versions_list();
+      flst_base_node_t *ver_lst = cur_entry.get_versions_list();
       fil_addr_t old_node_loc = flst_get_first(ver_lst);
       while (!fil_addr_is_null(old_node_loc)) {
-        flst_node_t* old_node = fut_get_ptr(old_node_loc);
+        flst_node_t *old_node = fut_get_ptr(old_node_loc);
         old_version.reset(old_node);
         if (old_version.can_see(trxid)) {
           /* Can read the entry. */
@@ -740,7 +740,7 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
 
   ut_ad(yet_to_skip < Z_CHUNK_SIZE);
 
-  byte* ptr = buf;
+  byte *ptr = buf;
   ulint remain = len;
 
   if (old_version.is_null()) {
@@ -758,7 +758,7 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
   node_loc = cur_entry.get_next();
 
   while (remain > 0 && !fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     if (cur_entry.can_see(trxid)) {
@@ -767,10 +767,10 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
 
     } else {
       /* Cannot read the entry. Look at older versions. */
-      flst_base_node_t* ver_lst = cur_entry.get_versions_list();
+      flst_base_node_t *ver_lst = cur_entry.get_versions_list();
       fil_addr_t old_node_loc = flst_get_first(ver_lst);
       while (!fil_addr_is_null(old_node_loc)) {
-        flst_node_t* old_node = fut_get_ptr(old_node_loc);
+        flst_node_t *old_node = fut_get_ptr(old_node_loc);
         old_version.reset(old_node);
         if (old_version.can_see(trxid)) {
           /* Can read the entry. */
@@ -789,7 +789,7 @@ ulint z_read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte* buf) {
   return (len - remain);
 }
 
-dberr_t z_print_info(lob::ref_t ref, std::ostream& out) {
+dberr_t z_print_info(lob::ref_t ref, std::ostream &out) {
   auto it = g_zlob.find(ref);
 
   if (it == g_zlob.end()) {
@@ -814,7 +814,7 @@ dberr_t z_print_info(lob::ref_t ref, std::ostream& out) {
 @param[in] buf  the buffer (owned by caller) with new data (len bytes).
 @return the actual number of bytes replaced. */
 ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
-                byte* buf) {
+                byte *buf) {
   auto it = g_zlob.find(ref);
 
   if (it == g_zlob.end()) {
@@ -829,14 +829,14 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
   z_first_page_t first;
   first.load(first_page_no);
 
-  flst_base_node_t* flst = first.index_list();
+  flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   /* The skip loop. */
   ulint skipped = 0;
   while (!fil_addr_is_null(node_loc)) {
     ulint will_skip = 0;
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     if (cur_entry.can_see(trxid)) {
@@ -869,15 +869,15 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
   ulint yet_to_skip = offset - skipped;
   ut_ad(yet_to_skip < Z_CHUNK_SIZE);
 
-  byte* ptr = chunk;
+  byte *ptr = chunk;
   ulint replace_len = len; /* bytes remaining to be replaced. */
   ulint read_len = cur_entry.get_data_len();
   ulint len1 = z_read_chunk(trxid, cur_entry, 0, read_len, ptr);
   ut_ad(len1 == cur_entry.get_data_len());
   ut_ad(yet_to_skip <= len1);
 
-  byte* to_ptr = chunk + yet_to_skip;
-  byte* from_ptr = buf;
+  byte *to_ptr = chunk + yet_to_skip;
+  byte *from_ptr = buf;
   ulint remain = len1 - yet_to_skip;
   ulint can_be_replaced = remain > replace_len ? replace_len : remain;
   memcpy(to_ptr, from_ptr, can_be_replaced);
@@ -897,7 +897,7 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
 
   /* Replace remaining. */
   while (replace_len > 0 && !fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node); /* the old entry. */
 
     if (!cur_entry.can_see(trxid)) {
@@ -961,7 +961,7 @@ ulint z_replace(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len,
 }
 
 /** Insert data into the middle of an LOB */
-ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte* data,
+ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte *data,
                       ulint len) {
   auto it = g_zlob.find(ref);
 
@@ -977,14 +977,14 @@ ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte* data,
   z_first_page_t first;
   first.load(first_page_no);
 
-  flst_base_node_t* flst = first.index_list();
+  flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   /* The skip loop. */
   ulint skipped = 0;
   while (!fil_addr_is_null(node_loc)) {
     ulint will_skip = skipped;
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     if (cur_entry.can_see(trxid)) {
@@ -1016,14 +1016,14 @@ ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte* data,
   byte chunk[Z_CHUNK_SIZE];
   byte saved[Z_CHUNK_SIZE];
   ulint saved_len = 0;
-  byte* insert_ptr = data;
+  byte *insert_ptr = data;
   ulint insert_len = len;
   bool saved_data = false;
   bool insert_before = false;
 
   if (skipped < offset) {
     /* Inserting in the middle of the chunk. */
-    byte* ptr = chunk;
+    byte *ptr = chunk;
     ulint read_len = cur_entry.get_data_len();
     ulint len1 = z_read_chunk(trxid, cur_entry, 0, read_len, ptr);
     ut_ad(read_len == 0);
@@ -1082,12 +1082,12 @@ ulint z_insert_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, byte* data,
 
   if (saved_data) {
     ut_ad(insert_len < Z_CHUNK_SIZE);
-    byte* ptr = chunk;
+    byte *ptr = chunk;
     memcpy(ptr, insert_ptr, insert_len);
     ulint remain_space = Z_CHUNK_SIZE - insert_len;
     ulint to_copy = saved_len > remain_space ? remain_space : saved_len;
 
-    byte* saved_ptr = saved;
+    byte *saved_ptr = saved;
     memcpy(ptr + insert_len, saved_ptr, to_copy);
 
     z_index_entry_t entry;
@@ -1130,14 +1130,14 @@ ulint z_remove_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len) {
   z_first_page_t first;
   first.load(first_page_no);
 
-  flst_base_node_t* flst = first.index_list();
+  flst_base_node_t *flst = first.index_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   /* The skip loop. */
   ulint skipped = 0;
   while (!fil_addr_is_null(node_loc)) {
     ulint will_skip = skipped;
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     if (cur_entry.can_see(trxid)) {
@@ -1170,7 +1170,7 @@ ulint z_remove_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len) {
   if (skipped < offset) {
     /* Partial data of current chunk needs to be removed. */
     byte chunk[Z_CHUNK_SIZE];
-    byte* ptr = chunk;
+    byte *ptr = chunk;
     ulint read_len = cur_entry.get_data_len();
     ulint len1 = z_read_chunk(trxid, cur_entry, 0, read_len, ptr);
     ut_ad(read_len == 0);
@@ -1186,8 +1186,8 @@ ulint z_remove_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len) {
     z_index_entry_t new_entry;
 
     ptr = chunk;
-    byte* to = ptr + yet_to_skip;
-    byte* from = ptr + yet_to_skip + to_remove;
+    byte *to = ptr + yet_to_skip;
+    byte *from = ptr + yet_to_skip + to_remove;
     ulint n = len1 - yet_to_skip - to_remove;
     memmove(to, from, n);
 
@@ -1201,7 +1201,7 @@ ulint z_remove_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len) {
   }
 
   while (remove_len > 0 && !fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
     ulint read_len = cur_entry.get_data_len();
@@ -1224,13 +1224,13 @@ ulint z_remove_middle(trx_id_t trxid, lob::ref_t ref, ulint offset, ulint len) {
   }
 
   if (fil_addr_is_null(node_loc)) {
-    return(len - remove_len);
+    return (len - remove_len);
   }
 
   if (remove_len > 0) {
     /* Partial data of current chunk needs to be removed. */
     byte chunk[Z_CHUNK_SIZE];
-    byte* ptr = chunk;
+    byte *ptr = chunk;
     ulint read_len = cur_entry.get_data_len();
     ulint len1 = z_read_chunk(trxid, cur_entry, 0, read_len, ptr);
     ut_ad(read_len == 0);
@@ -1268,20 +1268,20 @@ void z_purge(trx_id_t trxid, lob::ref_t ref) {
   z_first_page_t first;
   first.load(first_page_no);
 
-  flst_base_node_t* flst = first.index_list();
-  flst_base_node_t* free_list = first.free_list();
+  flst_base_node_t *flst = first.index_list();
+  flst_base_node_t *free_list = first.free_list();
   fil_addr_t node_loc = flst_get_first(flst);
 
   while (!fil_addr_is_null(node_loc)) {
-    flst_node_t* node = fut_get_ptr(node_loc);
+    flst_node_t *node = fut_get_ptr(node_loc);
     cur_entry.reset(node);
 
-    flst_base_node_t* vers = cur_entry.get_versions_list();
+    flst_base_node_t *vers = cur_entry.get_versions_list();
     fil_addr_t ver_loc = flst_get_first(vers);
 
     /* Scan the older versions. */
     while (!fil_addr_is_null(ver_loc)) {
-      flst_node_t* ver_node = fut_get_ptr(ver_loc);
+      flst_node_t *ver_node = fut_get_ptr(ver_loc);
       z_index_entry_t vers_entry(ver_node);
       if (vers_entry.can_be_purged(trxid)) {
         ver_loc = vers_entry.purge_version(trxid, first, vers, free_list);
@@ -1309,7 +1309,7 @@ void z_purge(trx_id_t trxid, lob::ref_t ref) {
 
 /** Allocate the fragment page.
 @return the allocated buffer block. */
-buf_block_t* z_frag_page_t::alloc() {
+buf_block_t *z_frag_page_t::alloc() {
   m_block = btr_page_alloc();
 
   /* Set page type to FIL_PAGE_TYPE_ZLOB_FRAG. */
@@ -1326,7 +1326,7 @@ buf_block_t* z_frag_page_t::alloc() {
   plist_base_node_t frag_lst = frag_list();
   frag_lst.init();
 
-  byte* f = frame();
+  byte *f = frame();
 
   /* Add the available space as free frag to free list. */
   frag_node_t frag(f, f + OFFSET_FRAGS_BEGIN, payload());
@@ -1338,13 +1338,13 @@ buf_block_t* z_frag_page_t::alloc() {
 
 z_frag_entry_t z_frag_page_t::get_frag_entry() {
   fil_addr_t node_loc = get_frag_entry_addr();
-  flst_node_t* node = fut_get_ptr(node_loc);
+  flst_node_t *node = fut_get_ptr(node_loc);
   z_frag_entry_t entry(node);
   ut_ad(entry.get_page_no() == get_page_no());
   return (entry);
 }
 
-void z_frag_page_t::dealloc(z_first_page_t& first) {
+void z_frag_page_t::dealloc(z_first_page_t &first) {
   ut_ad(get_n_frags() == 0);
   z_frag_entry_t entry = get_frag_entry();
   entry.purge(first.frag_list(), first.free_frag_list());
@@ -1352,7 +1352,7 @@ void z_frag_page_t::dealloc(z_first_page_t& first) {
   m_block = nullptr;
 }
 
-std::ostream& z_frag_page_t::print_frags_in_order(std::ostream& out) const {
+std::ostream &z_frag_page_t::print_frags_in_order(std::ostream &out) const {
   if (m_block == nullptr) {
     return (out);
   }
@@ -1466,4 +1466,4 @@ void z_frag_page_t::dealloc_frag_id() {
     addr = frag_id_to_addr(frag_id);
   }
 }
-};
+};  // namespace zlob

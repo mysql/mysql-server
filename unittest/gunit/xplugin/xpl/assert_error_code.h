@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,9 +32,9 @@
 namespace xpl {
 namespace test {
 
-inline ::testing::AssertionResult Assert_error_code(const char* e1_expr,
-                                                    const char* e2_expr, int e1,
-                                                    const ngs::Error_code& e2) {
+inline ::testing::AssertionResult Assert_error_code(const char *e1_expr,
+                                                    const char *e2_expr, int e1,
+                                                    const ngs::Error_code &e2) {
   return (e1 == e2.error) ? ::testing::AssertionSuccess()
                           : (::testing::AssertionFailure()
                              << "Value of: " << e2_expr << "\nActual: {"

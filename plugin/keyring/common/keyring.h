@@ -32,18 +32,17 @@
 #include "plugin/keyring/common/keys_iterator.h"
 #include "sql/mysqld.h"
 
-using keyring::IKeys_container;
-using keyring::Keys_iterator;
-using keyring::IKeyring_io;
-using keyring::ILogger;
 using keyring::IKey;
+using keyring::IKeyring_io;
+using keyring::IKeys_container;
+using keyring::ILogger;
+using keyring::Keys_iterator;
 
-namespace keyring
-{
+namespace keyring {
 /* Always defined. */
-  extern PSI_memory_key key_memory_KEYRING;
-  extern PSI_rwlock_key key_LOCK_keyring;
-}
+extern PSI_memory_key key_memory_KEYRING;
+extern PSI_rwlock_key key_LOCK_keyring;
+}  // namespace keyring
 
 extern mysql_rwlock_t LOCK_keyring;
 
@@ -54,13 +53,13 @@ extern std::unique_ptr<char[]> keyring_file_data;
 
 #ifdef HAVE_PSI_INTERFACE
 void keyring_init_psi_keys(void);
-#endif //HAVE_PSI_INTERFACE
+#endif  // HAVE_PSI_INTERFACE
 
 bool init_keyring_locks();
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
-void update_keyring_file_data(MYSQL_THD thd  MY_ATTRIBUTE((unused)),
-                              struct st_mysql_sys_var *var  MY_ATTRIBUTE((unused)),
+void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
+                              SYS_VAR *var MY_ATTRIBUTE((unused)),
                               void *var_ptr MY_ATTRIBUTE((unused)),
                               const void *save_ptr);
 
@@ -71,9 +70,10 @@ bool mysql_key_remove(std::unique_ptr<IKey> key_to_remove);
 
 bool mysql_keyring_iterator_init(Keys_iterator *);
 void mysql_keyring_iterator_deinit(Keys_iterator *);
-bool mysql_keyring_iterator_get_key(Keys_iterator *, char *key_id, char *user_id);
+bool mysql_keyring_iterator_get_key(Keys_iterator *, char *key_id,
+                                    char *user_id);
 
-bool check_key_for_writing(IKey* key, std::string error_for);
+bool check_key_for_writing(IKey *key, std::string error_for);
 
 void log_operation_error(const char *failed_operation, const char *plugin_name);
 
@@ -81,93 +81,72 @@ bool is_key_length_and_type_valid(const char *key_type, size_t key_len);
 
 template <typename T>
 bool mysql_key_fetch(const char *key_id, char **key_type, const char *user_id,
-                     void **key, size_t *key_len, const char *plugin_name)
-{
-  try
-  {
+                     void **key, size_t *key_len, const char *plugin_name) {
+  try {
     std::unique_ptr<IKey> key_to_fetch(new T(key_id, NULL, user_id, NULL, 0));
     return mysql_key_fetch(std::move(key_to_fetch), key_type, key, key_len);
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("fetch a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 
 template <typename T>
 bool mysql_key_store(const char *key_id, const char *key_type,
                      const char *user_id, const void *key, size_t key_len,
-                     const char *plugin_name)
-{
-  try
-  {
-    std::unique_ptr<IKey> key_to_store(new T(key_id, key_type, user_id, key, key_len));
+                     const char *plugin_name) {
+  try {
+    std::unique_ptr<IKey> key_to_store(
+        new T(key_id, key_type, user_id, key, key_len));
     return mysql_key_store(std::move(key_to_store));
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("store a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 
 template <typename T>
 bool mysql_key_remove(const char *key_id, const char *user_id,
-                      const char *plugin_name)
-{
-  try
-  {
+                      const char *plugin_name) {
+  try {
     std::unique_ptr<IKey> key_to_remove(new T(key_id, NULL, user_id, NULL, 0));
     return mysql_key_remove(std::move(key_to_remove));
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("remove a key", plugin_name);
-    return TRUE;
+    return true;
   }
 }
 
 template <typename T>
-bool mysql_key_iterator_init(Keys_iterator *key_iterator, const char *plugin_name)
-{
-  try
-  {
+bool mysql_key_iterator_init(Keys_iterator *key_iterator,
+                             const char *plugin_name) {
+  try {
     return mysql_keyring_iterator_init(key_iterator);
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("iterator init", plugin_name);
     return true;
   }
 }
 
 template <typename T>
-void mysql_key_iterator_deinit(Keys_iterator *key_iterator, const char *plugin_name)
-{
-  try
-  {
+void mysql_key_iterator_deinit(Keys_iterator *key_iterator,
+                               const char *plugin_name) {
+  try {
     mysql_keyring_iterator_deinit(key_iterator);
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("iterator deinit", plugin_name);
   }
 }
 
 template <typename T>
-bool mysql_key_iterator_get_key(Keys_iterator *key_iterator, char *key_id, char *user_id,
-                                const char *plugin_name)
-{
-  try
-  {
+bool mysql_key_iterator_get_key(Keys_iterator *key_iterator, char *key_id,
+                                char *user_id, const char *plugin_name) {
+  try {
     return mysql_keyring_iterator_get_key(key_iterator, key_id, user_id);
-  }
-  catch (...)
-  {
+  } catch (...) {
     log_operation_error("iterator get_key", plugin_name);
     return true;
   }
 }
 
-#endif //MYSQL_KEYRING_H
+#endif  // MYSQL_KEYRING_H

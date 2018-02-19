@@ -85,8 +85,8 @@
   - likewise for sql/sql_hints.yy
 */
 
-int start_token_range_for_sql_hints= 1000;
-int start_token_range_for_digests= 1100;
+int start_token_range_for_sql_hints = 1000;
+int start_token_range_for_digests = 1100;
 /*
   This is a tool used during build only,
   so MY_MAX_TOKEN does not need to be exact,
@@ -101,8 +101,7 @@ int start_token_range_for_digests= 1100;
 */
 #define MY_MAX_TOKEN 1200
 /** Generated token. */
-struct gen_lex_token_string
-{
+struct gen_lex_token_string {
   const char *m_token_string;
   int m_token_length;
   bool m_append_space;
@@ -110,64 +109,60 @@ struct gen_lex_token_string
 };
 
 gen_lex_token_string compiled_token_array[MY_MAX_TOKEN];
-int max_token_seen= 0;
-int max_token_seen_in_sql_yacc= 0;
-int max_token_seen_in_sql_hints= 0;
+int max_token_seen = 0;
+int max_token_seen_in_sql_yacc = 0;
+int max_token_seen_in_sql_hints = 0;
 
 char char_tokens[256];
 
-int tok_generic_value= 0;
-int tok_generic_value_list= 0;
-int tok_row_single_value= 0;
-int tok_row_single_value_list= 0;
-int tok_row_multiple_value= 0;
-int tok_row_multiple_value_list= 0;
-int tok_in_generic_value_expression= 0;
-int tok_ident= 0;
-int tok_ident_at= 0; ///< Fake token for the left part of table\@query_block.
-int tok_hint_comment_open= 0; ///< Fake token value for "/*+" of hint comments.
-int tok_hint_comment_close= 0; ///< Fake token value for "*/" of hint comments.
-int tok_unused= 0;
+int tok_generic_value = 0;
+int tok_generic_value_list = 0;
+int tok_row_single_value = 0;
+int tok_row_single_value_list = 0;
+int tok_row_multiple_value = 0;
+int tok_row_multiple_value_list = 0;
+int tok_in_generic_value_expression = 0;
+int tok_ident = 0;
+int tok_ident_at = 0;  ///< Fake token for the left part of table\@query_block.
+int tok_hint_comment_open =
+    0;  ///< Fake token value for "/*+" of hint comments.
+int tok_hint_comment_close =
+    0;  ///< Fake token value for "*/" of hint comments.
+int tok_unused = 0;
 
 /**
   Adjustment value to translate hint parser's internal token values to generally
   visible token values. This adjustment is necessary, since keyword token values
   of separate parsers may interfere.
 */
-int tok_hint_adjust= 0;
+int tok_hint_adjust = 0;
 
-static void set_token(int tok, const char *str)
-{
-  if (tok <= 0)
-  {
+static void set_token(int tok, const char *str) {
+  if (tok <= 0) {
     fprintf(stderr, "Bad token found\n");
     exit(1);
   }
 
-  if (tok > max_token_seen)
-  {
-    max_token_seen= tok;
+  if (tok > max_token_seen) {
+    max_token_seen = tok;
   }
 
-  if (max_token_seen >= MY_MAX_TOKEN)
-  {
+  if (max_token_seen >= MY_MAX_TOKEN) {
     fprintf(stderr, "Added that many new keywords ? Increase MY_MAX_TOKEN\n");
     exit(1);
   }
 
-  compiled_token_array[tok].m_token_string= str;
-  compiled_token_array[tok].m_token_length= strlen(str);
-  compiled_token_array[tok].m_append_space= true;
-  compiled_token_array[tok].m_start_expr= false;
+  compiled_token_array[tok].m_token_string = str;
+  compiled_token_array[tok].m_token_length = strlen(str);
+  compiled_token_array[tok].m_append_space = true;
+  compiled_token_array[tok].m_start_expr = false;
 }
 
-static void set_start_expr_token(int tok)
-{
-  compiled_token_array[tok].m_start_expr= true;
+static void set_start_expr_token(int tok) {
+  compiled_token_array[tok].m_start_expr = true;
 }
 
-static void compute_tokens()
-{
+static void compute_tokens() {
   int tok;
   unsigned int i;
   char *str;
@@ -175,27 +170,25 @@ static void compute_tokens()
   /*
     Default value.
   */
-  for (tok= 0; tok < MY_MAX_TOKEN; tok++)
-  {
-    compiled_token_array[tok].m_token_string= "(unknown)";
-    compiled_token_array[tok].m_token_length= 9;
-    compiled_token_array[tok].m_append_space= true;
-    compiled_token_array[tok].m_start_expr= false;
+  for (tok = 0; tok < MY_MAX_TOKEN; tok++) {
+    compiled_token_array[tok].m_token_string = "(unknown)";
+    compiled_token_array[tok].m_token_length = 9;
+    compiled_token_array[tok].m_append_space = true;
+    compiled_token_array[tok].m_start_expr = false;
   }
 
   /*
     Tokens made of just one terminal character
   */
-  for (tok=0; tok < 256; tok++)
-  {
-    str= & char_tokens[tok];
-    str[0]= (char) tok;
-    compiled_token_array[tok].m_token_string= str;
-    compiled_token_array[tok].m_token_length= 1;
-    compiled_token_array[tok].m_append_space= true;
+  for (tok = 0; tok < 256; tok++) {
+    str = &char_tokens[tok];
+    str[0] = (char)tok;
+    compiled_token_array[tok].m_token_string = str;
+    compiled_token_array[tok].m_token_length = 1;
+    compiled_token_array[tok].m_append_space = true;
   }
 
-  max_token_seen= 255;
+  max_token_seen = 255;
 
   /*
     String terminal tokens, used in sql_yacc.yy
@@ -248,17 +241,14 @@ static void compute_tokens()
   /*
     See symbols[] in sql/lex.h
   */
-  for (i= 0; i< sizeof(symbols)/sizeof(symbols[0]); i++)
-  {
-    if (!(symbols[i].group & SG_MAIN_PARSER))
-      continue;
+  for (i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+    if (!(symbols[i].group & SG_MAIN_PARSER)) continue;
     set_token(symbols[i].tok, symbols[i].name);
   }
 
-  max_token_seen_in_sql_yacc= max_token_seen;
+  max_token_seen_in_sql_yacc = max_token_seen;
 
-  if (max_token_seen_in_sql_yacc >= start_token_range_for_sql_hints)
-  {
+  if (max_token_seen_in_sql_yacc >= start_token_range_for_sql_hints) {
     fprintf(stderr,
             "sql/sql_yacc.yy token reserve exhausted.\n"
             "Please see MAINTAINER instructions in sql/gen_lex_token.cc\n");
@@ -274,36 +264,31 @@ static void compute_tokens()
 
     Also see the TOK_HINT_ADJUST() adjustment macro definition.
   */
-  int tok_hint_min= INT_MAX;
-  for (unsigned int i= 0; i < sizeof(symbols)/sizeof(symbols[0]); i++)
-  {
-    if (!(symbols[i].group & SG_HINTS))
-      continue;
+  int tok_hint_min = INT_MAX;
+  for (unsigned int i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+    if (!(symbols[i].group & SG_HINTS)) continue;
 
     if (static_cast<int>(symbols[i].tok) < tok_hint_min)
-      tok_hint_min= symbols[i].tok; // Calculate the minimal hint token value.
+      tok_hint_min = symbols[i].tok;  // Calculate the minimal hint token value.
   }
 
-  tok_hint_adjust= start_token_range_for_sql_hints - tok_hint_min;
+  tok_hint_adjust = start_token_range_for_sql_hints - tok_hint_min;
 
-  for (unsigned int i= 0; i < sizeof(symbols)/sizeof(symbols[0]); i++)
-  {
-    if (!(symbols[i].group & SG_HINTS))
-      continue;
+  for (unsigned int i = 0; i < sizeof(symbols) / sizeof(symbols[0]); i++) {
+    if (!(symbols[i].group & SG_HINTS)) continue;
     set_token(symbols[i].tok + tok_hint_adjust, symbols[i].name);
   }
 
-  max_token_seen_in_sql_hints= max_token_seen;
+  max_token_seen_in_sql_hints = max_token_seen;
 
-  if (max_token_seen_in_sql_hints >= start_token_range_for_digests)
-  {
+  if (max_token_seen_in_sql_hints >= start_token_range_for_digests) {
     fprintf(stderr,
             "sql/sql_hints.yy token reserve exhausted.\n"
             "Please see MAINTAINER instructions in sql/gen_lex_token.cc\n");
     exit(1);
   }
 
-  max_token_seen= start_token_range_for_digests;
+  max_token_seen = start_token_range_for_digests;
 
   /*
     Additional FAKE tokens,
@@ -312,44 +297,44 @@ static void compute_tokens()
 
   /* Digest tokens in 5.7 */
 
-  tok_generic_value= max_token_seen++;
+  tok_generic_value = max_token_seen++;
   set_token(tok_generic_value, "?");
 
-  tok_generic_value_list= max_token_seen++;
+  tok_generic_value_list = max_token_seen++;
   set_token(tok_generic_value_list, "?, ...");
 
-  tok_row_single_value= max_token_seen++;
+  tok_row_single_value = max_token_seen++;
   set_token(tok_row_single_value, "(?)");
 
-  tok_row_single_value_list= max_token_seen++;
+  tok_row_single_value_list = max_token_seen++;
   set_token(tok_row_single_value_list, "(?) /* , ... */");
 
-  tok_row_multiple_value= max_token_seen++;
+  tok_row_multiple_value = max_token_seen++;
   set_token(tok_row_multiple_value, "(...)");
 
-  tok_row_multiple_value_list= max_token_seen++;
+  tok_row_multiple_value_list = max_token_seen++;
   set_token(tok_row_multiple_value_list, "(...) /* , ... */");
 
-  tok_ident= max_token_seen++;
+  tok_ident = max_token_seen++;
   set_token(tok_ident, "(tok_id)");
 
-  tok_ident_at= max_token_seen++;
+  tok_ident_at = max_token_seen++;
   set_token(tok_ident_at, "(tok_id_at)");
 
-  tok_hint_comment_open= max_token_seen++;
+  tok_hint_comment_open = max_token_seen++;
   set_token(tok_hint_comment_open, HINT_COMMENT_STARTER);
 
-  tok_hint_comment_close= max_token_seen++;
+  tok_hint_comment_close = max_token_seen++;
   set_token(tok_hint_comment_close, HINT_COMMENT_TERMINATOR);
 
   /* New in 8.0 */
 
-  tok_in_generic_value_expression= max_token_seen++;
+  tok_in_generic_value_expression = max_token_seen++;
   set_token(tok_in_generic_value_expression, "IN (...)");
 
   /* Add new digest tokens here */
 
-  tok_unused= max_token_seen++;
+  tok_unused = max_token_seen++;
   set_token(tok_unused, "UNUSED");
 
   /*
@@ -366,7 +351,7 @@ static void compute_tokens()
 
     To work around this, digest text are printed as "@@variable".
   */
-  compiled_token_array[(int) '@'].m_append_space= false;
+  compiled_token_array[(int)'@'].m_append_space = false;
 
   /*
     Define additional properties for tokens.
@@ -418,8 +403,7 @@ static void compute_tokens()
   set_start_expr_token('^');
 }
 
-static void print_tokens()
-{
+static void print_tokens() {
   int tok;
 
   printf("#ifdef LEX_TOKEN_WITH_DEFINITION\n");
@@ -427,21 +411,16 @@ static void print_tokens()
   printf("{\n");
   printf("/* PART 1: character tokens. */\n");
 
-  for (tok= 0; tok<256; tok++)
-  {
-    printf("/* %03d */  { \"\\x%02x\", 1, %s, %s},\n",
-           tok,
-           tok,
+  for (tok = 0; tok < 256; tok++) {
+    printf("/* %03d */  { \"\\x%02x\", 1, %s, %s},\n", tok, tok,
            compiled_token_array[tok].m_append_space ? "true" : "false",
            compiled_token_array[tok].m_start_expr ? "true" : "false");
   }
 
   printf("/* PART 2: named tokens from sql/sql_yacc.yy. */\n");
 
-  for (tok= 256; tok <= max_token_seen_in_sql_yacc; tok++)
-  {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n",
-           tok,
+  for (tok = 256; tok <= max_token_seen_in_sql_yacc; tok++) {
+    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
@@ -450,18 +429,18 @@ static void print_tokens()
 
   printf("/* PART 3: padding reserved for sql/sql_yacc.yy extensions. */\n");
 
-  for (tok= max_token_seen_in_sql_yacc + 1; tok < start_token_range_for_sql_hints; tok++)
-  {
-    printf("/* reserved %03d for sql/sql_yacc.yy */  { \"\", 0, false, false},\n",
-           tok);
+  for (tok = max_token_seen_in_sql_yacc + 1;
+       tok < start_token_range_for_sql_hints; tok++) {
+    printf(
+        "/* reserved %03d for sql/sql_yacc.yy */  { \"\", 0, false, false},\n",
+        tok);
   }
 
   printf("/* PART 4: named tokens from sql/sql_hints.yy. */\n");
 
-  for (tok= start_token_range_for_sql_hints; tok <= max_token_seen_in_sql_hints; tok++)
-  {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n",
-           tok,
+  for (tok = start_token_range_for_sql_hints;
+       tok <= max_token_seen_in_sql_hints; tok++) {
+    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
@@ -470,18 +449,17 @@ static void print_tokens()
 
   printf("/* PART 5: padding reserved for sql/sql_hints.yy extensions. */\n");
 
-  for (tok= max_token_seen_in_sql_hints + 1; tok < start_token_range_for_digests; tok++)
-  {
-    printf("/* reserved %03d for sql/sql_hints.yy */  { \"\", 0, false, false},\n",
-           tok);
+  for (tok = max_token_seen_in_sql_hints + 1;
+       tok < start_token_range_for_digests; tok++) {
+    printf(
+        "/* reserved %03d for sql/sql_hints.yy */  { \"\", 0, false, false},\n",
+        tok);
   }
 
   printf("/* PART 6: Digest special tokens. */\n");
 
-  for (tok= start_token_range_for_digests; tok < max_token_seen; tok++)
-  {
-    printf("/* %03d */  { \"%s\", %d, %s, %s},\n",
-           tok,
+  for (tok = start_token_range_for_digests; tok < max_token_seen; tok++) {
+    printf("/* %03d */  { \"%s\", %d, %s, %s},\n", tok,
            compiled_token_array[tok].m_token_string,
            compiled_token_array[tok].m_token_length,
            compiled_token_array[tok].m_append_space ? "true" : "false",
@@ -500,13 +478,14 @@ static void print_tokens()
   printf("#define TOK_ROW_SINGLE_VALUE %d\n", tok_row_single_value);
   printf("#define TOK_ROW_SINGLE_VALUE_LIST %d\n", tok_row_single_value_list);
   printf("#define TOK_ROW_MULTIPLE_VALUE %d\n", tok_row_multiple_value);
-  printf("#define TOK_ROW_MULTIPLE_VALUE_LIST %d\n", tok_row_multiple_value_list);
+  printf("#define TOK_ROW_MULTIPLE_VALUE_LIST %d\n",
+         tok_row_multiple_value_list);
   printf("#define TOK_IDENT %d\n", tok_ident);
   printf("#define TOK_IDENT_AT %d\n", tok_ident_at);
   printf("#define TOK_HINT_COMMENT_OPEN %d\n", tok_hint_comment_open);
   printf("#define TOK_HINT_COMMENT_CLOSE %d\n", tok_hint_comment_close);
   printf("#define TOK_IN_GENERIC_VALUE_EXPRESSION %d\n",
-    tok_in_generic_value_expression);
+         tok_in_generic_value_expression);
   printf("#define TOK_HINT_ADJUST(x) ((x) + %d)\n", tok_hint_adjust);
   printf("#define TOK_UNUSED %d\n", tok_unused);
 }
@@ -519,18 +498,15 @@ static void print_tokens()
 */
 static const int zerofill_expected_value = 906;
 
-int main(int, char **)
-{
-  if (ZEROFILL_SYM < zerofill_expected_value)
-  {
+int main(int, char **) {
+  if (ZEROFILL_SYM < zerofill_expected_value) {
     fprintf(stderr,
             "Token deleted.\n"
             "Please read MAINTAINER instructions in sql/sql_yacc.yy\n");
     return 1;
   }
 
-  if (ZEROFILL_SYM > zerofill_expected_value)
-  {
+  if (ZEROFILL_SYM > zerofill_expected_value) {
     fprintf(stderr,
             "Token added in the wrong place.\n"
             "Please read MAINTAINER instructions in sql/sql_yacc.yy\n");
@@ -557,4 +533,3 @@ int main(int, char **)
 
   return 0;
 }
-

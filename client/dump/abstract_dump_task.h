@@ -32,28 +32,27 @@
 #include "client/dump/abstract_data_object.h"
 #include "client/dump/abstract_simple_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Base class for most individual dump process tasks, not suitable for
   lightweight dump tasks (e.g. Row).
 */
-class Abstract_dump_task : public Abstract_simple_dump_task
-{
-public:
-  Abstract_dump_task(Abstract_data_object* related_object);
+class Abstract_dump_task : public Abstract_simple_dump_task {
+ public:
+  Abstract_dump_task(Abstract_data_object *related_object);
 
   virtual ~Abstract_dump_task();
 
-  I_data_object* get_related_db_object() const;
+  I_data_object *get_related_db_object() const;
 
-  std::vector<const Abstract_dump_task*> get_dependencies() const;
+  std::vector<const Abstract_dump_task *> get_dependencies() const;
 
-  std::vector<Abstract_dump_task*> get_dependents() const;
+  std::vector<Abstract_dump_task *> get_dependents() const;
 
-  void add_dependency(Abstract_dump_task* dependency);
+  void add_dependency(Abstract_dump_task *dependency);
 
   bool can_be_executed() const;
 
@@ -63,21 +62,21 @@ public:
     Registers callback to be called once this task is able to be executed.
    */
   void register_execution_availability_callback(
-    std::function<void(const Abstract_dump_task*)>* availability_callback);
+      std::function<void(const Abstract_dump_task *)> *availability_callback);
 
-private:
+ private:
   void check_execution_availability();
 
-  Abstract_data_object* m_related_object;
-  std::vector<const Abstract_dump_task*> m_dependencies;
-  std::vector<Abstract_dump_task*> m_dependents;
-  std::vector<std::function<void(const Abstract_dump_task*)>*>
-    m_availability_callbacks;
+  Abstract_data_object *m_related_object;
+  std::vector<const Abstract_dump_task *> m_dependencies;
+  std::vector<Abstract_dump_task *> m_dependents;
+  std::vector<std::function<void(const Abstract_dump_task *)> *>
+      m_availability_callbacks;
   my_boost::mutex m_task_mutex;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

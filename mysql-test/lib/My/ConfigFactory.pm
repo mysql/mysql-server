@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -43,9 +43,6 @@ my @pre_rules=
 );
 
 
-my @share_locations= ("share/mysql", "share");
-
-
 sub get_basedir {
   my ($self, $group)= @_;
   my $basedir= $group->if_exist('basedir') ||
@@ -73,13 +70,13 @@ sub get_bindir {
 sub fix_charset_dir {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_basedir($group),
-		     \@share_locations, "charsets");
+		     \@::share_locations, "charsets");
 }
 
 sub fix_language {
   my ($self, $config, $group_name, $group)= @_;
   return my_find_dir($self->get_bindir($group),
-		     \@share_locations);
+		     \@::share_locations);
 }
 
 sub fix_datadir {

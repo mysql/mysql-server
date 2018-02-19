@@ -31,88 +31,9 @@ SHOW GRANTS FOR userZ;
 --source ../include/auth_sec_assert_binlog_events.inc
 --source include/save_binlog_position.inc
 
---echo # Case 2 : Create new user through grant
-
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userA IDENTIFIED BY 'abcd';
-
---echo # Must have created new user userA
-SELECT user FROM mysql.user WHERE user like 'user%';
-
---echo # Must show updated grants
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userA;
-
---let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userA.*IDENTIFIED WITH.*AS.*)
---source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
-
---echo # Case 3 : With NO_AUTO_CREATE_USER off
-
-set @orig_sql_mode_global= @@GLOBAL.sql_mode;
-set @orig_sql_mode_session= @@SESSION.sql_mode;
-set GLOBAL sql_mode= (select replace(@@GLOBAL.sql_mode,'NO_AUTO_CREATE_USER',''));
-set SESSION sql_mode= (select replace(@@SESSION.sql_mode,'NO_AUTO_CREATE_USER',''));
-
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userB;
-
---echo # Must have created new user userB
-SELECT user FROM mysql.user WHERE user like 'user%';
-
---echo # Must show updated grants
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userB;
-
---let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userY.*userB.*)
---source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
-
-set GLOBAL sql_mode= @orig_sql_mode_global;
-set SESSION sql_mode= @orig_sql_mode_session;
-
---echo # Case 4 : Credential change using grant
-
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA IDENTIFIED BY 'hoho', userB IDENTIFIED BY 'haha';
-
---echo # Must show updated grants
-SHOW GRANTS FOR userA;
-SHOW GRANTS FOR userB;
-
---echo # Must show password for both users
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
-SHOW CREATE USER userA;
---replace_regex /AS .* REQUIRE/AS '<non-deterministic-password-hash>' REQUIRE/g
-SHOW CREATE USER userB;
-
---let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userA.*IDENTIFIED WITH.*AS.*,.*userB.*IDENTIFIED WITH.*AS.*)
---source ../include/auth_sec_assert_binlog_events.inc
---source include/save_binlog_position.inc
-
---echo # Case 5 : Non-existing user with NO_AUTO_CREATE_USER on
-
-REVOKE ALL ON PROCEDURE db1.proc1 FROM userX, userY, userZ;
---source include/save_binlog_position.inc
-
---echo # Must show updated grants
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userZ;
-
---error ER_PASSWORD_NO_MATCH
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userX, userY, userZ, userC, userD;
-
---echo # Grants must remain unchanged
-SHOW GRANTS FOR userX;
-SHOW GRANTS FOR userY;
-SHOW GRANTS FOR userZ;
-
---let $invert= 1
---let $event= !Q(GRANT EXECUTE ON PROCEDURE.*db1.*proc1.*TO.*userX.*userY.*userZ.*userC.*userD.*)
---source ../include/auth_sec_assert_binlog_events.inc
---let $invert= 0
-
 --echo # Case 6 : Create new user with an account without CREATE USER privilege
 
-REVOKE ALL ON PROCEDURE db1.proc1 FROM userA, userB;
+CREATE USER userA, userB;
 GRANT EXECUTE ON PROCEDURE db1.proc1 to userX WITH GRANT OPTION;
 
 SHOW GRANTS FOR userY;
@@ -129,7 +50,7 @@ GRANT EXECUTE ON PROCEDURE db1.proc1 TO userY, userZ;
 
 --echo # should fail
 --error ER_CANT_CREATE_USER_WITH_GRANT
-GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA, userB, userC IDENTIFIED BY 'haha';
+GRANT EXECUTE ON PROCEDURE db1.proc1 TO userA, userB, userC;
 
 connection default;
 disconnect conn_userX;

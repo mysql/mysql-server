@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -170,9 +170,9 @@ void Update_statement_builder::add_document_operation(
   Update_operation::UpdateType operation_id = operation.begin()->operation();
   m_builder.put("doc")
       .put_each(
-           operation,
-           ngs::bind(&Update_statement_builder::add_document_operation_item,
-                     this, ngs::placeholders::_1, &operation_id))
+          operation,
+          ngs::bind(&Update_statement_builder::add_document_operation_item,
+                    this, ngs::placeholders::_1, &operation_id))
       .put("),'$._id',JSON_EXTRACT(`doc`,'$._id'))");
 }
 
@@ -206,16 +206,18 @@ void Update_statement_builder::add_table_operation_items(
         throw ngs::Error_code(ER_X_BAD_COLUMN_TO_UPDATE,
                               "Invalid column name to update");
       m_builder.put_list(
-          begin, end, ngs::bind(&Update_statement_builder::add_field_with_value,
-                                this, ngs::placeholders::_1));
+          begin, end,
+          ngs::bind(&Update_statement_builder::add_field_with_value, this,
+                    ngs::placeholders::_1));
       break;
 
     case Update_operation::ITEM_REMOVE:
       m_builder.put_identifier(begin->source().name())
           .put("=JSON_REMOVE(")
           .put_identifier(begin->source().name())
-          .put_each(begin, end, ngs::bind(&Update_statement_builder::add_member,
-                                          this, ngs::placeholders::_1))
+          .put_each(begin, end,
+                    ngs::bind(&Update_statement_builder::add_member, this,
+                              ngs::placeholders::_1))
           .put(")");
       break;
 
@@ -243,8 +245,9 @@ void Update_statement_builder::add_table_operation_items(
       m_builder.put_identifier(begin->source().name())
           .put("=JSON_MERGE_PRESERVE(")
           .put_identifier(begin->source().name())
-          .put_each(begin, end, ngs::bind(&Update_statement_builder::add_value,
-                                          this, ngs::placeholders::_1))
+          .put_each(begin, end,
+                    ngs::bind(&Update_statement_builder::add_value, this,
+                              ngs::placeholders::_1))
           .put(")");
       break;
 
@@ -272,8 +275,9 @@ void Update_statement_builder::add_table_operation_items(
       m_builder.put_identifier(begin->source().name())
           .put("=JSON_MERGE_PATCH(")
           .put_identifier(begin->source().name())
-          .put_each(begin, end, ngs::bind(&Update_statement_builder::add_value,
-                                          this, ngs::placeholders::_1))
+          .put_each(begin, end,
+                    ngs::bind(&Update_statement_builder::add_value, this,
+                              ngs::placeholders::_1))
           .put(")");
       break;
 

@@ -28,18 +28,18 @@
 */
 
 #include "sql/sql_class.h"
+#include "sql/sql_lex.h"
 #include "sql/sql_parse.h"
 #include "unittest/gunit/test_utils.h"
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
 /*
   A class for unit testing the parser.
 */
-class ParserTest : public ::testing::Test
-{
-protected:
+class ParserTest : public ::testing::Test {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 
@@ -51,12 +51,11 @@ protected:
     Parses a query and returns a parse tree. In our parser this is
     called a SELECT_LEX.
   */
-  SELECT_LEX *parse(const char *query, int expected_error_code) const
-  {
+  SELECT_LEX *parse(const char *query, int expected_error_code) const {
     Parser_state state;
 
-    size_t length= strlen(query);
-    char *mutable_query= const_cast<char*>(query);
+    size_t length = strlen(query);
+    char *mutable_query = const_cast<char *>(query);
 
     state.init(thd(), mutable_query, length);
 
@@ -70,30 +69,25 @@ protected:
     Mock_error_handler handler(thd(), expected_error_code);
     lex_start(thd());
 
-    if (thd()->db().str == NULL)
-    {
+    if (thd()->db().str == NULL) {
       // The THD DTOR will do my_free() on this.
-      char *db= static_cast<char*>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
+      char *db =
+          static_cast<char *>(my_malloc(PSI_NOT_INSTRUMENTED, 3, MYF(0)));
       sprintf(db, "db");
-      LEX_CSTRING db_lex_cstr= { db, strlen(db) };
+      LEX_CSTRING db_lex_cstr = {db, strlen(db)};
       thd()->reset_db(db_lex_cstr);
     }
 
     lex_start(thd());
     mysql_reset_thd_for_next_command(thd());
-    bool err= parse_sql(thd(), &state, NULL);
+    bool err = parse_sql(thd(), &state, NULL);
     assert_eq(0, err);
     return thd()->lex->current_select();
   }
 
-  void assert_eq(int x, int y) const
-  {
-    ASSERT_EQ(x, y);
-  }
+  void assert_eq(int x, int y) const { ASSERT_EQ(x, y); }
 
   SELECT_LEX *parse(const char *query) const { return parse(query, 0); }
-
 };
 
-
-#endif // PARSERTEST_INCLUDED
+#endif  // PARSERTEST_INCLUDED

@@ -50,7 +50,6 @@ SET(STRINGS_SOURCES
   longlong2str.cc
   my_strchr.cc
   my_strtoll10.cc
-  my_vsnprintf.cc
   str2int.cc
   str_alloc.cc
   strcont.cc

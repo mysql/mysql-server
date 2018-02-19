@@ -29,11 +29,11 @@
 
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/raw_record.h"
-#include "sql/dd/impl/types/entity_object_impl.h" // dd::Entity_object_impl
+#include "sql/dd/impl/types/entity_object_impl.h"  // dd::Entity_object_impl
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/entity_object_table.h"
-#include "sql/dd/types/index_stat.h"          // dd::Index_stat
+#include "sql/dd/types/index_stat.h"  // dd::Index_stat
 
 namespace dd {
 
@@ -48,16 +48,11 @@ class Object_table;
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Index_stat_impl : public Entity_object_impl,
-                        public Index_stat
-{
-public:
-  Index_stat_impl()
-   :m_cardinality(0),
-    m_cached_time(0)
-  { }
+class Index_stat_impl : public Entity_object_impl, public Index_stat {
+ public:
+  Index_stat_impl() : m_cardinality(0), m_cached_time(0) {}
 
-public:
+ public:
   virtual void debug_print(String_type &outb) const;
 
   virtual const Object_table &object_table() const;
@@ -67,88 +62,88 @@ public:
   virtual bool restore_attributes(const Raw_record &r);
   virtual bool store_attributes(Raw_record *r);
 
-public:
+ public:
   static void register_tables(Open_dictionary_tables_ctx *otx);
 
   /////////////////////////////////////////////////////////////////////////
   // schema name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &schema_name() const
-  { return m_schema_name; }
+  virtual const String_type &schema_name() const { return m_schema_name; }
 
-  virtual void set_schema_name(const String_type &schema_name)
-  { m_schema_name= schema_name; }
+  virtual void set_schema_name(const String_type &schema_name) {
+    m_schema_name = schema_name;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // table name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &table_name() const
-  { return m_table_name; }
+  virtual const String_type &table_name() const { return m_table_name; }
 
-  virtual void set_table_name(const String_type &table_name)
-  { m_table_name= table_name; }
+  virtual void set_table_name(const String_type &table_name) {
+    m_table_name = table_name;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // index name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &index_name() const
-  { return m_index_name; }
+  virtual const String_type &index_name() const { return m_index_name; }
 
-  virtual void set_index_name(const String_type &index_name)
-  { m_index_name= index_name; }
+  virtual void set_index_name(const String_type &index_name) {
+    m_index_name = index_name;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // column name.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual const String_type &column_name() const
-  { return m_column_name; }
+  virtual const String_type &column_name() const { return m_column_name; }
 
-  virtual void set_column_name(const String_type &column_name)
-  { m_column_name= column_name; }
+  virtual void set_column_name(const String_type &column_name) {
+    m_column_name = column_name;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // cardinality.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong cardinality() const
-  { return m_cardinality; }
+  virtual ulonglong cardinality() const { return m_cardinality; }
 
-  virtual void set_cardinality(ulonglong cardinality)
-  { m_cardinality= cardinality; }
+  virtual void set_cardinality(ulonglong cardinality) {
+    m_cardinality = cardinality;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // cached_time.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual ulonglong cached_time() const
-  { return m_cached_time; }
+  virtual ulonglong cached_time() const { return m_cached_time; }
 
-  virtual void set_cached_time(ulonglong cached_time)
-  { m_cached_time= cached_time; }
+  virtual void set_cached_time(ulonglong cached_time) {
+    m_cached_time = cached_time;
+  }
 
-public:
+ public:
   virtual Object_key *create_primary_key() const;
   virtual bool has_new_primary_key() const;
 
   // Fix "inherits ... via dominance" warnings
-  virtual Entity_object_impl *impl()
-  { return Entity_object_impl::impl(); }
-  virtual const Entity_object_impl *impl() const
-  { return Entity_object_impl::impl(); }
-  virtual Object_id id() const
-  { return Entity_object_impl::id(); }
-  virtual bool is_persistent() const
-  { return Entity_object_impl::is_persistent(); }
-  virtual const String_type &name() const
-  { return Entity_object_impl::name(); }
-  virtual void set_name(const String_type &name)
-  { Entity_object_impl::set_name(name); }
+  virtual Entity_object_impl *impl() { return Entity_object_impl::impl(); }
+  virtual const Entity_object_impl *impl() const {
+    return Entity_object_impl::impl();
+  }
+  virtual Object_id id() const { return Entity_object_impl::id(); }
+  virtual bool is_persistent() const {
+    return Entity_object_impl::is_persistent();
+  }
+  virtual const String_type &name() const { return Entity_object_impl::name(); }
+  virtual void set_name(const String_type &name) {
+    Entity_object_impl::set_name(name);
+  }
 
-private:
+ private:
   // Fields
   String_type m_schema_name;
   String_type m_table_name;
@@ -161,6 +156,6 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__INDEX_STAT_IMPL_INCLUDED
+#endif  // DD__INDEX_STAT_IMPL_INCLUDED

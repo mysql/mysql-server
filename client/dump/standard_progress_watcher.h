@@ -29,22 +29,22 @@
 
 #include "client/dump/abstract_progress_watcher.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Standard_progress_watcher : public Abstract_progress_watcher
-{
-public:
+class Standard_progress_watcher : public Abstract_progress_watcher {
+ public:
   Standard_progress_watcher(
-    std::function<bool(const Mysql::Tools::Base::Message_data&)>*
-      message_handler, Simple_id_generator* object_id_generator);
+      std::function<bool(const Mysql::Tools::Base::Message_data &)>
+          *message_handler,
+      Simple_id_generator *object_id_generator);
 
-  void process_progress_step(Abstract_progress_watcher::Progress_data& change);
+  void process_progress_step(Abstract_progress_watcher::Progress_data &change);
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

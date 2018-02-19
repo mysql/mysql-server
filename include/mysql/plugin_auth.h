@@ -39,20 +39,19 @@
 
 /* defines for MYSQL_SERVER_AUTH_INFO.password_used */
 
-#define PASSWORD_USED_NO         0
-#define PASSWORD_USED_YES        1
+#define PASSWORD_USED_NO 0
+#define PASSWORD_USED_YES 1
 #define PASSWORD_USED_NO_MENTION 2
 
 /* Authentication flags */
 
 #define AUTH_FLAG_PRIVILEGED_USER_FOR_PASSWORD_CHANGE (1L << 0)
-#define AUTH_FLAG_USES_INTERNAL_STORAGE               (1L << 1)
+#define AUTH_FLAG_USES_INTERNAL_STORAGE (1L << 1)
 
 /**
   Provides server plugin access to authentication information
 */
-typedef struct st_mysql_server_auth_info
-{
+struct MYSQL_SERVER_AUTH_INFO {
   /**
     User name as sent by the client and shown in USER().
     NULL if the client packet with the user name was not received yet.
@@ -80,28 +79,27 @@ typedef struct st_mysql_server_auth_info
     A plugin can override it with another name that will be
     used by MySQL for authorization, and shown in CURRENT_USER()
   */
-  char authenticated_as[MYSQL_USERNAME_LENGTH+1]; 
-
+  char authenticated_as[MYSQL_USERNAME_LENGTH + 1];
 
   /**
     The unique user name that was used by the plugin to authenticate.
     Plugins should put null-terminated UTF-8 here.
     Available through the @@EXTERNAL_USER variable.
-  */  
+  */
   char external_user[512];
 
   /**
     This only affects the "Authentication failed. Password used: %s"
-    error message. has the following values : 
+    error message. has the following values :
     0 : %s will be NO.
     1 : %s will be YES.
     2 : there will be no %s.
     Set it as appropriate or ignore at will.
   */
-  int  password_used;
+  int password_used;
 
   /**
-    Set to the name of the connected client host, if it can be resolved, 
+    Set to the name of the connected client host, if it can be resolved,
     or to its IP address otherwise.
   */
   const char *host_or_ip;
@@ -110,8 +108,7 @@ typedef struct st_mysql_server_auth_info
     Length of host_or_ip
   */
   unsigned int host_or_ip_length;
-
-} MYSQL_SERVER_AUTH_INFO;
+};
 
 /**
   Function provided by the plugin which should perform authentication (using
@@ -119,7 +116,8 @@ typedef struct st_mysql_server_auth_info
   also fill the info.authenticated_as field if a different username should be
   used for authorization.
 */
-typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO *info);
+typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio,
+                                   MYSQL_SERVER_AUTH_INFO *info);
 
 /**
   New plugin API to generate password digest out of authentication string.
@@ -137,7 +135,9 @@ typedef int (*authenticate_user_t)(MYSQL_PLUGIN_VIO *vio, MYSQL_SERVER_AUTH_INFO
   @retval  1 ERROR
 */
 typedef int (*generate_authentication_string_t)(char *outbuf,
-      unsigned int *outbuflen, const char *inbuf, unsigned int inbuflen);
+                                                unsigned int *outbuflen,
+                                                const char *inbuf,
+                                                unsigned int inbuflen);
 
 /**
   Plugin API to validate password digest.
@@ -148,7 +148,8 @@ typedef int (*generate_authentication_string_t)(char *outbuf,
   @retval  0 OK
   @retval  1 ERROR
   */
-typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int buflen);
+typedef int (*validate_authentication_string_t)(char *const inbuf,
+                                                unsigned int buflen);
 
 /**
   Plugin API to convert scrambled password to binary form
@@ -164,8 +165,7 @@ typedef int (*validate_authentication_string_t)(char* const inbuf, unsigned int 
   @retval  1 ERROR
 */
 typedef int (*set_salt_t)(const char *password, unsigned int password_len,
-                          unsigned char* salt, unsigned char *salt_len);
-
+                          unsigned char *salt, unsigned char *salt_len);
 
 /**
   Plugin API to compare a clear text password with a stored hash
@@ -178,18 +178,17 @@ typedef int (*set_salt_t)(const char *password, unsigned int password_len,
   @retval 0              the hash was created with that password
   @retval non-zero       the hash was created with a different password
 */
-typedef int
-(*compare_password_with_hash_t)(const char *hash, unsigned long hash_length,
-                                const char *cleartext,
-                                unsigned long cleartext_length,
-                                int *is_error);
+typedef int (*compare_password_with_hash_t)(const char *hash,
+                                            unsigned long hash_length,
+                                            const char *cleartext,
+                                            unsigned long cleartext_length,
+                                            int *is_error);
 
 /**
   Server authentication plugin descriptor
 */
-struct st_mysql_auth
-{
-  int interface_version;                        /** version plugin uses */
+struct st_mysql_auth {
+  int interface_version; /** version plugin uses */
   /**
     A plugin that a client must use for authentication with this server
     plugin. Can be NULL to mean "any plugin".
@@ -209,4 +208,3 @@ struct st_mysql_auth
   compare_password_with_hash_t compare_password_with_hash;
 };
 #endif
-

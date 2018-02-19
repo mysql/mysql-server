@@ -35,8 +35,7 @@
   Compares two strings for order, assures ascending lexicographical order.
   Is used as a const char * std::less specialization.
 */
-struct c_string_less
-{
+struct c_string_less {
   /**
     Compares two strings for order.
 
@@ -44,11 +43,9 @@ struct c_string_less
     @param s2 String to compare.
     @return Result of comparison, assures ascending lexicographical order.
   */
-  bool operator()(const char* s1, const char* s2) const
-  {
+  bool operator()(const char *s1, const char *s2) const {
     return strcmp(s1, s2) < 0;
   }
 };
-
 
 #endif

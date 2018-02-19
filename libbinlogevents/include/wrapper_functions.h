@@ -38,12 +38,11 @@
 #endif
 
 #ifdef HAVE_MYSYS
+#include "my_config.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
 
-extern "C" {
 extern PSI_memory_key key_memory_log_event;
-}
 #else
 #include <cassert>
 #ifndef _GNU_SOURCE
@@ -66,7 +65,9 @@ extern PSI_memory_key key_memory_log_event;
 #define BAPI_PRINT(name, params)
 #endif
 #else
-#define BAPI_ASSERT(x) do { } while(0)
+#define BAPI_ASSERT(x) \
+  do {                 \
+  } while (0)
 #define BAPI_PRINT(name, params)
 #endif
 
@@ -80,25 +81,22 @@ extern PSI_memory_key key_memory_log_event;
   @param  s  The string whose copy we want to create
   @param  n  Number of bytes to be copied
 
-  @return    The duplicated string, or NULL if insufficient memory was available.
+  @return    The duplicated string, or NULL if insufficient memory was
+  available.
 */
-inline char *strndup (const char *s, size_t n)
-{
+inline char *strndup(const char *s, size_t n) {
   char *result;
-  size_t len = strlen (s);
+  size_t len = strlen(s);
 
-  if (n < len)
-    len = n;
+  if (n < len) len = n;
 
-  result = (char *) malloc (len + 1);
-  if (!result)
-    return 0;
+  result = (char *)malloc(len + 1);
+  if (!result) return 0;
 
   result[len] = '\0';
-  return (char *) memcpy (result, s, len);
+  return (char *)memcpy(result, s, len);
 }
 #endif
-
 
 /**
   This is a wrapper function, and returns a pointer to a new string which is
@@ -113,16 +111,14 @@ inline char *strndup (const char *s, size_t n)
 
   @return The duplicated string, or NULL if insufficient memory was available.
 */
-inline const char* bapi_strndup(const char *destination, size_t n)
-{
+inline const char *bapi_strndup(const char *destination, size_t n) {
 #ifdef HAVE_MYSYS
-/* Call the function in mysys library, required for memory instrumentation */
+  /* Call the function in mysys library, required for memory instrumentation */
   return my_strndup(key_memory_log_event, destination, n, MYF(MY_WME));
 #else
   return strndup(destination, n);
 #endif
 }
-
 
 /**
   This is a wrapper function, and returns a pointer to a new memory with the
@@ -134,20 +130,17 @@ inline const char* bapi_strndup(const char *destination, size_t n)
   @return dest pointer to a new memory if allocation was successful
           NULL otherwise
 */
-inline void* bapi_memdup(const void* source, size_t len)
-{
-  void* dest;
+inline void *bapi_memdup(const void *source, size_t len) {
+  void *dest;
 #ifdef HAVE_MYSYS
   /* Call the function in mysys library, required for memory instrumentation */
-  dest= my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
+  dest = my_memdup(key_memory_log_event, source, len, MYF(MY_WME));
 #else
-  dest= malloc(len);
-  if (dest)
-    memcpy(dest, source, len);
+  dest = malloc(len);
+  if (dest) memcpy(dest, source, len);
 #endif
   return dest;
 }
-
 
 /**
   This is a wrapper function in order to allocate memory from the heap
@@ -161,17 +154,15 @@ inline void* bapi_memdup(const void* source, size_t len)
   @param flags        flags to pass to MySQL server my_malloc functions
   @return Void pointer to the allocated chunk of memory
 */
-inline void * bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused)))
-{
-  void * dest= NULL;
+inline void *bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused))) {
+  void *dest = NULL;
 #ifdef HAVE_MYSYS
-  dest= my_malloc(key_memory_log_event, size, MYF(flags));
+  dest = my_malloc(key_memory_log_event, size, MYF(flags));
 #else
-  dest= malloc(size);
+  dest = malloc(size);
 #endif
   return dest;
 }
-
 
 /**
   This is a wrapper function in order to free the memory allocated from the heap
@@ -183,8 +174,7 @@ inline void * bapi_malloc(size_t size, int flags MY_ATTRIBUTE((unused)))
 
   @param ptr Pointer to the memory which is to be freed.
 */
-inline void bapi_free(void* ptr)
-{
+inline void bapi_free(void *ptr) {
 #ifdef HAVE_MYSYS
   return my_free(ptr);
 #else

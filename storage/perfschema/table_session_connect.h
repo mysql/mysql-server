@@ -39,8 +39,7 @@
 #define MAX_UTF8_BYTES 6
 
 /** symbolic names for field offsets, keep in sync with field_types */
-enum field_offsets
-{
+enum field_offsets {
   FO_PROCESS_ID,
   FO_ATTR_NAME,
   FO_ATTR_VALUE,
@@ -51,8 +50,7 @@ enum field_offsets
   A row of PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS and
   PERFORMANCE_SCHEMA.SESSION_ACCOUNT_CONNECT_ATTRS.
 */
-struct row_session_connect_attrs
-{
+struct row_session_connect_attrs {
   /** Column PROCESS_ID. */
   ulong m_process_id;
   /** Column ATTR_NAME. In UTF-8 */
@@ -67,49 +65,41 @@ struct row_session_connect_attrs
   ulong m_ordinal_position;
 };
 
-class PFS_index_session_connect : public PFS_engine_index
-{
-public:
+class PFS_index_session_connect : public PFS_engine_index {
+ public:
   PFS_index_session_connect()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("PROCESSLIST_ID"),
-      m_key_2("ATTR_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("PROCESSLIST_ID"),
+        m_key_2("ATTR_NAME") {}
 
-  ~PFS_index_session_connect()
-  {
-  }
+  ~PFS_index_session_connect() {}
 
   virtual bool match(PFS_thread *pfs);
   virtual bool match(row_session_connect_attrs *row);
 
-private:
+ private:
   PFS_key_processlist_id m_key_1;
   PFS_key_name m_key_2;
 };
 
 /** Abstract table PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS. */
-class table_session_connect : public cursor_by_thread_connect_attr
-{
-protected:
+class table_session_connect : public cursor_by_thread_connect_attr {
+ protected:
   table_session_connect(const PFS_engine_table_share *share);
 
-public:
+ public:
   ~table_session_connect();
 
-protected:
+ protected:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
   virtual int make_row(PFS_thread *pfs, uint ordinal);
   virtual bool thread_fits(PFS_thread *thread);
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
-protected:
+ protected:
   /** Current row. */
   row_session_connect_attrs m_row;
   /** Safe copy of @c PFS_thread::m_session_connect_attrs. */
@@ -120,15 +110,10 @@ protected:
   PFS_index_session_connect *m_opened_index;
 };
 
-bool read_nth_attr(const char *connect_attrs,
-                   uint connect_attrs_length,
-                   const CHARSET_INFO *connect_attrs_cs,
-                   uint ordinal,
-                   char *attr_name,
-                   uint max_attr_name,
-                   uint *attr_name_length,
-                   char *attr_value,
-                   uint max_attr_value,
+bool read_nth_attr(const char *connect_attrs, uint connect_attrs_length,
+                   const CHARSET_INFO *connect_attrs_cs, uint ordinal,
+                   char *attr_name, uint max_attr_name, uint *attr_name_length,
+                   char *attr_value, uint max_attr_value,
                    uint *attr_value_length);
 
 /** @} */

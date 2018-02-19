@@ -47,7 +47,6 @@ ALTER USER test_user3@localhost IDENTIFIED BY 'meow'
 GRANT USAGE ON test.* TO test_user3@localhost WITH GRANT OPTION;
 ALTER USER test_user3@localhost REQUIRE NONE;
 
-GRANT ROLE_ADMIN, SYSTEM_VARIABLES_ADMIN, SELECT ON *.* TO test_user3@localhost IDENTIFIED BY 'meow';
 
 DROP PROCEDURE proc_rewrite_1;
 DROP FUNCTION  func_rewrite_1;
@@ -103,7 +102,7 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %' AND command
 --echo ------ done ------ see log_tables.test for more proof! :)
 
 # Sanity check -- prove we log the correct hash.  Must return one row.
-SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'GRANT SELECT%' AND argument LIKE CONCAT('%AS %');
+SELECT COUNT(*)>=1 FROM mysql.general_log WHERE argument LIKE 'CREATE USER%' AND argument LIKE CONCAT('%AS %');
 
 --echo Bug#13958454 -- show we print SET @a:=5, but SELECT (@a:=5)
 # We need the () in EXPLAIN, for (@e:=80)+5.

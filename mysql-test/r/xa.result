@@ -485,3 +485,29 @@ ERROR XAE03: XAER_RMERR: Fatal error occurred in the transaction branch - check 
 XA COMMIT 'xid1';
 DROP USER u1;
 # End of tests fro WL#7194
+#
+# Bug #26848877 -- XA COMMIT/ROLLBACK REJECTED BY NON-AUTOCOMMIT SESSION
+#                  WITH NO ACTIVE TRANSACTION
+#
+# Check that XA COMMIT finalizes XA transaction branch in case
+# XA transaction was prepared successfully and after session reconnect
+# a user turned off autocommit before running XA COMMIT
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET autocommit = 0;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA COMMIT 'xid1';
+# Check that XA ROLLBACK finalizes XA transaction branch in case
+# XA transaction was prepared successfully and after reconnect
+# a user turned off autocommit before running XA ROLLBACK
+XA START 'xid1';
+XA END 'xid1';
+XA PREPARE 'xid1';
+SET autocommit = 0;
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA ROLLBACK 'xid1';

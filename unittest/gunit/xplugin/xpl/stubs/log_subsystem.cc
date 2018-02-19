@@ -20,33 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
-
-enum plugin_log_level
-{
+enum plugin_log_level {
   MY_ERROR_LEVEL,
   MY_WARNING_LEVEL,
   MY_INFORMATION_LEVEL
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-int my_plugin_log_message(void *, enum plugin_log_level, const char *, ...)
-{
+int my_plugin_log_message(void **, enum plugin_log_level, const char *, ...) {
   return 0;
 }
 
-struct my_plugin_log_service
-{
+struct my_plugin_log_service {
   /** write a message to the log */
-  int (*my_plugin_log_message)(void *, enum plugin_log_level, const char *, ...);
+  int (*my_plugin_log_message)(void **, enum plugin_log_level, const char *,
+                               ...);
 };
 
 struct my_plugin_log_service log_service = {my_plugin_log_message};
 struct my_plugin_log_service *my_plugin_log_service = &log_service;
-
-#ifdef __cplusplus
-}
-#endif

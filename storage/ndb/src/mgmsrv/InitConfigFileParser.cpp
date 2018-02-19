@@ -31,6 +31,7 @@
 #include "ConfigInfo.hpp"
 #include "EventLogger.hpp"
 #include "m_string.h"
+#include "my_alloc.h"
 #include <util/SparseBitmask.hpp>
 #include "../common/util/parse_mask.hpp"
 
@@ -777,7 +778,8 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   }
 
   char ** tmp = (char**)argv;
-  int ret = load_defaults("my", groups, &argc, &tmp);
+  MEM_ROOT *alloc= new MEM_ROOT;  // Yes, this leaks.
+  int ret = load_defaults("my", groups, &argc, &tmp, alloc);
 
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;

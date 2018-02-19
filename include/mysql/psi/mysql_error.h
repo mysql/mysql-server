@@ -50,20 +50,18 @@
 #define MYSQL_LOG_ERROR(N, T) inline_mysql_log_error(N, T)
 #else
 #define MYSQL_LOG_ERROR(N, T) \
-  do                          \
-  {                           \
+  do {                        \
   } while (0)
 #endif
 
 #ifdef HAVE_PSI_ERROR_INTERFACE
 
-static inline void
-inline_mysql_log_error(int error_num, PSI_error_operation error_operation)
-{
+static inline void inline_mysql_log_error(int error_num,
+                                          PSI_error_operation error_operation) {
   PSI_ERROR_CALL(log_error)(error_num, error_operation);
 }
 #endif /* HAVE_PSI_ERROR_INTERFACE */
 
-/** @} (end of group psi_api_error) */
+  /** @} (end of group psi_api_error) */
 
 #endif

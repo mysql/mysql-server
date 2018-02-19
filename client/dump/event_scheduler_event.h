@@ -30,20 +30,19 @@
 #include "client/dump/abstract_plain_sql_object_dump_task.h"
 #include "my_inttypes.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class Event_scheduler_event : public Abstract_plain_sql_object_dump_task
-{
-public:
-  Event_scheduler_event(uint64 id, const std::string& name,
-    const std::string& schema,
-    const std::string& sql_formatted_definition);
+class Event_scheduler_event : public Abstract_plain_sql_object_dump_task {
+ public:
+  Event_scheduler_event(uint64 id, const std::string &name,
+                        const std::string &schema,
+                        const std::string &sql_formatted_definition);
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

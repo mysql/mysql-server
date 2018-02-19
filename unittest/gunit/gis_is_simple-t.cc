@@ -33,7 +33,7 @@ namespace {
 
 template <typename T_typeset>
 struct Is_simple : Gis_test<T_typeset> {
-  bool is_simple(gis::Geometry const& g) {
+  bool is_simple(gis::Geometry const &g) {
     assert(g.coordinate_system() == T_typeset::coordinate_system());
 
     bool result;
@@ -49,7 +49,7 @@ struct Is_simple : Gis_test<T_typeset> {
   // Implictly convert to geographic coordinates, projecting `g` onto the
   // north pole if given cartesian coordinates while testing geographic.
   template <typename T>
-  bool implicit_geo_is_simple(T const& g) {
+  bool implicit_geo_is_simple(T const &g) {
     if ((T_typeset::coordinate_system() ==
          gis::Coordinate_system::kGeographic) &&
         (g.coordinate_system() == gis::Coordinate_system::kCartesian))
@@ -75,7 +75,8 @@ TYPED_TEST(Is_simple, linestring_line) {
   EXPECT_TRUE(this->implicit_geo_is_simple(test_geom::linestring_line()));
 }
 TYPED_TEST(Is_simple, linestring_right_angle) {
-  EXPECT_TRUE(this->implicit_geo_is_simple(test_geom::linestring_right_angle()));
+  EXPECT_TRUE(
+      this->implicit_geo_is_simple(test_geom::linestring_right_angle()));
 }
 TYPED_TEST(Is_simple, linestring_triangle) {
   EXPECT_TRUE(this->implicit_geo_is_simple(test_geom::linestring_triangle()));

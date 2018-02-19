@@ -540,6 +540,6 @@ is_exceptions_table(const char *table_name);
 */
 
 int
-show_ndb_status_conflict(THD* thd, struct st_mysql_show_var* var, char* buff);
+show_ndb_status_conflict(THD* thd, SHOW_VAR* var, char* buff);
 
 #endif

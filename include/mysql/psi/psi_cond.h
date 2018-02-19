@@ -36,14 +36,11 @@
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
-#include "psi_base.h"
 #include "mysql/components/services/psi_cond_bits.h"
-
-C_MODE_START
+#include "psi_base.h"
 
 /** Entry point for the performance schema interface. */
-struct PSI_cond_bootstrap
-{
+struct PSI_cond_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -54,7 +51,6 @@ struct PSI_cond_bootstrap
   */
   void *(*get_interface)(int version);
 };
-typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
 
 #ifdef HAVE_PSI_COND_INTERFACE
 
@@ -62,8 +58,7 @@ typedef struct PSI_cond_bootstrap PSI_cond_bootstrap;
   Performance Schema Cond Interface, version 1.
   @since PSI_COND_VERSION_1
 */
-struct PSI_cond_service_v1
-{
+struct PSI_cond_service_v1 {
   /** @sa register_cond_v1_t. */
   register_cond_v1_t register_cond;
   /** @sa init_cond_v1_t. */
@@ -87,7 +82,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_cond_service_t *psi_cond_service;
 #endif /* HAVE_PSI_COND_INTERFACE */
 
 /** @} (end of group psi_abi_cond) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_MUTEX_H */

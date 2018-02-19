@@ -30,8 +30,7 @@
   This structure extends the @c sql_digest_storage structure
   with temporary state used only during parsing.
 */
-struct sql_digest_state
-{
+struct sql_digest_state {
   /**
     Index, in the digest token array, of the last identifier seen.
     Reduce rules used in the digest computation can not
@@ -41,18 +40,13 @@ struct sql_digest_state
   int m_last_id_index;
   sql_digest_storage m_digest_storage;
 
-  inline void reset(unsigned char *token_array, uint length)
-  {
-    m_last_id_index= 0;
+  inline void reset(unsigned char *token_array, uint length) {
+    m_last_id_index = 0;
     m_digest_storage.reset(token_array, length);
   }
 
-  inline bool is_empty()
-  {
-    return m_digest_storage.is_empty();
-  }
+  inline bool is_empty() { return m_digest_storage.is_empty(); }
 };
 typedef struct sql_digest_state sql_digest_state;
 
 #endif
-

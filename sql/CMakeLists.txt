@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/libbinlogevents/include
 )
+INCLUDE_DIRECTORIES(SYSTEM ${BOOST_PATCHES_DIR} ${BOOST_INCLUDE_DIR})
 
 INCLUDE_DIRECTORIES(SYSTEM ${ICU_INCLUDE_DIRS})
 
@@ -391,6 +392,7 @@ SET(SQL_SHARED_SOURCES
   rpl_write_set_handler.cc
   rules_table_service.cc
   rwlock_scoped_lock.cc
+  sd_notify.cc
   sdi_utils.cc
   session_tracker.cc
   set_var.cc 
@@ -493,7 +495,6 @@ SET(SQL_SHARED_SOURCES
   tztime.cc
   uniques.cc
   xa.cc
-  ${DD_SOURCES}
   ${MYSQL_SERVER_SUB_COMPONENT_SOURCES}
 )
 
@@ -542,7 +543,7 @@ SET(SQL_SOURCE
   ../extra/lz4/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
-  ../sql-common/client_plugin.c
+  ../sql-common/client_plugin.cc
   ../sql-common/client_authentication.cc
   ../sql-common/get_password.cc
   ../sql-common/my_path_permissions.cc
@@ -583,54 +584,6 @@ IF(WIN32)
       )
 ENDIF()
 
-# Source files that use Boost
-SET(SQL_BOOST_SOURCES
-  debug_sync.cc
-  auth/sql_authentication.cc
-  auth/sql_auth_cache.cc
-  auth/sql_authorization.cc
-  auth/sql_user_table.cc
-  auth/sql_user.cc
-  auth/sql_security_ctx.cc
-  auth/role_tables.cc
-  auth/dynamic_privilege_table.cc
-  auth/dynamic_privileges_impl.cc
-  auth/sha2_password.cc
-  handler.cc
-  ${SQL_GIS_SOURCES}
-  spatial.cc
-  window.cc
-  sql_exception_handler.cc
-)
-SET(SQL_EXPORTED_BOOST_SOURCES ${SQL_BOOST_SOURCES} PARENT_SCOPE)
-
-INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
-ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-  COMPILE_FLAGS -I${BOOST_PATCHES_DIR} -I${BOOST_INCLUDE_DIR})
-
-# warning C4348
-# boost::spirit::terminal<boost::spirit::tag::lit>::result_helper': 
-#       redefinition of default parameter
-IF(WIN32)
-  ADD_COMPILE_FLAGS(
-    gis/srs/srs.cc
-    gis/srs/wkt_parser.cc
-    COMPILE_FLAGS "/wd4348")
-ENDIF()
-
-# warning 4244 4267
-# conversion from 'coordinate_type' to 'const promoted_type
-# conversion from 'boost::geometry::signed_size_type' to 'int'
-# etc. etc.
-IF(WIN32)
-  ADD_COMPILE_FLAGS(
-    item_geofunc.cc
-    item_geofunc_buffer.cc
-    item_geofunc_internal.cc
-    item_geofunc_setops.cc
-    COMPILE_FLAGS "/wd4244" "/wd4267")
-ENDIF()
-
 # Segfault in boost::geometry code at high optimization levels
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" CMAKEBT)
@@ -666,74 +619,13 @@ IF(WIN32)
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
-#
-# Disabling of various compiler warnings for GCC/Clang
-#
-
+# Common for all versions of GCC/Clang
+# Bison output uses undefined symbols in #if checks
 IF(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  # Common for all versions of GCC/Clang
-
-  # Bison output and Boost source use undefined symbols in #if checks
   ADD_COMPILE_FLAGS(${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
                     ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
-                    ${SQL_BOOST_SOURCES}
                     COMPILE_FLAGS "-Wno-undef")
-  # Boost source compares signed and unsigned integer expressions
-  ADD_COMPILE_FLAGS(gis/srs/wkt_parser.cc
-                    COMPILE_FLAGS "-Wno-sign-compare")
-  # Boost source use auto_ptr, deprecated in C++11
-  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                    COMPILE_FLAGS "-Wno-deprecated-declarations")
-  # Boost source has unused parameters
-  ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES} COMPILE_FLAGS "-Wno-unused-parameter")
-
-  # Only for some versions of GCC/Clang
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-local-typedefs" HAVE_UNUSED_TYPEDEFS)
-  IF(HAVE_UNUSED_TYPEDEFS)
-    # Boost source has unused local typedefs.
-    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                      COMPILE_FLAGS "-Wno-unused-local-typedefs")
-  ENDIF()
-  
-  MY_CHECK_CXX_COMPILER_FLAG("-Wlogical-op" HAVE_LOGICAL_OP)
-  IF(HAVE_LOGICAL_OP)
-    # Boost source has logical && with non-zero constant
-    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                      COMPILE_FLAGS "-Wno-logical-op")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wplacement-new" HAVE_PLACEMENT_NEW_WARNING)
-  IF(HAVE_PLACEMENT_NEW_WARNING)
-    # Boost.Spirit causes a warning about placement new on GCC 6. Expected
-    # to be fixed upstream by https://github.com/boostorg/function/pull/9.
-    ADD_COMPILE_FLAGS(gis/srs/wkt_parser.cc
-                      COMPILE_FLAGS "-Wno-placement-new")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wmisleading-indentation"
-                             HAVE_MISLEADING_INDENTATION)
-  IF(HAVE_MISLEADING_INDENTATION)
-    # Boost source has misleading indentation
-    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                      COMPILE_FLAGS "-Wno-misleading-indentation")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wmaybe-uninitialized" HAVE_MAYBE_UNINITIALIZED)
-  IF(HAVE_MAYBE_UNINITIALIZED)
-    # Boost Graph has uninitialized usage
-    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                      COMPILE_FLAGS "-Wno-maybe-uninitialized")
-  ENDIF()
-
-  MY_CHECK_CXX_COMPILER_FLAG("-Wunused-variable" HAVE_MAYBE_UNUSED)
-  IF(HAVE_MAYBE_UNUSED)
-    # Boost Geometry has unused variables
-    ADD_COMPILE_FLAGS(${SQL_BOOST_SOURCES}
-                      COMPILE_FLAGS "-Wno-unused-variable")
-  ENDIF()
 ENDIF()
-
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 # See comments in filesort_compare-t.cc about __builtin_memcmp
@@ -759,6 +651,14 @@ ADD_DEPENDENCIES(sql_gis GenDigestServerSource)
 ADD_DEPENDENCIES(sql_gis GenBootstrapPriv)
 ADD_DEPENDENCIES(sql_gis GenSysSchema)
 ADD_DEPENDENCIES(sql_gis GenError)
+
+ADD_CONVENIENCE_LIBRARY(sql_dd ${DD_SOURCES})
+ADD_DEPENDENCIES(sql_dd GenServerSource)
+ADD_DEPENDENCIES(sql_dd GenDigestServerSource)
+ADD_DEPENDENCIES(sql_dd GenBootstrapPriv)
+ADD_DEPENDENCIES(sql_dd GenSysSchema)
+ADD_DEPENDENCIES(sql_dd GenError)
+ADD_DEPENDENCIES(sql_dd GenKeywordList)
 
 #
 # On Windows platform we compile in the clinet-side Windows Native Authentication
@@ -861,9 +761,8 @@ ENDIF()
 
 SET_TARGET_PROPERTIES(mysqld PROPERTIES ENABLE_EXPORTS TRUE) 
 TARGET_LINK_LIBRARIES(mysqld
-  sql_main sql_gis binlog rpl master slave sql_main sql_gis mysys mysys_ssl
-  binlogevents_static ${ICU_LIBRARIES}
-)
+  sql_main sql_gis binlog rpl master slave sql_main sql_dd sql_gis mysys mysys_ssl
+  binlogevents_static ${ICU_LIBRARIES})
 
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")

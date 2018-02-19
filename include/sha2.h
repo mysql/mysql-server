@@ -29,32 +29,30 @@
 
 #if defined(HAVE_OPENSSL)
 
+#include <openssl/evp.h>
 #include <stddef.h>
 
+#if !defined(HAVE_WOLFSSL)
 #include <openssl/sha.h>
+#endif  // !defined(HAVE_WOLFSSL)
 
-#ifdef HAVE_WOLFSSL
-    #include "sha256.h"
-    #include "sha512.h"
-
-#    ifdef __cplusplus
+#if defined(HAVE_WOLFSSL) && defined(__cplusplus)
 extern "C" {
-#    endif
+#endif  // defined(HAVE_WOLFSSL) && defined(__cplusplus)
 
-#define GEN_WOLFSSL_SHA2_BRIDGE(size) \
-unsigned char* SHA_HASH##size(const unsigned char *input_ptr, size_t input_length, \
-               char unsigned *output_ptr);
-GEN_WOLFSSL_SHA2_BRIDGE(512);
-GEN_WOLFSSL_SHA2_BRIDGE(384);
-GEN_WOLFSSL_SHA2_BRIDGE(256);
-GEN_WOLFSSL_SHA2_BRIDGE(224);
-#undef GEN_WOLFSSL_SHA2_BRIDGE
+#define GEN_OPENSSL_EVP_SHA2_BRIDGE(size)                      \
+  unsigned char *SHA_EVP##size(const unsigned char *input_ptr, \
+                               size_t input_length,            \
+                               char unsigned *output_ptr);
+GEN_OPENSSL_EVP_SHA2_BRIDGE(512)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(384)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(256)
+GEN_OPENSSL_EVP_SHA2_BRIDGE(224)
+#undef GEN_OPENSSL_EVP_SHA2_BRIDGE
 
-#    ifdef __cplusplus
+#if defined(HAVE_WOLFSSL) && defined(__cplusplus)
 }
-#    endif
-
-#  endif /* HAVE_WOLFSSL */
+#endif  // defined(HAVE_WOLFSSL) && defined(__cplusplus)
 
 #endif /* HAVE_OPENSSL */
 #endif /* included_sha2_h */

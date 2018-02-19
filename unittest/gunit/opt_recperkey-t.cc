@@ -27,8 +27,8 @@
 #include <gtest/gtest.h>
 #include <sys/types.h>
 
-#include "sql/key.h"                              // KEY
-#include "unittest/gunit/fake_key.h"              // Fake_KEY
+#include "sql/key.h"                  // KEY
+#include "unittest/gunit/fake_key.h"  // Fake_KEY
 
 namespace recperkey_unittest {
 
@@ -36,17 +36,15 @@ namespace recperkey_unittest {
   Test the API for setting and getting records per key values.
 */
 
-TEST(RecPerKeyTest, RecPerKeyAPI)
-{
-  const uint key_parts= 3;
+TEST(RecPerKeyTest, RecPerKeyAPI) {
+  const uint key_parts = 3;
 
   Fake_KEY key(key_parts, false);
 
   /*
     Test that the rec_per_key values are default/unknown.
   */
-  for (uint kp=0; kp < key_parts; kp++)
-  {
+  for (uint kp = 0; kp < key_parts; kp++) {
     EXPECT_FALSE(key.has_records_per_key(kp));
     EXPECT_EQ(key.records_per_key(kp), REC_PER_KEY_UNKNOWN);
   }
@@ -73,22 +71,20 @@ TEST(RecPerKeyTest, RecPerKeyAPI)
   EXPECT_EQ(key.records_per_key(1), REC_PER_KEY_UNKNOWN);
 }
 
-
 /**
   Test the old integer based rec_per_key implementation used
   together with the records per key API.
 */
 
-TEST(RecPerKeyTest, RecPerKey)
-{
-  const uint key_parts= 3;
+TEST(RecPerKeyTest, RecPerKey) {
+  const uint key_parts = 3;
 
   Fake_KEY key(key_parts, false);
 
   // Set values directly in the integer based rec_per_key array
-  key.rec_per_key[0]= 0;                        // default/unknown value
-  key.rec_per_key[1]= 1;
-  key.rec_per_key[2]= 2;
+  key.rec_per_key[0] = 0;  // default/unknown value
+  key.rec_per_key[1] = 1;
+  key.rec_per_key[2] = 2;
 
   // Validate that this produces correct values using the API functions
   EXPECT_FALSE(key.has_records_per_key(0));
@@ -99,22 +95,22 @@ TEST(RecPerKeyTest, RecPerKey)
   EXPECT_EQ(key.records_per_key(2), 2.0);
 
   // Reset the values
-  key.rec_per_key[1]= 0;
-  key.rec_per_key[2]= 0;
+  key.rec_per_key[1] = 0;
+  key.rec_per_key[2] = 0;
   EXPECT_FALSE(key.has_records_per_key(0));
   EXPECT_EQ(key.records_per_key(0), REC_PER_KEY_UNKNOWN);
   EXPECT_FALSE(key.has_records_per_key(1));
   EXPECT_EQ(key.records_per_key(1), REC_PER_KEY_UNKNOWN);
   EXPECT_FALSE(key.has_records_per_key(2));
   EXPECT_EQ(key.records_per_key(2), REC_PER_KEY_UNKNOWN);
-  
+
   /*
     Test that if both integer and float rec_per_key values are set,
     the float values will be used.
   */
 
   // Give a value using the integer based rec_per_key
-  key.rec_per_key[1]= 1;
+  key.rec_per_key[1] = 1;
   EXPECT_TRUE(key.has_records_per_key(1));
   EXPECT_EQ(key.records_per_key(1), 1.0);
 
@@ -122,7 +118,7 @@ TEST(RecPerKeyTest, RecPerKey)
   key.set_records_per_key(1, 2.0);
   EXPECT_TRUE(key.has_records_per_key(1));
   EXPECT_EQ(key.records_per_key(1), 2.0);
-  
+
   // Set the value back to default/unknown
   key.set_records_per_key(1, REC_PER_KEY_UNKNOWN);
 
@@ -140,9 +136,9 @@ TEST(RecPerKeyTest, RecPerKey)
     Verify that we get default/unknown when also setting the integer
     value to the default/unknown value.
   */
-  key.rec_per_key[1]= 0;    
+  key.rec_per_key[1] = 0;
   EXPECT_FALSE(key.has_records_per_key(1));
   EXPECT_EQ(key.records_per_key(1), REC_PER_KEY_UNKNOWN);
 }
 
-}
+}  // namespace recperkey_unittest

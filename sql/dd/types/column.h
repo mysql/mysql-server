@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,9 @@
 
 #include "my_inttypes.h"
 #include "nullable.h"
-#include "sql/dd/collection.h"       // dd::Collection
-#include "sql/dd/sdi_fwd.h"          // RJ_Document
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/collection.h"           // dd::Collection
+#include "sql/dd/sdi_fwd.h"              // RJ_Document
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 #include "sql/gis/srid.h"
 
 using Mysql::Nullable;
@@ -42,65 +42,56 @@ class Column_type_element;
 class Properties;
 
 namespace tables {
-  class Columns;
+class Columns;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 // Redefined enum_field_types here. We can remove some old types ?
-enum class enum_column_types
-{
-    DECIMAL= 1, // This is 1 > than MYSQL_TYPE_DECIMAL
-    TINY,
-    SHORT,
-    LONG,
-    FLOAT,
-    DOUBLE,
-    TYPE_NULL,
-    TIMESTAMP,
-    LONGLONG,
-    INT24,
-    DATE,
-    TIME,
-    DATETIME,
-    YEAR,
-    NEWDATE,
-    VARCHAR,
-    BIT,
-    TIMESTAMP2,
-    DATETIME2,
-    TIME2,
-    NEWDECIMAL,
-    ENUM,
-    SET,
-    TINY_BLOB,
-    MEDIUM_BLOB,
-    LONG_BLOB,
-    BLOB,
-    VAR_STRING,
-    STRING,
-    GEOMETRY,
-    JSON
-  };
+enum class enum_column_types {
+  DECIMAL = 1,  // This is 1 > than MYSQL_TYPE_DECIMAL
+  TINY,
+  SHORT,
+  LONG,
+  FLOAT,
+  DOUBLE,
+  TYPE_NULL,
+  TIMESTAMP,
+  LONGLONG,
+  INT24,
+  DATE,
+  TIME,
+  DATETIME,
+  YEAR,
+  NEWDATE,
+  VARCHAR,
+  BIT,
+  TIMESTAMP2,
+  DATETIME2,
+  TIME2,
+  NEWDECIMAL,
+  ENUM,
+  SET,
+  TINY_BLOB,
+  MEDIUM_BLOB,
+  LONG_BLOB,
+  BLOB,
+  VAR_STRING,
+  STRING,
+  GEOMETRY,
+  JSON
+};
 
-class Column : virtual public Entity_object
-{
-public:
-  typedef Collection<Column_type_element*> Column_type_element_collection;
+class Column : virtual public Entity_object {
+ public:
+  typedef Collection<Column_type_element *> Column_type_element_collection;
   typedef Column_impl Impl;
   typedef tables::Columns DD_table;
 
-  enum enum_column_key
-  {
-    CK_NONE= 1,
-    CK_PRIMARY,
-    CK_UNIQUE,
-    CK_MULTIPLE
-  };
+  enum enum_column_key { CK_NONE = 1, CK_PRIMARY, CK_UNIQUE, CK_MULTIPLE };
 
-public:
-  virtual ~Column()
-  { };
+ public:
+  virtual ~Column(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Table.
@@ -116,6 +107,9 @@ public:
 
   virtual Object_id collation_id() const = 0;
   virtual void set_collation_id(Object_id collation_id) = 0;
+
+  virtual void set_is_explicit_collation(bool is_explicit_collation) = 0;
+  virtual bool is_explicit_collation() const = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // type.
@@ -219,7 +213,7 @@ public:
 
   virtual const String_type &default_value_utf8() const = 0;
   virtual void set_default_value_utf8(
-                 const String_type &default_value_utf8) = 0;
+      const String_type &default_value_utf8) = 0;
   virtual void set_default_value_utf8_null(bool is_null) = 0;
   virtual bool is_default_value_utf8_null() const = 0;
 
@@ -237,8 +231,8 @@ public:
 
   virtual const String_type &generation_expression() const = 0;
 
-  virtual void set_generation_expression(const String_type
-                                         &generation_expression) = 0;
+  virtual void set_generation_expression(
+      const String_type &generation_expression) = 0;
 
   virtual bool is_generation_expression_null() const = 0;
 
@@ -248,8 +242,8 @@ public:
 
   virtual const String_type &generation_expression_utf8() const = 0;
 
-  virtual void set_generation_expression_utf8(const String_type
-                                              &generation_expression_utf8) = 0;
+  virtual void set_generation_expression_utf8(
+      const String_type &generation_expression_utf8) = 0;
 
   virtual bool is_generation_expression_utf8_null() const = 0;
 
@@ -297,7 +291,8 @@ public:
   virtual const Properties &se_private_data() const = 0;
 
   virtual Properties &se_private_data() = 0;
-  virtual bool set_se_private_data_raw(const String_type &se_private_data_raw) = 0;
+  virtual bool set_se_private_data_raw(
+      const String_type &se_private_data_raw) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // Column key type.
@@ -339,7 +334,6 @@ public:
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
 
-
   /**
     Re-establishes the state of *this by reading sdi information from
     the rapidjson DOM subobject provided.
@@ -359,6 +353,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__COLUMN_INCLUDED
+#endif  // DD__COLUMN_INCLUDED

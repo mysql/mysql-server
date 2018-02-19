@@ -24,7 +24,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 /* This file defines all boost geometry traits. */
 
 #include <boost/concept/requires.hpp>
@@ -50,205 +49,136 @@
 #include "sql/spatial.h"
 
 // Boost Geometry traits.
-namespace boost { namespace geometry
-{
-namespace traits
-{
-template<>
-struct tag<Gis_point>
-{
+namespace boost {
+namespace geometry {
+namespace traits {
+template <>
+struct tag<Gis_point> {
   typedef boost::geometry::point_tag type;
 };
 
-template<>
-struct coordinate_type<Gis_point>
-{
+template <>
+struct coordinate_type<Gis_point> {
   typedef double type;
 };
 
-template<>
-struct coordinate_system<Gis_point>
-{
+template <>
+struct coordinate_system<Gis_point> {
   typedef boost::geometry::cs::cartesian type;
 };
 
-template<>
-struct dimension<Gis_point>
-  : boost::mpl::int_<GEOM_DIM>
-{};
+template <>
+struct dimension<Gis_point> : boost::mpl::int_<GEOM_DIM> {};
 
-template<std::size_t Dimension>
-struct access<Gis_point, Dimension>
-{
-  static inline double get(
-    Gis_point const& p)
-  {
-    return p.get<Dimension>();
-  }
+template <std::size_t Dimension>
+struct access<Gis_point, Dimension> {
+  static inline double get(Gis_point const &p) { return p.get<Dimension>(); }
 
-  static inline void set(
-    Gis_point &p,
-    double const& value)
-  {
+  static inline void set(Gis_point &p, double const &value) {
     p.set<Dimension>(value);
   }
 };
 
-
 ////////////////////////////////// LINESTRING ////////////////////////////
-template<>
-struct tag<Gis_line_string>
-{
+template <>
+struct tag<Gis_line_string> {
   typedef boost::geometry::linestring_tag type;
 };
 
-
 ////////////////////////////////// POLYGON //////////////////////////////////
 
-
-template<>
-struct tag
-<
-  Gis_polygon
->
-{
+template <>
+struct tag<Gis_polygon> {
   typedef boost::geometry::polygon_tag type;
 };
 
-
-template<>
-struct ring_const_type
-<
-  Gis_polygon
->
-{
-  typedef Gis_polygon::ring_type const& type;
+template <>
+struct ring_const_type<Gis_polygon> {
+  typedef Gis_polygon::ring_type const &type;
 };
 
-
-template<>
-struct ring_mutable_type
-<
-  Gis_polygon
->
-{
-  typedef Gis_polygon::ring_type& type;
+template <>
+struct ring_mutable_type<Gis_polygon> {
+  typedef Gis_polygon::ring_type &type;
 };
 
-template<>
-struct interior_const_type
-<
-  Gis_polygon
->
-{
-  typedef Gis_polygon::inner_container_type const& type;
+template <>
+struct interior_const_type<Gis_polygon> {
+  typedef Gis_polygon::inner_container_type const &type;
 };
 
-
-template<>
-struct interior_mutable_type
-<
-  Gis_polygon
->
-{
-  typedef Gis_polygon::inner_container_type& type;
+template <>
+struct interior_mutable_type<Gis_polygon> {
+  typedef Gis_polygon::inner_container_type &type;
 };
 
-template<>
-struct exterior_ring
-<
-  Gis_polygon
->
-{
+template <>
+struct exterior_ring<Gis_polygon> {
   typedef Gis_polygon polygon_type;
 
-  static inline polygon_type::ring_type& get(polygon_type& p)
-  {
+  static inline polygon_type::ring_type &get(polygon_type &p) {
     return p.outer();
   }
 
-  static inline polygon_type::ring_type const& get(
-          polygon_type const& p)
-  {
+  static inline polygon_type::ring_type const &get(polygon_type const &p) {
     return p.outer();
   }
 };
 
-template<>
-struct interior_rings
-<
-  Gis_polygon
->
-{
+template <>
+struct interior_rings<Gis_polygon> {
   typedef Gis_polygon polygon_type;
 
-  static inline polygon_type::inner_container_type& get(
-          polygon_type& p)
-  {
+  static inline polygon_type::inner_container_type &get(polygon_type &p) {
     return p.inners();
   }
 
-  static inline polygon_type::inner_container_type const& get(
-          polygon_type const& p)
-  {
+  static inline polygon_type::inner_container_type const &get(
+      polygon_type const &p) {
     return p.inners();
   }
 };
-
 
 ////////////////////////////////// RING //////////////////////////////////
-template<>
-struct point_order<Gis_polygon_ring>
-{
+template <>
+struct point_order<Gis_polygon_ring> {
   static const order_selector value = counterclockwise;
 };
 
-template<>
-struct closure<Gis_polygon_ring>
-{
+template <>
+struct closure<Gis_polygon_ring> {
   static const closure_selector value = closed;
 };
 
-template<>
-struct tag<Gis_polygon_ring>
-{
+template <>
+struct tag<Gis_polygon_ring> {
   typedef boost::geometry::ring_tag type;
 };
 
-
 ////////////////////////////////// MULTI GEOMETRIES /////////////////////////
 
-
 /////////////////////////////////// multi linestring types /////////////////////
-template<>
-struct tag< Gis_multi_line_string>
-{
+template <>
+struct tag<Gis_multi_line_string> {
   typedef boost::geometry::multi_linestring_tag type;
 };
 
-
 /////////////////////////////////// multi point types /////////////////////
 
-
-template<>
-struct tag< Gis_multi_point>
-{
+template <>
+struct tag<Gis_multi_point> {
   typedef boost::geometry::multi_point_tag type;
 };
 
-
 /////////////////////////////////// multi polygon types /////////////////////
-template<>
-struct tag< Gis_multi_polygon>
-{
+template <>
+struct tag<Gis_multi_polygon> {
   typedef boost::geometry::multi_polygon_tag type;
 };
 
+}  // namespace traits
 
-} // namespace traits
+}  // namespace geometry
+}  // namespace boost
 
-} // namespace geometry
-} // namespace boost
-
-
-#endif // !GIS_BG_TRAITS_INCLUDED
+#endif  // !GIS_BG_TRAITS_INCLUDED

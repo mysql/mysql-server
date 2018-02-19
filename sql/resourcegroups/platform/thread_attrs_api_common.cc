@@ -19,28 +19,16 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#include "sql/resourcegroups/platform/thread_attrs_api.h"
 
-namespace resourcegroups
-{
-namespace platform
-{
-bool is_valid_thread_priority(int priority)
-{
+namespace resourcegroups {
+namespace platform {
+bool is_valid_thread_priority(int priority) {
   return (priority >= -20 && priority <= 19);
 }
 
+int min_thread_priority_value() { return -20; }
 
-int min_thread_priority_value()
-{
-  return -20;
-}
+int max_thread_priority_value() { return 19; }
 
-
-int max_thread_priority_value()
-{
-  return 19;
-}
-
-} // platform
-} // resourcegroups
+}  // namespace platform
+}  // namespace resourcegroups

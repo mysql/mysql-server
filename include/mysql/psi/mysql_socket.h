@@ -34,6 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 /* For MY_STAT */
 #include "my_dir.h"
+#include "my_io.h"
 /* For my_chsize */
 #include "my_sys.h"
 #include "mysql/psi/psi_socket.h"
@@ -52,6 +53,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #endif
 
 #include "my_macros.h"
+#include "mysql/components/services/mysql_socket_bits.h"
 #include "pfs_socket_provider.h"
 
 #ifndef PSI_SOCKET_CALL
@@ -73,49 +75,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
   inline_mysql_socket_register(P1, P2, P3)
 #else
 #define mysql_socket_register(P1, P2, P3) \
-  do                                      \
-  {                                       \
+  do {                                    \
   } while (0)
 #endif
-
-/** An instrumented socket. */
-struct st_mysql_socket
-{
-  /** The real socket descriptor. */
-  my_socket fd;
-
-  /**
-    The instrumentation hook.
-    Note that this hook is not conditionally defined,
-    for binary compatibility of the @c MYSQL_SOCKET interface.
-  */
-  struct PSI_socket *m_psi;
-};
-
-/**
-  An instrumented socket.
-  @c MYSQL_SOCKET is a replacement for @c my_socket.
-*/
-typedef struct st_mysql_socket MYSQL_SOCKET;
-
-/**
-  @def MYSQL_INVALID_SOCKET
-  MYSQL_SOCKET initial value.
-*/
-// MYSQL_SOCKET MYSQL_INVALID_SOCKET= {INVALID_SOCKET, NULL};
-#define MYSQL_INVALID_SOCKET mysql_socket_invalid()
-
-/**
-  MYSQL_SOCKET helper. Initialize instrumented socket.
-  @sa mysql_socket_getfd
-  @sa mysql_socket_setfd
-*/
-static inline MYSQL_SOCKET
-mysql_socket_invalid()
-{
-  MYSQL_SOCKET mysql_socket = {INVALID_SOCKET, NULL};
-  return mysql_socket;
-}
 
 /**
   Set socket descriptor and address.
@@ -124,20 +86,17 @@ mysql_socket_invalid()
   @param addr_len length of socket addres
 */
 
-static inline void
-mysql_socket_set_address(
+static inline void mysql_socket_set_address(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  MYSQL_SOCKET socket, const struct sockaddr *addr, socklen_t addr_len
+    MYSQL_SOCKET socket, const struct sockaddr *addr, socklen_t addr_len
 #else
-  MYSQL_SOCKET socket MY_ATTRIBUTE((unused)),
-  const struct sockaddr *addr MY_ATTRIBUTE((unused)),
-  socklen_t addr_len MY_ATTRIBUTE((unused))
+    MYSQL_SOCKET socket MY_ATTRIBUTE((unused)),
+    const struct sockaddr *addr MY_ATTRIBUTE((unused)),
+    socklen_t addr_len MY_ATTRIBUTE((unused))
 #endif
-  )
-{
+) {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (socket.m_psi != NULL)
-  {
+  if (socket.m_psi != NULL) {
     PSI_SOCKET_CALL(set_socket_info)(socket.m_psi, NULL, addr, addr_len);
   }
 #endif
@@ -147,18 +106,15 @@ mysql_socket_set_address(
   Set socket descriptor and address.
   @param socket instrumented socket
 */
-static inline void
-mysql_socket_set_thread_owner(
+static inline void mysql_socket_set_thread_owner(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  MYSQL_SOCKET socket
+    MYSQL_SOCKET socket
 #else
-  MYSQL_SOCKET socket MY_ATTRIBUTE((unused))
+    MYSQL_SOCKET socket MY_ATTRIBUTE((unused))
 #endif
-  )
-{
+) {
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (socket.m_psi != NULL)
-  {
+  if (socket.m_psi != NULL) {
     PSI_SOCKET_CALL(set_socket_thread_owner)(socket.m_psi);
   }
 #endif
@@ -169,9 +125,7 @@ mysql_socket_set_thread_owner(
   @param mysql_socket Instrumented socket
   @sa mysql_socket_setfd
 */
-static inline my_socket
-mysql_socket_getfd(MYSQL_SOCKET mysql_socket)
-{
+static inline my_socket mysql_socket_getfd(MYSQL_SOCKET mysql_socket) {
   return mysql_socket.fd;
 }
 
@@ -181,11 +135,9 @@ mysql_socket_getfd(MYSQL_SOCKET mysql_socket)
   @param fd Socket descriptor
   @sa mysql_socket_getfd
 */
-static inline void
-mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
-{
-  if (likely(mysql_socket != NULL))
-  {
+static inline void mysql_socket_setfd(MYSQL_SOCKET *mysql_socket,
+                                      my_socket fd) {
+  if (likely(mysql_socket != NULL)) {
     mysql_socket->fd = fd;
   }
 }
@@ -220,13 +172,12 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
   @sa MYSQL_END_SOCKET_WAIT.
 */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-#define MYSQL_START_SOCKET_WAIT(LOCKER, STATE, SOCKET, OP, COUNT) \
-  LOCKER = inline_mysql_start_socket_wait(                        \
-    STATE, SOCKET, OP, COUNT, __FILE__, __LINE__)
+#define MYSQL_START_SOCKET_WAIT(LOCKER, STATE, SOCKET, OP, COUNT)             \
+  LOCKER = inline_mysql_start_socket_wait(STATE, SOCKET, OP, COUNT, __FILE__, \
+                                          __LINE__)
 #else
 #define MYSQL_START_SOCKET_WAIT(LOCKER, STATE, SOCKET, OP, COUNT) \
-  do                                                              \
-  {                                                               \
+  do {                                                            \
   } while (0)
 #endif
 
@@ -243,8 +194,7 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
   inline_mysql_end_socket_wait(LOCKER, COUNT)
 #else
 #define MYSQL_END_SOCKET_WAIT(LOCKER, COUNT) \
-  do                                         \
-  {                                          \
+  do {                                       \
   } while (0)
 #endif
 
@@ -260,8 +210,7 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
   inline_mysql_socket_set_state(SOCKET, STATE)
 #else
 #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
-  do                                          \
-  {                                           \
+  do {                                        \
   } while (0)
 #endif
 
@@ -270,22 +219,15 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
   Instrumentation calls for MYSQL_START_SOCKET_WAIT.
   @sa MYSQL_START_SOCKET_WAIT.
 */
-static inline struct PSI_socket_locker *
-inline_mysql_start_socket_wait(PSI_socket_locker_state *state,
-                               MYSQL_SOCKET mysql_socket,
-                               enum PSI_socket_operation op,
-                               size_t byte_count,
-                               const char *src_file,
-                               int src_line)
-{
+static inline struct PSI_socket_locker *inline_mysql_start_socket_wait(
+    PSI_socket_locker_state *state, MYSQL_SOCKET mysql_socket,
+    enum PSI_socket_operation op, size_t byte_count, const char *src_file,
+    int src_line) {
   struct PSI_socket_locker *locker;
-  if (mysql_socket.m_psi != NULL)
-  {
-    locker = PSI_SOCKET_CALL(start_socket_wait)(
-      state, mysql_socket.m_psi, op, byte_count, src_file, src_line);
-  }
-  else
-  {
+  if (mysql_socket.m_psi != NULL) {
+    locker = PSI_SOCKET_CALL(start_socket_wait)(state, mysql_socket.m_psi, op,
+                                                byte_count, src_file, src_line);
+  } else {
     locker = NULL;
   }
   return locker;
@@ -295,12 +237,9 @@ inline_mysql_start_socket_wait(PSI_socket_locker_state *state,
   Instrumentation calls for MYSQL_END_SOCKET_WAIT.
   @sa MYSQL_END_SOCKET_WAIT.
 */
-static inline void
-inline_mysql_end_socket_wait(struct PSI_socket_locker *locker,
-                             size_t byte_count)
-{
-  if (locker != NULL)
-  {
+static inline void inline_mysql_end_socket_wait(
+    struct PSI_socket_locker *locker, size_t byte_count) {
+  if (locker != NULL) {
     PSI_SOCKET_CALL(end_socket_wait)(locker, byte_count);
   }
 }
@@ -311,25 +250,23 @@ inline_mysql_end_socket_wait(struct PSI_socket_locker *locker,
   @param state the new state
   @sa PSI_socket_state
 */
-static inline void
-inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
-{
-  if (socket.m_psi != NULL)
-  {
+static inline void inline_mysql_socket_set_state(MYSQL_SOCKET socket,
+                                                 enum PSI_socket_state state) {
+  if (socket.m_psi != NULL) {
     PSI_SOCKET_CALL(set_socket_state)(socket.m_psi, state);
   }
 }
 #endif /* HAVE_PSI_SOCKET_INTERFACE */
 
-/**
-  @def mysql_socket_socket(K, D, T, P)
-  Create a socket.
-  @c mysql_socket_socket is a replacement for @c socket.
-  @param K PSI_socket_key for this instrumented socket
-  @param D Socket domain
-  @param T Protocol type
-  @param P Transport protocol
-*/
+  /**
+    @def mysql_socket_socket(K, D, T, P)
+    Create a socket.
+    @c mysql_socket_socket is a replacement for @c socket.
+    @param K PSI_socket_key for this instrumented socket
+    @param D Socket domain
+    @param T Protocol type
+    @param P Transport protocol
+  */
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 #define mysql_socket_socket(K, D, T, P) inline_mysql_socket_socket(K, D, T, P)
@@ -576,34 +513,27 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
 #endif
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-static inline void
-inline_mysql_socket_register(const char *category,
-                             PSI_socket_info *info,
-                             int count)
-{
+static inline void inline_mysql_socket_register(const char *category,
+                                                PSI_socket_info *info,
+                                                int count) {
   PSI_SOCKET_CALL(register_socket)(category, info, count);
 }
 #endif
 
 /** mysql_socket_socket */
 
-static inline MYSQL_SOCKET
-inline_mysql_socket_socket(
+static inline MYSQL_SOCKET inline_mysql_socket_socket(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  PSI_socket_key key,
+    PSI_socket_key key,
 #endif
-  int domain,
-  int type,
-  int protocol)
-{
+    int domain, int type, int protocol) {
   MYSQL_SOCKET mysql_socket = MYSQL_INVALID_SOCKET;
   mysql_socket.fd = socket(domain, type, protocol);
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (likely(mysql_socket.fd != INVALID_SOCKET))
-  {
+  if (likely(mysql_socket.fd != INVALID_SOCKET)) {
     mysql_socket.m_psi = PSI_SOCKET_CALL(init_socket)(
-      key, (const my_socket *)&mysql_socket.fd, NULL, 0);
+        key, (const my_socket *)&mysql_socket.fd, NULL, 0);
   }
 #endif
   return mysql_socket;
@@ -611,42 +541,31 @@ inline_mysql_socket_socket(
 
 /** mysql_socket_bind */
 
-static inline int
-inline_mysql_socket_bind(
+static inline int inline_mysql_socket_bind(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  const struct sockaddr *addr,
-  socklen_t len)
-{
+    MYSQL_SOCKET mysql_socket, const struct sockaddr *addr, socklen_t len) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker_state state;
     PSI_socket_locker *locker;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_BIND,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_BIND, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = bind(mysql_socket.fd, addr, len);
 
     /* Instrumentation end */
-    if (result == 0)
-    {
+    if (result == 0) {
       PSI_SOCKET_CALL(set_socket_info)(mysql_socket.m_psi, NULL, addr, len);
     }
 
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -661,37 +580,27 @@ inline_mysql_socket_bind(
 
 /** mysql_socket_getsockname */
 
-static inline int
-inline_mysql_socket_getsockname(
+static inline int inline_mysql_socket_getsockname(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  struct sockaddr *addr,
-  socklen_t *len)
-{
+    MYSQL_SOCKET mysql_socket, struct sockaddr *addr, socklen_t *len) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_BIND,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_BIND, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = getsockname(mysql_socket.fd, addr, len);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -707,37 +616,27 @@ inline_mysql_socket_getsockname(
 
 /** mysql_socket_connect */
 
-static inline int
-inline_mysql_socket_connect(
+static inline int inline_mysql_socket_connect(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  const struct sockaddr *addr,
-  socklen_t len)
-{
+    MYSQL_SOCKET mysql_socket, const struct sockaddr *addr, socklen_t len) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_CONNECT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_CONNECT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = connect(mysql_socket.fd, addr, len);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -753,37 +652,27 @@ inline_mysql_socket_connect(
 
 /** mysql_socket_getpeername */
 
-static inline int
-inline_mysql_socket_getpeername(
+static inline int inline_mysql_socket_getpeername(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  struct sockaddr *addr,
-  socklen_t *len)
-{
+    MYSQL_SOCKET mysql_socket, struct sockaddr *addr, socklen_t *len) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_BIND,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_BIND, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = getpeername(mysql_socket.fd, addr, len);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -799,34 +688,26 @@ inline_mysql_socket_getpeername(
 
 /** mysql_socket_send */
 
-static inline ssize_t
-inline_mysql_socket_send(
+static inline ssize_t inline_mysql_socket_send(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  const SOCKBUF_T *buf,
-  size_t n,
-  int flags)
-{
+    MYSQL_SOCKET mysql_socket, const SOCKBUF_T *buf, size_t n, int flags) {
   ssize_t result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
     locker = PSI_SOCKET_CALL(start_socket_wait)(
-      &state, mysql_socket.m_psi, PSI_SOCKET_SEND, n, src_file, src_line);
+        &state, mysql_socket.m_psi, PSI_SOCKET_SEND, n, src_file, src_line);
 
     /* Instrumented code */
     result = send(mysql_socket.fd, buf, IF_WIN((int), ) n, flags);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       size_t bytes_written;
       bytes_written = (result > -1) ? result : 0;
       PSI_SOCKET_CALL(end_socket_wait)(locker, bytes_written);
@@ -844,38 +725,27 @@ inline_mysql_socket_send(
 
 /** mysql_socket_recv */
 
-static inline ssize_t
-inline_mysql_socket_recv(
+static inline ssize_t inline_mysql_socket_recv(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  SOCKBUF_T *buf,
-  size_t n,
-  int flags)
-{
+    MYSQL_SOCKET mysql_socket, SOCKBUF_T *buf, size_t n, int flags) {
   ssize_t result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_RECV,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_RECV, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = recv(mysql_socket.fd, buf, IF_WIN((int), ) n, flags);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       size_t bytes_read;
       bytes_read = (result > -1) ? result : 0;
       PSI_SOCKET_CALL(end_socket_wait)(locker, bytes_read);
@@ -893,37 +763,28 @@ inline_mysql_socket_recv(
 
 /** mysql_socket_sendto */
 
-static inline ssize_t
-inline_mysql_socket_sendto(
+static inline ssize_t inline_mysql_socket_sendto(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  const SOCKBUF_T *buf,
-  size_t n,
-  int flags,
-  const struct sockaddr *addr,
-  socklen_t addr_len)
-{
+    MYSQL_SOCKET mysql_socket, const SOCKBUF_T *buf, size_t n, int flags,
+    const struct sockaddr *addr, socklen_t addr_len) {
   ssize_t result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
     locker = PSI_SOCKET_CALL(start_socket_wait)(
-      &state, mysql_socket.m_psi, PSI_SOCKET_SEND, n, src_file, src_line);
+        &state, mysql_socket.m_psi, PSI_SOCKET_SEND, n, src_file, src_line);
 
     /* Instrumented code */
     result =
-      sendto(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
+        sendto(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       size_t bytes_written;
       bytes_written = (result > -1) ? result : 0;
       PSI_SOCKET_CALL(end_socket_wait)(locker, bytes_written);
@@ -935,48 +796,36 @@ inline_mysql_socket_sendto(
 
   /* Non instrumented code */
   result =
-    sendto(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
+      sendto(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
 
   return result;
 }
 
 /** mysql_socket_recvfrom */
 
-static inline ssize_t
-inline_mysql_socket_recvfrom(
+static inline ssize_t inline_mysql_socket_recvfrom(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  SOCKBUF_T *buf,
-  size_t n,
-  int flags,
-  struct sockaddr *addr,
-  socklen_t *addr_len)
-{
+    MYSQL_SOCKET mysql_socket, SOCKBUF_T *buf, size_t n, int flags,
+    struct sockaddr *addr, socklen_t *addr_len) {
   ssize_t result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_RECV,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_RECV, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
-    result =
-      recvfrom(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
+    result = recvfrom(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr,
+                      addr_len);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       size_t bytes_read;
       bytes_read = (result > -1) ? result : 0;
       PSI_SOCKET_CALL(end_socket_wait)(locker, bytes_read);
@@ -988,46 +837,35 @@ inline_mysql_socket_recvfrom(
 
   /* Non instrumented code */
   result =
-    recvfrom(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
+      recvfrom(mysql_socket.fd, buf, IF_WIN((int), ) n, flags, addr, addr_len);
 
   return result;
 }
 
 /** mysql_socket_getsockopt */
 
-static inline int
-inline_mysql_socket_getsockopt(
+static inline int inline_mysql_socket_getsockopt(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  int level,
-  int optname,
-  SOCKBUF_T *optval,
-  socklen_t *optlen)
-{
+    MYSQL_SOCKET mysql_socket, int level, int optname, SOCKBUF_T *optval,
+    socklen_t *optlen) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_OPT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_OPT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = getsockopt(mysql_socket.fd, level, optname, optval, optlen);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -1043,39 +881,28 @@ inline_mysql_socket_getsockopt(
 
 /** mysql_socket_setsockopt */
 
-static inline int
-inline_mysql_socket_setsockopt(
+static inline int inline_mysql_socket_setsockopt(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  int level,
-  int optname,
-  const SOCKBUF_T *optval,
-  socklen_t optlen)
-{
+    MYSQL_SOCKET mysql_socket, int level, int optname, const SOCKBUF_T *optval,
+    socklen_t optlen) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi)
-  {
+  if (mysql_socket.m_psi) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_OPT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_OPT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = setsockopt(mysql_socket.fd, level, optname, optval, optlen);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -1090,9 +917,7 @@ inline_mysql_socket_setsockopt(
 }
 
 /** set_socket_nonblock */
-static inline int
-set_socket_nonblock(my_socket fd)
-{
+static inline int set_socket_nonblock(my_socket fd) {
   int ret = 0;
 #ifdef _WIN32
   {
@@ -1103,8 +928,7 @@ set_socket_nonblock(my_socket fd)
   {
     int fd_flags;
     fd_flags = fcntl(fd, F_GETFL, 0);
-    if (fd_flags < 0)
-    {
+    if (fd_flags < 0) {
       return errno;
     }
 #if defined(O_NONBLOCK)
@@ -1116,8 +940,7 @@ set_socket_nonblock(my_socket fd)
 #else
 #error "No definition of non-blocking flag found."
 #endif /* O_NONBLOCK */
-    if (fcntl(fd, F_SETFL, fd_flags) == -1)
-    {
+    if (fcntl(fd, F_SETFL, fd_flags) == -1) {
       ret = errno;
     }
   }
@@ -1127,35 +950,27 @@ set_socket_nonblock(my_socket fd)
 
 /** mysql_socket_set_nonblocking */
 
-static inline int
-inline_mysql_sock_set_nonblocking(
+static inline int inline_mysql_sock_set_nonblocking(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket)
-{
+    MYSQL_SOCKET mysql_socket) {
   int result = 0;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi)
-  {
+  if (mysql_socket.m_psi) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_OPT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_OPT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = set_socket_nonblock(mysql_socket.fd);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -1171,36 +986,27 @@ inline_mysql_sock_set_nonblocking(
 
 /** mysql_socket_listen */
 
-static inline int
-inline_mysql_socket_listen(
+static inline int inline_mysql_socket_listen(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  int backlog)
-{
+    MYSQL_SOCKET mysql_socket, int backlog) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_CONNECT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_CONNECT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = listen(mysql_socket.fd, backlog);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -1216,43 +1022,31 @@ inline_mysql_socket_listen(
 
 /** mysql_socket_accept */
 
-static inline MYSQL_SOCKET
-inline_mysql_socket_accept(
+static inline MYSQL_SOCKET inline_mysql_socket_accept(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
-  PSI_socket_key key,
+    const char *src_file, uint src_line, PSI_socket_key key,
 #endif
-  MYSQL_SOCKET socket_listen,
-  struct sockaddr *addr,
-  socklen_t *addr_len)
-{
+    MYSQL_SOCKET socket_listen, struct sockaddr *addr, socklen_t *addr_len) {
   MYSQL_SOCKET socket_accept = MYSQL_INVALID_SOCKET;
   socklen_t addr_length = (addr_len != NULL) ? *addr_len : 0;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (socket_listen.m_psi != NULL)
-  {
+  if (socket_listen.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                socket_listen.m_psi,
-                                                PSI_SOCKET_CONNECT,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, socket_listen.m_psi,
+                                                PSI_SOCKET_CONNECT, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     socket_accept.fd = accept(socket_listen.fd, addr, &addr_length);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
-  }
-  else
+  } else
 #endif
   {
     /* Non instrumented code */
@@ -1260,11 +1054,10 @@ inline_mysql_socket_accept(
   }
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (likely(socket_accept.fd != INVALID_SOCKET))
-  {
+  if (likely(socket_accept.fd != INVALID_SOCKET)) {
     /* Initialize the instrument with the new socket descriptor and address */
     socket_accept.m_psi = PSI_SOCKET_CALL(init_socket)(
-      key, (const my_socket *)&socket_accept.fd, addr, addr_length);
+        key, (const my_socket *)&socket_accept.fd, addr, addr_length);
   }
 #endif
 
@@ -1273,40 +1066,31 @@ inline_mysql_socket_accept(
 
 /** mysql_socket_close */
 
-static inline int
-inline_mysql_socket_close(
+static inline int inline_mysql_socket_close(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket)
-{
+    MYSQL_SOCKET mysql_socket) {
   int result;
 
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     /* Instrumentation start */
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_CLOSE,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_CLOSE, (size_t)0,
+                                                src_file, src_line);
 
     /* Instrumented code */
     result = closesocket(mysql_socket.fd);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
     /* Remove the instrumentation for this socket. */
-    if (mysql_socket.m_psi != NULL)
-    {
+    if (mysql_socket.m_psi != NULL) {
       PSI_SOCKET_CALL(destroy_socket)(mysql_socket.m_psi);
     }
 
@@ -1322,63 +1106,46 @@ inline_mysql_socket_close(
 
 /** mysql_socket_shutdown */
 
-static inline int
-inline_mysql_socket_shutdown(
+static inline int inline_mysql_socket_shutdown(
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  const char *src_file,
-  uint src_line,
+    const char *src_file, uint src_line,
 #endif
-  MYSQL_SOCKET mysql_socket,
-  int how)
-{
+    MYSQL_SOCKET mysql_socket, int how) {
   int result;
 
 #ifdef _WIN32
   static LPFN_DISCONNECTEX DisconnectEx = NULL;
-  if (DisconnectEx == NULL)
-  {
+  if (DisconnectEx == NULL) {
     DWORD dwBytesReturned;
     GUID guidDisconnectEx = WSAID_DISCONNECTEX;
-    WSAIoctl(mysql_socket.fd,
-             SIO_GET_EXTENSION_FUNCTION_POINTER,
-             &guidDisconnectEx,
-             sizeof(GUID),
-             &DisconnectEx,
-             sizeof(DisconnectEx),
-             &dwBytesReturned,
-             NULL,
-             NULL);
+    WSAIoctl(mysql_socket.fd, SIO_GET_EXTENSION_FUNCTION_POINTER,
+             &guidDisconnectEx, sizeof(GUID), &DisconnectEx,
+             sizeof(DisconnectEx), &dwBytesReturned, NULL, NULL);
   }
 #endif
 
 /* Instrumentation start */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
-  if (mysql_socket.m_psi != NULL)
-  {
+  if (mysql_socket.m_psi != NULL) {
     PSI_socket_locker *locker;
     PSI_socket_locker_state state;
-    locker = PSI_SOCKET_CALL(start_socket_wait)(&state,
-                                                mysql_socket.m_psi,
-                                                PSI_SOCKET_SHUTDOWN,
-                                                (size_t)0,
-                                                src_file,
-                                                src_line);
+    locker = PSI_SOCKET_CALL(start_socket_wait)(&state, mysql_socket.m_psi,
+                                                PSI_SOCKET_SHUTDOWN, (size_t)0,
+                                                src_file, src_line);
 
 /* Instrumented code */
 #ifdef _WIN32
     if (DisconnectEx)
-      result =
-        (DisconnectEx(
-           mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0) == TRUE)
-          ? 0
-          : -1;
+      result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0,
+                             (DWORD)0) == TRUE)
+                   ? 0
+                   : -1;
     else
 #endif
       result = shutdown(mysql_socket.fd, how);
 
     /* Instrumentation end */
-    if (locker != NULL)
-    {
+    if (locker != NULL) {
       PSI_SOCKET_CALL(end_socket_wait)(locker, (size_t)0);
     }
 
@@ -1389,11 +1156,10 @@ inline_mysql_socket_shutdown(
 /* Non instrumented code */
 #ifdef _WIN32
   if (DisconnectEx)
-    result =
-      (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0, (DWORD)0) ==
-       TRUE)
-        ? 0
-        : -1;
+    result = (DisconnectEx(mysql_socket.fd, (LPOVERLAPPED)NULL, (DWORD)0,
+                           (DWORD)0) == TRUE)
+                 ? 0
+                 : -1;
   else
 #endif
     result = shutdown(mysql_socket.fd, how);
@@ -1401,6 +1167,6 @@ inline_mysql_socket_shutdown(
   return result;
 }
 
-/** @} (end of group psi_api_socket) */
+  /** @} (end of group psi_api_socket) */
 
 #endif

@@ -1696,6 +1696,7 @@ disconnect addconroot2;
 disconnect addconwithoutdb;
 #
 # Bug #26162: Trigger DML ignores low_priority_updates setting
+#"LOW_PRIORITY_UPDATES" used by the test is not supported by Innodb
 #
 CREATE TABLE t1 (id INTEGER) ENGINE=MyISAM;
 CREATE TABLE t2 (id INTEGER) ENGINE=MyISAM;
@@ -3837,10 +3838,8 @@ DROP DATABASE IF EXISTS mysqltest_db1;
 CREATE DATABASE mysqltest_db1;
 USE mysqltest_db1;
 
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+CREATE USER mysqltest_u1@localhost;
 GRANT ALL ON mysqltest_db1.* TO mysqltest_u1@localhost;
-set sql_mode= @orig_sql_mode;
 
 --connect(con1,localhost,mysqltest_u1,,mysqltest_db1)
 

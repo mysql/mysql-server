@@ -72,6 +72,8 @@
 #include "sql/ndb_tdc.h"
 #include "sql/ndb_thd.h"
 #include "sql/partition_info.h"
+#include "sql/sql_alter.h"
+#include "sql/sql_lex.h"
 #include "storage/ndb/include/ndb_global.h"
 #include "storage/ndb/include/ndb_version.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
@@ -1086,7 +1088,7 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
       else
       {
         char msg[FN_REFLEN];
-        my_snprintf(msg, sizeof(msg), "Executing extra operations for "
+        snprintf(msg, sizeof(msg), "Executing extra operations for "
                     "conflict handling hit Ndb error %d '%s'",
                     nonMaskedError.code, nonMaskedError.message);
         push_warning_printf(current_thd, Sql_condition::SL_ERROR,
@@ -3936,7 +3938,7 @@ ha_ndbcluster::log_exclusive_read(const NdbRecord *key_rec,
   if (!markingOp)
   {
     char msg[FN_REFLEN];
-    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads, failed creating markingOp, %u, %s\n",
+    snprintf(msg, sizeof(msg), "Error logging exclusive reads, failed creating markingOp, %u, %s\n",
                 m_thd_ndb->trans->getNdbError().code,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -3975,7 +3977,7 @@ ha_ndbcluster::scan_log_exclusive_read(NdbScanOperation *cursor,
   if (markingOp == NULL)
   {
     char msg[FN_REFLEN];
-    my_snprintf(msg, sizeof(msg), "Error logging exclusive reads during scan, failed creating markingOp, %u, %s\n",
+    snprintf(msg, sizeof(msg), "Error logging exclusive reads during scan, failed creating markingOp, %u, %s\n",
                 m_thd_ndb->trans->getNdbError().code,
                 m_thd_ndb->trans->getNdbError().message);
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
@@ -6083,11 +6085,11 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
           {
             // Generate legacy error message instead of using
             // the error code and message returned from NdbApi
-            my_snprintf(msg, sizeof(msg),
-                        "%s conflict handling on table %s failed as table "
-                        "has Blobs which cannot be refreshed.",
-                        handling_type,
-                        table_name);
+            snprintf(msg, sizeof(msg),
+                     "%s conflict handling on table %s failed as table "
+                     "has Blobs which cannot be refreshed.",
+                     handling_type,
+                     table_name);
 
             push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                                 ER_EXCEPTIONS_WRITE_ERROR,
@@ -6097,7 +6099,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
             DBUG_RETURN(ER_EXCEPTIONS_WRITE_ERROR);
           }
 
-          my_snprintf(msg, sizeof(msg), "Row conflict handling "
+          snprintf(msg, sizeof(msg), "Row conflict handling "
                       "on table %s hit Ndb error %d '%s'",
                       table_name,
                       err.code,
@@ -6145,7 +6147,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
         else
         {
           char msg[FN_REFLEN];
-          my_snprintf(msg, sizeof(msg), "%s conflict handling "
+          snprintf(msg, sizeof(msg), "%s conflict handling "
                       "on table %s hit Ndb error %d '%s'",
                       handling_type,
                       table_name,
@@ -10223,7 +10225,7 @@ void ha_ndbcluster::append_create_info(String*)
         if (pbname != NULL)
         {
           char msg[200];
-          my_snprintf(msg,
+          snprintf(msg,
                       sizeof(msg),
                       "Table property is PARTITION_BALANCE=%s but not in comment",
                       pbname);
@@ -14093,7 +14095,6 @@ ulonglong ha_ndbcluster::table_flags(void) const
 {
   THD *thd= current_thd;
   ulonglong f=
-    HA_REC_NOT_IN_SEQ |
     HA_NULL_IN_KEY |
     HA_AUTO_PART_KEY |
     HA_NO_PREFIX_CHAR_KEYS |
@@ -15955,7 +15956,7 @@ ndbcluster_show_status(handlerton*, THD* thd, stat_print_fn *stat_print,
     update_status_variables(NULL, &ns, g_ndb_cluster_connection);
 
   buflen= (uint)
-    my_snprintf(buf, sizeof(buf),
+    snprintf(buf, sizeof(buf),
                 "cluster_node_id=%ld, "
                 "connected_host=%s, "
                 "connected_port=%ld, "
@@ -15977,8 +15978,8 @@ ndbcluster_show_status(handlerton*, THD* thd, stat_print_fn *stat_print,
     if (ns.transaction_hint_count[i] > 0 ||
         ns.transaction_no_hint_count[i] > 0)
     {
-      uint namelen= (uint)my_snprintf(name, sizeof(name), "node[%d]", i);
-      buflen= (uint)my_snprintf(buf, sizeof(buf),
+      uint namelen= (uint)snprintf(name, sizeof(name), "node[%d]", i);
+      buflen= (uint)snprintf(buf, sizeof(buf),
                           "transaction_hint=%ld, transaction_no_hint=%ld",
                           ns.transaction_hint_count[i],
                           ns.transaction_no_hint_count[i]);
@@ -15995,7 +15996,7 @@ ndbcluster_show_status(handlerton*, THD* thd, stat_print_fn *stat_print,
     while (ndb->get_free_list_usage(&tmp))
     {
       buflen= (uint)
-        my_snprintf(buf, sizeof(buf),
+        snprintf(buf, sizeof(buf),
                   "created=%u, free=%u, sizeof=%u",
                   tmp.m_created, tmp.m_free, tmp.m_sizeof);
       if (stat_print(thd, ndbcluster_hton_name, ndbcluster_hton_name_length,
@@ -18606,7 +18607,7 @@ static const int MAX_ACTIVATION_THRESHOLD = 16;
 static
 int
 ndb_recv_thread_activation_threshold_check(THD*,
-                                           struct st_mysql_sys_var *,
+                                           SYS_VAR*,
                                            void *,
                                            struct st_mysql_value *value)
 {
@@ -18627,7 +18628,7 @@ ndb_recv_thread_activation_threshold_check(THD*,
 static
 void
 ndb_recv_thread_activation_threshold_update(THD*,
-                                            struct st_mysql_sys_var *,
+                                            SYS_VAR*,
                                             void *,
                                             const void *)
 {
@@ -18659,7 +18660,7 @@ Uint16 recv_thread_cpuid_array[1 * MAX_CLUSTER_CONNECTIONS];
 static
 int
 ndb_recv_thread_cpu_mask_check(THD*,
-                               struct st_mysql_sys_var *,
+                               SYS_VAR*,
                                void *,
                                struct st_mysql_value *value)
 {
@@ -18721,7 +18722,7 @@ ndb_recv_thread_cpu_mask_update()
 static
 void
 ndb_recv_thread_cpu_mask_update_func(THD *,
-                                     struct st_mysql_sys_var *,
+                                     SYS_VAR*,
                                      void *, const void *)
 {
   (void)ndb_recv_thread_cpu_mask_update();
@@ -18847,7 +18848,7 @@ static MYSQL_SYSVAR_BOOL(
 static
 void
 ndb_data_node_neighbour_update_func(THD*,
-                                    struct st_mysql_sys_var *,
+                                    SYS_VAR*,
                                     void *var_ptr,
                                     const void *save)
 {
@@ -19078,7 +19079,7 @@ static TYPELIB slave_conflict_role_typelib =
  * Perform most validation of a role change request.
  * Inspired by sql_plugin.cc::check_func_enum()
  */
-static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *,
+static int slave_conflict_role_check_func(THD *thd, SYS_VAR*,
                                           void *save, st_mysql_value *value)
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -19114,7 +19115,7 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *,
                &failure_cause_str))
     {
       char msgbuf[256];
-      my_snprintf(msgbuf, 
+      snprintf(msgbuf, 
                   sizeof(msgbuf), 
                   "Role change from %s to %s failed : %s",
                   get_type(&slave_conflict_role_typelib, opt_ndb_slave_conflict_role),
@@ -19144,7 +19145,7 @@ static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *,
  *
  * Inspired by sql_plugin.cc::update_func_long()
  */
-static void slave_conflict_role_update_func(THD*, struct st_mysql_sys_var*,
+static void slave_conflict_role_update_func(THD*, SYS_VAR*,
                                             void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
@@ -19165,7 +19166,7 @@ static MYSQL_SYSVAR_ENUM(
 
 static
 void
-dbg_check_shares_update(THD*, st_mysql_sys_var*, void*, const void*)
+dbg_check_shares_update(THD*, SYS_VAR*, void*, const void*)
 {
   NDB_SHARE::dbg_check_shares_update();
 }
@@ -19184,7 +19185,7 @@ static MYSQL_THDVAR_UINT(
 
 #endif
 
-static struct st_mysql_sys_var* system_variables[]= {
+static SYS_VAR* system_variables[]= {
   MYSQL_SYSVAR(extra_logging),
   MYSQL_SYSVAR(wait_connected),
   MYSQL_SYSVAR(wait_setup),

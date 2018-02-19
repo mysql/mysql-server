@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -48,6 +48,6 @@ class Buffering_command_delegate : public Callback_command_delegate {
   Row_data *begin_row_cb();
   bool end_row_cb(Row_data *row);
 };
-}
+}  // namespace xpl
 
 #endif  // _XPL_BUFFERING_COMMAND_DELEGATE_H_

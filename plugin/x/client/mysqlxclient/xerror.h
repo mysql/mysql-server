@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -32,7 +32,6 @@
 
 #include "mysqlxclient/mysqlxclient_error.h"
 
-
 namespace xcl {
 
 /**
@@ -50,14 +49,10 @@ namespace xcl {
 */
 class XError {
  public:
-  XError()
-  : m_error(0) {
-  }
+  XError() : m_error(0) {}
 
   explicit XError(const int err, const std::string &message = "")
-  : m_message(message),
-    m_error(err) {
-  }
+      : m_message(message), m_error(err) {}
 
   /** Check if an error occurred */
   operator bool() const { return 0 != m_error; }

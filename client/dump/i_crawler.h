@@ -28,26 +28,25 @@
 #include "client/dump/i_chain_element.h"
 #include "client/dump/i_chain_maker.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
-class I_crawler : public virtual I_chain_element
-{
-public:
+class I_crawler : public virtual I_chain_element {
+ public:
   /**
     Enumerates all objects it can access, gets chains from all registered
     chain_maker for each object and then execute each chain.
    */
-  virtual void enumerate_objects()= 0;
+  virtual void enumerate_objects() = 0;
   /**
     Adds new Chain Maker to ask for chains for found objects.
    */
-  virtual void register_chain_maker(I_chain_maker* new_chain_maker)= 0;
+  virtual void register_chain_maker(I_chain_maker *new_chain_maker) = 0;
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

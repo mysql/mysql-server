@@ -31,36 +31,36 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
-#include "storage/perfschema/pfs_user.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_instr_class;
+struct PFS_statement_class;
+struct PFS_user;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-class PFS_index_esms_by_user_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_esms_by_user_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_esms_by_user_by_event_name()
-    : PFS_engine_index(&m_key_1, &m_key_2),
-      m_key_1("USER"),
-      m_key_2("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2),
+        m_key_1("USER"),
+        m_key_2("EVENT_NAME") {}
 
-  ~PFS_index_esms_by_user_by_event_name()
-  {
-  }
+  ~PFS_index_esms_by_user_by_event_name() {}
 
   virtual bool match(PFS_user *pfs);
   virtual bool match(PFS_instr_class *instr_class);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_event_name m_key_2;
 };
@@ -69,8 +69,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME.
 */
-struct row_esms_by_user_by_event_name
-{
+struct row_esms_by_user_by_event_name {
   /** Column USER. */
   PFS_user_row m_user;
   /** Column EVENT_NAME. */
@@ -85,31 +84,23 @@ struct row_esms_by_user_by_event_name
   Index 1 on user (0 based)
   Index 2 on statement class (1 based)
 */
-struct pos_esms_by_user_by_event_name : public PFS_double_index
-{
-  pos_esms_by_user_by_event_name() : PFS_double_index(0, 1)
-  {
-  }
+struct pos_esms_by_user_by_event_name : public PFS_double_index {
+  pos_esms_by_user_by_event_name() : PFS_double_index(0, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = 1;
   }
 
-  inline void
-  next_user(void)
-  {
+  inline void next_user(void) {
     m_index_1++;
     m_index_2 = 1;
   }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_STATEMENTS_SUMMARY_BY_USER_BY_EVENT_NAME. */
-class table_esms_by_user_by_event_name : public PFS_engine_table
-{
-public:
+class table_esms_by_user_by_event_name : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -125,23 +116,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_esms_by_user_by_event_name();
 
-public:
-  ~table_esms_by_user_by_event_name()
-  {
-  }
+ public:
+  ~table_esms_by_user_by_event_name() {}
 
-protected:
+ protected:
   int make_row(PFS_user *user, PFS_statement_class *klass);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -21,18 +21,19 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef DD_SERIALIZE_IMPL_H_INCLUDED
-#define	DD_SERIALIZE_IMPL_H_INCLUDED
+#define DD_SERIALIZE_IMPL_H_INCLUDED
 
-#include "my_rapidjson_size_t.h"    // IWYU pragma: keep
-#include <rapidjson/document.h>     // rapidjson::GenericValue
-#include <rapidjson/prettywriter.h> // rapidjson::PrettyWriter
+#include "my_rapidjson_size_t.h"  // IWYU pragma: keep
+
+#include <rapidjson/document.h>      // rapidjson::GenericValue
+#include <rapidjson/prettywriter.h>  // rapidjson::PrettyWriter
 #include <memory>
 
-#include "base64.h"           // base64_encode
-#include "m_string.h"         // STRING_WITH_LEN
+#include "base64.h"    // base64_encode
+#include "m_string.h"  // STRING_WITH_LEN
 #include "my_dbug.h"
-#include "prealloced_array.h" // Prealloced_array
-#include "sql/dd/object_id.h"               // Object_id typedef
+#include "prealloced_array.h"  // Prealloced_array
+#include "sql/dd/object_id.h"  // Object_id typedef
 
 /**
   @file
@@ -70,7 +71,8 @@ namespace dd {
 class Column;
 class Index;
 class Properties;
-template <typename T> class Collection;
+template <typename T>
+class Collection;
 /**
    Factory function for creating a Property object from String_type.
 
@@ -87,7 +89,6 @@ class Sdi_wcontext;
   @param sz size of buffer.
 */
 char *buf_handle(Sdi_wcontext *wctx, size_t sz);
-
 
 /**
   Returns const reference to string holding schema name to use in SDI.
@@ -108,11 +109,10 @@ const String_type &lookup_schema_name(Sdi_wcontext *wctx);
   @return tablespace name ref
 */
 
-const dd::String_type&
-lookup_tablespace_name(Sdi_wcontext *wctx, dd::Object_id id);
+const dd::String_type &lookup_tablespace_name(Sdi_wcontext *wctx,
+                                              dd::Object_id id);
 
 class Sdi_rcontext;
-
 
 /**
   Register Column objects being deserialized so that it will be
@@ -125,7 +125,6 @@ class Sdi_rcontext;
 
 void track_object(Sdi_rcontext *rctx, Column *column_object);
 
-
 /**
   Register Index objects being deserialized so that it will be
   possible to resolve references to it after deserialization has
@@ -137,7 +136,6 @@ void track_object(Sdi_rcontext *rctx, Column *column_object);
 
 void track_object(Sdi_rcontext *rctx, Index *index_object);
 
-
 /**
   Return an non-owning raw pointer to the deserialized Index object
   with ordinal postion index opx (ordinal position opx+1). The unused
@@ -147,7 +145,7 @@ void track_object(Sdi_rcontext *rctx, Index *index_object);
   @param opx ordinal position index
 */
 
-Index *get_by_opx(Sdi_rcontext *rctx, const Index*, uint opx);
+Index *get_by_opx(Sdi_rcontext *rctx, const Index *, uint opx);
 
 /**
   Return an non-owning raw pointer to the deserialized Column object
@@ -158,8 +156,7 @@ Index *get_by_opx(Sdi_rcontext *rctx, const Index*, uint opx);
   @param opx ordinal position index
 */
 
-Column *get_by_opx(Sdi_rcontext *rctx, const Column*, uint opx);
-
+Column *get_by_opx(Sdi_rcontext *rctx, const Column *, uint opx);
 
 /**
   Return a non-owning pointer to a char buffer which can be used
@@ -170,7 +167,6 @@ Column *get_by_opx(Sdi_rcontext *rctx, const Column*, uint opx);
 */
 
 char *buf_handle(Sdi_rcontext *rctx, size_t sz);
-
 
 /**
   Return the the Object_id of a schema name in the current data
@@ -201,10 +197,9 @@ bool lookup_schema_ref(Sdi_rcontext *rctx, const String_type &name,
 bool lookup_tablespace_ref(Sdi_rcontext *rctx, const String_type &name,
                            Object_id *idp);
 
-} // namespace dd
+}  // namespace dd
 
-/** @} */ // int_func_decl
-
+/** @} */  // int_func_decl
 
 /**
   @defgroup prealloced_typedefs Prealloced_array Typedefs
@@ -216,18 +211,15 @@ bool lookup_tablespace_ref(Sdi_rcontext *rctx, const String_type &name,
 */
 
 typedef dd::String_type binary_t;
-template <typename T, size_t PREALLOC=16>
-struct dd_vector :
-  public Prealloced_array<T, PREALLOC>
-{
-  dd_vector(PSI_memory_key psi_key = 0) :
-    Prealloced_array<T, PREALLOC>(psi_key)
-  {}
+template <typename T, size_t PREALLOC = 16>
+struct dd_vector : public Prealloced_array<T, PREALLOC> {
+  dd_vector(PSI_memory_key psi_key = 0)
+      : Prealloced_array<T, PREALLOC>(psi_key) {}
 };
 
 typedef dd_vector<char, 32> Byte_buffer;
 
-/** @} */ // prealloced_typedefs
+/** @} */  // prealloced_typedefs
 
 /**
   @defgroup value_overloads Value Function Overloads
@@ -240,107 +232,89 @@ typedef dd_vector<char, 32> Byte_buffer;
 */
 
 template <typename W>
-void write_value(W *w, bool a)
-{
+void write_value(W *w, bool a) {
   w->Bool(a);
 }
 
 template <typename GV>
-bool read_value(bool *ap, const GV &gv)
-{
-  if (!gv.IsBool())
-  {
+bool read_value(bool *ap, const GV &gv) {
+  if (!gv.IsBool()) {
     return true;
   }
-  *ap= gv.GetBool();
+  *ap = gv.GetBool();
   return false;
 }
 
 template <typename W>
-void write_value(W *w, int a)
-{
+void write_value(W *w, int a) {
   w->Int(a);
 }
 
 template <typename GV>
-bool read_value(int *ap, const GV &gv)
-{
-  if (!gv.IsInt())
-  {
+bool read_value(int *ap, const GV &gv) {
+  if (!gv.IsInt()) {
     return true;
   }
-  *ap= gv.GetInt();
+  *ap = gv.GetInt();
   return false;
 }
 
 template <typename W>
-void write_value(W *w, uint a)
-{
+void write_value(W *w, uint a) {
   w->Uint(a);
 }
 
 template <typename GV>
-bool read_value(uint *ap, const GV &gv)
-{
-  if (!gv.IsUint())
-  {
+bool read_value(uint *ap, const GV &gv) {
+  if (!gv.IsUint()) {
     return true;
   }
-  *ap= gv.GetUint();
+  *ap = gv.GetUint();
   return false;
 }
 
 template <typename W>
-void write_value(W *w, ulong a)
-{
+void write_value(W *w, ulong a) {
   w->Uint64(a);
 }
 
 template <typename GV>
-bool read_value(ulong *ap, const GV &gv)
-{
-  if (!gv.IsUint64())
-  {
+bool read_value(ulong *ap, const GV &gv) {
+  if (!gv.IsUint64()) {
     return true;
   }
-  *ap= gv.GetUint64();
+  *ap = gv.GetUint64();
   return false;
 }
 
 template <typename W>
-void write_value(W *w, ulonglong a)
-{
+void write_value(W *w, ulonglong a) {
   w->Uint64(a);
 }
 
 template <typename GV>
-bool read_value(ulonglong *ap, const GV &gv)
-{
-  if (!gv.IsUint64())
-  {
+bool read_value(ulonglong *ap, const GV &gv) {
+  if (!gv.IsUint64()) {
     return true;
   }
-  *ap= gv.GetUint64();
+  *ap = gv.GetUint64();
   return false;
 }
 
 template <typename W>
-void write_value(W *w, const dd::String_type &a)
-{
+void write_value(W *w, const dd::String_type &a) {
   w->String(a.c_str(), a.size());
 }
 
 template <typename GV>
-bool read_value(dd::String_type *ap, const GV &gv)
-{
-  if (!gv.IsString())
-  {
+bool read_value(dd::String_type *ap, const GV &gv) {
+  if (!gv.IsString()) {
     return true;
   }
-  *ap= dd::String_type(gv.GetString(), gv.GetStringLength());
+  *ap = dd::String_type(gv.GetString(), gv.GetStringLength());
   return false;
 }
-/** @} */ // value_overloads
+/** @} */  // value_overloads
 
 template <typename W>
 void write_value(W *w, dd::String_type *a);
@@ -356,24 +330,21 @@ void write_value(W *w, dd::String_type *a);
 */
 
 template <typename W, typename T>
-void write(W *w, const T &t, const char *key, size_t key_sz)
-{
+void write(W *w, const T &t, const char *key, size_t key_sz) {
   w->String(key, key_sz);
   write_value(w, t);
 }
 
 template <typename T, typename GV>
-bool read(T *ap, const GV &gv, const char *key)
-{
-  if (!gv.HasMember(key))
-  {
+bool read(T *ap, const GV &gv, const char *key) {
+  if (!gv.HasMember(key)) {
     return true;
   }
 
   return read_value(ap, gv[key]);
 }
 
-/** @} */ // key_templates
+/** @} */  // key_templates
 
 /**
   @defgroup special_composite_templates Function Templates for Composite Types
@@ -386,31 +357,27 @@ bool read(T *ap, const GV &gv, const char *key)
 */
 
 template <typename W, typename ENUM_T>
-void write_enum(W *w, ENUM_T enum_val, const char *key, size_t keysz)
-{
+void write_enum(W *w, ENUM_T enum_val, const char *key, size_t keysz) {
   write(w, static_cast<ulonglong>(enum_val), key, keysz);
 }
 
 template <typename ENUM_T, typename GV>
-bool read_enum(ENUM_T *ep, const GV &gv, const char *key)
-{
-  ulonglong v= 0;
-  if (read(&v, gv, key))
-  {
+bool read_enum(ENUM_T *ep, const GV &gv, const char *key) {
+  ulonglong v = 0;
+  if (read(&v, gv, key)) {
     return true;
   }
-  *ep= static_cast<ENUM_T>(v);
+  *ep = static_cast<ENUM_T>(v);
   return false;
 }
 
 template <typename W>
 void write_binary(dd::Sdi_wcontext *wctx, W *w, const binary_t &b,
-                  const char *key, size_t keysz)
-{
-  int binsz= static_cast<int>(b.size());
-  int b64sz= base64_needed_encoded_length(binsz);
+                  const char *key, size_t keysz) {
+  int binsz = static_cast<int>(b.size());
+  int b64sz = base64_needed_encoded_length(binsz);
 
-  char *bp= dd::buf_handle(wctx, static_cast<size_t>(b64sz));
+  char *bp = dd::buf_handle(wctx, static_cast<size_t>(b64sz));
   DBUG_ASSERT(bp);
 
   base64_encode(b.c_str(), binsz, bp);
@@ -419,45 +386,38 @@ void write_binary(dd::Sdi_wcontext *wctx, W *w, const binary_t &b,
 }
 
 template <typename GV>
-bool read_binary(dd::Sdi_rcontext *rctx, binary_t *b,
-                 const GV &gv, const char *key)
-{
-  if (!gv.HasMember(key))
-  {
+bool read_binary(dd::Sdi_rcontext *rctx, binary_t *b, const GV &gv,
+                 const char *key) {
+  if (!gv.HasMember(key)) {
     return true;
   }
 
-  const GV &a_gv= gv[key];
+  const GV &a_gv = gv[key];
 
-  if (!a_gv.IsString())
-  {
+  if (!a_gv.IsString()) {
     return true;
   }
 
-  const char *b64= a_gv.GetString();
-  size_t b64sz= a_gv.GetStringLength();
-  int binsz= base64_needed_decoded_length(b64sz);
+  const char *b64 = a_gv.GetString();
+  size_t b64sz = a_gv.GetStringLength();
+  int binsz = base64_needed_decoded_length(b64sz);
 
-  char *bp= dd::buf_handle(rctx, static_cast<size_t>(binsz));
-  binsz= base64_decode(b64, b64sz, bp, NULL, 0);
-  *b= binary_t(bp, binsz);
+  char *bp = dd::buf_handle(rctx, static_cast<size_t>(binsz));
+  binsz = base64_decode(b64, b64sz, bp, NULL, 0);
+  *b = binary_t(bp, binsz);
   return false;
 }
 
-
 template <typename W, typename PP>
-void write_properties(W *w, const PP &p, const char *key, size_t keysz)
-{
+void write_properties(W *w, const PP &p, const char *key, size_t keysz) {
   DBUG_ASSERT(p.get());
   write(w, p->raw_string(), key, keysz);
 }
 
 template <typename PP, typename GV>
-bool read_properties(PP *p, const GV &gv, const char *key)
-{
+bool read_properties(PP *p, const GV &gv, const char *key) {
   dd::String_type raw_string;
-  if (read(&raw_string, gv, key))
-  {
+  if (read(&raw_string, gv, key)) {
     return true;
   }
   p->reset(dd::parse_properties(raw_string));
@@ -465,35 +425,29 @@ bool read_properties(PP *p, const GV &gv, const char *key)
 }
 
 template <typename W, typename PP>
-void write_opx_reference(W *w, const PP &p, const char *key, size_t keysz)
-{
-  uint opx= 0;
-  if (p)
-  {
+void write_opx_reference(W *w, const PP &p, const char *key, size_t keysz) {
+  uint opx = 0;
+  if (p) {
     DBUG_ASSERT(p->ordinal_position() > 0);
-    opx= p->ordinal_position()-1;
+    opx = p->ordinal_position() - 1;
     write(w, opx, key, keysz);
   }
 }
 
-
 template <typename PP, typename GV>
 bool read_opx_reference(dd::Sdi_rcontext *rctx, PP *p, const GV &gv,
-                        const char *key)
-{
-  uint opx= 0;
-  if (read(&opx, gv, key))
-  {
+                        const char *key) {
+  uint opx = 0;
+  if (read(&opx, gv, key)) {
     return true;
   }
-  *p= get_by_opx(rctx, *p, opx);
+  *p = get_by_opx(rctx, *p, opx);
   return false;
 }
 
 template <typename GV>
 bool deserialize_schema_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
-                                  const GV &gv, const char *key)
-{
+                            const GV &gv, const char *key) {
   dd::String_type schema_name;
   return (read(&schema_name, gv, key) ||
           lookup_schema_ref(rctx, schema_name, p));
@@ -501,47 +455,38 @@ bool deserialize_schema_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
 
 template <typename W>
 void serialize_tablespace_ref(dd::Sdi_wcontext *wctx, W *w,
-                              dd::Object_id tablespace_id,
-                              const char *key, size_t keysz)
-{
-  if (tablespace_id == dd::INVALID_OBJECT_ID)
-  {
+                              dd::Object_id tablespace_id, const char *key,
+                              size_t keysz) {
+  if (tablespace_id == dd::INVALID_OBJECT_ID) {
     // There is no name to look up (will be the case for SEs not using
     // tablespaces
     return;
   }
-  const dd::String_type &tablespace_name=
-    lookup_tablespace_name(wctx, tablespace_id);
+  const dd::String_type &tablespace_name =
+      lookup_tablespace_name(wctx, tablespace_id);
 
-  if (tablespace_name.empty())
-  {
+  if (tablespace_name.empty()) {
     return;
   }
   write(w, tablespace_name, key, keysz);
 }
 
-
 template <typename GV>
 bool deserialize_tablespace_ref(dd::Sdi_rcontext *rctx, dd::Object_id *p,
-                                const GV &gv, const char *key)
-{
+                                const GV &gv, const char *key) {
   dd::String_type tablespace_name;
-  if (read(&tablespace_name, gv, key))
-  {
-    return false; // Ok not to have this
+  if (read(&tablespace_name, gv, key)) {
+    return false;  // Ok not to have this
   }
   return lookup_tablespace_ref(rctx, tablespace_name, p);
 }
 
-
 template <typename W, typename C>
-void serialize_each(dd::Sdi_wcontext *wctx, W *w, const dd::Collection<C*> &cp,
-                    const char *key, size_t keysz)
-{
+void serialize_each(dd::Sdi_wcontext *wctx, W *w, const dd::Collection<C *> &cp,
+                    const char *key, size_t keysz) {
   w->String(key, keysz);
   w->StartArray();
-  for (const C *vp : cp)
-  {
+  for (const C *vp : cp) {
     vp->serialize(wctx, w);
   }
   w->EndArray(cp.size());
@@ -549,33 +494,26 @@ void serialize_each(dd::Sdi_wcontext *wctx, W *w, const dd::Collection<C*> &cp,
 
 template <typename ADD_BINDER, typename GV>
 bool deserialize_each(dd::Sdi_rcontext *rctx, ADD_BINDER add_binder,
-                      const GV &obj_gv, const char *key)
-{
-  if (!obj_gv.HasMember(key))
-  {
+                      const GV &obj_gv, const char *key) {
+  if (!obj_gv.HasMember(key)) {
     return true;
   }
 
-  const GV &array_gv= obj_gv[key];
-  if (!array_gv.IsArray())
-  {
+  const GV &array_gv = obj_gv[key];
+  if (!array_gv.IsArray()) {
     return true;
   }
 
-  const typename GV::ConstValueIterator end= array_gv.End();
-  for (typename GV::ConstValueIterator it= array_gv.Begin();
-       it != end; ++it)
-  {
-    if (add_binder()->deserialize(rctx, *it))
-    {
+  const typename GV::ConstValueIterator end = array_gv.End();
+  for (typename GV::ConstValueIterator it = array_gv.Begin(); it != end; ++it) {
+    if (add_binder()->deserialize(rctx, *it)) {
       return true;
     }
   }
   return false;
 }
-/** @} */ // special_composite_templates
+  /** @} */  // special_composite_templates
 
-//} // namespace dd_sdi_impl
+  //} // namespace dd_sdi_impl
 
-
-#endif	/* DD_SERIALIZE_IMPL_H_INCLUDED */
+#endif /* DD_SERIALIZE_IMPL_H_INCLUDED */

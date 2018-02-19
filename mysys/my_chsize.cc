@@ -56,7 +56,7 @@
       fd		File descriptor
       new_length	New file size
       filler		If we don't have truncate, fill up all bytes after
-			new_length with this character
+                        new_length with this character
       MyFlags		Flags
 
   DESCRIPTION
@@ -66,33 +66,30 @@
 
   RETURN VALUE
     0	Ok
-    1	Error 
+    1	Error
 */
-int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
-{
+int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags) {
   my_off_t oldsize;
   uchar buff[IO_SIZE];
   DBUG_ENTER("my_chsize");
-  DBUG_PRINT("my",("fd: %d  length: %lu  MyFlags: %d",fd,(ulong) newlength,
-		   MyFlags));
+  DBUG_PRINT("my", ("fd: %d  length: %lu  MyFlags: %d", fd, (ulong)newlength,
+                    MyFlags));
 
-  if ((oldsize= my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME+MY_FAE))) == newlength)
+  if ((oldsize = my_seek(fd, 0L, MY_SEEK_END, MYF(MY_WME + MY_FAE))) ==
+      newlength)
     DBUG_RETURN(0);
 
-  DBUG_PRINT("info",("old_size: %ld", (ulong) oldsize));
+  DBUG_PRINT("info", ("old_size: %ld", (ulong)oldsize));
 
-  if (oldsize > newlength)
-  {
+  if (oldsize > newlength) {
 #ifdef _WIN32
-    if (my_win_chsize(fd, newlength))
-    {
+    if (my_win_chsize(fd, newlength)) {
       set_my_errno(errno);
       goto err;
     }
     DBUG_RETURN(0);
 #elif defined(HAVE_FTRUNCATE)
-    if (ftruncate(fd, (off_t) newlength))
-    {
+    if (ftruncate(fd, (off_t)newlength)) {
       set_my_errno(errno);
       goto err;
     }
@@ -102,9 +99,8 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
       Fill space between requested length and true length with 'filler'
       We should never come here on any modern machine
     */
-    if (my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME+MY_FAE))
-        == MY_FILEPOS_ERROR)
-    {
+    if (my_seek(fd, newlength, MY_SEEK_SET, MYF(MY_WME + MY_FAE)) ==
+        MY_FILEPOS_ERROR) {
       goto err;
     }
     std::swap(newlength, oldsize);
@@ -113,23 +109,19 @@ int my_chsize(File fd, my_off_t newlength, int filler, myf MyFlags)
 
   /* Full file with 'filler' until it's as big as requested */
   memset(buff, filler, IO_SIZE);
-  while (newlength-oldsize > IO_SIZE)
-  {
-    if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP)))
-      goto err;
-    oldsize+= IO_SIZE;
+  while (newlength - oldsize > IO_SIZE) {
+    if (my_write(fd, buff, IO_SIZE, MYF(MY_NABP))) goto err;
+    oldsize += IO_SIZE;
   }
-  if (my_write(fd,buff,(size_t) (newlength-oldsize), MYF(MY_NABP)))
-    goto err;
+  if (my_write(fd, buff, (size_t)(newlength - oldsize), MYF(MY_NABP))) goto err;
   DBUG_RETURN(0);
 
 err:
   DBUG_PRINT("error", ("errno: %d", errno));
-  if (MyFlags & MY_WME)
-  {
-    char  errbuf[MYSYS_STRERROR_SIZE];
-    my_error(EE_CANT_CHSIZE, MYF(0),
-             my_errno(), my_strerror(errbuf, sizeof(errbuf), my_errno()));
+  if (MyFlags & MY_WME) {
+    char errbuf[MYSYS_STRERROR_SIZE];
+    my_error(EE_CANT_CHSIZE, MYF(0), my_errno(),
+             my_strerror(errbuf, sizeof(errbuf), my_errno()));
   }
   DBUG_RETURN(1);
 } /* my_chsize */

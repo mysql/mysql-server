@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@
   @file include/mysql/service_thd_wait.h
   This service provides functions for plugins and storage engines to report
   when they are going to sleep/stall.
-  
+
   SYNOPSIS
   thd_wait_begin() - call just before a wait begins
   thd                     Thread object
@@ -53,16 +53,8 @@
   thread workload.
 */
 
-#ifdef __cplusplus
 class THD;
-#define MYSQL_THD THD*
-#else
-#define MYSQL_THD void*
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#define MYSQL_THD THD *
 
 /*
   One should only report wait events that could potentially block for a
@@ -82,23 +74,23 @@ extern "C" {
   THD_WAIT_META_DATA_LOCK instead.
 */
 typedef enum _thd_wait_type_e {
-  THD_WAIT_SLEEP= 1,
-  THD_WAIT_DISKIO= 2,
-  THD_WAIT_ROW_LOCK= 3,
-  THD_WAIT_GLOBAL_LOCK= 4,
-  THD_WAIT_META_DATA_LOCK= 5,
-  THD_WAIT_TABLE_LOCK= 6,
-  THD_WAIT_USER_LOCK= 7,
-  THD_WAIT_BINLOG= 8,
-  THD_WAIT_GROUP_COMMIT= 9,
-  THD_WAIT_SYNC= 10,
-  THD_WAIT_LAST= 11
+  THD_WAIT_SLEEP = 1,
+  THD_WAIT_DISKIO = 2,
+  THD_WAIT_ROW_LOCK = 3,
+  THD_WAIT_GLOBAL_LOCK = 4,
+  THD_WAIT_META_DATA_LOCK = 5,
+  THD_WAIT_TABLE_LOCK = 6,
+  THD_WAIT_USER_LOCK = 7,
+  THD_WAIT_BINLOG = 8,
+  THD_WAIT_GROUP_COMMIT = 9,
+  THD_WAIT_SYNC = 10,
+  THD_WAIT_LAST = 11
 } thd_wait_type;
 
-extern struct thd_wait_service_st {
+extern "C" struct thd_wait_service_st {
   void (*thd_wait_begin_func)(MYSQL_THD, int);
   void (*thd_wait_end_func)(MYSQL_THD);
-} *thd_wait_service;
+} * thd_wait_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
@@ -113,9 +105,4 @@ void thd_wait_end(MYSQL_THD thd);
 
 #endif
 
-#ifdef __cplusplus
-}
 #endif
-
-#endif
-

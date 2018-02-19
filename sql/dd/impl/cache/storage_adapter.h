@@ -28,49 +28,44 @@
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_base.h"
-#include "sql/dd/cache/object_registry.h"    // Object_registry
+#include "sql/dd/cache/object_registry.h"  // Object_registry
 #include "sql/dd/object_id.h"
-#include "sql/handler.h"                     // enum_tx_isolation
+#include "sql/handler.h"  // enum_tx_isolation
 #include "thr_mutex.h"
 
 class THD;
 
 namespace dd_cache_unittest {
-  class CacheStorageTest;
+class CacheStorageTest;
 }
 
 namespace dd {
 
 namespace cache {
 
-
 /**
   Handling of access to persistent storage.
 
   This class provides static template functions that manipulates an object on
   persistent storage based on the submitted key and object type. There is also
-  an object registry instance to keep the core DD objects that are needed to handle
-  cache misses for table meta data. The storage adapter owns the objects in the
-  core registry. When adding objects to the registry using core_store(), the
-  storage adapter will clone the object and take ownership of the clone. When
-  retrieving objects from the registry using core_get(), a clone of the object
-  will be returned, and this is therefore owned by the caller.
+  an object registry instance to keep the core DD objects that are needed to
+  handle cache misses for table meta data. The storage adapter owns the objects
+  in the core registry. When adding objects to the registry using core_store(),
+  the storage adapter will clone the object and take ownership of the clone.
+  When retrieving objects from the registry using core_get(), a clone of the
+  object will be returned, and this is therefore owned by the caller.
 */
 
-class Storage_adapter
-{
-friend class dd_cache_unittest::CacheStorageTest;
+class Storage_adapter {
+  friend class dd_cache_unittest::CacheStorageTest;
 
-private:
-
-
+ private:
   /**
     Use an id not starting at 1 to make it easy to recognize ids generated
     before objects are stored persistently.
   */
 
-  static const Object_id FIRST_OID= 10001;
-
+  static const Object_id FIRST_OID = 10001;
 
   /**
     Generate a new object id for a registry partition.
@@ -86,7 +81,6 @@ private:
   template <typename T>
   Object_id next_oid();
 
-
   /**
     Get a dictionary object from core storage.
 
@@ -101,28 +95,24 @@ private:
   template <typename K, typename T>
   void core_get(const K &key, const T **object);
 
+  Object_registry m_core_registry;  // Object registry storing core DD objects.
+  mysql_mutex_t m_lock;             // Single mutex to protect the registry.
+  static bool s_use_fake_storage;   // Whether to use the core registry to
+                                    // simulate the storage engine.
 
-  Object_registry m_core_registry;   // Object registry storing core DD objects.
-  mysql_mutex_t m_lock;              // Single mutex to protect the registry.
-  static bool s_use_fake_storage;    // Whether to use the core registry to
-                                     // simulate the storage engine.
+  Storage_adapter() {
+    mysql_mutex_init(PSI_NOT_INSTRUMENTED, &m_lock, MY_MUTEX_INIT_FAST);
+  }
 
-  Storage_adapter()
-  { mysql_mutex_init(PSI_NOT_INSTRUMENTED, &m_lock, MY_MUTEX_INIT_FAST); }
-
-  ~Storage_adapter()
-  {
+  ~Storage_adapter() {
     mysql_mutex_lock(&m_lock);
     m_core_registry.erase_all();
     mysql_mutex_unlock(&m_lock);
     mysql_mutex_destroy(&m_lock);
   }
 
-
-public:
-
+ public:
   static Storage_adapter *instance();
-
 
   /**
     Get the number of core objects in a registry partition.
@@ -134,7 +124,6 @@ public:
   template <typename T>
   size_t core_size();
 
-
   /**
     Get a dictionary object id from core storage.
 
@@ -145,7 +134,6 @@ public:
 
   template <typename T>
   Object_id core_get_id(const typename T::Name_key &key);
-
 
   /**
     Get a dictionary object from persistent storage.
@@ -168,12 +156,8 @@ public:
   */
 
   template <typename K, typename T>
-  static bool get(THD *thd,
-                  const K &key,
-                  enum_tx_isolation isolation,
-                  bool bypass_core_registry,
-                  const T **object);
-
+  static bool get(THD *thd, const K &key, enum_tx_isolation isolation,
+                  bool bypass_core_registry, const T **object);
 
   /**
     Drop a dictionary object from core storage.
@@ -185,7 +169,6 @@ public:
 
   template <typename T>
   void core_drop(THD *thd, const T *object);
-
 
   /**
     Drop a dictionary object from persistent storage.
@@ -200,7 +183,6 @@ public:
 
   template <typename T>
   static bool drop(THD *thd, const T *object);
-
 
   /**
     Store a dictionary object to core storage.
@@ -217,7 +199,6 @@ public:
   template <typename T>
   void core_store(THD *thd, T *object);
 
-
   /**
     Store a dictionary object to persistent storage.
 
@@ -232,7 +213,6 @@ public:
   template <typename T>
   static bool store(THD *thd, T *object);
 
-
   /**
     Sync a dictionary object from persistent to core storage.
 
@@ -246,13 +226,11 @@ public:
   template <typename T>
   bool core_sync(THD *thd, const typename T::Name_key &key, const T *object);
 
-
   /**
     Remove and delete all elements and objects from core storage.
   */
 
   void erase_all();
-
 
   /**
     Dump the contents of the core storage.
@@ -261,7 +239,7 @@ public:
   void dump();
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
-#endif // DD_CACHE__STORAGE_ADAPTER_INCLUDED
+#endif  // DD_CACHE__STORAGE_ADAPTER_INCLUDED

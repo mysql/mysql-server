@@ -219,6 +219,7 @@ DROP TABLE t1;
 --echo #                ASSERTION FAILED: N < M_SIZE
 --echo #
 
+
 CREATE TABLE t(a INT);
 INSERT INTO t values (1),(2),(3),(6),(0);
 
@@ -369,3 +370,16 @@ SET SESSION windowing_use_high_precision= TRUE; # default
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#27452115: ASSERTION FAILED: (UCHAR*) TABLE->DEF_READ_SET.BITMAP +
+--echo #               TABLE->S->COLUMN_BITMAP_
+--echo #
+
+CREATE TABLE t (a BIGINT,b INT);
+INSERT INTO t VALUES (9223372036854775807,1);
+INSERT INTO t VALUES (1,2);
+--error ER_DATA_OUT_OF_RANGE
+SELECT b, CUME_DIST() OVER (
+  PARTITION BY b ORDER BY a RANGE BETWEEN CURRENT ROW AND 1 FOLLOWING
+) FROM t;
+DROP TABLE t;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2016, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,7 @@
   protocol tracing infrastructure.
 */
 
-
 #include <mysql/client_plugin.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /*
   Lists of protocol stages and trace events
@@ -112,20 +107,18 @@ extern "C" {
     FILE_REQUEST -> WAIT_FOR_RESULT [label="when whole file sent"];
 */
 
-#define PROTOCOL_STAGE_LIST(X) \
-  protocol_stage_ ## X(CONNECTING) \
-  protocol_stage_ ## X(WAIT_FOR_INIT_PACKET) \
-  protocol_stage_ ## X(AUTHENTICATE) \
-  protocol_stage_ ## X(SSL_NEGOTIATION) \
-  protocol_stage_ ## X(READY_FOR_COMMAND) \
-  protocol_stage_ ## X(WAIT_FOR_PACKET) \
-  protocol_stage_ ## X(WAIT_FOR_RESULT) \
-  protocol_stage_ ## X(WAIT_FOR_FIELD_DEF) \
-  protocol_stage_ ## X(WAIT_FOR_ROW) \
-  protocol_stage_ ## X(FILE_REQUEST) \
-  protocol_stage_ ## X(WAIT_FOR_PS_DESCRIPTION) \
-  protocol_stage_ ## X(WAIT_FOR_PARAM_DEF) \
-  protocol_stage_ ## X(DISCONNECTED)
+#define PROTOCOL_STAGE_LIST(X)                                                \
+  protocol_stage_##X(CONNECTING) protocol_stage_##X(WAIT_FOR_INIT_PACKET)     \
+      protocol_stage_##X(AUTHENTICATE) protocol_stage_##X(SSL_NEGOTIATION)    \
+          protocol_stage_##X(READY_FOR_COMMAND)                               \
+              protocol_stage_##X(WAIT_FOR_PACKET)                             \
+                  protocol_stage_##X(WAIT_FOR_RESULT)                         \
+                      protocol_stage_##X(WAIT_FOR_FIELD_DEF)                  \
+                          protocol_stage_##X(WAIT_FOR_ROW)                    \
+                              protocol_stage_##X(FILE_REQUEST)                \
+                                  protocol_stage_##X(WAIT_FOR_PS_DESCRIPTION) \
+                                      protocol_stage_##X(WAIT_FOR_PARAM_DEF)  \
+                                          protocol_stage_##X(DISCONNECTED)
 
 /**
   Trace events
@@ -171,24 +164,19 @@ extern "C" {
   ---------------------- -----------------------------------------------------
 */
 
-#define TRACE_EVENT_LIST(X) \
-  trace_event_ ## X(ERROR) \
-  trace_event_ ## X(CONNECTING) \
-  trace_event_ ## X(CONNECTED) \
-  trace_event_ ## X(DISCONNECTED) \
-  trace_event_ ## X(SEND_SSL_REQUEST) \
-  trace_event_ ## X(SSL_CONNECT) \
-  trace_event_ ## X(SSL_CONNECTED) \
-  trace_event_ ## X(INIT_PACKET_RECEIVED) \
-  trace_event_ ## X(AUTH_PLUGIN) \
-  trace_event_ ## X(SEND_AUTH_RESPONSE) \
-  trace_event_ ## X(SEND_AUTH_DATA) \
-  trace_event_ ## X(AUTHENTICATED) \
-  trace_event_ ## X(SEND_COMMAND) \
-  trace_event_ ## X(SEND_FILE) \
-  trace_event_ ## X(READ_PACKET) \
-  trace_event_ ## X(PACKET_RECEIVED) \
-  trace_event_ ## X(PACKET_SENT)
+#define TRACE_EVENT_LIST(X)                                                    \
+  trace_event_##X(ERROR) trace_event_##X(CONNECTING) trace_event_##X(          \
+      CONNECTED) trace_event_##X(DISCONNECTED)                                 \
+      trace_event_##X(SEND_SSL_REQUEST) trace_event_##X(SSL_CONNECT)           \
+          trace_event_##X(SSL_CONNECTED) trace_event_##X(INIT_PACKET_RECEIVED) \
+              trace_event_##X(AUTH_PLUGIN) trace_event_##X(SEND_AUTH_RESPONSE) \
+                  trace_event_##X(SEND_AUTH_DATA)                              \
+                      trace_event_##X(AUTHENTICATED)                           \
+                          trace_event_##X(SEND_COMMAND)                        \
+                              trace_event_##X(SEND_FILE)                       \
+                                  trace_event_##X(READ_PACKET)                 \
+                                      trace_event_##X(PACKET_RECEIVED)         \
+                                          trace_event_##X(PACKET_SENT)
 
 /**
   Some trace events have additional arguments. These are stored in
@@ -221,33 +209,24 @@ extern "C" {
   ------------- ----------------------------------
 */
 
-struct st_trace_event_args
-{
-  const char           *plugin_name;
-  int                   cmd;
-  const unsigned char  *hdr;
-  size_t                hdr_len;
-  const unsigned char  *pkt;
-  size_t                pkt_len;
+struct st_trace_event_args {
+  const char *plugin_name;
+  int cmd;
+  const unsigned char *hdr;
+  size_t hdr_len;
+  const unsigned char *pkt;
+  size_t pkt_len;
 };
-
 
 /* Definitions of protocol_stage and trace_event enums. */
 
-#define protocol_stage_enum(X) PROTOCOL_STAGE_ ## X,
+#define protocol_stage_enum(X) PROTOCOL_STAGE_##X,
 
-enum protocol_stage {
-  PROTOCOL_STAGE_LIST(enum)
-  PROTOCOL_STAGE_LAST
-};
+enum protocol_stage { PROTOCOL_STAGE_LIST(enum) PROTOCOL_STAGE_LAST };
 
-#define trace_event_enum(X) TRACE_EVENT_ ## X,
+#define trace_event_enum(X) TRACE_EVENT_##X,
 
-enum trace_event {
-  TRACE_EVENT_LIST(enum)
-  TRACE_EVENT_LAST
-};
-
+enum trace_event { TRACE_EVENT_LIST(enum) TRACE_EVENT_LAST };
 
 /*
   Trace plugin methods
@@ -255,7 +234,7 @@ enum trace_event {
 */
 
 struct st_mysql_client_plugin_TRACE;
-struct st_mysql;
+struct MYSQL;
 
 /**
   Trace plugin tracing_start() method.
@@ -273,10 +252,9 @@ struct st_mysql;
   @return A pointer to plugin-specific, per-connection data if any.
 */
 
-typedef
-void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
-                               struct st_mysql *connection_handle,
-                               enum protocol_stage stage);
+typedef void *(tracing_start_callback)(
+    struct st_mysql_client_plugin_TRACE *self, MYSQL *connection_handle,
+    enum protocol_stage stage);
 
 /**
   Trace plugin tracing_stop() method.
@@ -290,10 +268,9 @@ void* (tracing_start_callback)(struct st_mysql_client_plugin_TRACE *self,
   @param plugin_data pointer to plugin's per-connection data.
 */
 
-typedef
-void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
-                             struct st_mysql *connection_handle,
-                             void   *plugin_data);
+typedef void(tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
+                                    MYSQL *connection_handle,
+                                    void *plugin_data);
 
 /**
   Trace plugin trace_event() method.
@@ -311,21 +288,17 @@ void (tracing_stop_callback)(struct st_mysql_client_plugin_TRACE *self,
   @return Non-zero if tracing of the connection should end here.
 */
 
-typedef
-int (trace_event_handler)(struct st_mysql_client_plugin_TRACE *self,
-                          void *plugin_data,
-                          struct st_mysql *connection_handle,
-                          enum protocol_stage stage,
-                          enum trace_event event,
-                          struct st_trace_event_args args);
+typedef int(trace_event_handler)(struct st_mysql_client_plugin_TRACE *self,
+                                 void *plugin_data, MYSQL *connection_handle,
+                                 enum protocol_stage stage,
+                                 enum trace_event event,
+                                 struct st_trace_event_args args);
 
-
-struct st_mysql_client_plugin_TRACE
-{
+struct st_mysql_client_plugin_TRACE {
   MYSQL_CLIENT_PLUGIN_HEADER
   tracing_start_callback *tracing_start;
-  tracing_stop_callback  *tracing_stop;
-  trace_event_handler    *trace_event;
+  tracing_stop_callback *tracing_stop;
+  trace_event_handler *trace_event;
 };
 
 /**
@@ -333,8 +306,7 @@ struct st_mysql_client_plugin_TRACE
   loaded trace plugin which should be used to trace all connections made
   to the server.
 */
-extern
-struct st_mysql_client_plugin_TRACE *trace_plugin;
+extern struct st_mysql_client_plugin_TRACE *trace_plugin;
 
 #ifndef DBUG_OFF
 
@@ -342,13 +314,9 @@ struct st_mysql_client_plugin_TRACE *trace_plugin;
   Functions for getting names of trace events and protocol
   stages for debugging purposes.
 */
-const char* protocol_stage_name(enum protocol_stage stage);
-const char* trace_event_name(enum trace_event ev);
+const char *protocol_stage_name(enum protocol_stage stage);
+const char *trace_event_name(enum trace_event ev);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #endif

@@ -24,8 +24,8 @@
 #define DD__PARAMETER_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/types/column.h"     // dd::Column::enum_column_types
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/column.h"         // dd::Column::enum_column_types
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
@@ -36,32 +36,25 @@ class Parameter_impl;
 class Parameter_type_element;
 
 namespace tables {
-  class Parameters;
+class Parameters;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Parameter : virtual public Entity_object
-{
-public:
-  typedef Collection<Parameter_type_element*> Parameter_type_element_collection;
+class Parameter : virtual public Entity_object {
+ public:
+  typedef Collection<Parameter_type_element *>
+      Parameter_type_element_collection;
   typedef Parameter_impl Impl;
   typedef tables::Parameters DD_table;
 
-public:
-  virtual ~Parameter()
-  { };
+ public:
+  virtual ~Parameter(){};
 
-public:
+ public:
+  enum enum_parameter_mode { PM_IN = 1, PM_OUT, PM_INOUT };
 
-  enum enum_parameter_mode
-  {
-    PM_IN = 1,
-    PM_OUT,
-    PM_INOUT
-  };
-
-public:
+ public:
   /////////////////////////////////////////////////////////////////////////
   // Is name null?
   /////////////////////////////////////////////////////////////////////////
@@ -179,6 +172,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARAMETER_INCLUDED
+#endif  // DD__PARAMETER_INCLUDED

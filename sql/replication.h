@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,18 @@
 #ifndef REPLICATION_H
 #define REPLICATION_H
 
-#include "my_thread_local.h"          // my_thread_id
-#include "mysql/psi/mysql_thread.h"   // mysql_mutex_t
-#include "sql/handler.h"              // enum_tx_isolation
+#include "my_thread_local.h"         // my_thread_id
+#include "mysql/psi/mysql_thread.h"  // mysql_mutex_t
+#include "sql/handler.h"             // enum_tx_isolation
 
-typedef struct st_mysql MYSQL;
-typedef struct st_io_cache IO_CACHE;
+struct MYSQL;
+struct IO_CACHE;
 
 #ifdef __cplusplus
 class THD;
-#define MYSQL_THD THD*
+#define MYSQL_THD THD *
 #else
-#define MYSQL_THD void*
+#define MYSQL_THD void *
 #endif
 
 #ifdef __cplusplus
@@ -44,8 +44,7 @@ extern "C" {
 /**
   Struct to share server ssl variables
 */
-struct st_server_ssl_variables
-{
+struct st_server_ssl_variables {
   bool have_ssl_opt;
   char *ssl_ca;
   char *ssl_capath;
@@ -55,6 +54,7 @@ struct st_server_ssl_variables
   char *ssl_key;
   char *ssl_crl;
   char *ssl_crlpath;
+  unsigned int ssl_fips_mode;
 };
 
 /**
@@ -69,7 +69,7 @@ enum Trans_flags {
  This represents table metadata involved in a transaction
  */
 typedef struct Trans_table_info {
-  const char* table_name;
+  const char *table_name;
   uint number_of_primary_keys;
   /// The db_type of the storage engine used by the table
   int db_type;
@@ -92,15 +92,16 @@ typedef struct Trans_table_info {
   about it.
  */
 typedef struct Trans_context_info {
-  bool  binlog_enabled;
-  ulong gtid_mode;               //enum values in enum_gtid_mode
+  bool binlog_enabled;
+  ulong gtid_mode;  // enum values in enum_gtid_mode
   bool log_slave_updates;
-  ulong binlog_checksum_options; //enum values in enum enum_binlog_checksum_alg
-  ulong binlog_format;           //enum values in enum enum_binlog_format
+  ulong binlog_checksum_options;  // enum values in enum
+                                  // enum_binlog_checksum_alg
+  ulong binlog_format;            // enum values in enum enum_binlog_format
   // enum values in enum_transaction_write_set_hashing_algorithm
   ulong transaction_write_set_extraction;
-  ulong mi_repository_type;     //enum values in enum_info_repository
-  ulong rli_repository_type;    //enum values in enum_info_repository
+  ulong mi_repository_type;   // enum values in enum_info_repository
+  ulong rli_repository_type;  // enum values in enum_info_repository
   // enum values in enum_mts_parallel_type
   ulong parallel_applier_type;
   ulong parallel_applier_workers;
@@ -112,9 +113,9 @@ typedef struct Trans_context_info {
   This represents the GTID context of the transaction.
  */
 typedef struct Trans_gtid_info {
-  ulong type;                    // enum values in enum_gtid_type
-  int sidno;                     // transaction sidno
-  long long int gno;             // transaction gno
+  ulong type;         // enum values in enum_gtid_type
+  int sidno;          // transaction sidno
+  long long int gno;  // transaction gno
 } Trans_gtid_info;
 
 /**
@@ -151,13 +152,13 @@ typedef struct Trans_param {
     The flag designates the transaction is a DDL contained is
     the transactional cache.
   */
-  bool      is_atomic_ddl;
+  bool is_atomic_ddl;
 
   /*
    This is the list of tables that are involved in this transaction and its
    information
    */
-  Trans_table_info* tables_info;
+  Trans_table_info *tables_info;
   uint number_of_tables;
 
   /*
@@ -173,9 +174,10 @@ typedef struct Trans_param {
 /**
    Transaction observer parameter initialization.
 */
-#define TRANS_PARAM_ZERO(trans_param_obj) memset(&trans_param_obj, 0, sizeof(Trans_param));
+#define TRANS_PARAM_ZERO(trans_param_obj) \
+  memset(&trans_param_obj, 0, sizeof(Trans_param));
 
-typedef int (*before_dml_t)(Trans_param *param, int& out_val);
+typedef int (*before_dml_t)(Trans_param *param, int &out_val);
 
 /**
   This callback is called before transaction commit
@@ -239,7 +241,6 @@ typedef int (*after_commit_t)(Trans_param *param);
   @retval 1 Failure
 */
 typedef int (*after_rollback_t)(Trans_param *param);
-
 
 /**
    Observes and extends transaction execution
@@ -367,10 +368,10 @@ typedef struct Binlog_storage_param {
   @retval 0 Success
   @retval 1 Failure
 */
-typedef int (*after_flush_t)(Binlog_storage_param *param,
-                             const char *log_file, my_off_t log_pos);
-typedef int (*after_sync_t)(Binlog_storage_param *param,
-                            const char *log_file, my_off_t log_pos);
+typedef int (*after_flush_t)(Binlog_storage_param *param, const char *log_file,
+                             my_off_t log_pos);
+typedef int (*after_sync_t)(Binlog_storage_param *param, const char *log_file,
+                            my_off_t log_pos);
 
 /**
    Observe binlog logging storage
@@ -389,11 +390,11 @@ typedef struct Binlog_transmit_param {
   uint32 server_id;
   uint32 flags;
   /* Let us keep 1-16 as output flags and 17-32 as input flags */
-  static const uint32 F_OBSERVE= 1;
-  static const uint32 F_DONT_OBSERVE= 2;
+  static const uint32 F_OBSERVE = 1;
+  static const uint32 F_DONT_OBSERVE = 2;
 
-  void set_observe_flag() { flags|= F_OBSERVE; }
-  void set_dont_observe_flag() { flags|= F_DONT_OBSERVE; }
+  void set_observe_flag() { flags |= F_OBSERVE; }
+  void set_dont_observe_flag() { flags |= F_DONT_OBSERVE; }
   /**
      If F_OBSERVE is set by any plugin, then it should observe binlog
      transmission, even F_DONT_OBSERVE is set by some plugins.
@@ -401,8 +402,7 @@ typedef struct Binlog_transmit_param {
      If both F_OBSERVE and F_DONT_OBSERVE are not set, then it is an old
      plugin. In this case, it should always observe binlog transmission.
    */
-  bool should_observe()
-  {
+  bool should_observe() {
     return (flags & F_OBSERVE) || !(flags & F_DONT_OBSERVE);
   }
 } Binlog_transmit_param;
@@ -431,7 +431,8 @@ typedef int (*transmit_start_t)(Binlog_transmit_param *param,
 typedef int (*transmit_stop_t)(Binlog_transmit_param *param);
 
 /**
-  This callback is called to reserve bytes in packet header for event transmission
+  This callback is called to reserve bytes in packet header for event
+  transmission
 
   This callback is called when resetting transmit packet header to
   reserve bytes for this observer in packet header.
@@ -449,8 +450,7 @@ typedef int (*transmit_stop_t)(Binlog_transmit_param *param);
   @retval 1 Failure
 */
 typedef int (*reserve_header_t)(Binlog_transmit_param *param,
-                                unsigned char *header,
-                                unsigned long size,
+                                unsigned char *header, unsigned long size,
                                 unsigned long *len);
 
 /**
@@ -467,7 +467,7 @@ typedef int (*reserve_header_t)(Binlog_transmit_param *param,
 */
 typedef int (*before_send_event_t)(Binlog_transmit_param *param,
                                    unsigned char *packet, unsigned long len,
-                                   const char *log_file, my_off_t log_pos );
+                                   const char *log_file, my_off_t log_pos);
 
 /**
   This callback is called after an event packet is sent to the
@@ -503,7 +503,6 @@ typedef int (*after_send_event_t)(Binlog_transmit_param *param,
 */
 typedef int (*after_reset_master_t)(Binlog_transmit_param *param);
 
-
 /**
    Observe and extends the binlog dumping thread.
 */
@@ -526,7 +525,6 @@ enum Binlog_relay_IO_flags {
   BINLOG_RELAY_IS_SYNCED = 1
 };
 
-
 /**
   Replication binlog relay IO observer parameter
 */
@@ -535,7 +533,7 @@ typedef struct Binlog_relay_IO_param {
   my_thread_id thread_id;
 
   /* Channel name */
-  char* channel_name;
+  char *channel_name;
 
   /* Master host, user and port */
   char *host;
@@ -545,7 +543,7 @@ typedef struct Binlog_relay_IO_param {
   char *master_log_name;
   my_off_t master_log_pos;
 
-  MYSQL *mysql;                        /* the connection to master */
+  MYSQL *mysql; /* the connection to master */
 } Binlog_relay_IO_param;
 
 /**
@@ -590,7 +588,8 @@ typedef int (*applier_start_t)(Binlog_relay_IO_param *param);
 typedef int (*applier_stop_t)(Binlog_relay_IO_param *param, bool aborted);
 
 /**
-  This callback is called before slave requesting binlog transmission from master
+  This callback is called before slave requesting binlog transmission from
+  master
 
   This is called before slave issuing BINLOG_DUMP command to master
   to request binlog.
@@ -601,7 +600,8 @@ typedef int (*applier_stop_t)(Binlog_relay_IO_param *param, bool aborted);
   @retval 0 Success
   @retval 1 Failure
 */
-typedef int (*before_request_transmit_t)(Binlog_relay_IO_param *param, uint32 flags);
+typedef int (*before_request_transmit_t)(Binlog_relay_IO_param *param,
+                                         uint32 flags);
 
 /**
   This callback is called after read an event packet from master
@@ -617,7 +617,8 @@ typedef int (*before_request_transmit_t)(Binlog_relay_IO_param *param, uint32 fl
 */
 typedef int (*after_read_event_t)(Binlog_relay_IO_param *param,
                                   const char *packet, unsigned long len,
-                                  const char **event_buf, unsigned long *event_len);
+                                  const char **event_buf,
+                                  unsigned long *event_len);
 
 /**
   This callback is called after written an event packet to relay log
@@ -631,8 +632,8 @@ typedef int (*after_read_event_t)(Binlog_relay_IO_param *param,
   @retval 1 Failure
 */
 typedef int (*after_queue_event_t)(Binlog_relay_IO_param *param,
-                                   const char *event_buf, unsigned long event_len,
-                                   uint32 flags);
+                                   const char *event_buf,
+                                   unsigned long event_len, uint32 flags);
 
 /**
   This callback is called after reset slave relay log IO status
@@ -644,7 +645,6 @@ typedef int (*after_queue_event_t)(Binlog_relay_IO_param *param,
 */
 typedef int (*after_reset_slave_t)(Binlog_relay_IO_param *param);
 
-
 /**
   This callback is called before event gets applied
 
@@ -655,8 +655,7 @@ typedef int (*after_reset_slave_t)(Binlog_relay_IO_param *param);
   @retval 1 Failure
 */
 typedef int (*applier_log_event_t)(Binlog_relay_IO_param *param,
-                                   Trans_param *trans_param,
-                                   int& out);
+                                   Trans_param *trans_param, int &out);
 
 /**
    Observes and extends the service of slave IO thread.
@@ -674,7 +673,6 @@ typedef struct Binlog_relay_IO_observer {
   after_reset_slave_t after_reset_slave;
   applier_log_event_t applier_log_event;
 } Binlog_relay_IO_observer;
-
 
 /**
    Register a transaction observer
@@ -707,7 +705,8 @@ int unregister_trans_observer(Trans_observer *observer, void *p);
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p);
+int register_binlog_storage_observer(Binlog_storage_observer *observer,
+                                     void *p);
 
 /**
    Unregister a binlog storage observer
@@ -718,7 +717,8 @@ int register_binlog_storage_observer(Binlog_storage_observer *observer, void *p)
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void *p);
+int unregister_binlog_storage_observer(Binlog_storage_observer *observer,
+                                       void *p);
 
 /**
    Register a binlog transmit observer
@@ -729,7 +729,8 @@ int unregister_binlog_storage_observer(Binlog_storage_observer *observer, void *
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
+int register_binlog_transmit_observer(Binlog_transmit_observer *observer,
+                                      void *p);
 
 /**
    Unregister a binlog transmit observer
@@ -740,7 +741,8 @@ int register_binlog_transmit_observer(Binlog_transmit_observer *observer, void *
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer, void *p);
+int unregister_binlog_transmit_observer(Binlog_transmit_observer *observer,
+                                        void *p);
 
 /**
    Register a server state observer
@@ -773,7 +775,8 @@ int unregister_server_state_observer(Server_state_observer *observer, void *p);
    @retval 0 Sucess
    @retval 1 Observer already exists
 */
-int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
+int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
+                                      void *p);
 
 /**
    Unregister a binlog relay IO (slave IO thread) observer
@@ -784,7 +787,8 @@ int register_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *
    @retval 0 Sucess
    @retval 1 Observer not exists
 */
-int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void *p);
+int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
+                                        void *p);
 
 /**
    Set thread entering a condition
@@ -793,7 +797,8 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer, void
    a condition. @p mutex should be held before calling this
    function. After being waken up, @c thd_exit_cond should be called.
 
-   @param opaque_thd      The thread entering the condition, NULL means current thread
+   @param opaque_thd      The thread entering the condition, NULL means current
+   thread
    @param cond     The condition the thread is going to wait for
    @param mutex    The mutex associated with the condition, this must be
                    held before call this function
@@ -817,7 +822,8 @@ void thd_enter_cond(void *opaque_thd, mysql_cond_t *cond, mysql_mutex_t *mutex,
    This function should be called after a thread being waken up for a
    condition.
 
-   @param opaque_thd      The thread entering the condition, NULL means current thread
+   @param opaque_thd      The thread entering the condition, NULL means current
+   thread
    @param stage    The process message, usually this should be the old process
                    message before calling @c thd_enter_cond
    @param src_function The caller source function name
@@ -846,8 +852,7 @@ void thd_exit_cond(void *opaque_thd, const PSI_stage_info *stage,
    @retval 0 Success
    @retval 1 Variable not found
 */
-int get_user_var_int(const char *name,
-                     long long int *value, int *null_value);
+int get_user_var_int(const char *name, long long int *value, int *null_value);
 
 /**
    Get the value of user variable as a double precision float number.
@@ -864,8 +869,7 @@ int get_user_var_int(const char *name,
    @retval 0 Success
    @retval 1 Variable not found
 */
-int get_user_var_real(const char *name,
-                      double *value, int *null_value);
+int get_user_var_real(const char *name, double *value, int *null_value);
 
 /**
    Get the value of user variable as a string.
@@ -884,10 +888,8 @@ int get_user_var_real(const char *name,
    @retval 0 Success
    @retval 1 Variable not found
 */
-int get_user_var_str(const char *name,
-                     char *value, size_t len,
+int get_user_var_str(const char *name, char *value, size_t len,
                      unsigned int precision, int *null_value);
-
 
 #ifdef __cplusplus
 }

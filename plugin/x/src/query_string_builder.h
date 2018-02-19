@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -34,61 +34,53 @@
 #include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/query_formatter.h"
 
-struct charset_info_st;
+struct CHARSET_INFO;
 
-namespace xpl
-{
+namespace xpl {
 
-class Query_string_builder
-{
-public:
+class Query_string_builder {
+ public:
   Query_string_builder(size_t reserve = 256);
   ~Query_string_builder();
 
-  Query_string_builder &bquote()
-  {
+  Query_string_builder &bquote() {
     m_str.push_back('\'');
     m_in_quoted = true;
     return *this;
   }
 
-  Query_string_builder &equote()
-  {
+  Query_string_builder &equote() {
     m_str.push_back('\'');
     m_in_quoted = false;
     return *this;
   }
 
-  Query_string_builder &bident()
-  {
+  Query_string_builder &bident() {
     m_str.push_back('`');
     m_in_identifier = true;
     return *this;
   }
 
-  Query_string_builder &eident()
-  {
+  Query_string_builder &eident() {
     m_str.push_back('`');
     m_in_identifier = false;
     return *this;
   }
 
-  Query_string_builder &quote_identifier_if_needed(const char *s, size_t length);
+  Query_string_builder &quote_identifier_if_needed(const char *s,
+                                                   size_t length);
   Query_string_builder &quote_identifier(const char *s, size_t length);
   Query_string_builder &quote_string(const char *s, size_t length);
 
-  Query_string_builder &quote_identifier_if_needed(const std::string &s)
-  {
+  Query_string_builder &quote_identifier_if_needed(const std::string &s) {
     return quote_identifier_if_needed(s.data(), s.length());
   }
 
-  Query_string_builder &quote_identifier(const std::string &s)
-  {
+  Query_string_builder &quote_identifier(const std::string &s) {
     return quote_identifier(s.data(), s.length());
   }
 
-  Query_string_builder &quote_string(const std::string &s)
-  {
+  Query_string_builder &quote_string(const std::string &s) {
     return quote_string(s.data(), s.length());
   }
 
@@ -110,13 +102,11 @@ public:
 
   Query_string_builder &put(const char *s) { return put(s, strlen(s)); }
 
-  Query_string_builder &put(const std::string &s)
-  {
+  Query_string_builder &put(const std::string &s) {
     return put(s.data(), s.length());
   }
 
-  Query_string_builder &put(const ngs::PFS_string &s)
-  {
+  Query_string_builder &put(const ngs::PFS_string &s) {
     return put(s.data(), s.length());
   }
 
@@ -143,28 +133,22 @@ public:
     return *this;
   }
 
-  void clear()
-  {
-    m_str.clear();
-  }
+  void clear() { m_str.clear(); }
 
-  void reserve(size_t bytes)
-  {
-    m_str.reserve(bytes);
-  }
+  void reserve(size_t bytes) { m_str.reserve(bytes); }
 
   const ngs::PFS_string &get() const { return m_str; }
 
-private:
+ private:
   ngs::PFS_string m_str;
   bool m_in_quoted;
   bool m_in_identifier;
 
   static void init_charset();
   static std::once_flag m_charset_initialized;
-  static charset_info_st *m_charset;
+  static CHARSET_INFO *m_charset;
 };
 
-} // namespace xpl
+}  // namespace xpl
 
 #endif

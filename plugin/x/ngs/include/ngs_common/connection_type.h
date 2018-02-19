@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,17 +22,14 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_CONNECTION_TYPE_H_
 #define _NGS_CONNECTION_TYPE_H_
 
 #include "violite.h"
 
-namespace ngs
-{
+namespace ngs {
 
-enum Connection_type
-{
+enum Connection_type {
   Connection_notset,
   Connection_tcpip,
   Connection_unixsocket,
@@ -40,14 +37,13 @@ enum Connection_type
   Connection_namedpipe
 };
 
-class Connection_type_helper
-{
-public:
+class Connection_type_helper {
+ public:
   static Connection_type convert_type(const enum_vio_type type);
   static enum_vio_type convert_type(const Connection_type type);
   static bool is_secure_type(const Connection_type type);
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_CONNECTION_TYPE_H_
+#endif  // _NGS_CONNECTION_TYPE_H_

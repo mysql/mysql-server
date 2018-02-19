@@ -31,38 +31,37 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_account.h"
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_account;
+struct PFS_instr_class;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
   @{
 */
 
-class PFS_index_ews_by_account_by_event_name : public PFS_engine_index
-{
-public:
+class PFS_index_ews_by_account_by_event_name : public PFS_engine_index {
+ public:
   PFS_index_ews_by_account_by_event_name()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("USER"),
-      m_key_2("HOST"),
-      m_key_3("EVENT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("USER"),
+        m_key_2("HOST"),
+        m_key_3("EVENT_NAME") {}
 
-  ~PFS_index_ews_by_account_by_event_name()
-  {
-  }
+  ~PFS_index_ews_by_account_by_event_name() {}
 
   virtual bool match(PFS_account *pfs);
   virtual bool match_view(uint view);
   virtual bool match(PFS_instr_class *instr_class);
 
-private:
+ private:
   PFS_key_user m_key_1;
   PFS_key_host m_key_2;
   PFS_key_event_name m_key_3;
@@ -72,8 +71,7 @@ private:
   A row of table
   PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
 */
-struct row_ews_by_account_by_event_name
-{
+struct row_ews_by_account_by_event_name {
   /** Column USER, HOST. */
   PFS_account_row m_account;
   /** Column EVENT_NAME. */
@@ -90,46 +88,32 @@ struct row_ews_by_account_by_event_name
   Index 3 on instrument class (1 based)
 */
 struct pos_ews_by_account_by_event_name : public PFS_triple_index,
-                                          public PFS_instrument_view_constants
-{
-  pos_ews_by_account_by_event_name() : PFS_triple_index(0, FIRST_VIEW, 1)
-  {
-  }
+                                          public PFS_instrument_view_constants {
+  pos_ews_by_account_by_event_name() : PFS_triple_index(0, FIRST_VIEW, 1) {}
 
-  inline void
-  reset(void)
-  {
+  inline void reset(void) {
     m_index_1 = 0;
     m_index_2 = VIEW_MUTEX;
     m_index_3 = 1;
   }
 
-  inline void
-  next_account(void)
-  {
+  inline void next_account(void) {
     m_index_1++;
     m_index_2 = FIRST_VIEW;
     m_index_3 = 1;
   }
 
-  inline bool
-  has_more_view(void)
-  {
-    return (m_index_2 <= LAST_VIEW);
-  }
+  inline bool has_more_view(void) { return (m_index_2 <= LAST_VIEW); }
 
-  inline void
-  next_view(void)
-  {
+  inline void next_view(void) {
     m_index_2++;
     m_index_3 = 1;
   }
 };
 
 /** Table PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME. */
-class table_ews_by_account_by_event_name : public PFS_engine_table
-{
-public:
+class table_ews_by_account_by_event_name : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -144,23 +128,19 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
 
   table_ews_by_account_by_event_name();
 
-public:
-  ~table_ews_by_account_by_event_name()
-  {
-  }
+ public:
+  ~table_ews_by_account_by_event_name() {}
 
-protected:
+ protected:
   int make_row(PFS_account *account, PFS_instr_class *klass);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */

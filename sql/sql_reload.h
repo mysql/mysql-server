@@ -25,8 +25,8 @@
 class THD;
 struct TABLE_LIST;
 
-bool handle_reload_request(THD *thd, unsigned long options,
-                           TABLE_LIST *tables, int *write_to_binlog);
+bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
+                           int *write_to_binlog);
 
 bool flush_tables_with_read_lock(THD *thd, TABLE_LIST *all_tables);
 

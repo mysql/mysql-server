@@ -23,13 +23,14 @@
 #ifndef DD__COLUMN_STATISTIC_INCLUDED
 #define DD__COLUMN_STATISTIC_INCLUDED
 
-#include "my_alloc.h"                     // MEM_ROOT
-#include "sql/dd/sdi_fwd.h"               // RJ_Document
+#include "my_alloc.h"        // MEM_ROOT
+#include "sql/dd/sdi_fwd.h"  // RJ_Document
 
 class THD;
+struct MDL_key;
 
 namespace histograms {
-  class Histogram;
+class Histogram;
 }
 
 namespace dd {
@@ -42,17 +43,17 @@ class Primary_id_key;
 class Void_key;
 
 namespace tables {
-  class Column_statistics;
+class Column_statistics;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Column_statistics : virtual public Entity_object
-{
-protected:
+class Column_statistics : virtual public Entity_object {
+ protected:
   /// MEM_ROOT on which the histogram data is allocated.
   MEM_ROOT m_mem_root;
-public:
+
+ public:
   typedef Column_statistics_impl Impl;
   typedef Column_statistics Cache_partition;
   typedef tables::Column_statistics DD_table;
@@ -61,21 +62,19 @@ public:
   typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  bool update_id_key(Id_key *key) const { return update_id_key(key, id()); }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
+  bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
 
   static bool update_name_key(Name_key *key, const String_type &name);
 
-  bool update_aux_key(Aux_key*) const
-  { return true; }
+  bool update_aux_key(Aux_key *) const { return true; }
 
-  virtual ~Column_statistics()
-  { };
+  virtual ~Column_statistics(){};
 
   virtual const String_type &schema_name() const = 0;
   virtual void set_schema_name(const String_type &schema_name) = 0;
@@ -102,7 +101,6 @@ public:
   */
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
 
-
   /**
     Re-establishes the state of *this by reading sdi information from
     the rapidjson DOM subobject provided.
@@ -127,19 +125,16 @@ public:
                                  const String_type &table_name,
                                  const String_type &column_name);
 
-  String_type create_name() const
-  {
+  String_type create_name() const {
     return Column_statistics::create_name(schema_name(), table_name(),
                                           column_name());
   }
 
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &table_name,
-                             const String_type &column_name,
-                             MDL_key *key);
+                             const String_type &column_name, MDL_key *key);
 
-  void create_mdl_key(MDL_key *key) const
-  {
+  void create_mdl_key(MDL_key *key) const {
     Column_statistics::create_mdl_key(schema_name(), table_name(),
                                       column_name(), key);
   }
@@ -149,6 +144,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__COLUMN_STATISTIC_INCLUDED
+#endif  // DD__COLUMN_STATISTIC_INCLUDED

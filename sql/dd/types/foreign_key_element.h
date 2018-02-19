@@ -36,20 +36,18 @@ class Foreign_key;
 class Foreign_key_element_impl;
 
 namespace tables {
-  class Foreign_key_column_usage;
+class Foreign_key_column_usage;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Foreign_key_element : virtual public Weak_object
-{
-public:
+class Foreign_key_element : virtual public Weak_object {
+ public:
   typedef Foreign_key_element_impl Impl;
   typedef tables::Foreign_key_column_usage DD_table;
 
-public:
-  virtual ~Foreign_key_element()
-  { };
+ public:
+  virtual ~Foreign_key_element(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Foreign key.
@@ -82,7 +80,6 @@ public:
   virtual const String_type &referenced_column_name() const = 0;
   virtual void referenced_column_name(const String_type &name) = 0;
 
-
   /**
     Converts *this into json.
 
@@ -96,7 +93,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -120,6 +116,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__FOREIGN_KEY_ELEMENT_INCLUDED
+#endif  // DD__FOREIGN_KEY_ELEMENT_INCLUDED

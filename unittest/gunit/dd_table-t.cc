@@ -33,86 +33,72 @@
 
 namespace dd_columns_unittest {
 
-class ColumnsTest: public ::testing::Test
-{
-protected:
-  typedef dd::Collection<dd::Column*> Column_collection;
+class ColumnsTest : public ::testing::Test {
+ protected:
+  typedef dd::Collection<dd::Column *> Column_collection;
   Column_collection m_columns;
   dd::Table_impl *m_table;
 
-  void SetUp()
-  {
-    m_table= dynamic_cast<dd::Table_impl*>(dd::create_object<dd::Table>());
+  void SetUp() {
+    m_table = dynamic_cast<dd::Table_impl *>(dd::create_object<dd::Table>());
   }
 
-  void TearDown()
-  {
-    delete m_table;
-  }
+  void TearDown() { delete m_table; }
 
-  dd::Column *add_column()
-  {
-    return m_table->add_column();
-  }
+  dd::Column *add_column() { return m_table->add_column(); }
 
-  const dd::Column *get_column(dd::String_type name)
-  {
+  const dd::Column *get_column(dd::String_type name) {
     return m_table->get_column(name);
   }
 
-  const Column_collection& columns()
-  {
-    return *m_table->columns();
-  }
+  const Column_collection &columns() { return *m_table->columns(); }
 
   ColumnsTest() {}
-private:
+
+ private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(ColumnsTest);
 };
 
-TEST_F(ColumnsTest, ColumnsConstIterator)
-{
-  dd::Column *c1= add_column();
+TEST_F(ColumnsTest, ColumnsConstIterator) {
+  dd::Column *c1 = add_column();
   c1->set_name("col1");
 
-  dd::Column *c2= add_column();
+  dd::Column *c2 = add_column();
   c2->set_name("col2");
 
-  dd::Column *c3= add_column();
+  dd::Column *c3 = add_column();
   c3->set_name("Col3");
 
-  dd::Column *c4= add_column();
+  dd::Column *c4 = add_column();
   c4->set_name("col3");
 
-  dd::Column *c5= add_column();
+  dd::Column *c5 = add_column();
   c5->set_name("col4");
 
-  const dd::Column *found_c3= get_column("Col3");
+  const dd::Column *found_c3 = get_column("Col3");
   // Column names are case insensitive
-  const dd::Column *found_c3_2= get_column("col3");
-  const dd::Column *found_c5= get_column("col4");
+  const dd::Column *found_c3_2 = get_column("col3");
+  const dd::Column *found_c5 = get_column("col4");
 
   EXPECT_TRUE(found_c3 == c3);
   EXPECT_TRUE(found_c3_2 == c3);
   EXPECT_TRUE(found_c5 == c5);
-
 }
 
-TEST_F(ColumnsTest, Collection)
-{
-  dd::Column *c1= add_column();
+TEST_F(ColumnsTest, Collection) {
+  dd::Column *c1 = add_column();
   c1->set_name("col1");
 
-  dd::Column *c2= add_column();
+  dd::Column *c2 = add_column();
   c2->set_name("col2");
 
-  dd::Column *c3= add_column();
+  dd::Column *c3 = add_column();
   c3->set_name("Col3");
 
-  dd::Column *c4= add_column();
+  dd::Column *c4 = add_column();
   c4->set_name("col3");
 
-  dd::Column *c5= add_column();
+  dd::Column *c5 = add_column();
   c5->set_name("col4");
 
   EXPECT_EQ(c1, columns().front());
@@ -124,4 +110,4 @@ TEST_F(ColumnsTest, Collection)
   EXPECT_EQ(c5, columns()[4]);
 }
 
-}
+}  // namespace dd_columns_unittest

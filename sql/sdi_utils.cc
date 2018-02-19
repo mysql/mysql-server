@@ -26,16 +26,14 @@
 
 #include "my_compiler.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
-
 
 /* purecov: begin deadcode */
 bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
                                  const char *table_name MY_ATTRIBUTE((unused)),
                                  uchar **meta_data MY_ATTRIBUTE((unused)),
-                                 size_t *meta_data_length MY_ATTRIBUTE((unused)))
-{
+                                 size_t *meta_data_length
+                                     MY_ATTRIBUTE((unused))) {
   /*
     TODO: This function is currently not implemented. The procedure here
     will be along the following lines:
@@ -57,16 +55,14 @@ bool create_serialized_meta_data(const char *schema_name MY_ATTRIBUTE((unused)),
     10. Generate a string representation of the serialized meta data.
     11. Assign output parameters and return.
   */
-  *meta_data_length= 0;
-  *meta_data= NULL;
+  *meta_data_length = 0;
+  *meta_data = NULL;
   return false;
 }
 
-
 bool import_serialized_meta_data(const uchar *meta_data MY_ATTRIBUTE((unused)),
                                  size_t meta_data_length MY_ATTRIBUTE((unused)),
-                                 bool readonly MY_ATTRIBUTE((unused)))
-{
+                                 bool readonly MY_ATTRIBUTE((unused))) {
   // TODO: This function is currently not implemented. Return error so
   // that client code will not attempt to open a non-existent table
   my_error(ER_FEATURE_DISABLED, MYF(0), "Serialized metadata import",
@@ -74,12 +70,10 @@ bool import_serialized_meta_data(const uchar *meta_data MY_ATTRIBUTE((unused)),
   return true;
 }
 
-
 bool different_serialized_meta_data(const uchar *a_meta_data,
                                     size_t a_meta_data_length,
                                     const uchar *b_meta_data,
-                                    size_t b_meta_data_length)
-{
+                                    size_t b_meta_data_length) {
   if ((a_meta_data_length != b_meta_data_length) ||
       (memcmp(a_meta_data, b_meta_data, a_meta_data_length)))
     return true;

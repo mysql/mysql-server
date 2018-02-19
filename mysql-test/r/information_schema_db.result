@@ -1,7 +1,4 @@
 set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 drop table if exists t1,t2;
 drop view if exists v1,v2;
 drop function if exists f1;
@@ -53,9 +50,8 @@ create database mbase;
 use `inf%`;
 show tables;
 Tables_in_inf%
+create user 'mysqltest_1'@'localhost';
 grant all privileges on `inf%`.* to 'mysqltest_1'@'localhost';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant all privileges on `mbase`.* to 'mysqltest_1'@'localhost';
 create table t1 (f1 int);
 create function func1(curr_int int) returns int
@@ -243,9 +239,8 @@ drop user testdb_2@localhost;
 create database testdb_1;
 create table testdb_1.t1 (a int);
 create view testdb_1.v1 as select * from testdb_1.t1;
+create user mysqltest_1@localhost;
 grant show view on testdb_1.* to mysqltest_1@localhost;
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
 grant select on testdb_1.v1 to mysqltest_1@localhost;
 select table_schema, table_name, view_definition from information_schema.views
 where table_name='v1';
@@ -264,5 +259,3 @@ ERROR 42000: SELECT command denied to user 'mysqltest_1'@'localhost' for table '
 drop user mysqltest_1@localhost;
 drop database testdb_1;
 set sql_mode= @orig_sql_mode;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.

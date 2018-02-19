@@ -42,31 +42,24 @@
 
 struct PSI_transaction_locker;
 
-#define PSI_TRANSACTION_CALL(M) pfs_ ## M ## _v1
+#define PSI_TRANSACTION_CALL(M) pfs_##M##_v1
 
-C_MODE_START
-
-PSI_transaction_locker*
-pfs_get_thread_transaction_locker_v1(PSI_transaction_locker_state *state,
-                                     const void *xid,
-                                     const ulonglong *trxid,
-                                     int isolation_level,
-                                     bool read_only,
-                                     bool autocommit);
+PSI_transaction_locker *pfs_get_thread_transaction_locker_v1(
+    PSI_transaction_locker_state *state, const void *xid,
+    const ulonglong *trxid, int isolation_level, bool read_only,
+    bool autocommit);
 
 void pfs_start_transaction_v1(PSI_transaction_locker *locker,
                               const char *src_file, uint src_line);
 
-void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker,
-                                const void *xid,
+void pfs_set_transaction_xid_v1(PSI_transaction_locker *locker, const void *xid,
                                 int xa_state);
 
 void pfs_set_transaction_xa_state_v1(PSI_transaction_locker *locker,
                                      int xa_state);
 
 void pfs_set_transaction_gtid_v1(PSI_transaction_locker *locker,
-                                 const void *sid,
-                                 const void *gtid_spec);
+                                 const void *sid, const void *gtid_spec);
 
 void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
                                   const ulonglong *trxid);
@@ -74,19 +67,16 @@ void pfs_set_transaction_trxid_v1(PSI_transaction_locker *locker,
 void pfs_inc_transaction_savepoints_v1(PSI_transaction_locker *locker,
                                        ulong count);
 
-void pfs_inc_transaction_rollback_to_savepoint_v1(PSI_transaction_locker *locker,
-                                                  ulong count);
+void pfs_inc_transaction_rollback_to_savepoint_v1(
+    PSI_transaction_locker *locker, ulong count);
 
 void pfs_inc_transaction_release_savepoint_v1(PSI_transaction_locker *locker,
                                               ulong count);
 
 void pfs_end_transaction_v1(PSI_transaction_locker *locker, bool commit);
 
-C_MODE_END
-
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 #endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_TRANSACTION_INTERFACE */
 
 #endif
-

@@ -14,7 +14,7 @@
 -->recvresult
 EOF
 
---write_file $MYSQL_TMP_DIR/create_socket_on_this_file.sock
+--write_file $MYSQL_TMP_DIR/file.sock
 EOF
 
 --write_file $MYSQL_TMP_DIR/check_connection.tmp
@@ -78,15 +78,15 @@ disconnect socket_con;
 
 # Try to use a file as UNIX socket
 --replace_regex $UNIX_SOCKET_REGEX
-let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/create_socket_on_this_file.sock;
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/file.sock;
 --let $wait_for_unixsocket_status = valid_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/create_socket_on_this_file.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/file.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 
 # Try to use directory as UNIX socket
---let DIR_NAME= directory.sock
+--let DIR_NAME= d.sock
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, .bind... on UNIX socket failed with error");
 --mkdir $MYSQL_TMP_DIR/$DIR_NAME
 --replace_regex $UNIX_SOCKET_REGEX
@@ -103,37 +103,38 @@ let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAM
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .+\.lock");
 --chmod 0000 $MYSQL_TMP_DIR/$DIR_NAME/
 --replace_regex $UNIX_SOCKET_REGEX
-let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/mysqlx.socket;
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/x.sock;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
 --error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/mysqlx.socket -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 --chmod 0777 $MYSQL_TMP_DIR/$DIR_NAME/
 
 
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*no_existing/mysqlx.socket.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*ne/x.sock.lock");
 --replace_regex $UNIX_SOCKET_REGEX
-let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/no_existing/mysqlx.socket;
+# Following directory /no_existing/ was shorten to /ne/
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/$DIR_NAME/ne/x.sock;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --replace_regex $UNIX_SOCKET_REGEX
 --error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/no_existing/mysqlx.socket -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/$DIR_NAME/ne/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 
 --mkdir $MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
 call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, the socket file path is too long");
 --replace_regex $UNIX_SOCKET_REGEX
-let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/mysqlx.socket;
+let $restart_parameters = restart: --loose-mysqlx-socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock;
 --let $wait_for_unixsocket_status = undefined_value
 --source ../include/restart_mysqld_and_wait_for_xplugin.inc
 
 --replace_regex /ERROR: UNIX Socket file name too long, size should be less or equal [0-9]+/ERROR: UNIX Socket file name too long, size should be less or equal LENGTH/
 --error 1
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/mysqlx.socket -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/long_dir012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789/x.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
 
 ## Cleanup
 --rmdir $MYSQL_TMP_DIR/$DIR_NAME

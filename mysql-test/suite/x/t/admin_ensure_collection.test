@@ -163,11 +163,11 @@ ALTER TABLE xtest.books DROP _id
 
 
 -->callmacro Drop_table
--->callmacro Make_table	(doc JSON, _id VARCHAR(32))	 
+-->callmacro Make_table	(doc JSON, _id VARBINARY(32))	 
 -->callmacro Make_collection	ensure_collection	5156
 
 -->callmacro Drop_table
--->callmacro Make_table	(doc INT, _id VARCHAR(32))	 
+-->callmacro Make_table	(doc INT, _id VARBINARY(32))	 
 -->callmacro Make_collection	ensure_collection	5156
 
 -->callmacro Drop_table
@@ -201,7 +201,7 @@ ALTER TABLE xtest.books DROP _id
 -->callmacro Drop_table
 -->sql
 CREATE USER unpriv;
-SET PASSWORD FOR unpriv = PASSWORD('x');
+SET PASSWORD FOR unpriv = 'x';
 GRANT SELECT ON xtest.* TO unpriv;
 -->endsql
 -->newsession unable_to_create	unpriv	x

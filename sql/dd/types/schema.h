@@ -26,7 +26,7 @@
 #include "my_inttypes.h"
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/sdi_fwd.h"               // RJ_Document
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/entity_object.h"   // dd::Entity_object
 
 class THD;
 
@@ -46,14 +46,13 @@ class Void_key;
 class Time_zone;
 
 namespace tables {
-  class Schemata;
+class Schemata;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Schema : virtual public Entity_object
-{
-public:
+class Schema : virtual public Entity_object {
+ public:
   typedef Schema_impl Impl;
   typedef Schema Cache_partition;
   typedef tables::Schemata DD_table;
@@ -62,23 +61,22 @@ public:
   typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
 
-  static bool update_name_key(Name_key *key,
-                              const String_type &name);
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  virtual ~Schema()
-  { };
+ public:
+  virtual ~Schema(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
@@ -101,7 +99,7 @@ public:
   virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
 
-public:
+ public:
   virtual Event *create_event(THD *thd) const = 0;
 
   virtual Function *create_function(THD *thd) const = 0;
@@ -124,6 +122,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__SCHEMA_INCLUDE
+#endif  // DD__SCHEMA_INCLUDE

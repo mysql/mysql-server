@@ -258,8 +258,6 @@ CREATE USER IF NOT EXISTS u1 IDENTIFIED WITH 'xyz';
 ERROR HY000: Plugin 'xyz' is not loaded
 ALTER USER IF EXISTS u1 IDENTIFIED WITH 'xyz';
 ERROR HY000: Plugin 'xyz' is not loaded
-CREATE USER IF NOT EXISTS 'u1'@'%' IDENTIFIED BY PASSWORD 'xyz';
-ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
 include/assert.inc [assert that the above Event has not been added to binlog]
 include/assert.inc [assert that the GTID has not been generated]
 CREATE USER u3;

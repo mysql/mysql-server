@@ -50,17 +50,15 @@ static ulong millisec_to_pico; /* In theory, 1 000 000 000, fits in uint32 */
 
 /* Indexed by enum enum_timer_name */
 static struct time_normalizer
-  to_pico_data[FIRST_TIMER_NAME + COUNT_TIMER_NAME] = {
-    {0, 0, {0}}, /* pico (identity) */
-    {0, 0, {0}}, /* cycle */
-    {0, 0, {0}}, /* nanosec */
-    {0, 0, {0}}, /* microsec */
-    {0, 0, {0}}, /* millisec */
+    to_pico_data[FIRST_TIMER_NAME + COUNT_TIMER_NAME] = {
+        {0, 0, {0}}, /* pico (identity) */
+        {0, 0, {0}}, /* cycle */
+        {0, 0, {0}}, /* nanosec */
+        {0, 0, {0}}, /* microsec */
+        {0, 0, {0}}, /* millisec */
 };
 
-void
-init_timers(void)
-{
+void init_timers(void) {
   double pico_frequency = 1.0e12;
 
   my_timer_init(&pfs_timer_info);
@@ -70,43 +68,31 @@ init_timers(void)
   microsec_v0 = my_timer_microseconds();
   millisec_v0 = my_timer_milliseconds();
 
-  if (pfs_timer_info.cycles.frequency > 0)
-  {
+  if (pfs_timer_info.cycles.frequency > 0) {
     cycle_to_pico =
-      lrint(pico_frequency / (double)pfs_timer_info.cycles.frequency);
-  }
-  else
-  {
+        lrint(pico_frequency / (double)pfs_timer_info.cycles.frequency);
+  } else {
     cycle_to_pico = 0;
   }
 
-  if (pfs_timer_info.nanoseconds.frequency > 0)
-  {
-    nanosec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
-  }
-  else
-  {
+  if (pfs_timer_info.nanoseconds.frequency > 0) {
+    nanosec_to_pico =
+        lrint(pico_frequency / (double)pfs_timer_info.nanoseconds.frequency);
+  } else {
     nanosec_to_pico = 0;
   }
 
-  if (pfs_timer_info.microseconds.frequency > 0)
-  {
-    microsec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.microseconds.frequency);
-  }
-  else
-  {
+  if (pfs_timer_info.microseconds.frequency > 0) {
+    microsec_to_pico =
+        lrint(pico_frequency / (double)pfs_timer_info.microseconds.frequency);
+  } else {
     microsec_to_pico = 0;
   }
 
-  if (pfs_timer_info.milliseconds.frequency > 0)
-  {
-    millisec_to_pico = lrint(
-      pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
-  }
-  else
-  {
+  if (pfs_timer_info.milliseconds.frequency > 0) {
+    millisec_to_pico =
+        lrint(pico_frequency / (double)pfs_timer_info.milliseconds.frequency);
+  } else {
     millisec_to_pico = 0;
   }
 
@@ -138,24 +124,18 @@ init_timers(void)
   uint timer_index;
 
   for (timer_index = FIRST_TIMER_NAME; timer_index <= LAST_TIMER_NAME;
-       timer_index++)
-  {
+       timer_index++) {
     time_normalizer *normalizer = &to_pico_data[timer_index];
     ulonglong to_pico = normalizer->m_factor;
     ulonglong bucket_index;
 
-    if (to_pico != 0)
-    {
-      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
-      {
+    if (to_pico != 0) {
+      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++) {
         normalizer->m_bucket_timer[bucket_index] =
-          g_histogram_pico_timers.m_bucket_timer[bucket_index] / to_pico;
+            g_histogram_pico_timers.m_bucket_timer[bucket_index] / to_pico;
       }
-    }
-    else
-    {
-      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++)
-      {
+    } else {
+      for (bucket_index = 0; bucket_index < NUMBER_OF_BUCKETS; bucket_index++) {
         normalizer->m_bucket_timer[bucket_index] = 0;
       }
     }
@@ -164,68 +144,46 @@ init_timers(void)
   }
 }
 
-time_normalizer *
-time_normalizer::get_idle()
-{
+time_normalizer *time_normalizer::get_idle() {
   return &to_pico_data[USED_TIMER_NAME];
 }
 
-time_normalizer *
-time_normalizer::get_wait()
-{
+time_normalizer *time_normalizer::get_wait() {
   return &to_pico_data[TIMER_NAME_CYCLE];
 }
 
-time_normalizer *
-time_normalizer::get_stage()
-{
+time_normalizer *time_normalizer::get_stage() {
   return &to_pico_data[USED_TIMER_NAME];
 }
 
-time_normalizer *
-time_normalizer::get_statement()
-{
+time_normalizer *time_normalizer::get_statement() {
   return &to_pico_data[USED_TIMER_NAME];
 }
 
-time_normalizer *
-time_normalizer::get_transaction()
-{
+time_normalizer *time_normalizer::get_transaction() {
   return &to_pico_data[USED_TIMER_NAME];
 }
 
-void
-time_normalizer::to_pico(ulonglong start,
-                         ulonglong end,
-                         ulonglong *pico_start,
-                         ulonglong *pico_end,
-                         ulonglong *pico_wait)
-{
-  if (start == 0)
-  {
+void time_normalizer::to_pico(ulonglong start, ulonglong end,
+                              ulonglong *pico_start, ulonglong *pico_end,
+                              ulonglong *pico_wait) {
+  if (start == 0) {
     *pico_start = 0;
     *pico_end = 0;
     *pico_wait = 0;
-  }
-  else
-  {
+  } else {
     *pico_start = (start - m_v0) * m_factor;
-    if (end == 0)
-    {
+    if (end == 0) {
       *pico_end = 0;
       *pico_wait = 0;
-    }
-    else
-    {
+    } else {
       *pico_end = (end - m_v0) * m_factor;
       *pico_wait = (end - start) * m_factor;
     }
   }
 }
 
-ulong
-time_normalizer::bucket_index(ulonglong t)
-{
+ulong time_normalizer::bucket_index(ulonglong t) {
   ulong low = 0;
   ulong mid;
   ulong high = NUMBER_OF_BUCKETS;
@@ -233,17 +191,13 @@ time_normalizer::bucket_index(ulonglong t)
   DBUG_ASSERT(m_bucket_timer[low] <= t);
   DBUG_ASSERT(t <= m_bucket_timer[high]);
 
-  do
-  {
+  do {
     mid = (low + high) / 2;
     DBUG_ASSERT(low < mid);
     DBUG_ASSERT(mid < high);
-    if (t < m_bucket_timer[mid])
-    {
+    if (t < m_bucket_timer[mid]) {
       high = mid;
-    }
-    else
-    {
+    } else {
       low = mid;
     }
   } while (low + 1 < high);

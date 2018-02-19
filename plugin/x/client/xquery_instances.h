@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,6 @@
 
 #include <memory>
 
-
 namespace xcl {
 
 class Query_instances {
@@ -38,8 +37,7 @@ class Query_instances {
   using Instance_id = uint64_t;
 
  public:
-  virtual ~Query_instances() {
-  }
+  virtual ~Query_instances() {}
 
   virtual Instance_id instances_fetch_begin() = 0;
   virtual void instances_fetch_end() = 0;

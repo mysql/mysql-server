@@ -27,20 +27,19 @@
 
 #include "my_inttypes.h"
 
-
 /** Forward declarations. */
 
 class Create_field;
 class THD;
-template <class T> class List;
+template <class T>
+class List;
 
 namespace dd {
-  class Column;
-  class Table;
-}
+class Column;
+class Table;
+}  // namespace dd
 struct TABLE;
 struct TABLE_SHARE;
-
 
 /**
   Find the largest field among a list of create fields.
@@ -53,7 +52,6 @@ struct TABLE_SHARE;
 */
 
 size_t max_pack_length(const List<Create_field> &create_fields);
-
 
 /**
   Prepare the default value of a single column.
@@ -83,7 +81,6 @@ size_t max_pack_length(const List<Create_field> &create_fields);
 
 bool prepare_default_value(THD *thd, uchar *buf, const TABLE &table,
                            const Create_field &field, dd::Column *col_obj);
-
 
 /**
   Prepare the default value buffer for an empty record.

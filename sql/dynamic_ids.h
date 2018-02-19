@@ -25,16 +25,14 @@
 
 #include <sys/types.h>
 
-#include "mysql/udf_registration_types.h"
 #include "prealloced_array.h"
 
 class String;
 
-class Server_ids
-{
-public:
+class Server_ids {
+ public:
   Server_ids();
-  ~Server_ids() { };
+  ~Server_ids(){};
 
   Prealloced_array<ulong, 16> dynamic_ids;
 

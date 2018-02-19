@@ -26,7 +26,7 @@
 
 #include <gtest/gtest.h>
 
-#include "sql/key.h"                            // KEY
+#include "sql/key.h"  // KEY
 
 namespace key_unittest {
 
@@ -34,8 +34,7 @@ namespace key_unittest {
   Test the API for setting and getting in-memory estimates.
 */
 
-TEST(KeyInMemoryEstimate, InMemoryEstimateAPI)
-{ 
+TEST(KeyInMemoryEstimate, InMemoryEstimateAPI) {
   KEY key;
 
   /*
@@ -63,4 +62,4 @@ TEST(KeyInMemoryEstimate, InMemoryEstimateAPI)
   EXPECT_EQ(key.in_memory_estimate(), 0.5);
 }
 
-}
+}  // namespace key_unittest

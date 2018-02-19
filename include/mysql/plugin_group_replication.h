@@ -40,14 +40,15 @@
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_connection_status_callbacks
-{
-  void* const context;
-  void (*set_channel_name)(void* const context, const char& value, size_t length);
-  void (*set_group_name)(void* const context, const char& value, size_t length);
-  void (*set_source_uuid)(void* const context, const char& value, size_t length);
-  void (*set_service_state)(void* const context, bool state);
-} GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
+struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_group_name)(void *const context, const char &value, size_t length);
+  void (*set_source_uuid)(void *const context, const char &value,
+                          size_t length);
+  void (*set_service_state)(void *const context, bool state);
+};
 
 /*
   Callbacks for get_group_members_info function.
@@ -58,17 +59,21 @@ typedef struct st_group_replication_connection_status_callbacks
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_group_members_callbacks
-{
-  void* const context;
-  void (*set_channel_name)(void* const context, const char& value, size_t length);
-  void (*set_member_id)(void* const context, const char& value, size_t length);
-  void (*set_member_host)(void* const context, const char& value, size_t length);
-  void (*set_member_port)(void* const context, unsigned int value);
-  void (*set_member_state)(void* const context, const char& value, size_t length);
-  void (*set_member_role)(void* const context, const char& value, size_t length);
-  void (*set_member_version)(void* const context, const char& value, size_t length);
-} GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS;
+struct GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_id)(void *const context, const char &value, size_t length);
+  void (*set_member_host)(void *const context, const char &value,
+                          size_t length);
+  void (*set_member_port)(void *const context, unsigned int value);
+  void (*set_member_state)(void *const context, const char &value,
+                           size_t length);
+  void (*set_member_role)(void *const context, const char &value,
+                          size_t length);
+  void (*set_member_version)(void *const context, const char &value,
+                             size_t length);
+};
 
 /*
   Callbacks for get_group_member_stats_info function.
@@ -79,26 +84,35 @@ typedef struct st_group_replication_group_members_callbacks
 
   All callbacks are mandatory.
 */
-typedef struct st_group_replication_member_stats_callbacks
-{
-  void* const context;
-  void (*set_channel_name)(void* const context, const char& value, size_t length);
-  void (*set_view_id)(void* const context, const char& value, size_t length);
-  void (*set_member_id)(void* const context, const char& value, size_t length);
-  void (*set_transactions_committed)(void* const context, const char& value, size_t length);
-  void (*set_last_conflict_free_transaction)(void* const context, const char& value, size_t length);
-  void (*set_transactions_in_queue)(void* const context, unsigned long long int value);
-  void (*set_transactions_certified)(void* const context, unsigned long long int value);
-  void (*set_transactions_conflicts_detected)(void* const context, unsigned long long int value);
-  void (*set_transactions_rows_in_validation)(void* const context, unsigned long long int value);
-  void (*set_transactions_remote_applier_queue)(void* const context, unsigned long long int value);
-  void (*set_transactions_remote_applied)(void* const context, unsigned long long int value);
-  void (*set_transactions_local_proposed)(void* const context, unsigned long long int value);
-  void (*set_transactions_local_rollback)(void* const context, unsigned long long int value);
-} GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS;
+struct GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS {
+  void *const context;
+  void (*set_channel_name)(void *const context, const char &value,
+                           size_t length);
+  void (*set_view_id)(void *const context, const char &value, size_t length);
+  void (*set_member_id)(void *const context, const char &value, size_t length);
+  void (*set_transactions_committed)(void *const context, const char &value,
+                                     size_t length);
+  void (*set_last_conflict_free_transaction)(void *const context,
+                                             const char &value, size_t length);
+  void (*set_transactions_in_queue)(void *const context,
+                                    unsigned long long int value);
+  void (*set_transactions_certified)(void *const context,
+                                     unsigned long long int value);
+  void (*set_transactions_conflicts_detected)(void *const context,
+                                              unsigned long long int value);
+  void (*set_transactions_rows_in_validation)(void *const context,
+                                              unsigned long long int value);
+  void (*set_transactions_remote_applier_queue)(void *const context,
+                                                unsigned long long int value);
+  void (*set_transactions_remote_applied)(void *const context,
+                                          unsigned long long int value);
+  void (*set_transactions_local_proposed)(void *const context,
+                                          unsigned long long int value);
+  void (*set_transactions_local_rollback)(void *const context,
+                                          unsigned long long int value);
+};
 
-struct st_mysql_group_replication
-{
+struct st_mysql_group_replication {
   int interface_version;
 
   /*
@@ -119,10 +133,11 @@ struct st_mysql_group_replication
 
    @param info  View_change_log_event with conflict checking info.
   */
-  int (*set_retrieved_certification_info)(void* info);
+  int (*set_retrieved_certification_info)(void *info);
 
   /*
-    This function is used to fetch information for group replication kernel stats.
+    This function is used to fetch information for group replication kernel
+    stats.
 
     @param callbacks The set of callbacks and its context used to set the
                      information on caller.
@@ -130,8 +145,8 @@ struct st_mysql_group_replication
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_connection_status_info)
-       (const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS& callbacks);
+  bool (*get_connection_status_info)(
+      const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);
 
   /*
     This function is used to fetch information for group replication members.
@@ -144,12 +159,13 @@ struct st_mysql_group_replication
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_members_info)
-       (unsigned int index,
-        const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS& callbacks);
+  bool (*get_group_members_info)(
+      unsigned int index,
+      const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks);
 
   /*
-    This function is used to fetch information for group replication members statistics.
+    This function is used to fetch information for group replication members
+    statistics.
 
     @param index     Row index for which information needs to be fetched
 
@@ -159,9 +175,9 @@ struct st_mysql_group_replication
     @note The caller is responsible to free memory from the info structure and
           from all its fields.
   */
-  bool (*get_group_member_stats_info)
-       (unsigned int index,
-        const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS& callbacks);
+  bool (*get_group_member_stats_info)(
+      unsigned int index,
+      const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 
   /*
     Get number of group replication members.
@@ -170,4 +186,3 @@ struct st_mysql_group_replication
 };
 
 #endif
-

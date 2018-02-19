@@ -29,7 +29,6 @@ SET(MYSQLSERVICES_SOURCES
   service_command.c
   locking_service.c
   srv_session_service.c
-  my_snprintf_service.c
   thd_alloc_service.c
   thd_wait_service.c
   my_plugin_log_service.c

@@ -20,8 +20,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <mysql/components/service_implementation.h>
 #include "english_greeting_service_imp.h"
+#include <mysql/components/service_implementation.h>
 #include "example_services.h"
 
 /**
@@ -34,9 +34,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @retval true failure
 */
 DEFINE_BOOL_METHOD(english_greeting_service_imp::say_hello,
-  (const char** hello_string))
-{
-  *hello_string= "Hello, World.";
+                   (const char **hello_string)) {
+  *hello_string = "Hello, World.";
   return false;
 }
 
@@ -50,8 +49,7 @@ DEFINE_BOOL_METHOD(english_greeting_service_imp::say_hello,
   @retval true failure
 */
 DEFINE_BOOL_METHOD(english_greeting_service_imp::get_language,
-  (const char** language_string))
-{
-  *language_string= "English";
+                   (const char **language_string)) {
+  *language_string = "English";
   return false;
 }

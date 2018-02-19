@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,33 +33,31 @@
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
-namespace ngs
-{
+namespace ngs {
 
-  class Client_interface;
+class Client_interface;
 
+class Capabilities_configurator {
+ public:
+  Capabilities_configurator(
+      const std::vector<Capability_handler_ptr> &capabilities);
+  virtual ~Capabilities_configurator() {}
 
-  class Capabilities_configurator
-  {
-  public:
-    Capabilities_configurator(const std::vector<Capability_handler_ptr> &capabilities);
-    virtual ~Capabilities_configurator() {}
+  virtual ::Mysqlx::Connection::Capabilities *get();
 
-    virtual ::Mysqlx::Connection::Capabilities *get();
+  virtual ngs::Error_code prepare_set(
+      const ::Mysqlx::Connection::Capabilities &capabilities);
+  virtual void commit();
 
-    virtual ngs::Error_code prepare_set(const ::Mysqlx::Connection::Capabilities &capabilities);
-    virtual void commit();
+  void add_handler(Capability_handler_ptr handler);
 
-    void add_handler(Capability_handler_ptr handler);
-  private:
-    Capability_handler_ptr get_capabilitie_by_name(const std::string &name);
+ private:
+  Capability_handler_ptr get_capabilitie_by_name(const std::string &name);
 
-    std::vector<Capability_handler_ptr>  m_capabilities;
-    std::vector<Capability_handler_ptr>  m_capabilities_prepared;
-  };
+  std::vector<Capability_handler_ptr> m_capabilities;
+  std::vector<Capability_handler_ptr> m_capabilities_prepared;
+};
 
+}  // namespace ngs
 
-} // namespace ngs
-
-
-#endif // _NGS_CAPABILITIES_CONFIGURATOR_H_
+#endif  // _NGS_CAPABILITIES_CONFIGURATOR_H_

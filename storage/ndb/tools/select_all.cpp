@@ -32,6 +32,8 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp> 
 #include <NdbSleep.h>
+
+#include "my_alloc.h"
  
 int scanReadRecords(Ndb*, 
 		    const NdbDictionary::Table*, 

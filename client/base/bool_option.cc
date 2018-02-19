@@ -27,16 +27,14 @@
 using namespace Mysql::Tools::Base::Options;
 using std::string;
 
-Bool_option::Bool_option(bool* value, string name, string description)
-  : Abstract_option<Bool_option>(value, GET_BOOL, name, description, false)
-{
-  this->m_option_structure.arg_type= NO_ARG;
-  *value= false;
+Bool_option::Bool_option(bool *value, string name, string description)
+    : Abstract_option<Bool_option>(value, GET_BOOL, name, description, false) {
+  this->m_option_structure.arg_type = NO_ARG;
+  *value = false;
 }
 
-Bool_option* Bool_option::set_value(bool value)
-{
-  *(bool*)this->m_option_structure.value= value;
-  this->m_option_structure.def_value= (longlong)value;
+Bool_option *Bool_option::set_value(bool value) {
+  *(bool *)this->m_option_structure.value = value;
+  this->m_option_structure.def_value = (longlong)value;
   return this;
 }

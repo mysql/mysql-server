@@ -25,7 +25,7 @@
 
 #include <stdio.h>
 
-#include "element_map.h"                      // Element_map
+#include "element_map.h"  // Element_map
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/charset.h"
 #include "sql/dd/types/collation.h"
@@ -42,7 +42,6 @@ namespace cache {
 
 template <typename T>
 class Cache_element;
-
 
 /**
   Implementation of a set of maps for a given object type.
@@ -61,71 +60,73 @@ class Cache_element;
 */
 
 template <typename T>
-class Multi_map_base
-{
-private:
-  Element_map<const T*, Cache_element<T> > m_rev_map;   // Reverse element map.
+class Multi_map_base {
+ private:
+  Element_map<const T *, Cache_element<T>> m_rev_map;  // Reverse element map.
 
-  Element_map<typename T::Id_key, Cache_element<T> >
-                                          m_id_map;     // Id map instance.
-  Element_map<typename T::Name_key, Cache_element<T> >
-                                          m_name_map;   // Name map instance.
-  Element_map<typename T::Aux_key, Cache_element<T> >
-                                          m_aux_map;    // Aux map instance.
+  Element_map<typename T::Id_key, Cache_element<T>>
+      m_id_map;  // Id map instance.
+  Element_map<typename T::Name_key, Cache_element<T>>
+      m_name_map;  // Name map instance.
+  Element_map<typename T::Aux_key, Cache_element<T>>
+      m_aux_map;  // Aux map instance.
 
-  template <typename K> struct Type_selector { }; // Dummy type to use for
-                                                  // selecting map instance.
-
+  template <typename K>
+  struct Type_selector {};  // Dummy type to use for
+                            // selecting map instance.
 
   /**
     Overloaded functions to use for selecting an element list instance
     based on a key type. Const and non-const variants.
   */
 
-  Element_map<const T*, Cache_element<T> >
-    *m_map(Type_selector<const T*>)
-  { return &m_rev_map; }
+  Element_map<const T *, Cache_element<T>> *m_map(Type_selector<const T *>) {
+    return &m_rev_map;
+  }
 
-  const Element_map<const T*, Cache_element<T> >
-    *m_map(Type_selector<const T*>) const
-  { return &m_rev_map; }
+  const Element_map<const T *, Cache_element<T>> *m_map(
+      Type_selector<const T *>) const {
+    return &m_rev_map;
+  }
 
-  Element_map<typename T::Id_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Id_key>)
-  { return &m_id_map; }
+  Element_map<typename T::Id_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Id_key>) {
+    return &m_id_map;
+  }
 
-  const Element_map<typename T::Id_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Id_key>) const
-  { return &m_id_map; }
+  const Element_map<typename T::Id_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Id_key>) const {
+    return &m_id_map;
+  }
 
-  Element_map<typename T::Name_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Name_key>)
-  { return &m_name_map; }
+  Element_map<typename T::Name_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Name_key>) {
+    return &m_name_map;
+  }
 
-  const Element_map<typename T::Name_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Name_key>) const
-  { return &m_name_map; }
+  const Element_map<typename T::Name_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Name_key>) const {
+    return &m_name_map;
+  }
 
-  Element_map<typename T::Aux_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Aux_key>)
-  { return &m_aux_map; }
+  Element_map<typename T::Aux_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Aux_key>) {
+    return &m_aux_map;
+  }
 
-  const Element_map<typename T::Aux_key, Cache_element<T> >
-    *m_map(Type_selector<typename T::Aux_key>) const
-  { return &m_aux_map; }
+  const Element_map<typename T::Aux_key, Cache_element<T>> *m_map(
+      Type_selector<typename T::Aux_key>) const {
+    return &m_aux_map;
+  }
 
-  public:
-
+ public:
   // Iterate based on the reverse map where all elements must be present.
-  typedef typename Element_map<const T*,
-                     Cache_element<T> >::Const_iterator Const_iterator;
+  typedef typename Element_map<const T *, Cache_element<T>>::Const_iterator
+      Const_iterator;
 
-  typedef typename Element_map<const T*,
-                     Cache_element<T> >::Iterator Iterator;
+  typedef typename Element_map<const T *, Cache_element<T>>::Iterator Iterator;
 
-protected:
-
-
+ protected:
   /**
     Template function to get an element map.
 
@@ -140,13 +141,14 @@ protected:
    */
 
   template <typename K>
-  Element_map<K, Cache_element<T> > *m_map()
-  { return m_map(Type_selector<K>()); }
+  Element_map<K, Cache_element<T>> *m_map() {
+    return m_map(Type_selector<K>());
+  }
 
   template <typename K>
-  const Element_map<K, Cache_element<T> > *m_map() const
-  { return m_map(Type_selector<K>()); }
-
+  const Element_map<K, Cache_element<T>> *m_map() const {
+    return m_map(Type_selector<K>());
+  }
 
   /**
     Helper function to remove the mapping of a single element, without
@@ -157,7 +159,6 @@ protected:
   */
 
   void remove_single_element(Cache_element<T> *element);
-
 
   /**
     Helper function to add a single element.
@@ -171,17 +172,15 @@ protected:
 
   void add_single_element(Cache_element<T> *element);
 
-
   /**
     Debug dump of the multi map base to stderr.
   */
 
   /* purecov: begin inspected */
-  void dump() const
-  {
+  void dump() const {
 #ifndef DBUG_OFF
     fprintf(stderr, "    Reverse element map:\n");
-    m_map<const T*>()->dump();
+    m_map<const T *>()->dump();
     fprintf(stderr, "    Id map:\n");
     m_map<typename T::Id_key>()->dump();
     fprintf(stderr, "    Name map:\n");
@@ -193,7 +192,7 @@ protected:
   /* purecov: end */
 };
 
-} // namespace cache
-} // namespace dd
+}  // namespace cache
+}  // namespace dd
 
-#endif // DD_CACHE__MULTI_MAP_BASE_INCLUDED
+#endif  // DD_CACHE__MULTI_MAP_BASE_INCLUDED

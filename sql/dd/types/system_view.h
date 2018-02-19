@@ -23,7 +23,7 @@
 #ifndef DD__SYSTEM_VIEW_INCLUDED
 #define DD__SYSTEM_VIEW_INCLUDED
 
-#include "sql/dd/string_type.h"                // dd::String_type
+#include "sql/dd/string_type.h"  // dd::String_type
 
 namespace dd {
 namespace system_views {
@@ -35,11 +35,9 @@ class System_view_definition;
   defined in sql/dd/impl/system_views/ headers.
 */
 
-class System_view
-{
-public:
-  virtual ~System_view()
-  { }
+class System_view {
+ public:
+  virtual ~System_view() {}
 
   /*
     Get name of system view.
@@ -53,7 +51,7 @@ public:
 
     @return SQL String.
   */
-  virtual const System_view_definition *view_definition() const= 0;
+  virtual const System_view_definition *view_definition() const = 0;
 
   /*
     Check if the system view is to be hidden from users.
@@ -62,10 +60,10 @@ public:
             false If system view is not hidden.
 
   */
-  virtual bool hidden() const= 0;
+  virtual bool hidden() const = 0;
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD__SYSTEM_VIEW_INCLUDED
+#endif  // DD__SYSTEM_VIEW_INCLUDED

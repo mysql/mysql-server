@@ -28,6 +28,8 @@
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 
+#include "my_alloc.h"
+
 void desc_AutoGrowSpecification(struct NdbDictionary::AutoGrowSpecification ags);
 int desc_logfilegroup(Ndb *myndb, char const* name);
 int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char const* name);

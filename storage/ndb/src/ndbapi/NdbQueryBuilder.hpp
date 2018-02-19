@@ -27,6 +27,8 @@
 #include <stdlib.h>
 #include <ndb_types.h>
 
+#include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
+
 // this file is currently not located in include/ndbapi
 // skip includes...and require them to be included first
 // BUH!

@@ -25,10 +25,6 @@
 
 #include "my_psi_config.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @file include/mysql/psi/psi_base.h
   Performance schema instrumentation interface.
@@ -120,8 +116,7 @@ extern "C" {
 
 #define PSI_COUNT_VOLATILITY 9
 
-struct PSI_placeholder
-{
+struct PSI_placeholder {
   int m_placeholder;
 };
 
@@ -129,9 +124,5 @@ struct PSI_placeholder
     @} (end of group psi_abi)
   @} (end of group instrumentation_interface)
 */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MYSQL_PSI_BASE_H */

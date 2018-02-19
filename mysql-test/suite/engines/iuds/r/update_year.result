@@ -1,7 +1,5 @@
 DROP TABLE IF EXISTS t1,t2,t3,t4;
 SET sql_mode='NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(c1 YEAR NOT NULL,c2 YEAR, PRIMARY KEY(c1));
 CREATE TABLE t2(c1 YEAR NOT NULL, c2 YEAR, UNIQUE INDEX idx(c1,c2));
 CREATE TABLE t3(c1 YEAR(4) NOT NULL,c2 YEAR(4), PRIMARY KEY(c1));

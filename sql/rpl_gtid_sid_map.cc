@@ -37,31 +37,25 @@
 #include "sql/thr_malloc.h"
 
 #ifndef MYSQL_SERVER
-#include "client/mysqlbinlog.h" // IWYU pragma: keep
+#include "client/mysqlbinlog.h"  // IWYU pragma: keep
 #endif
 
-extern "C" {
 PSI_memory_key key_memory_Sid_map_Node;
-}
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock),
-    _sidno_to_sid(key_memory_Sid_map_Node), _sorted(key_memory_Sid_map_Node)
-{
+    : sid_lock(_sid_lock),
+      _sidno_to_sid(key_memory_Sid_map_Node),
+      _sorted(key_memory_Sid_map_Node) {
   DBUG_ENTER("Sid_map::Sid_map");
   DBUG_VOID_RETURN;
 }
 
-
-Sid_map::~Sid_map()
-{
+Sid_map::~Sid_map() {
   DBUG_ENTER("Sid_map::~Sid_map");
   DBUG_VOID_RETURN;
 }
 
-
-enum_return_status Sid_map::clear()
-{
+enum_return_status Sid_map::clear() {
   DBUG_ENTER("Sid_map::clear");
   _sid_to_sidno.clear();
   _sidno_to_sid.clear();
@@ -69,49 +63,40 @@ enum_return_status Sid_map::clear()
   RETURN_OK;
 }
 
-rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
-{
+rpl_sidno Sid_map::add_sid(const rpl_sid &sid) {
   DBUG_ENTER("Sid_map::add_sid(const rpl_sid *)");
 #ifndef DBUG_OFF
   char buf[binary_log::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
   DBUG_PRINT("info", ("SID=%s", buf));
 #endif
-  if (sid_lock)
-    sid_lock->assert_some_lock();
-  auto it= _sid_to_sidno.find(sid);
-  if (it != _sid_to_sidno.end())
-  {
+  if (sid_lock) sid_lock->assert_some_lock();
+  auto it = _sid_to_sidno.find(sid);
+  if (it != _sid_to_sidno.end()) {
     DBUG_PRINT("info", ("existed as sidno=%d", it->second->sidno));
     DBUG_RETURN(it->second->sidno);
   }
 
-  bool is_wrlock= false;
-  if (sid_lock)
-  {
-    is_wrlock= sid_lock->is_wrlock();
-    if (!is_wrlock)
-    {
+  bool is_wrlock = false;
+  if (sid_lock) {
+    is_wrlock = sid_lock->is_wrlock();
+    if (!is_wrlock) {
       sid_lock->unlock();
       sid_lock->wrlock();
     }
   }
   DBUG_PRINT("info", ("is_wrlock=%d sid_lock=%p", is_wrlock, sid_lock));
   rpl_sidno sidno;
-  it= _sid_to_sidno.find(sid);
+  it = _sid_to_sidno.find(sid);
   if (it != _sid_to_sidno.end())
-    sidno= it->second->sidno;
-  else
-  {
-    sidno= get_max_sidno() + 1;
-    if (add_node(sidno, sid) != RETURN_STATUS_OK)
-      sidno= -1;
+    sidno = it->second->sidno;
+  else {
+    sidno = get_max_sidno() + 1;
+    if (add_node(sidno, sid) != RETURN_STATUS_OK) sidno = -1;
   }
 
-  if (sid_lock)
-  {
-    if (!is_wrlock)
-    {
+  if (sid_lock) {
+    if (!is_wrlock) {
       sid_lock->unlock();
       sid_lock->rdlock();
     }
@@ -119,24 +104,18 @@ rpl_sidno Sid_map::add_sid(const rpl_sid &sid)
   DBUG_RETURN(sidno);
 }
 
-enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
-{
+enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid) {
   DBUG_ENTER("Sid_map::add_node(rpl_sidno, const rpl_sid *)");
-  if (sid_lock)
-    sid_lock->assert_some_wrlock();
-  unique_ptr_my_free<Node> node
-    ((Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME)));
-  if (node == nullptr)
-    RETURN_REPORTED_ERROR;
+  if (sid_lock) sid_lock->assert_some_wrlock();
+  unique_ptr_my_free<Node> node(
+      (Node *)my_malloc(key_memory_Sid_map_Node, sizeof(Node), MYF(MY_WME)));
+  if (node == nullptr) RETURN_REPORTED_ERROR;
 
-  node->sidno= sidno;
-  node->sid= sid;
-  if (!_sidno_to_sid.push_back(node.get()))
-  {
-    if (!_sorted.push_back(sidno))
-    {
-      if (_sid_to_sidno.emplace(node->sid, std::move(node)).second)
-      {
+  node->sidno = sidno;
+  node->sid = sid;
+  if (!_sidno_to_sid.push_back(node.get())) {
+    if (!_sorted.push_back(sidno)) {
+      if (_sid_to_sidno.emplace(node->sid, std::move(node)).second) {
 #ifdef MYSQL_SERVER
         /*
           If this is the global_sid_map, we take the opportunity to
@@ -148,19 +127,18 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
         {
           // We have added one element to the end of _sorted.  Now we
           // bubble it down to the sorted position.
-          int sorted_i= sidno - 1;
-          rpl_sidno *prev_sorted_p= &_sorted[sorted_i];
+          int sorted_i = sidno - 1;
+          rpl_sidno *prev_sorted_p = &_sorted[sorted_i];
           sorted_i--;
-          while (sorted_i >= 0)
-          {
-            rpl_sidno *sorted_p= &_sorted[sorted_i];
-            const rpl_sid &other_sid= sidno_to_sid(*sorted_p);
+          while (sorted_i >= 0) {
+            rpl_sidno *sorted_p = &_sorted[sorted_i];
+            const rpl_sid &other_sid = sidno_to_sid(*sorted_p);
             if (memcmp(sid.bytes, other_sid.bytes,
                        binary_log::Uuid::BYTE_LENGTH) >= 0)
               break;
             memcpy(prev_sorted_p, sorted_p, sizeof(rpl_sidno));
             sorted_i--;
-            prev_sorted_p= sorted_p;
+            prev_sorted_p = sorted_p;
           }
           memcpy(prev_sorted_p, &sidno, sizeof(rpl_sidno));
           RETURN_OK;
@@ -175,20 +153,16 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
   RETURN_REPORTED_ERROR;
 }
 
-
-enum_return_status Sid_map::copy(Sid_map *dest)
-{
+enum_return_status Sid_map::copy(Sid_map *dest) {
   DBUG_ENTER("Sid_map::copy(Sid_map)");
-  enum_return_status return_status= RETURN_STATUS_OK;
+  enum_return_status return_status = RETURN_STATUS_OK;
 
-  rpl_sidno max_sidno= get_max_sidno();
-  for (rpl_sidno sidno= 1;
-       sidno <= max_sidno && return_status == RETURN_STATUS_OK;
-       sidno++)
-  {
+  rpl_sidno max_sidno = get_max_sidno();
+  for (rpl_sidno sidno = 1;
+       sidno <= max_sidno && return_status == RETURN_STATUS_OK; sidno++) {
     rpl_sid sid;
     sid.copy_from(sidno_to_sid(sidno));
-    return_status= dest->add_node(sidno, sid);
+    return_status = dest->add_node(sidno, sid);
   }
 
   DBUG_RETURN(return_status);

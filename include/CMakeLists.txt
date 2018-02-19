@@ -28,7 +28,6 @@
 # automatically generated.
 SET(HEADERS
   errmsg.h
-  mem_root_fwd.h
   my_command.h
   my_list.h
   mysql.h

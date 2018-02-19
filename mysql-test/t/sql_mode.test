@@ -25,70 +25,6 @@ show variables like 'sql_mode';
 #Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
-set @@sql_mode="no_table_options";
-show variables like 'sql_mode';
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set @@sql_mode="no_key_options";
-show variables like 'sql_mode';
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set @@sql_mode="no_field_options,mysql323,mysql40";
-show variables like 'sql_mode';
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set sql_mode="postgresql,oracle,mssql,db2,maxdb";
-select @@sql_mode;
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-drop table t1;
-
-#
-# Check that a binary collation adds 'binary'
-# suffix into a char() column definition in
-# mysql40 and mysql2323 modes. This allows
-# not to lose the column's case sensitivity
-# when loading the dump in pre-4.1 servers.
-#
-# Thus, in 4.0 and 3.23 modes we dump:
-#
-#   'char(10) collate xxx_bin' as 'char(10) binary'
-#   'binary(10)' as 'binary(10)'
-#
-# In mysql-4.1 these types are different, and they will
-# be recreated differently.
-#
-# In mysqld-4.0 the the above two types were the same,
-# so it will create a 'char(10) binary' column for both definitions.
-#
-CREATE TABLE t1 (
- a char(10),
- b char(10) collate latin1_bin,
- c binary(10)
-) character set latin1;
-set @@sql_mode="";
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set @@sql_mode="mysql323";
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set @@sql_mode="mysql40";
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
 drop table t1;
 
 #
@@ -136,11 +72,6 @@ set session sql_mode=ansi;
 create table t1
 (f1 integer auto_increment primary key,
  f2 timestamp not null default current_timestamp on update current_timestamp);
-
-#Replace default engine value with static engine string
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-set session sql_mode=no_field_options;
 
 #Replace default engine value with static engine string
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -315,7 +246,7 @@ select @@sql_mode;
 # BUG#14675
 set sql_mode=4194304;
 select @@sql_mode;
-set sql_mode=16384+(65536*4);
+set sql_mode=32+(65536*4);
 select @@sql_mode;
 --error 1231
 set sql_mode=4294967296*2; # that mode does not exist

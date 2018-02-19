@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,53 +20,52 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 /*
   Derived tables
   These were introduced by Sinisa <sinisa@mysql.com>
 */
 
-
 #include "sql/sql_derived.h"
 
 #include <stddef.h>
+#include <string.h>
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_base.h"
 #include "my_bitmap.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
-#include "mysql/udf_registration_types.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
-#include "sql/debug_sync.h"                   // DEBUG_SYNC
+#include "sql/debug_sync.h"  // DEBUG_SYNC
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/mem_root_array.h"
-#include "sql/mysqld.h"                    // internal_tmp_disk_storage_engine
-#include "sql/opt_trace.h"                    // opt_trace_disable_etc
+#include "sql/mysqld.h"     // internal_tmp_disk_storage_engine
+#include "sql/opt_trace.h"  // opt_trace_disable_etc
 #include "sql/query_options.h"
-#include "sql/sql_base.h"                     // EXTRA_RECORD
+#include "sql/sql_base.h"  // EXTRA_RECORD
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_opt_exec_shared.h"
-#include "sql/sql_optimizer.h"                // JOIN
-#include "sql/sql_tmp_table.h"                // Tmp tables
-#include "sql/sql_union.h"                    // Query_result_union
-#include "sql/sql_view.h"                     // check_duplicate_names
+#include "sql/sql_optimizer.h"  // JOIN
+#include "sql/sql_tmp_table.h"  // Tmp tables
+#include "sql/sql_union.h"      // Query_result_union
+#include "sql/sql_view.h"       // check_duplicate_names
 #include "sql/system_variables.h"
 #include "sql/table.h"
-#include "sql/temp_table_param.h"
 #include "sql/table_function.h"
+#include "sql/temp_table_param.h"
 #include "thr_lock.h"
 
 class Opt_trace_context;
-
+struct MI_COLUMNDEF;
 
 /**
    Produces, from the first tmp TABLE object, a clone TABLE object for
@@ -169,8 +168,7 @@ class Opt_trace_context;
    @returns New clone, or NULL if error
 */
 
-TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
-{
+TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
 #ifndef DBUG_OFF
   /*
     We're adding a clone; if another clone has been opened before, it was not
@@ -178,15 +176,14 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
     necessary logic to share data among clones. Check that no clone is open:
   */
   Derived_refs_iterator it(tmp_tables[0]);
-  while (TABLE *t= it.get_next())
+  while (TABLE *t = it.get_next())
     DBUG_ASSERT(!t->is_created() && !t->materialized);
 #endif
-  TABLE *first= tmp_tables[0]->table;
+  TABLE *first = tmp_tables[0]->table;
   // Allocate clone on the memory root of the TABLE_SHARE.
-  TABLE *t=
-    static_cast<TABLE *>(alloc_root(&first->s->mem_root, sizeof(TABLE)));
-  if (!t)
-    return nullptr;                             /* purecov: inspected */
+  TABLE *t =
+      static_cast<TABLE *>(alloc_root(&first->s->mem_root, sizeof(TABLE)));
+  if (!t) return nullptr; /* purecov: inspected */
   /*
     Share's of derived tables has key descriptions that can't be properly
     processed by open_table_from_share(). Luckily we never get such tables
@@ -201,35 +198,33 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
                             0,
                             /* We need record[1] for this TABLE instance. */
                             EXTRA_RECORD |
-                            /*
-                              Use DELAYED_OPEN to have its own record[0]
-                              (necessary because db_stat is 0).
-                              Otherwise it would be shared with 'first'
-                              and thus a write to tmp table would modify
-                              the row just read by readers.
-                            */
-                            DELAYED_OPEN,
-                            0, t, FALSE, nullptr))
-    return nullptr;                             /* purecov: inspected */
+                                /*
+                                  Use DELAYED_OPEN to have its own record[0]
+                                  (necessary because db_stat is 0).
+                                  Otherwise it would be shared with 'first'
+                                  and thus a write to tmp table would modify
+                                  the row just read by readers.
+                                */
+                                DELAYED_OPEN,
+                            0, t, false, nullptr))
+    return nullptr; /* purecov: inspected */
   DBUG_ASSERT(t->s == first->s && t != first && t->file != first->file);
   t->s->ref_count++;
 
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);
-  t->reginfo.lock_type= TL_WRITE;
-  t->copy_blobs= 1;
+  t->reginfo.lock_type = TL_WRITE;
+  t->copy_blobs = 1;
 
-  tl->table= t;
-  t->pos_in_table_list= tl;
+  tl->table = t;
+  t->pos_in_table_list = tl;
 
   t->set_not_started();
 
-  if (tmp_tables.push_back(tl))
-    return nullptr;                             /* purecov: inspected */
+  if (tmp_tables.push_back(tl)) return nullptr; /* purecov: inspected */
 
   return t;
 }
-
 
 /**
    Replaces the recursive reference in query block 'sl' with a clone of
@@ -240,21 +235,18 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl)
 
    @returns true if error
 */
-bool
-Common_table_expr::substitute_recursive_reference(THD *thd, SELECT_LEX *sl)
-{
-  TABLE_LIST *tl= sl->recursive_reference;
+bool Common_table_expr::substitute_recursive_reference(THD *thd,
+                                                       SELECT_LEX *sl) {
+  TABLE_LIST *tl = sl->recursive_reference;
   DBUG_ASSERT(tl != nullptr && tl->table == nullptr);
-  TABLE *t= clone_tmp_table(thd, tl);
-  if (t == nullptr)
-    return true;                                /* purecov: inspected */
+  TABLE *t = clone_tmp_table(thd, tl);
+  if (t == nullptr) return true; /* purecov: inspected */
   // Eliminate the dummy unit:
   tl->derived_unit()->exclude_tree();
   tl->set_derived_unit(NULL);
   tl->set_privileges(SELECT_ACL);
   return false;
 }
-
 
 /**
   Resolve a derived table or view reference, including recursively resolving
@@ -266,8 +258,7 @@ Common_table_expr::substitute_recursive_reference(THD *thd, SELECT_LEX *sl)
   @returns false if success, true if error
 */
 
-bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
-{
+bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin) {
   DBUG_ENTER("TABLE_LIST::resolve_derived");
 
   /*
@@ -275,35 +266,33 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
     and THD::derived_tables_processing. These members are changed in this
     method scope for resolving derived tables.
   */
-  class Context_handler
-  {
-  public:
+  class Context_handler {
+   public:
     Context_handler(THD *thd)
-      : m_thd(thd),
-        m_allow_sum_func_saved(thd->lex->allow_sum_func),
-        m_deny_window_func_saved(thd->lex->m_deny_window_func),
-        m_derived_tables_processing_saved(thd->derived_tables_processing)
-    {
+        : m_thd(thd),
+          m_allow_sum_func_saved(thd->lex->allow_sum_func),
+          m_deny_window_func_saved(thd->lex->m_deny_window_func),
+          m_derived_tables_processing_saved(thd->derived_tables_processing) {
       /*
         Since derived tables do not allow outer references, they cannot allow
         aggregation to occur in any outer query blocks.
       */
-      m_thd->lex->allow_sum_func= 0;
+      m_thd->lex->allow_sum_func = 0;
       /*
         Window functions are allowed; they're aggregated in the derived
         table's definition.
       */
-      m_thd->lex->m_deny_window_func= 0;
-      m_thd->derived_tables_processing= true;
+      m_thd->lex->m_deny_window_func = 0;
+      m_thd->derived_tables_processing = true;
     }
 
-    ~Context_handler()
-    {
-      m_thd->lex->allow_sum_func= m_allow_sum_func_saved;
-      m_thd->lex->m_deny_window_func= m_deny_window_func_saved;
-      m_thd->derived_tables_processing= m_derived_tables_processing_saved;
+    ~Context_handler() {
+      m_thd->lex->allow_sum_func = m_allow_sum_func_saved;
+      m_thd->lex->m_deny_window_func = m_deny_window_func_saved;
+      m_thd->derived_tables_processing = m_derived_tables_processing_saved;
     }
-  private:
+
+   private:
     // Thread handle.
     THD *m_thd;
 
@@ -326,28 +315,25 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   Context_handler ctx_handler(thd);
 
   if (derived->prepare_limit(thd, derived->global_parameters()))
-    DBUG_RETURN(true);              /* purecov: inspected */
+    DBUG_RETURN(true); /* purecov: inspected */
 
 #ifndef DBUG_OFF
-  for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
-  {
+  for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
     // Make sure there are no outer references
     DBUG_ASSERT(sl->context.outer_context == NULL);
   }
 #endif
 
   if (m_common_table_expr && m_common_table_expr->recursive &&
-      !derived->is_recursive()) // in first resolution @todo delete in WL#6570
+      !derived->is_recursive())  // in first resolution @todo delete in WL#6570
   {
     // Ensure it's UNION.
-    if (!derived->is_union())
-    {
+    if (!derived->is_union()) {
       my_error(ER_CTE_RECURSIVE_REQUIRES_UNION, MYF(0), alias);
       DBUG_RETURN(true);
     }
     if (derived->global_parameters()->is_ordered() ||
-        derived->global_parameters()->has_limit())
-    {
+        derived->global_parameters()->has_limit()) {
       /*
         ORDER BY applied to the UNION causes the use of the union tmp
         table. The fake_select_lex would want to sort that table, which isn't
@@ -364,7 +350,8 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
         on it, to control depth level, which sounds more intelligent than a
         limit.
       */
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ORDER BY / LIMIT over UNION "
+      my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+               "ORDER BY / LIMIT over UNION "
                "in recursive Common Table Expression");
       DBUG_RETURN(true);
     }
@@ -376,14 +363,11 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
       In SQL standard terms, the CTE must be "expandable" except that we allow
       it to have more than one recursive SELECT.
     */
-    bool previous_is_recursive= false;
-    SELECT_LEX *last_non_recursive= NULL;
-    for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
-    {
-      if (sl->is_recursive())
-      {
-        if (sl->is_ordered() || sl->has_limit() || sl->is_distinct())
-        {
+    bool previous_is_recursive = false;
+    SELECT_LEX *last_non_recursive = NULL;
+    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select()) {
+      if (sl->is_recursive()) {
+        if (sl->is_ordered() || sl->has_limit() || sl->is_distinct()) {
           /*
             On top of posing implementation problems, it looks meaningless to
             want to order/limit every iterative sub-result.
@@ -397,8 +381,7 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
                    " in recursive query block of Common Table Expression");
           DBUG_RETURN(true);
         }
-        if (sl == derived->union_distinct && sl->next_select())
-        {
+        if (sl == derived->union_distinct && sl->next_select()) {
           /*
             Consider
               anchor UNION ALL rec1 UNION DISTINCT rec2 UNION ALL rec3:
@@ -410,40 +393,35 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
             it is followed by another QB (necessarily connected with ALL),
             reject the query.
           */
-          my_error(ER_NOT_SUPPORTED_YET, MYF(0), "recursive query blocks with"
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                   "recursive query blocks with"
                    " UNION DISTINCT then UNION ALL, in recursive "
                    "Common Table Expression");
           DBUG_RETURN(true);
         }
-      }
-      else
-      {
-        if (previous_is_recursive)
-        {
-          my_error(ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST, MYF(0),
-                   alias);
+      } else {
+        if (previous_is_recursive) {
+          my_error(ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST, MYF(0), alias);
           DBUG_RETURN(true);
         }
-        last_non_recursive= sl;
+        last_non_recursive = sl;
       }
-      previous_is_recursive= sl->is_recursive();
+      previous_is_recursive = sl->is_recursive();
     }
-    if (last_non_recursive == nullptr)
-    {
-      my_error(ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST, MYF(0),
-               alias);
+    if (last_non_recursive == nullptr) {
+      my_error(ER_CTE_RECURSIVE_REQUIRES_NONRECURSIVE_FIRST, MYF(0), alias);
       DBUG_RETURN(true);
     }
-    derived->first_recursive= last_non_recursive->next_select();
+    derived->first_recursive = last_non_recursive->next_select();
     DBUG_ASSERT(derived->is_recursive());
   }
 
   DEBUG_SYNC(thd, "derived_not_set");
 
-  derived->derived_table= this;
+  derived->derived_table = this;
 
-  if (!(derived_result= new (thd->mem_root) Query_result_union(thd)))
-    DBUG_RETURN(true);              /* purecov: inspected */
+  if (!(derived_result = new (thd->mem_root) Query_result_union(thd)))
+    DBUG_RETURN(true); /* purecov: inspected */
 
   /*
     Prepare the underlying query expression of the derived table.
@@ -456,50 +434,43 @@ bool TABLE_LIST::resolve_derived(THD *thd, bool apply_semijoin)
   if (check_duplicate_names(m_derived_column_names, derived->types, 0))
     DBUG_RETURN(true);
 
-  if (is_derived())
-  {
+  if (is_derived()) {
     // The underlying tables of a derived table are all readonly:
-    for (SELECT_LEX *sl= derived->first_select(); sl; sl= sl->next_select())
+    for (SELECT_LEX *sl = derived->first_select(); sl; sl = sl->next_select())
       sl->set_tables_readonly();
-  /*
-    A derived table is transparent with respect to privilege checking.
-    This setting means that privilege checks ignore the derived table
-    and are done properly in underlying base tables and views.
-    SELECT_ACL is used because derived tables cannot be used for update,
-    delete or insert.
-  */
+    /*
+      A derived table is transparent with respect to privilege checking.
+      This setting means that privilege checks ignore the derived table
+      and are done properly in underlying base tables and views.
+      SELECT_ACL is used because derived tables cannot be used for update,
+      delete or insert.
+    */
     set_privileges(SELECT_ACL);
   }
 
   DBUG_RETURN(false);
 }
 
-
 /// Helper function for TABLE_LIST::setup_materialized_derived()
-static void
-swap_column_names_of_unit_and_tmp_table(List<Item> &unit_items,
-                                        const Create_col_name_list
-                                        &tmp_table_col_names)
-{
+static void swap_column_names_of_unit_and_tmp_table(
+    List<Item> &unit_items, const Create_col_name_list &tmp_table_col_names) {
   if (unit_items.elements != tmp_table_col_names.size())
     // check_duplicate_names() will find and report error
     return;
   List_iterator_fast<Item> li(unit_items);
   Item *item;
-  uint fieldnr= 0;
-  while ((item= li++))
-  {
-    const char *s= item->item_name.ptr();
-    size_t l= item->item_name.length();
-    LEX_CSTRING &other_name=
-      const_cast<LEX_CSTRING&>(tmp_table_col_names[fieldnr]);
+  uint fieldnr = 0;
+  while ((item = li++)) {
+    const char *s = item->item_name.ptr();
+    size_t l = item->item_name.length();
+    LEX_CSTRING &other_name =
+        const_cast<LEX_CSTRING &>(tmp_table_col_names[fieldnr]);
     item->item_name.set(other_name.str, other_name.length);
-    other_name.str= s;
-    other_name.length= l;
+    other_name.str = s;
+    other_name.length = l;
     fieldnr++;
   }
 }
-
 
 /**
   Prepare a derived table or view for materialization.
@@ -512,9 +483,8 @@ bool TABLE_LIST::setup_materialized_derived(THD *thd)
 
 {
   return setup_materialized_derived_tmp_table(thd) ||
-    derived->check_materialized_derived_query_blocks(thd);
+         derived->check_materialized_derived_query_blocks(thd);
 }
-
 
 /**
   Sets up the tmp table to contain the derived table's rows.
@@ -530,42 +500,37 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
-  Opt_trace_context *const trace= &thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, is_view() ? "view" : "derived");
-  trace_derived.add_utf8_table(this).
-    add("select#", derived->first_select()->select_number).
-    add("materialized", true);
+  trace_derived.add_utf8_table(this)
+      .add("select#", derived->first_select()->select_number)
+      .add("materialized", true);
 
   set_uses_materialization();
 
   // From resolver POV, columns of this table are readonly
   set_readonly();
 
-  if (m_common_table_expr && m_common_table_expr->tmp_tables.size() > 0)
-  {
+  if (m_common_table_expr && m_common_table_expr->tmp_tables.size() > 0) {
     trace_derived.add("reusing_tmp_table", true);
-    table= m_common_table_expr->clone_tmp_table(thd, this);
-    if (table == nullptr)
-      DBUG_RETURN(true);                        /* purecov: inspected */
-    derived_result->table= table;
+    table = m_common_table_expr->clone_tmp_table(thd, this);
+    if (table == nullptr) DBUG_RETURN(true); /* purecov: inspected */
+    derived_result->table = table;
   }
 
-  if (table == NULL)
-  {
+  if (table == NULL) {
     // Create the result table for the materialization
     if (m_common_table_expr &&
-        internal_tmp_disk_storage_engine != TMP_TABLE_INNODB)
-    {
+        internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
       my_error(ER_SWITCH_TMP_ENGINE, MYF(0),
                "Materialization of a Common Table Expression");
       DBUG_RETURN(true);
     }
-    ulonglong create_options= derived->first_select()->active_options() |
-      TMP_TABLE_ALL_COLUMNS;
+    ulonglong create_options =
+        derived->first_select()->active_options() | TMP_TABLE_ALL_COLUMNS;
 
-    if (m_derived_column_names)
-    {
+    if (m_derived_column_names) {
       /*
         Tmp table's columns will be created from derived->types (the SELECT
         list), names included.
@@ -577,40 +542,35 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
                                               *m_derived_column_names);
     }
 
-    bool rc= derived_result->create_result_table(thd, &derived->types, false,
-                                                 create_options,
-                                                 alias, false, false);
+    bool rc = derived_result->create_result_table(
+        thd, &derived->types, false, create_options, alias, false, false);
 
-    if (m_derived_column_names)                 // Restore names
+    if (m_derived_column_names)  // Restore names
       swap_column_names_of_unit_and_tmp_table(derived->types,
                                               *m_derived_column_names);
 
-    if (rc)
-      DBUG_RETURN(true);        /* purecov: inspected */
+    if (rc) DBUG_RETURN(true); /* purecov: inspected */
 
-    table= derived_result->table;
-    table->pos_in_table_list= this;
-    if (m_common_table_expr &&
-        m_common_table_expr->tmp_tables.push_back(this))
-      DBUG_RETURN(true);                        /* purecov: inspected */
+    table = derived_result->table;
+    table->pos_in_table_list = this;
+    if (m_common_table_expr && m_common_table_expr->tmp_tables.push_back(this))
+      DBUG_RETURN(true); /* purecov: inspected */
   }
 
   // Detect cases which common_table_expr::clone_tmp_table() couldn't clone:
-  DBUG_ASSERT(!table->s->keys && !table->s->key_info &&
-              !table->hash_field && !table->group && !table->distinct);
+  DBUG_ASSERT(!table->s->keys && !table->s->key_info && !table->hash_field &&
+              !table->group && !table->distinct);
 
   // Make table's name same as the underlying materialized table
   set_name_temporary();
 
-  table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
+  table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
   // Table is "nullable" if inner table of an outer_join
-  if (is_inner_table_of_outer_join())
-    table->set_nullable();
+  if (is_inner_table_of_outer_join()) table->set_nullable();
 
   DBUG_RETURN(false);
 }
-
 
 /**
   Sets up query blocks belonging to the query expression of a materialized
@@ -619,10 +579,8 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
   @return false if successful, true if error
 */
 
-bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
-{
-  for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
-  {
+bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg) {
+  for (SELECT_LEX *sl = first_select(); sl; sl = sl->next_select()) {
     // All underlying tables are read-only
     sl->set_tables_readonly();
     /*
@@ -635,8 +593,7 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
       SELECT privilege is needed for all materialized derived tables and views,
       and columns must be marked for read.
     */
-    if (sl->check_view_privileges(thd_arg, SELECT_ACL, SELECT_ACL))
-      return true;
+    if (sl->check_view_privileges(thd_arg, SELECT_ACL, SELECT_ACL)) return true;
 
     // Set all selected fields to be read:
     // @todo Do not set fields that are not referenced from outer query
@@ -645,8 +602,7 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
     Item *item;
     Column_privilege_tracker tracker(thd_arg, SELECT_ACL);
     Mark_field mf(thd_arg->mark_used_columns);
-    while ((item= it++))
-    {
+    while ((item = it++)) {
       if (item->walk(&Item::check_column_privileges, Item::WALK_PREFIX,
                      (uchar *)thd_arg))
         return true;
@@ -656,7 +612,6 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
   return false;
 }
 
-
 /**
   Prepare a table function for materialization.
 
@@ -664,67 +619,62 @@ bool SELECT_LEX_UNIT::check_materialized_derived_query_blocks(THD *thd_arg)
 
   @return false if successful, true if error
 */
-bool TABLE_LIST::setup_table_function(THD *thd)
-{
+bool TABLE_LIST::setup_table_function(THD *thd) {
   DBUG_ENTER("TABLE_LIST::setup_table_function");
 
   DBUG_ASSERT(is_table_function());
 
   DBUG_PRINT("info", ("algorithm: TEMPORARY TABLE"));
 
-  Opt_trace_context *const trace= &thd->opt_trace;
+  Opt_trace_context *const trace = &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object trace_derived(trace, "table_function");
   char *func_name;
   uint func_name_len;
-  func_name= (char*)table_function->func_name();
-  func_name_len= strlen(func_name);
+  func_name = (char *)table_function->func_name();
+  func_name_len = strlen(func_name);
 
   set_uses_materialization();
 
-  if (table_function->init())
-    DBUG_RETURN(TRUE);
+  if (table_function->init()) DBUG_RETURN(true);
 
   // Create the result table for the materialization
-  if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB)
-  {
+  if (internal_tmp_disk_storage_engine != TMP_TABLE_INNODB) {
     my_error(ER_SWITCH_TMP_ENGINE, MYF(0), "Table function");
     DBUG_RETURN(true);
   }
 
   if (table_function->create_result_table(0LL, alias))
-    DBUG_RETURN(true);        /* purecov: inspected */
-  table= table_function->table;
-  table->pos_in_table_list= this;
+    DBUG_RETURN(true); /* purecov: inspected */
+  table = table_function->table;
+  table->pos_in_table_list = this;
 
-  table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
+  table->s->tmp_table = NON_TRANSACTIONAL_TMP_TABLE;
 
   // Table is "nullable" if inner table of an outer_join
-  if (is_inner_table_of_outer_join())
-    table->set_nullable();
+  if (is_inner_table_of_outer_join()) table->set_nullable();
 
-  const char *saved_where= thd->where;
-  thd->where= "a table function argument";
-  enum_mark_columns saved_mark= thd->mark_used_columns;
-  thd->mark_used_columns= MARK_COLUMNS_READ;
-  if (table_function->init_args())
-  {
-    thd->mark_used_columns= saved_mark;
+  const char *saved_where = thd->where;
+  thd->where = "a table function argument";
+  enum_mark_columns saved_mark = thd->mark_used_columns;
+  thd->mark_used_columns = MARK_COLUMNS_READ;
+  if (table_function->init_args()) {
+    thd->mark_used_columns = saved_mark;
     DBUG_RETURN(true);
   }
-  thd->mark_used_columns= saved_mark;
+  thd->mark_used_columns = saved_mark;
+  set_privileges(SELECT_ACL);
   /*
     Trace needs to be here as it'ss print the table, and columns have to be
     set up at the moment of printing.
   */
-  trace_derived.add_utf8_table(this).
-    add_utf8("function_name", func_name, func_name_len).
-    add("materialized", true);
-  thd->where= saved_where;
+  trace_derived.add_utf8_table(this)
+      .add_utf8("function_name", func_name, func_name_len)
+      .add("materialized", true);
+  thd->where = saved_where;
 
   DBUG_RETURN(false);
 }
-
 
 /**
   Optimize the query expression representing a derived table/view.
@@ -738,16 +688,14 @@ bool TABLE_LIST::setup_table_function(THD *thd)
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::optimize_derived(THD *thd)
-{
+bool TABLE_LIST::optimize_derived(THD *thd) {
   DBUG_ENTER("TABLE_LIST::optimize_derived");
 
-  SELECT_LEX_UNIT *const unit= derived_unit();
+  SELECT_LEX_UNIT *const unit = derived_unit();
 
   DBUG_ASSERT(unit && !unit->is_optimized());
 
-  if (unit->optimize(thd) || thd->is_error())
-    DBUG_RETURN(true);
+  if (unit->optimize(thd) || thd->is_error()) DBUG_RETURN(true);
 
   if (materializable_is_const() &&
       (create_materialized_table(thd) || materialize_derived(thd)))
@@ -755,7 +703,6 @@ bool TABLE_LIST::optimize_derived(THD *thd)
 
   DBUG_RETURN(false);
 }
-
 
 /**
   Create result table for a materialized derived table/view/table function.
@@ -768,24 +715,19 @@ bool TABLE_LIST::optimize_derived(THD *thd)
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::create_materialized_table(THD *thd)
-{
+bool TABLE_LIST::create_materialized_table(THD *thd) {
   DBUG_ENTER("TABLE_LIST::create_materialized_table");
 
-  SELECT_LEX_UNIT *const unit= is_table_function() ? NULL : derived_unit();
+  SELECT_LEX_UNIT *const unit = is_table_function() ? NULL : derived_unit();
 
   // @todo: Be able to assert !table->is_created() as well
-  DBUG_ASSERT((unit || is_table_function()) &&
-              uses_materialization() && table);
+  DBUG_ASSERT((unit || is_table_function()) && uses_materialization() && table);
 
-  if (!table->is_created())
-  {
+  if (!table->is_created()) {
     Derived_refs_iterator it(this);
-    while (TABLE *t= it.get_next())
-      if (t->is_created())
-      {
-        if (open_tmp_table(table))
-          DBUG_RETURN(true);                    /* purecov: inspected */
+    while (TABLE *t = it.get_next())
+      if (t->is_created()) {
+        if (open_tmp_table(table)) DBUG_RETURN(true); /* purecov: inspected */
         break;
       }
   }
@@ -795,20 +737,18 @@ bool TABLE_LIST::create_materialized_table(THD *thd)
     1) Table is already created, or
     2) Table is a constant one with all NULL values.
   */
-  if (table->is_created() ||                              // 1
-      (select_lex->join != NULL &&                        // 2
-       (select_lex->join->const_table_map & map())))      // 2
+  if (table->is_created() ||                          // 1
+      (select_lex->join != NULL &&                    // 2
+       (select_lex->join->const_table_map & map())))  // 2
   {
-    /*
-      At this point, JT_CONST derived tables should be null rows. Otherwise
-      they would have been materialized already.
-    */
+  /*
+    At this point, JT_CONST derived tables should be null rows. Otherwise
+    they would have been materialized already.
+  */
 #ifndef DBUG_OFF
-    if (table != NULL)
-    {
-      QEP_TAB *tab= table->reginfo.qep_tab;
-      DBUG_ASSERT(tab == NULL ||
-                  tab->type() != JT_CONST ||
+    if (table != NULL) {
+      QEP_TAB *tab = table->reginfo.qep_tab;
+      DBUG_ASSERT(tab == NULL || tab->type() != JT_CONST ||
                   table->has_null_row());
     }
 #endif
@@ -817,26 +757,21 @@ bool TABLE_LIST::create_materialized_table(THD *thd)
   /* create tmp table */
   MI_COLUMNDEF *start_recinfo;
   MI_COLUMNDEF **recinfo;
-  if (!is_table_function())
-  {
-    Query_result_union *result= (Query_result_union*)unit->query_result();
-    start_recinfo= result->tmp_table_param.start_recinfo;
-    recinfo= &result->tmp_table_param.recinfo;
-  }
-  else
-  {
-    start_recinfo= NULL;
-    recinfo= NULL;
+  if (!is_table_function()) {
+    Query_result_union *result = (Query_result_union *)unit->query_result();
+    start_recinfo = result->tmp_table_param.start_recinfo;
+    recinfo = &result->tmp_table_param.recinfo;
+  } else {
+    start_recinfo = NULL;
+    recinfo = NULL;
   }
 
-  ulonglong options= thd->lex->select_lex->active_options() |
-                      TMP_TABLE_ALL_COLUMNS |
-                      (is_table_function() ? 0 :
-                       unit->first_select()->active_options());
-  if (instantiate_tmp_table(thd, table, table->key_info,
-                            start_recinfo, recinfo, options,
-                            thd->variables.big_tables))
-    DBUG_RETURN(true);        /* purecov: inspected */
+  ulonglong options =
+      thd->lex->select_lex->active_options() | TMP_TABLE_ALL_COLUMNS |
+      (is_table_function() ? 0 : unit->first_select()->active_options());
+  if (instantiate_tmp_table(thd, table, table->key_info, start_recinfo, recinfo,
+                            options, thd->variables.big_tables))
+    DBUG_RETURN(true); /* purecov: inspected */
 
   /*
     HA_EXTRA_WRITE_CACHE has the theoretical effect that written rows may be
@@ -853,7 +788,6 @@ bool TABLE_LIST::create_materialized_table(THD *thd)
   DBUG_RETURN(false);
 }
 
-
 /**
   Materialize derived table
 
@@ -869,17 +803,15 @@ bool TABLE_LIST::create_materialized_table(THD *thd)
   @returns false if success, true if error.
 */
 
-bool TABLE_LIST::materialize_derived(THD *thd)
-{
+bool TABLE_LIST::materialize_derived(THD *thd) {
   DBUG_ENTER("TABLE_LIST::materialize_derived");
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
   DBUG_ASSERT(table && table->is_created() && !table->materialized);
 
   Derived_refs_iterator it(this);
-  while (TABLE *t= it.get_next())
-    if (t->materialized)
-    {
-      table->materialized= true;
+  while (TABLE *t = it.get_next())
+    if (t->materialized) {
+      table->materialized = true;
       DBUG_RETURN(false);
     }
 
@@ -894,19 +826,16 @@ bool TABLE_LIST::materialize_derived(THD *thd)
   */
   DBUG_ASSERT(table->s->primary_key == MAX_KEY);
 
-  SELECT_LEX_UNIT *const unit= derived_unit();
-  bool res= false;
+  SELECT_LEX_UNIT *const unit = derived_unit();
+  bool res = false;
 
-  if (unit->is_union())
-  {
+  if (unit->is_union()) {
     // execute union without clean up
-    res= unit->execute(thd);
-  }
-  else
-  {
-    SELECT_LEX *first_select= unit->first_select();
-    JOIN *join= first_select->join;
-    SELECT_LEX *save_current_select= thd->lex->current_select();
+    res = unit->execute(thd);
+  } else {
+    SELECT_LEX *first_select = unit->first_select();
+    JOIN *join = first_select->join;
+    SELECT_LEX *save_current_select = thd->lex->current_select();
     thd->lex->set_current_select(first_select);
 
     DBUG_ASSERT(join && join->is_optimized());
@@ -914,31 +843,27 @@ bool TABLE_LIST::materialize_derived(THD *thd)
     unit->set_limit(thd, first_select);
 
     join->exec();
-    res= join->error;
+    res = join->error;
     thd->lex->set_current_select(save_current_select);
   }
 
-  if (!res)
-  {
+  if (!res) {
     /*
       Here we entirely fix both TABLE_LIST and list of SELECT's as
       there were no derived tables
     */
-    if (derived_result->flush())
-      res= true;                  /* purecov: inspected */
+    if (derived_result->flush()) res = true; /* purecov: inspected */
   }
 
-  table->materialized= true;
+  table->materialized = true;
   DBUG_RETURN(res);
 }
-
 
 /**
    Clean up the query expression for a materialized derived table
 */
 
-bool TABLE_LIST::cleanup_derived()
-{
+bool TABLE_LIST::cleanup_derived() {
   DBUG_ASSERT(is_view_or_derived() && uses_materialization());
   return derived_unit()->cleanup(false);
 }

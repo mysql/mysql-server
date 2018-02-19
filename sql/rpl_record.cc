@@ -26,49 +26,50 @@
 #include <algorithm>
 
 #include "binary_log_types.h"
-#include "my_base.h"
-#include "my_bitmap.h"        // MY_BITMAP
+#include "lex_string.h"
+#include "m_ctype.h"
+#include "my_bitmap.h"  // MY_BITMAP
+#include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/auth/sql_security_ctx.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
-#include "sql/derror.h"       // ER_THD
-#include "sql/field.h"        // Field
-#include "sql/json_diff.h"    // Json_diff_vector
-#include "sql/json_dom.h"     // Json_dom
-#include "sql/mysqld.h"       // ER
+#include "sql/derror.h"  // ER_THD
+#include "sql/field.h"   // Field
+#include "sql/log_event.h"
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_utility.h"  // table_def
+#include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
-#include "sql/table.h"        // TABLE
+#include "sql/system_variables.h"
+#include "sql/table.h"  // TABLE
 #include "sql_string.h"
-#include "template_utils.h"   // down_cast
+#include "template_utils.h"  // down_cast
 
-using std::min;
+class Json_diff_vector;
+
 using std::max;
+using std::min;
 
-
-template<typename T, typename UT>
-void Bit_stream_base<T, UT>::dbug_print(const char *str MY_ATTRIBUTE((unused))) const
-{
+template <typename T, typename UT>
+void Bit_stream_base<T, UT>::dbug_print(
+    const char *str MY_ATTRIBUTE((unused))) const {
 #ifndef DBUG_OFF
   StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
   s.reserve(static_cast<size_t>(m_current_bit + 1));
-  for (uint i= 0; i < m_current_bit; i++)
+  for (uint i = 0; i < m_current_bit; i++)
     s.append((m_ptr[i / 8] & (1 << (i % 8))) != 0 ? '1' : '0');
   s.append("\0", 1);
   DBUG_PRINT("info", ("%s: %u bits: %s", str, m_current_bit, s.ptr()));
 #endif
 }
 
-
 /**
-  Write a single field (column) of a row in a binary log row event to the output.
+  Write a single field (column) of a row in a binary log row event to the
+  output.
 
   @param[in,out] pack_ptr Pointer to buffer where the field will be
   written.  It is the caller's responsibility to have allocated enough
@@ -94,16 +95,14 @@ void Bit_stream_base<T, UT>::dbug_print(const char *str MY_ATTRIBUTE((unused))) 
 */
 static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
                        enum_row_image_type row_image_type,
-                       ulonglong value_options, bool *is_partial_format)
-{
+                       ulonglong value_options, bool *is_partial_format) {
   DBUG_ENTER("pack_field");
 
   DBUG_PRINT("info", ("value_options=%llu (type==JSON)=%d row_image_type=%d",
                       value_options, field->type() == MYSQL_TYPE_JSON,
                       static_cast<int>(row_image_type)));
 
-  if (row_image_type == enum_row_image_type::UPDATE_AI)
-  {
+  if (row_image_type == enum_row_image_type::UPDATE_AI) {
     /*
       Try to use diff format. But pack_diff may decide to not use the
       full format, in the following cases:
@@ -125,19 +124,17 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
 
       We also set *is_partial_format to true if needed.
     */
-    if (field->pack_diff(pack_ptr, value_options) == false)
-    {
+    if (field->pack_diff(pack_ptr, value_options) == false) {
       DBUG_PRINT("info", ("stored in partial format"));
-      *is_partial_format= true;
+      *is_partial_format = true;
       DBUG_VOID_RETURN;
     }
     DBUG_PRINT("info", ("stored in full format"));
   }
-  *pack_ptr= field->pack(*pack_ptr, field->ptr + rec_offset,
-                         field->max_data_length(), true);
+  *pack_ptr = field->pack(*pack_ptr, field->ptr + rec_offset,
+                          field->max_data_length(), true);
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Read a single field (column) of a row from a binary log row event.
@@ -169,8 +166,7 @@ static void pack_field(uchar **pack_ptr, Field *field, size_t rec_offset,
 */
 static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
                          enum_row_image_type row_image_type,
-                         bool is_partial_column)
-{
+                         bool is_partial_column) {
   DBUG_ENTER("unpack_field");
   /*
     For a virtual generated column based on the blob type, we have to keep both
@@ -185,15 +181,12 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
     replication.
   */
   if ((field->flags & BLOB_FLAG) != 0 && field->is_virtual_gcol())
-    (down_cast<Field_blob*>(field))->keep_old_value();
+    (down_cast<Field_blob *>(field))->keep_old_value();
 
-  if (is_partial_column)
-  {
+  if (is_partial_column) {
     if (down_cast<Field_json *>(field)->unpack_diff(pack_ptr))
       DBUG_RETURN(true);
-  }
-  else
-  {
+  } else {
     /*
       When PARTIAL_JSON_UPDATES is enabled in the row in the event,
       unpack_row marks all JSON columns included in the after-image as
@@ -220,21 +213,19 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
                         static_cast<int>(row_image_type),
                         static_cast<int>(field->type() == MYSQL_TYPE_JSON)));
     if (row_image_type == enum_row_image_type::UPDATE_AI &&
-        field->type() == MYSQL_TYPE_JSON)
-    {
-      TABLE *table= field->table;
+        field->type() == MYSQL_TYPE_JSON) {
+      TABLE *table = field->table;
       if (table->is_binary_diff_enabled(field))
         table->disable_binary_diffs_for_current_row(field);
       if (table->is_logical_diff_enabled(field))
         table->disable_logical_diffs_for_current_row(field);
     }
 
-    *pack_ptr= field->unpack(field->ptr, *pack_ptr, metadata, true);
+    *pack_ptr = field->unpack(field->ptr, *pack_ptr, metadata, true);
   }
 
   DBUG_RETURN(false);
 }
-
 
 /**
   Pack a record of data for a table into a format suitable for
@@ -273,19 +264,17 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
 
   @return The number of bytes written at @c row_data.
 */
-size_t
-pack_row(TABLE *table, MY_BITMAP const* columns_in_image,
-         uchar *row_data, const uchar *record,
-         enum_row_image_type row_image_type, ulonglong value_options)
-{
+size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
+                uchar *row_data, const uchar *record,
+                enum_row_image_type row_image_type, ulonglong value_options) {
   DBUG_ENTER("pack_row");
 
   // Number of columns in image (counting only those that will be written)
-  uint image_column_count= bitmap_bits_set(columns_in_image);
+  uint image_column_count = bitmap_bits_set(columns_in_image);
   // Number of columns in table (counting even those that will not be written)
-  uint table_column_count= columns_in_image->n_bits;
+  uint table_column_count = columns_in_image->n_bits;
 
-  my_ptrdiff_t const rec_offset= record - table->record[0];
+  my_ptrdiff_t const rec_offset = record - table->record[0];
 
   // This is a moving cursor that points to the byte where the next
   // field will be written.
@@ -298,36 +287,31 @@ pack_row(TABLE *table, MY_BITMAP const* columns_in_image,
 
   // Partial bits.
   Bit_writer partial_bits;
-  uint json_column_count= 0;
-  bool has_any_json_diff= false;
+  uint json_column_count = 0;
+  bool has_any_json_diff = false;
   if ((value_options & PARTIAL_JSON_UPDATES) != 0 &&
-      row_image_type == enum_row_image_type::UPDATE_AI)
-  {
-    for (uint field_i= 0; field_i < table_column_count; field_i++)
-    {
-      const Field *field= table->field[field_i];
-      if (field->type() == MYSQL_TYPE_JSON)
-      {
+      row_image_type == enum_row_image_type::UPDATE_AI) {
+    for (uint field_i = 0; field_i < table_column_count; field_i++) {
+      const Field *field = table->field[field_i];
+      if (field->type() == MYSQL_TYPE_JSON) {
         // Include every JSON column in the count.
         json_column_count++;
 
         // Check if has_any_json_diff needs to be set.  This is only
         // needed for columns in the after-image, and of course only
         // when has_any_json_diff has not yet been set.
-        if (!has_any_json_diff && bitmap_is_set(columns_in_image, field_i))
-        {
-          const Field_json *field_json= down_cast<const Field_json *>(field);
+        if (!has_any_json_diff && bitmap_is_set(columns_in_image, field_i)) {
+          const Field_json *field_json = down_cast<const Field_json *>(field);
           const Json_diff_vector *diff_vector;
           field_json->get_diff_vector_and_length(value_options, &diff_vector);
-          if (diff_vector != nullptr)
-            has_any_json_diff= true;
+          if (diff_vector != nullptr) has_any_json_diff = true;
         }
       }
     }
-    pack_ptr= net_store_length(pack_ptr, has_any_json_diff ? value_options : 0);
+    pack_ptr =
+        net_store_length(pack_ptr, has_any_json_diff ? value_options : 0);
     partial_bits.set_ptr(pack_ptr);
-    if (has_any_json_diff)
-      pack_ptr+= (json_column_count + 7) / 8;
+    if (has_any_json_diff) pack_ptr += (json_column_count + 7) / 8;
   }
 
   // Dump info
@@ -337,58 +321,49 @@ pack_row(TABLE *table, MY_BITMAP const* columns_in_image,
                       "json_column_count=%d "
                       "row_image_type=%d value_options=%llx",
                       (int)table->s->table_name.length,
-                      table->s->table_name.str,
-                      columns_in_image->n_bits, image_column_count,
-                      (int)has_any_json_diff, json_column_count,
-                      (int)row_image_type, value_options));
-  DBUG_DUMP("rbr", (uchar*) columns_in_image->bitmap,
+                      table->s->table_name.str, columns_in_image->n_bits,
+                      image_column_count, (int)has_any_json_diff,
+                      json_column_count, (int)row_image_type, value_options));
+  DBUG_DUMP("rbr", (uchar *)columns_in_image->bitmap,
             columns_in_image->last_word_ptr - columns_in_image->bitmap + 1);
 
   // Null bits.
   Bit_writer null_bits(pack_ptr);
-  pack_ptr+= (image_column_count + 7) / 8;
+  pack_ptr += (image_column_count + 7) / 8;
 
-  for (Field **p_field= table->field ; *p_field != NULL ; p_field++)
-  {
-    Field *field= *p_field;
-    bool is_partial_json= false;
-    if (bitmap_is_set(columns_in_image, p_field - table->field))
-    {
-      if (field->is_null(rec_offset))
-      {
+  for (Field **p_field = table->field; *p_field != NULL; p_field++) {
+    Field *field = *p_field;
+    bool is_partial_json = false;
+    if (bitmap_is_set(columns_in_image, p_field - table->field)) {
+      if (field->is_null(rec_offset)) {
         null_bits.set(true);
         DBUG_PRINT("info", ("field %s: NULL", field->field_name));
-      }
-      else
-      {
+      } else {
         null_bits.set(false);
 
         // Store the field when it is not NULL.
 #ifndef DBUG_OFF
-        const uchar *old_pack_ptr= pack_ptr;
+        const uchar *old_pack_ptr = pack_ptr;
 #endif
-        pack_field(&pack_ptr, field, rec_offset, row_image_type,
-                   value_options, &is_partial_json);
+        pack_field(&pack_ptr, field, rec_offset, row_image_type, value_options,
+                   &is_partial_json);
         DBUG_PRINT("info", ("field: %s; real_type: %d, pack_ptr before: %p; "
                             "pack_ptr after: %p; byte length: %d",
-                             field->field_name, field->real_type(),
-                             old_pack_ptr, pack_ptr,
-                             (int) (pack_ptr - old_pack_ptr)));
+                            field->field_name, field->real_type(), old_pack_ptr,
+                            pack_ptr, (int)(pack_ptr - old_pack_ptr)));
         DBUG_DUMP("rbr", old_pack_ptr, pack_ptr - old_pack_ptr);
       }
     }
 #ifndef DBUG_OFF
-    else
-    {
+    else {
       DBUG_PRINT("info", ("field %s: skipped", field->field_name));
     }
 #endif
 
-    if (has_any_json_diff && field->type() == MYSQL_TYPE_JSON)
-    {
+    if (has_any_json_diff && field->type() == MYSQL_TYPE_JSON) {
       partial_bits.set(is_partial_json);
-      DBUG_PRINT("info", ("JSON column partialness: %d",
-                          is_partial_json ? 1 : 0));
+      DBUG_PRINT("info",
+                 ("JSON column partialness: %d", is_partial_json ? 1 : 0));
     }
   }
 
@@ -407,7 +382,6 @@ pack_row(TABLE *table, MY_BITMAP const* columns_in_image,
 
   DBUG_RETURN(static_cast<size_t>(pack_ptr - row_data));
 }
-
 
 /**
   Read the value_options from a Partial_update_rows_log_event, and if
@@ -431,21 +405,20 @@ pack_row(TABLE *table, MY_BITMAP const* columns_in_image,
   @return The read position after value_options and partial_bits (if
   partial_bits is present).
 */
-static const uchar *start_partial_bit_reader(
-  const uchar *pack_ptr, size_t length, const table_def *tabledef,
-  Bit_reader *partial_bits, ulonglong *event_value_options)
-{
+static const uchar *start_partial_bit_reader(const uchar *pack_ptr,
+                                             size_t length,
+                                             const table_def *tabledef,
+                                             Bit_reader *partial_bits,
+                                             ulonglong *event_value_options) {
   if (net_field_length_checked<ulonglong>(&pack_ptr, &length,
                                           event_value_options) ||
-      *event_value_options > 1)
-  {
+      *event_value_options > 1) {
     my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
     return nullptr;
   }
   DBUG_PRINT("info", ("event_value_options=%llx", *event_value_options));
-  if ((*event_value_options & PARTIAL_JSON_UPDATES) != 0)
-  {
-    int json_column_count= tabledef->json_column_count();
+  if ((*event_value_options & PARTIAL_JSON_UPDATES) != 0) {
+    int json_column_count = tabledef->json_column_count();
     partial_bits->set_ptr(pack_ptr);
     DBUG_PRINT("info", ("there are %d JSON columns in the partial_bits",
                         json_column_count));
@@ -453,7 +426,6 @@ static const uchar *start_partial_bit_reader(
   }
   return pack_ptr;
 }
-
 
 /**
   Unpack a row image (either before-image or after-image) into @c
@@ -580,15 +552,13 @@ static const uchar *start_partial_bit_reader(
 
   @returns false on success, true on error.
  */
-bool
-unpack_row(Relay_log_info const *rli,
-           TABLE *table, uint const master_column_count,
-           uchar const *const row_data, MY_BITMAP const *column_image,
-           uchar const **const row_image_end_p,
-           uchar const *const event_end,
-           enum_row_image_type row_image_type, bool event_has_value_options,
-           bool only_seek)
-{
+bool unpack_row(Relay_log_info const *rli, TABLE *table,
+                uint const master_column_count, uchar const *const row_data,
+                MY_BITMAP const *column_image,
+                uchar const **const row_image_end_p,
+                uchar const *const event_end,
+                enum_row_image_type row_image_type,
+                bool event_has_value_options, bool only_seek) {
   DBUG_ENTER("unpack_row");
   DBUG_ASSERT(rli != nullptr);
   DBUG_ASSERT(table != nullptr);
@@ -604,53 +574,48 @@ unpack_row(Relay_log_info const *rli,
                 row_image_type == enum_row_image_type::UPDATE_AI);
 
   // Get table_def object and table used for type conversion
-  table_def *tabledef= NULL;
-  TABLE *conv_table= NULL;
+  table_def *tabledef = NULL;
+  TABLE *conv_table = NULL;
   rli->get_table_data(table, &tabledef, &conv_table);
   DBUG_ASSERT(tabledef != nullptr);
 
-  uint image_column_count= bitmap_bits_set(column_image);
+  uint image_column_count = bitmap_bits_set(column_image);
 
-  DBUG_PRINT("info", ("table=%.*s "
-                      "master_column_count=%u image_column_count=%u "
-                      "tabledef=%p, conv_table=%p "
-                      "row_image_type=%d event_has_value_options=%d",
-                      (int)table->s->table_name.length,
-                      table->s->table_name.str,
-                      master_column_count, image_column_count,
-                      tabledef, conv_table,
-                      (int)row_image_type, event_has_value_options));
+  DBUG_PRINT("info",
+             ("table=%.*s "
+              "master_column_count=%u image_column_count=%u "
+              "tabledef=%p, conv_table=%p "
+              "row_image_type=%d event_has_value_options=%d",
+              (int)table->s->table_name.length, table->s->table_name.str,
+              master_column_count, image_column_count, tabledef, conv_table,
+              (int)row_image_type, event_has_value_options));
 
   // check for mismatch between column counts in table_map_event and row_event
-  if (tabledef->size() != master_column_count)
-  {
+  if (tabledef->size() != master_column_count) {
     my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
     DBUG_RETURN(true);
   }
 
-  const uchar *pack_ptr= row_data;
+  const uchar *pack_ptr = row_data;
 
   /*
     For UPDATE AI, partial bits are here.  For UPDATE BI, we
     sneak-peek into partial bits after reaching the end of the row.
   */
   Bit_reader partial_bits;
-  ulonglong event_value_options= 0;
+  ulonglong event_value_options = 0;
   if (event_has_value_options &&
-      row_image_type == enum_row_image_type::UPDATE_AI)
-  {
-    pack_ptr= start_partial_bit_reader(pack_ptr, event_end - pack_ptr,
-                                       tabledef,
-                                       &partial_bits, &event_value_options);
+      row_image_type == enum_row_image_type::UPDATE_AI) {
+    pack_ptr =
+        start_partial_bit_reader(pack_ptr, event_end - pack_ptr, tabledef,
+                                 &partial_bits, &event_value_options);
     /*
       We *can* compute partial updates if event_value_options has
       PARTIAL_JSON, unless only_seek==true.
     */
     DBUG_PRINT("info", ("event_value_options=%llu only_seek=%d",
                         event_value_options, (int)only_seek));
-    if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
-        !only_seek)
-    {
+    if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 && !only_seek) {
       if (table->has_columns_marked_for_partial_update())
         /*
           partial_update_info has been initialized already (so this is
@@ -658,28 +623,26 @@ unpack_row(Relay_log_info const *rli,
           bit set).  Clear the diff vector between rows.
         */
         table->clear_partial_update_diffs();
-      else
-      {
-        /*
-          partial_update_info has not been initialized (so this is the
-          first row in the statement having the PARTIAL_JSON bit set).
-          Initialize partial_update_info to allow the optimizer to
-          collect partial diffs when applying any diff.  Each diff
-          vector will be cleared between rows
-          (clear_partial_update_diffs above).  The whole
-          partial_update_info structure will be cleaned up at the end
-          of the statement, when close_thread_tables calls
-          cleanup_partial_update.
-        */
+      else {
+      /*
+        partial_update_info has not been initialized (so this is the
+        first row in the statement having the PARTIAL_JSON bit set).
+        Initialize partial_update_info to allow the optimizer to
+        collect partial diffs when applying any diff.  Each diff
+        vector will be cleared between rows
+        (clear_partial_update_diffs above).  The whole
+        partial_update_info structure will be cleaned up at the end
+        of the statement, when close_thread_tables calls
+        cleanup_partial_update.
+      */
 #ifndef DBUG_OFF
-        int marked_columns= 0;
+        int marked_columns = 0;
 #endif
-        for (uint col_i= 0;
+        for (uint col_i = 0;
              col_i < master_column_count && table->field[col_i] != nullptr;
              col_i++)
           if (tabledef->type(col_i) == MYSQL_TYPE_JSON &&
-              bitmap_is_set(column_image, col_i))
-          {
+              bitmap_is_set(column_image, col_i)) {
 #ifndef DBUG_OFF
             marked_columns++;
 #endif
@@ -688,15 +651,15 @@ unpack_row(Relay_log_info const *rli,
               DBUG_RETURN(true); /* purecov: inspected */
           }
 #ifndef DBUG_OFF
-        DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff",
-                        {if (marked_columns == 1)
-                         {
-                           const char act[]= "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
-                           DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                           DBUG_ASSERT(!debug_sync_set_action(current_thd,
-                                                              STRING_WITH_LEN(act)));
-                         }};
-                       );
+        DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
+          if (marked_columns == 1) {
+            const char act[] =
+                "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
+            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+            DBUG_ASSERT(
+                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+          }
+        };);
 #endif
         table->setup_partial_update();
       }
@@ -705,38 +668,33 @@ unpack_row(Relay_log_info const *rli,
 
   // NULL bits
   Bit_reader null_bits(pack_ptr);
-  pack_ptr+= (image_column_count + 7) / 8;
+  pack_ptr += (image_column_count + 7) / 8;
 
   // Iterate over columns that exist both in master and slave
-  uint col_i= 0;
-  Field *field_ptr= nullptr;
+  uint col_i = 0;
+  Field *field_ptr = nullptr;
   for (; col_i < master_column_count &&
-         (field_ptr= table->field[col_i]) != nullptr;
-       col_i++)
-  {
+         (field_ptr = table->field[col_i]) != nullptr;
+       col_i++) {
     /*
       If there is a conversion table, we pick up the field pointer to
       the conversion table.  If the conversion table or the field
       pointer is NULL, no conversions are necessary.
      */
-    Field *conv_field=
-      conv_table ? conv_table->field[col_i] : NULL;
-    Field *const f=
-      conv_field ? conv_field : field_ptr;
-    DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%d)",
-                         conv_field ? "" : "not ",
-                         field_ptr->field_name,
-                         col_i));
+    Field *conv_field = conv_table ? conv_table->field[col_i] : NULL;
+    Field *const f = conv_field ? conv_field : field_ptr;
+    DBUG_PRINT("debug",
+               ("Conversion %srequired for field '%s' (#%d)",
+                conv_field ? "" : "not ", field_ptr->field_name, col_i));
     DBUG_ASSERT(f != NULL);
 
-    DBUG_PRINT("debug", ("field name: %s; field position: %p",
-                         f->field_name, pack_ptr));
+    DBUG_PRINT("debug",
+               ("field name: %s; field position: %p", f->field_name, pack_ptr));
 
-    bool is_partial_json= false;
+    bool is_partial_json = false;
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
-        tabledef->type(col_i) == MYSQL_TYPE_JSON)
-    {
-      is_partial_json= partial_bits.get();
+        tabledef->type(col_i) == MYSQL_TYPE_JSON) {
+      is_partial_json = partial_bits.get();
       DBUG_PRINT("info", ("Read %d from partial_bits", is_partial_json));
     }
 
@@ -744,45 +702,37 @@ unpack_row(Relay_log_info const *rli,
       No need to bother about columns that does not exist: they have
       gotten default values when being emptied above.
      */
-    if (bitmap_is_set(column_image, col_i))
-    {
+    if (bitmap_is_set(column_image, col_i)) {
       /* Field...::unpack() cannot return 0 */
       DBUG_ASSERT(pack_ptr != NULL);
 
-      if (null_bits.get())
-      {
-        if (f->maybe_null())
-        {
+      if (null_bits.get()) {
+        if (f->maybe_null()) {
           DBUG_PRINT("debug", ("Was NULL"));
-          /** 
-            Calling reset just in case one is unpacking on top a 
-            record with data. 
+          /**
+            Calling reset just in case one is unpacking on top a
+            record with data.
 
-            This could probably go into set_null() but doing so, 
-            (i) triggers assertion in other parts of the code at 
+            This could probably go into set_null() but doing so,
+            (i) triggers assertion in other parts of the code at
             the moment; (ii) it would make us reset the field,
-            always when setting null, which right now doesn't seem 
+            always when setting null, which right now doesn't seem
             needed anywhere else except here.
 
-            TODO: maybe in the future we should consider moving 
+            TODO: maybe in the future we should consider moving
                   the reset to make it part of set_null. But then
-                  the assertions triggered need to be 
+                  the assertions triggered need to be
                   addressed/revisited.
            */
           f->reset();
           f->set_null();
-        }
-        else
-        {
+        } else {
           f->set_default();
-          push_warning_printf(current_thd, Sql_condition::SL_WARNING,
-                              ER_BAD_NULL_ERROR,
-                              ER_THD(current_thd, ER_BAD_NULL_ERROR),
-                              f->field_name);
+          push_warning_printf(
+              current_thd, Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR,
+              ER_THD(current_thd, ER_BAD_NULL_ERROR), f->field_name);
         }
-      }
-      else
-      {
+      } else {
         f->set_notnull();
 
         /*
@@ -790,29 +740,28 @@ unpack_row(Relay_log_info const *rli,
           Use the master's size information if available else call
           normal unpack operation.
         */
-        uint16 const metadata= tabledef->field_metadata(col_i);
+        uint16 const metadata = tabledef->field_metadata(col_i);
 #ifndef DBUG_OFF
-        uchar const *const old_pack_ptr= pack_ptr;
+        uchar const *const old_pack_ptr = pack_ptr;
 #endif
         /// @todo calc_field_size may read out of bounds /Sven
-        uint32 len= tabledef->calc_field_size(col_i, (uchar *) pack_ptr);
-        uint32 event_len= event_end - pack_ptr;
-        DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len, (int)event_len));
-        if (len > event_len)
-        {
+        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 event_len = event_end - pack_ptr;
+        DBUG_PRINT("info", ("calc_field_size ret=%d event_len=%d", (int)len,
+                            (int)event_len));
+        if (len > event_len) {
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
           DBUG_RETURN(true);
         }
         if (only_seek)
-          pack_ptr+= len;
-        else
-          if (unpack_field(&pack_ptr, f, metadata,
-                           row_image_type, is_partial_json))
-            DBUG_RETURN(true);
-	DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
+          pack_ptr += len;
+        else if (unpack_field(&pack_ptr, f, metadata, row_image_type,
+                              is_partial_json))
+          DBUG_RETURN(true);
+        DBUG_PRINT("debug", ("Unpacked; metadata: 0x%x;"
                              " pack_ptr: %p; pack_ptr': %p; bytes: %d",
                              metadata, old_pack_ptr, pack_ptr,
-                             (int) (pack_ptr - old_pack_ptr)));
+                             (int)(pack_ptr - old_pack_ptr)));
 
         /*
           The raw size of the field, as calculated in calc_field_size,
@@ -821,8 +770,8 @@ unpack_row(Relay_log_info const *rli,
           RBR mode.
          */
         DBUG_ASSERT(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
-                    tabledef->calc_field_size(col_i, (uchar *) old_pack_ptr) ==
-                    (uint32) (pack_ptr - old_pack_ptr));
+                    tabledef->calc_field_size(col_i, (uchar *)old_pack_ptr) ==
+                        (uint32)(pack_ptr - old_pack_ptr));
       }
 
       /*
@@ -831,8 +780,7 @@ unpack_row(Relay_log_info const *rli,
         table, so we need to copy the value stored in the conversion
         table into the final table and do the conversion at the same time.
       */
-      if (conv_field)
-      {
+      if (conv_field) {
         Copy_field copy;
 #ifndef DBUG_OFF
         char source_buf[MAX_FIELD_WIDTH];
@@ -842,10 +790,10 @@ unpack_row(Relay_log_info const *rli,
         conv_field->sql_type(source_type);
         conv_field->val_str(&value_string);
         DBUG_PRINT("debug", ("Copying field '%s' of type '%s' with value '%s'",
-                             field_ptr->field_name,
-                             source_type.c_ptr_safe(), value_string.c_ptr_safe()));
+                             field_ptr->field_name, source_type.c_ptr_safe(),
+                             value_string.c_ptr_safe()));
 #endif
-        copy.set(field_ptr, f, TRUE);
+        copy.set(field_ptr, f, true);
         copy.invoke_do_copy(&copy);
 #ifndef DBUG_OFF
         char target_buf[MAX_FIELD_WIDTH];
@@ -853,39 +801,34 @@ unpack_row(Relay_log_info const *rli,
         field_ptr->sql_type(target_type);
         field_ptr->val_str(&value_string);
         DBUG_PRINT("debug", ("Value of field '%s' of type '%s' is now '%s'",
-                             field_ptr->field_name,
-                             target_type.c_ptr_safe(), value_string.c_ptr_safe()));
+                             field_ptr->field_name, target_type.c_ptr_safe(),
+                             value_string.c_ptr_safe()));
 #endif
       }
     }
 #ifndef DBUG_OFF
-    else
-    {
+    else {
       DBUG_PRINT("debug", ("Non-existent: skipped"));
     }
 #endif
   }
 
   // move past master's extra fields
-  for (; col_i < master_column_count; col_i++)
-  {
+  for (; col_i < master_column_count; col_i++) {
     if ((event_value_options & PARTIAL_JSON_UPDATES) != 0 &&
         tabledef->type(col_i) == MYSQL_TYPE_JSON)
       partial_bits.get();
-    if (bitmap_is_set(column_image, col_i))
-    {
-      if (!null_bits.get())
-      {
-        uint32 len= tabledef->calc_field_size(col_i, (uchar *) pack_ptr);
-        uint32 event_len= event_end - pack_ptr;
+    if (bitmap_is_set(column_image, col_i)) {
+      if (!null_bits.get()) {
+        uint32 len = tabledef->calc_field_size(col_i, (uchar *)pack_ptr);
+        uint32 event_len = event_end - pack_ptr;
         DBUG_PRINT("info", ("Skipping field"));
         DBUG_DUMP("info", pack_ptr, len);
-        if (len > event_len)
-        {
+        if (len > event_len) {
           my_error(ER_SLAVE_CORRUPT_EVENT, MYF(0));
           DBUG_RETURN(true);
         }
-        pack_ptr+= len;
+        pack_ptr += len;
       }
     }
   }
@@ -895,26 +838,21 @@ unpack_row(Relay_log_info const *rli,
 
   DBUG_DUMP("info", row_data, pack_ptr - row_data);
 
-  *row_image_end_p= pack_ptr;
+  *row_image_end_p = pack_ptr;
 
   // Read partial_bits, if this is UPDATE_BI of a PARTIAL_UPDATE_ROWS_LOG_EVENT
   if (event_has_value_options &&
-      row_image_type == enum_row_image_type::UPDATE_BI)
-  {
+      row_image_type == enum_row_image_type::UPDATE_BI) {
     DBUG_PRINT("info", ("reading partial_bits"));
-    pack_ptr= start_partial_bit_reader(pack_ptr, event_end - pack_ptr,
-                                       tabledef,
-                                       &partial_bits, &event_value_options);
-    if ((event_value_options & PARTIAL_JSON_UPDATES) != 0)
-    {
-      for (col_i= 0;
+    pack_ptr =
+        start_partial_bit_reader(pack_ptr, event_end - pack_ptr, tabledef,
+                                 &partial_bits, &event_value_options);
+    if ((event_value_options & PARTIAL_JSON_UPDATES) != 0) {
+      for (col_i = 0;
            col_i < master_column_count && table->field[col_i] != nullptr;
-           col_i++)
-      {
-        if (tabledef->type(col_i) == MYSQL_TYPE_JSON)
-        {
-          if (partial_bits.get())
-          {
+           col_i++) {
+        if (tabledef->type(col_i) == MYSQL_TYPE_JSON) {
+          if (partial_bits.get()) {
             DBUG_PRINT("info", ("forcing column %s in the read_set",
                                 table->field[col_i]->field_name));
             bitmap_set_bit(table->read_set, col_i);
@@ -939,7 +877,7 @@ unpack_row(Relay_log_info const *rli,
   the record concerning the given table. Then, if @c check is true,
   a check is performed to see if fields have the default value or can
   be NULL. Otherwise an error is reported.
- 
+
   @param table  Table whose record[0] buffer is prepared.
   @param cols   bitmap with a set bit for each column that should be stored
                 in a row.
@@ -947,68 +885,58 @@ unpack_row(Relay_log_info const *rli,
 
   @returns 0 on success or a handler level error code
  */
-int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
-{
+int prepare_record(TABLE *const table, const MY_BITMAP *cols,
+                   const bool check) {
   DBUG_ENTER("prepare_record");
 
   restore_record(table, s->default_values);
 
-  if (!check)
-    DBUG_RETURN(0);
+  if (!check) DBUG_RETURN(0);
 
   /*
     For fields the extra fields on the slave, we check if they have a default.
     The check follows the same rules as the INSERT query without specifying an
-    explicit value for a field not having the explicit default 
+    explicit value for a field not having the explicit default
     (@c check_that_all_fields_are_given_values()).
   */
-  
+
   DBUG_PRINT_BITSET("debug", "cols: %s", cols);
   /**
     Save a reference to the original write set bitmaps.
     We will need this to restore the bitmaps at the end.
   */
-  MY_BITMAP *old_write_set= table->write_set;
+  MY_BITMAP *old_write_set = table->write_set;
   /**
     Just to be sure that tmp_set is currently not in use as
     the write_set already.
   */
   DBUG_ASSERT(table->write_set != &table->tmp_set);
   /* set the temporary write_set */
-  table->column_bitmaps_set_no_signal(table->read_set,
-                                      &table->tmp_set);
+  table->column_bitmaps_set_no_signal(table->read_set, &table->tmp_set);
   /**
     Set table->write_set bits for all the columns as they
     will be checked in set_default() function.
   */
   bitmap_set_all(table->write_set);
 
-  for (Field **field_ptr= table->field; *field_ptr; ++field_ptr)
-  {
-    uint field_index= (uint) (field_ptr - table->field);
-    if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index))
-    {
-      Field *const f= *field_ptr;
-      if ((f->flags &  NO_DEFAULT_VALUE_FLAG) &&
-          (f->real_type() != MYSQL_TYPE_ENUM))
-      {
+  for (Field **field_ptr = table->field; *field_ptr; ++field_ptr) {
+    uint field_index = (uint)(field_ptr - table->field);
+    if (field_index >= cols->n_bits || !bitmap_is_set(cols, field_index)) {
+      Field *const f = *field_ptr;
+      if ((f->flags & NO_DEFAULT_VALUE_FLAG) &&
+          (f->real_type() != MYSQL_TYPE_ENUM)) {
         f->set_default();
-        push_warning_printf(current_thd,
-                            Sql_condition::SL_WARNING,
-                            ER_NO_DEFAULT_FOR_FIELD,
-                            ER_THD(current_thd, ER_NO_DEFAULT_FOR_FIELD),
-                            f->field_name);
-      }
-      else if (f->has_insert_default_function())
-      {
+        push_warning_printf(
+            current_thd, Sql_condition::SL_WARNING, ER_NO_DEFAULT_FOR_FIELD,
+            ER_THD(current_thd, ER_NO_DEFAULT_FOR_FIELD), f->field_name);
+      } else if (f->has_insert_default_function()) {
         f->set_default();
       }
     }
   }
 
   /* set the write_set back to original*/
-  table->column_bitmaps_set_no_signal(table->read_set,
-                                      old_write_set);
+  table->column_bitmaps_set_no_signal(table->read_set, old_write_set);
 
   DBUG_RETURN(0);
 }

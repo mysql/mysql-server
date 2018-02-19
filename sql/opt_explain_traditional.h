@@ -20,7 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 #define OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 
@@ -32,34 +31,32 @@
 class Item;
 class Query_result;
 class SELECT_LEX_UNIT;
-template <class T> class List;
+template <class T>
+class List;
 
 /**
   Formatter for the traditional EXPLAIN output
 */
 
-class Explain_format_traditional : public Explain_format
-{
+class Explain_format_traditional : public Explain_format {
   class Item_null *nil;
-  qep_row column_buffer; ///< buffer for the current output row
+  qep_row column_buffer;  ///< buffer for the current output row
 
-public:
+ public:
   Explain_format_traditional() : nil(NULL) {}
 
   virtual bool is_hierarchical() const { return false; }
   virtual bool send_headers(Query_result *result);
-  virtual bool begin_context(enum_parsing_context,
-                             SELECT_LEX_UNIT*,
-                             const Explain_format_flags*)
-  {
+  virtual bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
+                             const Explain_format_flags *) {
     return false;
   }
   virtual bool end_context(enum_parsing_context) { return false; }
   virtual bool flush_entry();
   virtual qep_row *entry() { return &column_buffer; }
 
-private:
+ private:
   bool push_select_type(List<Item> *items);
 };
 
-#endif//OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
+#endif  // OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED

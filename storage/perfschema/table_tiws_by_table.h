@@ -31,11 +31,15 @@
 
 #include <sys/types.h>
 
-#include "storage/perfschema/pfs_column_types.h"
+#include "my_base.h"
 #include "storage/perfschema/pfs_engine_table.h"
-#include "storage/perfschema/pfs_instr.h"
-#include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/table_helper.h"
+
+class Field;
+class Plugin_table;
+struct PFS_table_share;
+struct TABLE;
+struct THR_LOCK;
 
 /**
   @addtogroup performance_schema_tables
@@ -46,41 +50,34 @@
   A row of table
   PERFORMANCE_SCHEMA.TABLE_IO_WAITS_SUMMARY_BY_TABLE.
 */
-struct row_tiws_by_table
-{
+struct row_tiws_by_table {
   /** Column OBJECT_TYPE, SCHEMA_NAME, OBJECT_NAME. */
   PFS_object_row m_object;
   /** Columns COUNT/SUM/MIN/AVG/MAX (+_READ, +WRITE). */
   PFS_table_io_stat_row m_stat;
 };
 
-class PFS_index_tiws_by_table : public PFS_engine_index
-{
-public:
+class PFS_index_tiws_by_table : public PFS_engine_index {
+ public:
   PFS_index_tiws_by_table()
-    : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
-      m_key_1("OBJECT_TYPE"),
-      m_key_2("OBJECT_SCHEMA"),
-      m_key_3("OBJECT_NAME")
-  {
-  }
+      : PFS_engine_index(&m_key_1, &m_key_2, &m_key_3),
+        m_key_1("OBJECT_TYPE"),
+        m_key_2("OBJECT_SCHEMA"),
+        m_key_3("OBJECT_NAME") {}
 
-  ~PFS_index_tiws_by_table()
-  {
-  }
+  ~PFS_index_tiws_by_table() {}
 
   virtual bool match(const PFS_table_share *table);
 
-private:
+ private:
   PFS_key_object_type m_key_1;
   PFS_key_object_schema m_key_2;
   PFS_key_object_name m_key_3;
 };
 
 /** Table PERFORMANCE_SCHEMA.TABLE_IO_WAITS_SUMMARY_BY_TABLE. */
-class table_tiws_by_table : public PFS_engine_table
-{
-public:
+class table_tiws_by_table : public PFS_engine_table {
+ public:
   /** Table share */
   static PFS_engine_table_share m_share;
   static PFS_engine_table *create(PFS_engine_table_share *);
@@ -96,22 +93,18 @@ public:
   virtual int index_init(uint idx, bool sorted);
   virtual int index_next();
 
-protected:
-  virtual int read_row_values(TABLE *table,
-                              unsigned char *buf,
-                              Field **fields,
+ protected:
+  virtual int read_row_values(TABLE *table, unsigned char *buf, Field **fields,
                               bool read_all);
   table_tiws_by_table();
 
-public:
-  ~table_tiws_by_table()
-  {
-  }
+ public:
+  ~table_tiws_by_table() {}
 
-protected:
+ protected:
   int make_row(PFS_table_share *table_share);
 
-private:
+ private:
   /** Table share lock. */
   static THR_LOCK m_table_lock;
   /** Table definition. */
@@ -124,7 +117,7 @@ private:
   /** Next position. */
   PFS_simple_index m_next_pos;
 
-protected:
+ protected:
   PFS_index_tiws_by_table *m_opened_index;
 };
 

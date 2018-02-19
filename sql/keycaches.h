@@ -30,50 +30,38 @@
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
-#include "mysql/udf_registration_types.h"
 #include "sql/sql_list.h"
 #include "sql/thr_malloc.h"
 
-
-extern "C"
-{
-  extern PSI_memory_key key_memory_NAMED_ILINK_name;
-  typedef int (*process_key_cache_t) (const char *, KEY_CACHE *);
-}
+extern PSI_memory_key key_memory_NAMED_ILINK_name;
+typedef int (*process_key_cache_t)(const char *, KEY_CACHE *);
 
 /**
   ilink (intrusive list element) with a name
 */
-class NAMED_ILINK :public ilink<NAMED_ILINK>
-{
-public:
+class NAMED_ILINK : public ilink<NAMED_ILINK> {
+ public:
   const char *name;
   size_t name_length;
-  uchar* data;
+  uchar *data;
 
   NAMED_ILINK(I_List<NAMED_ILINK> *links, const char *name_arg,
-              size_t name_length_arg, uchar* data_arg)
-    :name_length(name_length_arg), data(data_arg)
-  {
-    name= my_strndup(key_memory_NAMED_ILINK_name,
-                     name_arg, name_length, MYF(MY_WME));
+              size_t name_length_arg, uchar *data_arg)
+      : name_length(name_length_arg), data(data_arg) {
+    name = my_strndup(key_memory_NAMED_ILINK_name, name_arg, name_length,
+                      MYF(MY_WME));
     links->push_back(this);
   }
 
-  bool cmp(const char *name_cmp, size_t length)
-  {
+  bool cmp(const char *name_cmp, size_t length) {
     return length == name_length && !memcmp(name, name_cmp, length);
   }
 
-  ~NAMED_ILINK()
-  {
-    my_free((void *) name);
-  }
+  ~NAMED_ILINK() { my_free((void *)name); }
 };
 
-class NAMED_ILIST: public I_List<NAMED_ILINK>
-{
-  public:
+class NAMED_ILIST : public I_List<NAMED_ILINK> {
+ public:
   void delete_elements();
 };
 

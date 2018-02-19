@@ -1,6 +1,4 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 PREPARE stmt_start FROM "SELECT UNIX_TIMESTAMP() INTO @start";
 SET @runtime = <intended_runtime>;
 PREPARE stmt_break FROM "SELECT UNIX_TIMESTAMP() - @start > @runtime - 1";

@@ -25,22 +25,23 @@ Glue code for registering the TempTable plugin at MySQL. */
 
 #include "mysql/plugin.h"
 
-#include "mem_root_fwd.h"
 #include "sql/handler.h"
 #include "sql/table.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "storage/temptable/include/temptable/handler.h"
 
-static handler* create_handler(handlerton* hton, TABLE_SHARE* table_share, bool,
-                               MEM_ROOT* mem_root) {
+struct MEM_ROOT;
+
+static handler *create_handler(handlerton *hton, TABLE_SHARE *table_share, bool,
+                               MEM_ROOT *mem_root) {
   return new (mem_root) temptable::Handler(hton, table_share);
 }
 
 static st_mysql_storage_engine temptable_storage_engine = {
     MYSQL_HANDLERTON_INTERFACE_VERSION};
 
-static int init(void* p) {
-  handlerton* h = static_cast<handlerton*>(p);
+static int init(void *p) {
+  handlerton *h = static_cast<handlerton *>(p);
 
   h->state = SHOW_OPTION_YES;
   h->db_type = DB_TYPE_TEMPTABLE;

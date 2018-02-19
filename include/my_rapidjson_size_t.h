@@ -34,7 +34,9 @@
 
 #include <cstddef>
 
-namespace rapidjson { typedef ::std::size_t SizeType; }
+namespace rapidjson {
+typedef ::std::size_t SizeType;
+}
 #endif
 
 #endif  // MY_RAPIDJSON_SIZE_T

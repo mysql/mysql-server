@@ -26,7 +26,7 @@
 namespace dd {
 class Properties;
 enum class enum_dd_init_type;
-}
+}  // namespace dd
 
 namespace dd {
 namespace performance_schema {
@@ -39,14 +39,13 @@ namespace performance_schema {
 
 bool init_pfs_tables(enum_dd_init_type int_type);
 
-
 /**
   Store the property "PS_version" in table's options
 */
 
 void set_PS_version_for_table(dd::Properties *table_options);
 
-}
-}
+}  // namespace performance_schema
+}  // namespace dd
 
 #endif

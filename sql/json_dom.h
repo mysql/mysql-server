@@ -26,31 +26,29 @@
 #include <stddef.h>
 #include <functional>
 #include <map>
-#include <memory>               // unique_ptr
+#include <memory>  // unique_ptr
 #include <new>
 #include <string>
-#include <type_traits>          // is_base_of
+#include <type_traits>  // is_base_of
 #include <utility>
 #include <vector>
 
-#include "binary_log_types.h"   // enum_field_types
+#include "binary_log_types.h"  // enum_field_types
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/udf_registration_types.h"
-#include "mysql_time.h"         // MYSQL_TIME
-#include "prealloced_array.h"   // Prealloced_array
-#include "sql/json_binary.h"    // json_binary::Value
-#include "sql/malloc_allocator.h" // Malloc_allocator
-#include "sql/my_decimal.h"     // my_decimal
-#include "sql/sql_alloc.h"      // Sql_alloc
+#include "my_sys.h"
+#include "mysql_time.h"            // MYSQL_TIME
+#include "prealloced_array.h"      // Prealloced_array
+#include "sql/json_binary.h"       // json_binary::Value
+#include "sql/malloc_allocator.h"  // Malloc_allocator
+#include "sql/my_decimal.h"        // my_decimal
 
 class Field_json;
 class Json_array;
 class Json_dom;
 class Json_object;
 class Json_path;
-class Json_path_leg;
 class Json_seekable_path;
 class Json_wrapper;
 class String;
@@ -59,9 +57,9 @@ class THD;
 typedef Prealloced_array<Json_wrapper, 16> Json_wrapper_vector;
 typedef Prealloced_array<Json_dom *, 16> Json_dom_vector;
 
-using Json_dom_ptr= std::unique_ptr<Json_dom>;
-using Json_array_ptr= std::unique_ptr<Json_array>;
-using Json_object_ptr= std::unique_ptr<Json_object>;
+using Json_dom_ptr = std::unique_ptr<Json_dom>;
+using Json_array_ptr = std::unique_ptr<Json_array>;
+using Json_object_ptr = std::unique_ptr<Json_object>;
 
 /// The maximum number of nesting levels allowed in a JSON document.
 #define JSON_DOCUMENT_MAX_DEPTH 100
@@ -106,8 +104,7 @@ using Json_object_ptr= std::unique_ptr<Json_object>;
   object < array < boolean < date < time < datetime/timestamp <
   opaque.
 */
-enum class enum_json_type
-{
+enum class enum_json_type {
   J_NULL,
   J_DECIMAL,
   J_INT,
@@ -126,7 +123,8 @@ enum class enum_json_type
 };
 
 /**
-  Allocate a new Json_dom object and return a std::unique_ptr which points to it.
+  Allocate a new Json_dom object and return a std::unique_ptr which points to
+  it.
 
   @param args  the arguments to pass to the constructor
 
@@ -136,8 +134,7 @@ enum class enum_json_type
   @return a pointer to the allocated object
 */
 template <typename T, typename... Args>
-inline std::unique_ptr<T> create_dom_ptr(Args&&... args)
-{
+inline std::unique_ptr<T> create_dom_ptr(Args &&... args) {
   return std::unique_ptr<T>(new (std::nothrow) T(std::forward<Args>(args)...));
 }
 
@@ -170,12 +167,12 @@ inline std::unique_ptr<T> create_dom_ptr(Args&&... args)
   a clone unless specified in the method, e.g. add_alias hands the
   responsibility for the passed in object over to the object.
 */
-class Json_dom
-{
+class Json_dom {
   // so that these classes can call set_parent()
   friend class Json_object;
   friend class Json_array;
-protected:
+
+ protected:
   Json_dom() : m_parent(NULL) {}
 
   /**
@@ -183,9 +180,9 @@ protected:
 
     @param[in] parent the parent we're being attached to
   */
-  void set_parent(Json_dom *parent) { m_parent= parent; }
+  void set_parent(Json_dom *parent) { m_parent = parent; }
 
-public:
+ public:
   virtual ~Json_dom() {}
 
   /**
@@ -195,7 +192,7 @@ public:
     not be allocated (in which case my_error() will have been called
     with the appropriate error message)
   */
-  void *operator new(size_t size, const std::nothrow_t&) throw();
+  void *operator new(size_t size, const std::nothrow_t &) throw();
 
   /**
     Deallocate the space used by a Json_dom object.
@@ -205,7 +202,7 @@ public:
   /**
     Nothrow delete.
   */
-  void operator delete(void *ptr, const std::nothrow_t&) throw();
+  void operator delete(void *ptr, const std::nothrow_t &)throw();
 
   /**
     Get the parent dom to which this dom is attached.
@@ -217,7 +214,7 @@ public:
   /**
     @return the type corresponding to the actual Json_dom subclass
   */
-  virtual enum_json_type json_type() const= 0;
+  virtual enum_json_type json_type() const = 0;
 
   /**
     @return true if the object is a subclass of Json_scalar
@@ -229,22 +226,22 @@ public:
   */
   virtual bool is_number() const { return false; }
 
-  /**
-    Compute the depth of a document. This is the value which would be
-    returned by the JSON_DEPTH() system function.
+    /**
+      Compute the depth of a document. This is the value which would be
+      returned by the JSON_DEPTH() system function.
 
-    - for scalar values, empty array and empty object: 1
-    - for non-empty array: 1+ max(depth of array elements)
-    - for non-empty objects: 1+ max(depth of object values)
+      - for scalar values, empty array and empty object: 1
+      - for non-empty array: 1+ max(depth of array elements)
+      - for non-empty objects: 1+ max(depth of object values)
 
-    For example:
-    "abc", [] and {} have depth 1.
-    ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
+      For example:
+      "abc", [] and {} have depth 1.
+      ["abc", [3]] and {"a": "abc", "b": [3]} have depth 3.
 
-    @return the depth of the document
-  */
+      @return the depth of the document
+    */
 #ifdef MYSQL_SERVER
-  virtual uint32 depth() const= 0;
+  virtual uint32 depth() const = 0;
 #endif
 
   /**
@@ -253,7 +250,7 @@ public:
 
     @return a cloned Json_dom object.
   */
-  virtual Json_dom_ptr clone() const= 0;
+  virtual Json_dom_ptr clone() const = 0;
 
   /**
     Parse Json text to DOM (using rapidjson). The text must be valid JSON.
@@ -303,17 +300,16 @@ public:
   */
   /* purecov: begin deadcode */
 #ifdef MYSQL_SERVER
-  virtual void
-  replace_dom_in_container(const Json_dom *oldv MY_ATTRIBUTE((unused)),
-                           Json_dom_ptr newv MY_ATTRIBUTE((unused)))
-  {
+  virtual void replace_dom_in_container(
+      const Json_dom *oldv MY_ATTRIBUTE((unused)),
+      Json_dom_ptr newv MY_ATTRIBUTE((unused))) {
     /*
       Array and object should override this method. Not expected to be
       called on other DOM objects.
     */
     DBUG_ASSERT(false);
   }
-#endif // ifdef MYSQL_SERVER
+#endif  // ifdef MYSQL_SERVER
   /* purecov: end */
 
   /**
@@ -338,16 +334,13 @@ public:
     @param[in]  only_need_one True if we can stop after finding one match
     @return false on success, true on error
   */
-  bool seek(const Json_seekable_path &path, size_t legs,
-            Json_dom_vector *hits, bool auto_wrap,
-            bool only_need_one);
+  bool seek(const Json_seekable_path &path, size_t legs, Json_dom_vector *hits,
+            bool auto_wrap, bool only_need_one);
 
-private:
-
+ private:
   /** Parent pointer */
   Json_dom *m_parent;
 };
-
 
 /**
   A comparator that is used for ordering keys in a Json_object. It
@@ -356,33 +349,32 @@ private:
   for speed of look-up. See usage in Json_object_map.
 */
 struct Json_key_comparator
-  : std::binary_function<std::string, std::string, bool>
-{
-  bool operator() (const std::string &key1, const std::string &key2) const;
+    : std::binary_function<std::string, std::string, bool> {
+  bool operator()(const std::string &key1, const std::string &key2) const;
 };
-
 
 /**
   A type used to hold JSON object elements in a map, see the
   Json_object class.
 */
-using Json_object_map=
-  std::map<std::string, Json_dom_ptr, Json_key_comparator,
-           Malloc_allocator<std::pair<const std::string, Json_dom_ptr>>>;
+using Json_object_map =
+    std::map<std::string, Json_dom_ptr, Json_key_comparator,
+             Malloc_allocator<std::pair<const std::string, Json_dom_ptr>>>;
 
 /**
   Represents a JSON container value of type "object" (ECMA), type
   J_OBJECT here.
 */
-class Json_object : public Json_dom
-{
+class Json_object : public Json_dom {
   friend class Json_wrapper;
-private:
+
+ private:
   /**
     Map to hold the object elements.
   */
   Json_object_map m_map;
-public:
+
+ public:
   Json_object();
   enum_json_type json_type() const { return enum_json_type::J_OBJECT; }
 
@@ -396,8 +388,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool add_clone(const std::string &key, const Json_dom *value)
-  {
+  bool add_clone(const std::string &key, const Json_dom *value) {
     return value == nullptr || add_alias(key, value->clone());
   }
 
@@ -418,8 +409,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool add_alias(const std::string &key, Json_dom *value)
-  {
+  bool add_alias(const std::string &key, Json_dom *value) {
     return add_alias(key, Json_dom_ptr(value));
   }
 
@@ -526,16 +516,15 @@ public:
   bool merge_patch(Json_object_ptr patch);
 };
 
-
 /**
   Represents a JSON array container, i.e. type J_ARRAY here.
 */
-class Json_array : public Json_dom
-{
-private:
+class Json_array : public Json_dom {
+ private:
   /// Holds the array values.
   std::vector<Json_dom_ptr, Malloc_allocator<Json_dom_ptr>> m_v;
-public:
+
+ public:
   Json_array();
 
   // See base class documentation.
@@ -547,8 +536,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool append_clone(const Json_dom *value)
-  {
+  bool append_clone(const Json_dom *value) {
     return insert_clone(size(), value);
   }
 
@@ -567,8 +555,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool append_alias(Json_dom *value)
-  {
+  bool append_alias(Json_dom *value) {
     return append_alias(Json_dom_ptr(value));
   }
 
@@ -579,8 +566,7 @@ public:
     @param value  the JSON value to be appended
     @return false on success, true on failure
   */
-  bool append_alias(Json_dom_ptr value)
-  {
+  bool append_alias(Json_dom_ptr value) {
     return insert_alias(size(), std::move(value));
   }
 
@@ -603,8 +589,7 @@ public:
     @retval false on success
     @retval true on failure
   */
-  bool insert_clone(size_t index, const Json_dom *value)
-  {
+  bool insert_clone(size_t index, const Json_dom *value) {
     return value == nullptr || insert_alias(index, value->clone());
   }
 
@@ -635,12 +620,9 @@ public:
     The cardinality of the array (number of values).
     @return the size
   */
-  size_t size() const
-  {
-    return m_v.size();
-  }
+  size_t size() const { return m_v.size(); }
 
-  // See base class documentation.
+    // See base class documentation.
 #ifdef MYSQL_SERVER
   uint32 depth() const;
 #endif
@@ -659,8 +641,7 @@ public:
     @param[in] index  the array index
     @return the value at index
   */
-  Json_dom *operator[](size_t index) const
-  {
+  Json_dom *operator[](size_t index) const {
     DBUG_ASSERT(m_v[index]->parent() == this);
     return m_v[index].get();
   }
@@ -671,7 +652,7 @@ public:
   void clear() { m_v.clear(); }
 
   /// Constant iterator over the elements in the JSON array.
-  using const_iterator= decltype(m_v)::const_iterator;
+  using const_iterator = decltype(m_v)::const_iterator;
 
   /// Returns a const_iterator that refers to the first element.
   const_iterator begin() const { return m_v.begin(); }
@@ -684,12 +665,11 @@ public:
 #endif
 };
 
-
 /**
   Abstract base class for all Json scalars.
 */
 class Json_scalar : public Json_dom {
-public:
+ public:
   // See base class documentation.
 #ifdef MYSQL_SERVER
   uint32 depth() const { return 1; }
@@ -698,28 +678,24 @@ public:
   // See base class documentation.
   bool is_scalar() const { return true; }
 
-protected:
-
+ protected:
   Json_scalar() : Json_dom() {}
 };
-
 
 /**
   Represents a JSON string value (ECMA), of type J_STRING here.
 */
-class Json_string : public Json_scalar
-{
-private:
-  std::string m_str; //!< holds the string
-public:
+class Json_string : public Json_scalar {
+ private:
+  std::string m_str;  //!< holds the string
+ public:
   /*
     Construct a Json_string object.
     @param args any arguments accepted by std::string's constructors
   */
   template <typename... Args>
-  explicit Json_string(Args&&... args)
-    : Json_scalar(), m_str(std::forward<Args>(args)...)
-  {}
+  explicit Json_string(Args &&... args)
+      : Json_scalar(), m_str(std::forward<Args>(args)...) {}
   ~Json_string() {}
 
   // See base class documentation
@@ -740,31 +716,28 @@ public:
   size_t size() const { return m_str.size(); }
 };
 
-
 /**
   Abstract base class of all JSON number (ECMA) types (subclasses
   represent MySQL extensions).
 */
 class Json_number : public Json_scalar {
-public:
+ public:
   // See base class documentation
   bool is_number() const { return true; }
 
-protected:
- Json_number() : Json_scalar() {}
+ protected:
+  Json_number() : Json_scalar() {}
 };
-
 
 /**
   Represents a MySQL decimal number, type J_DECIMAL.
 */
-class Json_decimal : public Json_number
-{
-private:
-  my_decimal m_dec; //!< holds the decimal number
+class Json_decimal : public Json_number {
+ private:
+  my_decimal m_dec;  //!< holds the decimal number
 
-public:
-  static const int MAX_BINARY_SIZE= DECIMAL_MAX_FIELD_SIZE + 2;
+ public:
+  static const int MAX_BINARY_SIZE = DECIMAL_MAX_FIELD_SIZE + 2;
 
   explicit Json_decimal(const my_decimal &value);
   ~Json_decimal() {}
@@ -809,16 +782,14 @@ public:
   static bool convert_from_binary(const char *bin, size_t len, my_decimal *dec);
 };
 
-
 /**
   Represents a MySQL double JSON scalar (an extension of the ECMA
   number value), type J_DOUBLE.
 */
-class Json_double : public Json_number
-{
-private:
-  double m_f; //!< holds the double value
-public:
+class Json_double : public Json_number {
+ private:
+  double m_f;  //!< holds the double value
+ public:
   explicit Json_double(double value) : Json_number(), m_f(value) {}
   ~Json_double() {}
 
@@ -835,17 +806,15 @@ public:
   double value() const { return m_f; }
 };
 
-
 /**
   Represents a MySQL integer (64 bits signed) JSON scalar (an extension
   of the ECMA number value), type J_INT.
 */
-class Json_int : public Json_number
-{
-private:
-  longlong m_i; //!< holds the value
-public:
-   explicit Json_int(longlong value) : Json_number(), m_i(value) {}
+class Json_int : public Json_number {
+ private:
+  longlong m_i;  //!< holds the value
+ public:
+  explicit Json_int(longlong value) : Json_number(), m_i(value) {}
   ~Json_int() {}
 
   // See base class documentation
@@ -871,17 +840,15 @@ public:
   Json_dom_ptr clone() const { return create_dom_ptr<Json_int>(m_i); }
 };
 
-
 /**
   Represents a MySQL integer (64 bits unsigned) JSON scalar (an extension
   of the ECMA number value), type J_UINT.
 */
 
-class Json_uint : public Json_number
-{
-private:
-  ulonglong m_i; //!< holds the value
-public:
+class Json_uint : public Json_number {
+ private:
+  ulonglong m_i;  //!< holds the value
+ public:
   explicit Json_uint(ulonglong value) : Json_number(), m_i(value) {}
   ~Json_uint() {}
 
@@ -910,14 +877,12 @@ public:
   Json_dom_ptr clone() const { return create_dom_ptr<Json_uint>(m_i); }
 };
 
-
 /**
   Represents a JSON null type (ECMA), type J_NULL here.
 */
-class Json_null : public Json_scalar
-{
-public:
-   Json_null() : Json_scalar() {}
+class Json_null : public Json_scalar {
+ public:
+  Json_null() : Json_scalar() {}
   ~Json_null() {}
 
   // See base class documentation
@@ -927,23 +892,21 @@ public:
   Json_dom_ptr clone() const { return create_dom_ptr<Json_null>(); }
 };
 
-
 /**
   Represents a MySQL date/time value (DATE, TIME, DATETIME or
   TIMESTAMP) - an extension to the ECMA set of JSON scalar types, types
   J_DATE, J_TIME, J_DATETIME and J_TIMESTAMP respectively. The method
   field_type identifies which of the four it is.
 */
-class Json_datetime : public Json_scalar
-{
+class Json_datetime : public Json_scalar {
   friend class Json_dom;
   friend class Json_wrapper;
 
-private:
-  MYSQL_TIME m_t;                //!< holds the date/time value
-  enum_field_types m_field_type; //!< identifies which type of date/time
+ private:
+  MYSQL_TIME m_t;                 //!< holds the date/time value
+  enum_field_types m_field_type;  //!< identifies which type of date/time
 
-public:
+ public:
   /**
     Constructs a object to hold a MySQL date/time value.
 
@@ -953,7 +916,7 @@ public:
                    MYSQL_TYPE_TIMESTAMP.
   */
   Json_datetime(const MYSQL_TIME &t, enum_field_types ft)
-    : Json_scalar(), m_t(t), m_field_type(ft) {}
+      : Json_scalar(), m_t(t), m_field_type(ft) {}
   ~Json_datetime() {}
 
   // See base class documentation
@@ -994,10 +957,8 @@ public:
                           MYSQL_TIME *to);
 
   /** Datetimes are packed in eight bytes. */
-  static const size_t PACKED_SIZE= 8;
-
+  static const size_t PACKED_SIZE = 8;
 };
-
 
 /**
   Represents a MySQL value opaquely, i.e. the Json DOM can not
@@ -1008,12 +969,12 @@ public:
 
   "base64:typeXX:<base 64 encoded value>"
 */
-class Json_opaque : public Json_scalar
-{
-private:
+class Json_opaque : public Json_scalar {
+ private:
   enum_field_types m_mytype;
   std::string m_val;
-public:
+
+ public:
   /**
     An opaque MySQL value.
 
@@ -1025,9 +986,8 @@ public:
     @see Class documentation
   */
   template <typename... Args>
-  explicit Json_opaque(enum_field_types mytype, Args&&... args)
-    : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...)
-  {}
+  explicit Json_opaque(enum_field_types mytype, Args &&... args)
+      : Json_scalar(), m_mytype(mytype), m_val(std::forward<Args>(args)...) {}
   ~Json_opaque() {}
 
   // See base class documentation
@@ -1047,19 +1007,17 @@ public:
   */
   size_t size() const { return m_val.size(); }
 
-   // See base class documentation
+  // See base class documentation
   Json_dom_ptr clone() const;
 };
-
 
 /**
   Represents a JSON true or false value, type J_BOOLEAN here.
 */
-class Json_boolean : public Json_scalar
-{
-private:
-  bool m_v; //!< false or true: represents the eponymous JSON literal
-public:
+class Json_boolean : public Json_scalar {
+ private:
+  bool m_v;  //!< false or true: represents the eponymous JSON literal
+ public:
   explicit Json_boolean(bool value) : Json_scalar(), m_v(value) {}
   ~Json_boolean() {}
 
@@ -1074,7 +1032,6 @@ public:
   // See base class documentation
   Json_dom_ptr clone() const { return create_dom_ptr<Json_boolean>(m_v); }
 };
-
 
 /**
   Function for double-quoting a string and escaping characters
@@ -1126,11 +1083,9 @@ bool double_quote(const char *cptr, size_t length, String *buf);
 */
 Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right);
 
-
-class Json_wrapper_object_iterator
-{
-private:
-  bool m_is_dom; //!< if true, we iterate over a DOM, else a binary object
+class Json_wrapper_object_iterator {
+ private:
+  bool m_is_dom;  //!< if true, we iterate over a DOM, else a binary object
 
   // only used for Json_dom
   Json_object::const_iterator m_iter;
@@ -1140,7 +1095,8 @@ private:
   size_t m_element_count;
   size_t m_curr_element;
   const json_binary::Value *m_value;
-public:
+
+ public:
   /**
     @param[in] obj  the JSON object to iterate over
   */
@@ -1151,8 +1107,8 @@ public:
   Json_wrapper_object_iterator(const json_binary::Value *value);
   ~Json_wrapper_object_iterator() {}
 
-  bool empty() const;   //!< Returns true of no more elements
-  void next();          //!< Advances iterator to next element
+  bool empty() const;  //!< Returns true of no more elements
+  void next();         //!< Advances iterator to next element
 
   /**
     Get the current element as a pair: the first part is the element key,
@@ -1164,7 +1120,6 @@ public:
   */
   std::pair<const std::string, Json_wrapper> elt() const;
 };
-
 
 /**
   How Json_wrapper would handle coercion error
@@ -1185,18 +1140,16 @@ enum enum_coercion_error {
 
   Instances of this class are usually created on the stack. In some
   cases instances are cached in an Item and reused, in which case they
-  are allocated from query-duration memory (which is why the class
-  inherits from Sql_alloc).
+  are allocated from query-duration memory (by allocating them on a
+  MEM_ROOT).
 */
-class Json_wrapper : Sql_alloc
-{
-private:
+class Json_wrapper {
+ private:
   /*
     A Json_wrapper wraps either a Json_dom or a json_binary::Value,
     never both at the same time.
   */
-  union
-  {
+  union {
     /// The DOM representation, only used if m_is_dom is true.
     struct {
       Json_dom *m_dom_value;
@@ -1206,8 +1159,8 @@ private:
     /// The binary representation, only used if m_is_dom is false.
     json_binary::Value m_value;
   };
-  bool m_is_dom;      //!< Wraps a DOM iff true
-public:
+  bool m_is_dom;  //!< Wraps a DOM iff true
+ public:
   /**
     Get the wrapped datetime value in the packed format.
 
@@ -1221,25 +1174,10 @@ public:
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_dom_value(nullptr), m_is_dom(true)
-  {
+  Json_wrapper() : m_dom_value(nullptr), m_is_dom(true) {
     // Workaround for Solaris Studio, initialize in CTOR body.
-    m_dom_alias= true;
+    m_dom_alias = true;
   }
-
-  using Sql_alloc::operator new;
-  using Sql_alloc::operator delete;
-
-  /** Placement new. */
-  void *operator new(size_t, void *ptr,
-                     const std::nothrow_t &arg MY_ATTRIBUTE((unused))
-                     = std::nothrow) throw()
-  { return ptr; }
-
-  /** Placement delete. */
-  void operator delete(void*, void*,
-                       const std::nothrow_t&) throw ()
-  {}
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
@@ -1256,8 +1194,7 @@ public:
     Wrap the supplied DOM value. The wrapper takes over the ownership.
   */
   explicit Json_wrapper(Json_dom_ptr dom_value)
-    : Json_wrapper(dom_value.release())
-  {}
+      : Json_wrapper(dom_value.release()) {}
 
   /**
     Only meaningful iff the wrapper encapsulates a DOM. Marks the
@@ -1265,7 +1202,7 @@ public:
     deallocated in the wrapper's destructor. Useful if one wants a wrapper
     around a DOM owned by someone else.
   */
-  void set_alias() { m_dom_alias= true; }
+  void set_alias() { m_dom_alias = true; }
 
   /**
     Wrap a binary value. Does not copy the underlying buffer, so
@@ -1372,8 +1309,7 @@ public:
                   points to from its json_binary::Value representation
     @retval false otherwise
   */
-  bool is_binary_backed_by(const String *str) const
-  {
+  bool is_binary_backed_by(const String *str) const {
     return !m_is_dom && m_value.is_backed_by(str);
   }
 
@@ -1398,7 +1334,7 @@ public:
     @param[in] message If given, the JSON document is prefixed with
     this message.
   */
-  void dbug_print(const char *message MY_ATTRIBUTE((unused))= "") const;
+  void dbug_print(const char *message MY_ATTRIBUTE((unused)) = "") const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of
@@ -1599,8 +1535,7 @@ public:
     @retval true on error
   */
   bool seek(const Json_seekable_path &path, size_t legs,
-            Json_wrapper_vector *hits, bool auto_wrap,
-            bool only_need_one);
+            Json_wrapper_vector *hits, bool auto_wrap, bool only_need_one);
 
   /**
     Compute the length of a document. This is the value which would be
@@ -1627,39 +1562,39 @@ public:
     Extract an int (signed or unsigned) from the JSON if possible
     coercing if need be.
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to int
   */
-  longlong coerce_int(const char *msgnam, bool *err= NULL,
-                      enum_coercion_error cr_error= CE_WARNING) const;
+  longlong coerce_int(const char *msgnam, bool *err = NULL,
+                      enum_coercion_error cr_error = CE_WARNING) const;
 
   /**
     Extract a real from the JSON if possible, coercing if need be.
 
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to real
   */
-  double coerce_real(const char *msgnam, bool *err= NULL,
-                      enum_coercion_error cr_error= CE_WARNING) const;
+  double coerce_real(const char *msgnam, bool *err = NULL,
+                     enum_coercion_error cr_error = CE_WARNING) const;
 
   /**
     Extract a decimal from the JSON if possible, coercing if need be.
 
     @param[in,out] decimal_value a value buffer
     @param[in]  msgnam to use in error message in conversion failed
-    @param[out] err    TRUE <=> error occur during coercion
+    @param[out] err    true <=> error occur during coercion
     @param[in]  cr_error Whether to raise an error or warning on
                          data truncation
     @returns json value coerced to decimal
   */
   my_decimal *coerce_decimal(my_decimal *decimal_value, const char *msgnam,
-                             bool *err= NULL,
-                             enum_coercion_error cr_error= CE_WARNING) const;
+                             bool *err = NULL,
+                             enum_coercion_error cr_error = CE_WARNING) const;
 
   /**
     Extract a date from the JSON if possible, coercing if need be.
@@ -1671,7 +1606,7 @@ public:
     @returns json value coerced to date
    */
   bool coerce_date(MYSQL_TIME *ltime, const char *msgnam,
-                   enum_coercion_error cr_error= CE_WARNING) const;
+                   enum_coercion_error cr_error = CE_WARNING) const;
 
   /**
     Extract a time value from the JSON if possible, coercing if need be.
@@ -1684,7 +1619,7 @@ public:
     @returns json value coerced to time
   */
   bool coerce_time(MYSQL_TIME *ltime, const char *msgnam,
-                   enum_coercion_error cr_error= CE_WARNING) const;
+                   enum_coercion_error cr_error = CE_WARNING) const;
 
   /**
     Make a sort key that can be used by filesort to order JSON values.
@@ -1799,15 +1734,13 @@ bool is_valid_json_syntax(const char *text, size_t length);
   Json_scalar. Used for pre-allocating space in query-duration memory
   for JSON scalars that are to be returned by get_json_atom_wrapper().
 */
-class Json_scalar_holder : public Sql_alloc
-{
+class Json_scalar_holder {
   /**
     Union of all concrete subclasses of Json_scalar. The union is
     never instantiated. It is only used for finding how much space
     needs to be allocated for #m_buffer.
   */
-  union Any_json_scalar
-  {
+  union Any_json_scalar {
     Json_string m_string;
     Json_decimal m_decimal;
     Json_int m_int;
@@ -1825,25 +1758,23 @@ class Json_scalar_holder : public Sql_alloc
   char m_buffer[sizeof(Any_json_scalar)];
 
   /// True if and only if a value has been assigned to the holder.
-  bool m_assigned= false;
+  bool m_assigned = false;
 
   /// Clear the holder, and destroy the held value if there is one.
-  void clear()
-  {
-    if (m_assigned)
-    {
+  void clear() {
+    if (m_assigned) {
       get()->~Json_scalar();
-      m_assigned= false;
+      m_assigned = false;
     }
   }
-public:
+
+ public:
   /// Destructor. The held value is destroyed, if there is one.
   ~Json_scalar_holder() { clear(); }
 
   /// Get a pointer to the held object, or nullptr if there is none.
-  Json_scalar *get()
-  {
-    void *ptr= m_assigned ? &m_buffer : nullptr;
+  Json_scalar *get() {
+    void *ptr = m_assigned ? &m_buffer : nullptr;
     return static_cast<Json_scalar *>(ptr);
   }
 
@@ -1853,13 +1784,13 @@ public:
     @tparam T which type of Json_scalar to create
     @param args the arguments to T's constructor
   */
-  template <typename T, typename... Args> void emplace(Args&&... args)
-  {
+  template <typename T, typename... Args>
+  void emplace(Args &&... args) {
     static_assert(std::is_base_of<Json_scalar, T>::value, "Not a Json_scalar");
     static_assert(sizeof(T) <= sizeof(m_buffer), "Buffer is too small");
     clear();
     ::new (&m_buffer) T(std::forward<Args>(args)...);
-    m_assigned= true;
+    m_assigned = true;
   }
 };
 

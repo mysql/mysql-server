@@ -37,13 +37,10 @@
 
 #include "my_macros.h"
 
-C_MODE_START
-
 /*
   Disable trace hooks if the infrastructure is not enabled
 */
-#if !defined(CLIENT_PROTOCOL_TRACING) \
-    || defined(MYSQL_SERVER)
+#if !defined(CLIENT_PROTOCOL_TRACING) || defined(MYSQL_SERVER)
 
 #define MYSQL_TRACE(E, M, ARGS)
 #define MYSQL_TRACE_STAGE(M, S)
@@ -53,40 +50,34 @@ C_MODE_START
 #include <mysql/plugin_trace.h>
 #include <stdarg.h>
 
-#include "sql_common.h"                         /* for MYSQL_EXTENSION() */
-
+#include "sql_common.h" /* for MYSQL_EXTENSION() */
 
 /**
   Per connection protocol tracing state
 
   For each connection which is traced an instance of this structure
-  is pointed by the trace_data member of st_mysql_extension structure
+  is pointed by the trace_data member of MYSQL_EXTENSION structure
   attached to that connection handle.
 
   If trace_data is NULL, for an initialized connection, then it means
   that tracing in this connection is disabled.
 */
 
-struct st_mysql_trace_info
-{
+struct st_mysql_trace_info {
   struct st_mysql_client_plugin_TRACE *plugin;
   void *trace_plugin_data;
   enum protocol_stage stage;
 };
 
-#define TRACE_DATA(M)   (MYSQL_EXTENSION_PTR(M)->trace_data)
-
+#define TRACE_DATA(M) (MYSQL_EXTENSION_PTR(M)->trace_data)
 
 /*
   See libmysql/mysql_trace.c for documentation and implementation of
   these functions.
 */
 
-void mysql_trace_trace(struct st_mysql*,
-                       enum trace_event,
-                       struct st_trace_event_args);
-void mysql_trace_start(struct st_mysql*);
-
+void mysql_trace_trace(MYSQL *, enum trace_event, struct st_trace_event_args);
+void mysql_trace_start(MYSQL *);
 
 /**
   The main protocol tracing hook.
@@ -104,18 +95,14 @@ void mysql_trace_start(struct st_mysql*);
   (see below) to put them inside st_trace_event_args structure.
 */
 
-#define MYSQL_TRACE(E, M, ARGS)                  \
-  do {                                           \
-  if (NULL == TRACE_DATA(M)) break;              \
-  {                                              \
-    struct st_trace_event_args event_args=       \
-                          TRACE_ARGS_ ## E ARGS; \
-    mysql_trace_trace(M,                         \
-                      TRACE_EVENT_ ## E,         \
-                      event_args);               \
-  }                                              \
-  } while(0)
-
+#define MYSQL_TRACE(E, M, ARGS)                                    \
+  do {                                                             \
+    if (NULL == TRACE_DATA(M)) break;                              \
+    {                                                              \
+      struct st_trace_event_args event_args = TRACE_ARGS_##E ARGS; \
+      mysql_trace_trace(M, TRACE_EVENT_##E, event_args);           \
+    }                                                              \
+  } while (0)
 
 /**
   A hook to set the current protocol stage.
@@ -130,14 +117,14 @@ void mysql_trace_start(struct st_mysql*);
   a trace plugin is loaded.
 */
 
-#define MYSQL_TRACE_STAGE(M, S)                                   \
-  do {                                                            \
-    if (TRACE_DATA(M))                                            \
-      TRACE_DATA(M)->stage= PROTOCOL_STAGE_ ## S;                 \
-    else if (trace_plugin &&                                      \
-             (PROTOCOL_STAGE_CONNECTING == PROTOCOL_STAGE_ ## S)) \
-      mysql_trace_start(M);                                       \
-  } while(0)
+#define MYSQL_TRACE_STAGE(M, S)                                 \
+  do {                                                          \
+    if (TRACE_DATA(M))                                          \
+      TRACE_DATA(M)->stage = PROTOCOL_STAGE_##S;                \
+    else if (trace_plugin &&                                    \
+             (PROTOCOL_STAGE_CONNECTING == PROTOCOL_STAGE_##S)) \
+      mysql_trace_start(M);                                     \
+  } while (0)
 
 /*
   Macros to parse event arguments and initialize the
@@ -145,30 +132,43 @@ void mysql_trace_start(struct st_mysql*);
   the structure in plugin_trace.h.
 */
 
-#define TRACE_ARGS_SEND_SSL_REQUEST(Size, Packet)   { NULL, 0, NULL, 0, Packet, Size }
-#define TRACE_ARGS_SEND_AUTH_RESPONSE(Size, Packet) { NULL, 0, NULL, 0, Packet, Size }
-#define TRACE_ARGS_SEND_AUTH_DATA(Size, Packet)     { NULL, 0, NULL, 0, Packet, Size }
-#define TRACE_ARGS_AUTH_PLUGIN(PluginName)          { PluginName, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_SEND_SSL_REQUEST(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
+#define TRACE_ARGS_SEND_AUTH_RESPONSE(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
+#define TRACE_ARGS_SEND_AUTH_DATA(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
+#define TRACE_ARGS_AUTH_PLUGIN(PluginName) \
+  { PluginName, 0, NULL, 0, NULL, 0 }
 #define TRACE_ARGS_SEND_COMMAND(Command, HdrSize, ArgSize, Header, Args) \
-                                                    { NULL, Command, Header, HdrSize, Args, ArgSize }
-#define TRACE_ARGS_SEND_FILE(Size, Packet)          { NULL, 0, NULL, 0, Packet, Size }
+  { NULL, Command, Header, HdrSize, Args, ArgSize }
+#define TRACE_ARGS_SEND_FILE(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
 
-#define TRACE_ARGS_PACKET_SENT(Size)                { NULL, 0, NULL, 0, NULL, Size }
-#define TRACE_ARGS_PACKET_RECEIVED(Size, Packet)    { NULL, 0, NULL, 0, Packet, Size }
-#define TRACE_ARGS_INIT_PACKET_RECEIVED(Size, Packet) { NULL, 0, NULL, 0, Packet, Size }
+#define TRACE_ARGS_PACKET_SENT(Size) \
+  { NULL, 0, NULL, 0, NULL, Size }
+#define TRACE_ARGS_PACKET_RECEIVED(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
+#define TRACE_ARGS_INIT_PACKET_RECEIVED(Size, Packet) \
+  { NULL, 0, NULL, 0, Packet, Size }
 
-#define TRACE_ARGS_ERROR()                          { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_READ_PACKET()                    { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_CONNECTING()                     { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_CONNECTED()                      { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_DISCONNECTED()                   { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_AUTHENTICATED()                  { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_SSL_CONNECT()                    { NULL, 0, NULL, 0, NULL, 0 }
-#define TRACE_ARGS_SSL_CONNECTED()                  { NULL, 0, NULL, 0, NULL, 0 }
-
+#define TRACE_ARGS_ERROR() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_READ_PACKET() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_CONNECTING() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_CONNECTED() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_DISCONNECTED() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_AUTHENTICATED() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_SSL_CONNECT() \
+  { NULL, 0, NULL, 0, NULL, 0 }
+#define TRACE_ARGS_SSL_CONNECTED() \
+  { NULL, 0, NULL, 0, NULL, 0 }
 
 #endif /* !defined(CLIENT_PROTOCOL_TRACING) || defined(MYSQL_SERVER) */
-
-C_MODE_END
 
 #endif

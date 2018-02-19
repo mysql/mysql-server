@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -28,7 +28,6 @@
 #include <functional>
 #include <string>
 
-
 class Variable_interface {
  public:
   virtual ~Variable_interface() = default;
@@ -37,18 +36,13 @@ class Variable_interface {
   virtual std::string get_value() const = 0;
 };
 
-
-class Variable_string: public Variable_interface {
+class Variable_string : public Variable_interface {
  public:
   Variable_string() = default;
 
-  explicit Variable_string(const std::string &value)
-  : m_value(value) {
-  }
+  explicit Variable_string(const std::string &value) : m_value(value) {}
 
-  explicit Variable_string(std::string &&value)
-  : m_value(value) {
-  }
+  explicit Variable_string(std::string &&value) : m_value(value) {}
 
   bool set_value(const std::string &value) override {
     m_value = value;
@@ -56,37 +50,30 @@ class Variable_string: public Variable_interface {
     return true;
   }
 
-  std::string get_value() const override {
-    return m_value;
-  }
+  std::string get_value() const override { return m_value; }
 
  private:
   std::string m_value;
 };
 
-
-class Variable_string_readonly: public Variable_string {
+class Variable_string_readonly : public Variable_string {
  public:
   explicit Variable_string_readonly(const std::string &value)
-  : Variable_string(value) {}
+      : Variable_string(value) {}
 
   template <typename Value_type>
   explicit Variable_string_readonly(const Value_type &value)
-  : Variable_string(std::to_string(value)) {}
+      : Variable_string(std::to_string(value)) {}
 
-  bool set_value(const std::string &value) override {
-    return false;
-  }
+  bool set_value(const std::string &value) override { return false; }
 };
 
-
-class Variable_dynamic_string: public Variable_interface {
+class Variable_dynamic_string : public Variable_interface {
  public:
   using String_ref = std::reference_wrapper<std::string>;
 
   explicit Variable_dynamic_string(const String_ref &value_ref)
-  : m_value(value_ref) {
-  }
+      : m_value(value_ref) {}
 
   bool set_value(const std::string &value) override {
     m_value.get() = value;
@@ -94,28 +81,23 @@ class Variable_dynamic_string: public Variable_interface {
     return true;
   }
 
-  std::string get_value() const override {
-    return m_value.get();
-  }
+  std::string get_value() const override { return m_value.get(); }
 
  private:
   String_ref m_value;
 };
 
-
-class Variable_dynamic_int: public Variable_interface {
+class Variable_dynamic_int : public Variable_interface {
  public:
   using Int_ref = std::reference_wrapper<int>;
 
   explicit Variable_dynamic_int(const Int_ref &value_ref)
-  : m_value(value_ref) {
-  }
+      : m_value(value_ref) {}
 
   bool set_value(const std::string &value) override {
     try {
       m_value.get() = std::stoi(value);
-    }
-    catch (const std::exception &) {
+    } catch (const std::exception &) {
       return false;
     }
 
@@ -129,6 +111,5 @@ class Variable_dynamic_int: public Variable_interface {
  private:
   Int_ref m_value;
 };
-
 
 #endif  // RAPID_PLUGIN_X_TESTS_DRIVER_PROCESSOR_VARIABLE_H_

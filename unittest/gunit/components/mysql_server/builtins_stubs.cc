@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-
 #ifndef BUILTIN_STUBS
 #define BUILTIN_STUBS
 
@@ -31,47 +30,49 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/sql_class.h"
 
 std::atomic<int32> connection_events_loop_aborted_flag;
-thread_local THD  *current_thd= nullptr;
-ulong              log_error_verbosity;
-ulong              opt_log_timestamps= 0;
-char              *opt_log_error_services= NULL;
-const char        *log_error_dest= "stderr";
+thread_local THD *current_thd = nullptr;
+ulong log_error_verbosity;
+ulong opt_log_timestamps = 0;
+char *opt_log_error_services = NULL;
+const char *log_error_dest = "stderr";
 
-my_thread_id log_get_thread_id(THD *thd MY_ATTRIBUTE((unused)))
-{ return -1; }
+void THD::debug_assert_query_locked() const {}
 
-void        log_write_errstream(const char *buffer MY_ATTRIBUTE((unused)),
-                                size_t length MY_ATTRIBUTE((unused)))
-{ }
+my_thread_id log_get_thread_id(THD *thd MY_ATTRIBUTE((unused))) { return -1; }
 
-const char *mysql_errno_to_symbol(int mysql_errno MY_ATTRIBUTE((unused)))
-{ return NULL; }
+void log_write_errstream(const char *buffer MY_ATTRIBUTE((unused)),
+                         size_t length MY_ATTRIBUTE((unused))) {}
 
-int         mysql_symbol_to_errno(const char *error_symbol MY_ATTRIBUTE((unused)))
-{ return -1; }
+const char *mysql_errno_to_symbol(int mysql_errno MY_ATTRIBUTE((unused))) {
+  return NULL;
+}
 
-const char *mysql_errno_to_sqlstate(uint mysql_errno MY_ATTRIBUTE((unused)))
-{ return NULL; }
+int mysql_symbol_to_errno(const char *error_symbol MY_ATTRIBUTE((unused))) {
+  return -1;
+}
 
-int         log_vmessage(int log_type MY_ATTRIBUTE((unused)),
-                         va_list lili MY_ATTRIBUTE((unused)))
-{ return -1;   }
+const char *mysql_errno_to_sqlstate(uint mysql_errno MY_ATTRIBUTE((unused))) {
+  return NULL;
+}
 
-int         log_message(int log_type MY_ATTRIBUTE((unused)), ...)
-{ return -1;   }
+int log_vmessage(int log_type MY_ATTRIBUTE((unused)),
+                 va_list lili MY_ATTRIBUTE((unused))) {
+  return -1;
+}
+
+int log_message(int log_type MY_ATTRIBUTE((unused)), ...) { return -1; }
 
 C_MODE_START
-const char *get_server_errmsgs(int mysql_errcode MY_ATTRIBUTE((unused)))
-{ return NULL; }
+const char *error_message_for_error_log(
+    int mysql_errno MY_ATTRIBUTE((unused))) {
+  return NULL;
+}
 C_MODE_END
 
-void push_warning(THD *thd
-                    MY_ATTRIBUTE((unused)),
+void push_warning(THD *thd MY_ATTRIBUTE((unused)),
                   Sql_condition::enum_severity_level severity
-                    MY_ATTRIBUTE((unused)),
-                  uint code
-                     MY_ATTRIBUTE((unused)),
-                  const char *message_text
-                      MY_ATTRIBUTE((unused))) {}
+                      MY_ATTRIBUTE((unused)),
+                  uint code MY_ATTRIBUTE((unused)),
+                  const char *message_text MY_ATTRIBUTE((unused))) {}
 
 #endif

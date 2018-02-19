@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,7 @@
 
 #include "plugin/x/src/global_timeouts.h"
 
-struct st_mysql_show_var;
+struct SHOW_VAR;
 
 namespace xpl {
 class Session;
@@ -80,10 +80,9 @@ class Client : public ngs::Client {
  public:
   bool is_handler_thd(THD *thd);
 
-  void get_status_ssl_cipher_list(st_mysql_show_var *var);
+  void get_status_ssl_cipher_list(SHOW_VAR *var);
 
   void kill();
-  ngs::shared_ptr<xpl::Session> get_session();
 
  private:
   bool is_localhost(const char *hostname);

@@ -39,7 +39,9 @@
 extern CHARSET_INFO my_charset_utf16le_general_ci;
 extern CHARSET_INFO my_charset_utf16_general_ci;
 
-namespace regexp_engine_unittest { class Mock_regexp_engine; }
+namespace regexp_engine_unittest {
+class Mock_regexp_engine;
+}
 
 namespace regexp {
 
@@ -92,8 +94,7 @@ class Regexp_engine {
     @param time_limit Gets set on the URegularExpression. Please refer to the
     ICU API docs for the definition of time limit.
   */
-  Regexp_engine(String *pattern, uint flags, int stack_limit,
-                int time_limit) {
+  Regexp_engine(String *pattern, uint flags, int stack_limit, int time_limit) {
     DBUG_ASSERT(pattern->charset() == regexp_lib_charset);
     UParseError error;
     auto upattern = pointer_cast<const UChar *>(pattern->ptr());
@@ -218,8 +219,7 @@ class Regexp_engine {
 
   friend class regexp_engine_unittest::Mock_regexp_engine;
 
-private:
-
+ private:
   /**
     Preflight function: If the buffer capacity is adequate, the replacement is
     appended to the buffer, otherwise nothing is written. Either way, the

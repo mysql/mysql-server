@@ -35,14 +35,11 @@ class One_row_resultset : public xpl::Collect_resultset {
  public:
   struct Init {
     Init(const int v)  // NOLINT(runtime/explicit)
-        : field(v, true),
-          type(MYSQL_TYPE_LONGLONG) {}
+        : field(v, true), type(MYSQL_TYPE_LONGLONG) {}
     Init(const bool v)  // NOLINT(runtime/explicit)
-        : field(v, true),
-          type(MYSQL_TYPE_LONGLONG) {}
+        : field(v, true), type(MYSQL_TYPE_LONGLONG) {}
     Init(const char *v)  // NOLINT(runtime/explicit)
-        : field(v, strlen(v)),
-          type(MYSQL_TYPE_STRING) {}
+        : field(v, strlen(v)), type(MYSQL_TYPE_STRING) {}
     const xpl::Collect_resultset::Field field;
     const enum_field_types type;
   };

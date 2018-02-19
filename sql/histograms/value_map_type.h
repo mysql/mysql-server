@@ -23,15 +23,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-namespace histograms
-{
+namespace histograms {
 
 /**
   Datatypes that a Value_map and histogram can hold (including the invalid
   type).
 */
-enum class Value_map_type
-{
+enum class Value_map_type {
   INVALID,
   STRING,
   INT,
@@ -45,5 +43,5 @@ enum class Value_map_type
   SET
 };
 
-}
+}  // namespace histograms
 #endif

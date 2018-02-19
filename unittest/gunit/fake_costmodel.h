@@ -34,49 +34,42 @@
   do not link with the server libraries.
 */
 
-class Fake_Cost_model_server : public Cost_model_server
-{
-public:
-  Fake_Cost_model_server()
-  {
+class Fake_Cost_model_server : public Cost_model_server {
+ public:
+  Fake_Cost_model_server() {
     // Create default values for server cost constants
-    m_server_cost_constants= new Server_cost_constants();
+    m_server_cost_constants = new Server_cost_constants();
 #if !defined(DBUG_OFF)
-    m_initialized= true;
+    m_initialized = true;
 #endif
   }
 
-  ~Fake_Cost_model_server()
-  {
+  ~Fake_Cost_model_server() {
     delete m_server_cost_constants;
-    m_server_cost_constants= NULL;
+    m_server_cost_constants = NULL;
   }
 };
 
-
-class Fake_Cost_model_table : public Cost_model_table
-{
-public:
-  Fake_Cost_model_table()
-  {
+class Fake_Cost_model_table : public Cost_model_table {
+ public:
+  Fake_Cost_model_table() {
     // Create a fake cost model server object that will provide
     // cost constants for server operations
-    m_cost_model_server= new Fake_Cost_model_server();
+    m_cost_model_server = new Fake_Cost_model_server();
 
     // Allocate cost constants for operations on tables
-    m_se_cost_constants= new SE_cost_constants();
+    m_se_cost_constants = new SE_cost_constants();
 
 #if !defined(DBUG_OFF)
-    m_initialized= true;
+    m_initialized = true;
 #endif
   }
 
-  ~Fake_Cost_model_table()
-  {
+  ~Fake_Cost_model_table() {
     delete m_cost_model_server;
-    m_cost_model_server= NULL;
+    m_cost_model_server = NULL;
     delete m_se_cost_constants;
-    m_se_cost_constants= NULL;
+    m_se_cost_constants = NULL;
   }
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -36,7 +36,8 @@ namespace xpl {
 class Expression_generator {
  public:
   using Expr = ::Mysqlx::Expr::Expr;
-  using Args = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Scalar>;
+  using Args =
+      ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Scalar>;
   using Document_path =
       ::google::protobuf::RepeatedPtrField<::Mysqlx::Expr::DocumentPathItem>;
 
@@ -51,10 +52,10 @@ class Expression_generator {
 
   // source: ``Mysqlx.Resultset.ColumnMetadata`` for list of known values
   enum Octets_content_type {
-    CT_PLAIN = 0x0000,     //   default value; general use of octets
+    CT_PLAIN = 0x0000,  //   default value; general use of octets
     CT_GEOMETRY = Mysqlx::Resultset::GEOMETRY,
-    CT_JSON     = Mysqlx::Resultset::JSON,
-    CT_XML      = Mysqlx::Resultset::XML
+    CT_JSON = Mysqlx::Resultset::JSON,
+    CT_XML = Mysqlx::Resultset::XML
   };
 
   Expression_generator(Query_string_builder *qb, const Args &args,
@@ -72,6 +73,7 @@ class Expression_generator {
 
   Expression_generator clone(Query_string_builder *qb) const;
   Query_string_builder &query_string_builder() const { return *m_qb; }
+  const Args &args() const { return m_args; }
 
  private:
   using Placeholder = ::google::protobuf::uint32;

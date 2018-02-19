@@ -34,21 +34,18 @@ struct handlerton;
 /**
   Sql_cmd_truncate_table represents the TRUNCATE statement.
 */
-class Sql_cmd_truncate_table : public Sql_cmd
-{
-private:
+class Sql_cmd_truncate_table : public Sql_cmd {
+ private:
   /* Set if a lock must be downgraded after truncate is done. */
   MDL_ticket *m_ticket_downgrade;
 
-public:
+ public:
   /**
     Constructor, used to represent a TRUNCATE statement.
   */
-  Sql_cmd_truncate_table()
-  {}
+  Sql_cmd_truncate_table() {}
 
-  virtual ~Sql_cmd_truncate_table()
-  {}
+  virtual ~Sql_cmd_truncate_table() {}
 
   /**
     Execute a TRUNCATE statement at runtime.
@@ -57,12 +54,9 @@ public:
   */
   bool execute(THD *thd);
 
-  virtual enum_sql_command sql_command_code() const
-  {
-    return SQLCOM_TRUNCATE;
-  }
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_TRUNCATE; }
 
-private:
+ private:
   /** Handle locking a base table for truncate. */
   bool lock_table(THD *, TABLE_LIST *, handlerton **);
 

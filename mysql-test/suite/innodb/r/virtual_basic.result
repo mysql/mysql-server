@@ -1376,8 +1376,6 @@ alter table t change column b b varbinary(2), algorithm=inplace;
 alter table t change column c c varbinary(2) generated always as (b) virtual, algorithm=inplace;
 drop table t;
 SET @@SESSION.sql_mode=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t(
 c1 INT AUTO_INCREMENT,
 c2 INT,

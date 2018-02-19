@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -25,7 +25,6 @@
 #ifndef X_TESTS_DRIVER_COMMON_COMMAND_LINE_OPTIONS_H_
 #define X_TESTS_DRIVER_COMMON_COMMAND_LINE_OPTIONS_H_
 
-
 class Command_line_options {
  public:
   int exit_code;
@@ -34,18 +33,12 @@ class Command_line_options {
  protected:
   Command_line_options(const int argc, char **argv) : exit_code(0) {}
 
-  bool check_arg(char **argv,
-                 int &argi,
-                 const char *arg,
-                 const char *larg);
+  bool check_arg(char **argv, int &argi, const char *arg, const char *larg);
 
   bool is_quote_char(const char single_char);
   bool should_remove_qoutes(const char first, const char last);
-  bool check_arg_with_value(char **argv,
-                            int &argi,
-                            const char *arg,
-                            const char *larg,
-                            char *&value);
+  bool check_arg_with_value(char **argv, int &argi, const char *arg,
+                            const char *larg, char *&value);
 };
 
 #endif  // X_TESTS_DRIVER_COMMON_COMMAND_LINE_OPTIONS_H_

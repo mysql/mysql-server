@@ -49,33 +49,28 @@
 
 #include "my_macros.h"
 #include "my_thread.h"
-#include "thr_mutex.h"
 #include "mysql/components/services/thr_cond_bits.h"
-
-C_MODE_START
+#include "thr_mutex.h"
 
 #ifdef _WIN32
 /**
   Convert abstime to milliseconds
 */
 
-static DWORD get_milliseconds(const struct timespec *abstime)
-{
+static DWORD get_milliseconds(const struct timespec *abstime) {
   /*
     Convert timespec to millis and subtract current time.
     my_getsystime() returns time in 100 ns units.
   */
-  ulonglong future= abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
-  ulonglong now= my_getsystime() / 10000;
+  ulonglong future = abstime->tv_sec * 1000 + abstime->tv_nsec / 1000000;
+  ulonglong now = my_getsystime() / 10000;
   /* Don't allow the timeout to be negative. */
-  if (future < now)
-    return 0;
+  if (future < now) return 0;
   return (DWORD)(future - now);
 }
 #endif /* _WIN32 */
 
-static inline int native_cond_init(native_cond_t *cond)
-{
+static inline int native_cond_init(native_cond_t *cond) {
 #ifdef _WIN32
   InitializeConditionVariable(cond);
   return 0;
@@ -85,8 +80,8 @@ static inline int native_cond_init(native_cond_t *cond)
 #endif
 }
 
-static inline int native_cond_destroy(native_cond_t *cond)
-{
+static inline int native_cond_destroy(
+    native_cond_t *cond MY_ATTRIBUTE((unused))) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else
@@ -96,31 +91,26 @@ static inline int native_cond_destroy(native_cond_t *cond)
 
 static inline int native_cond_timedwait(native_cond_t *cond,
                                         native_mutex_t *mutex,
-                                        const struct timespec *abstime)
-{
+                                        const struct timespec *abstime) {
 #ifdef _WIN32
-  DWORD timeout= get_milliseconds(abstime);
-  if (!SleepConditionVariableCS(cond, mutex, timeout))
-    return ETIMEDOUT;
+  DWORD timeout = get_milliseconds(abstime);
+  if (!SleepConditionVariableCS(cond, mutex, timeout)) return ETIMEDOUT;
   return 0;
 #else
   return pthread_cond_timedwait(cond, mutex, abstime);
 #endif
 }
 
-static inline int native_cond_wait(native_cond_t *cond, native_mutex_t *mutex)
-{
+static inline int native_cond_wait(native_cond_t *cond, native_mutex_t *mutex) {
 #ifdef _WIN32
-  if (!SleepConditionVariableCS(cond, mutex, INFINITE))
-    return ETIMEDOUT;
+  if (!SleepConditionVariableCS(cond, mutex, INFINITE)) return ETIMEDOUT;
   return 0;
 #else
   return pthread_cond_wait(cond, mutex);
 #endif
 }
 
-static inline int native_cond_signal(native_cond_t *cond)
-{
+static inline int native_cond_signal(native_cond_t *cond) {
 #ifdef _WIN32
   WakeConditionVariable(cond);
   return 0;
@@ -129,8 +119,7 @@ static inline int native_cond_signal(native_cond_t *cond)
 #endif
 }
 
-static inline int native_cond_broadcast(native_cond_t *cond)
-{
+static inline int native_cond_broadcast(native_cond_t *cond) {
 #ifdef _WIN32
   WakeAllConditionVariable(cond);
   return 0;
@@ -140,40 +129,38 @@ static inline int native_cond_broadcast(native_cond_t *cond)
 }
 
 #ifdef SAFE_MUTEX
-int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp,
-                   const char *file, uint line);
+int safe_cond_wait(native_cond_t *cond, safe_mutex_t *mp, const char *file,
+                   uint line);
 int safe_cond_timedwait(native_cond_t *cond, safe_mutex_t *mp,
-                        const struct timespec *abstime,
-                        const char *file, uint line);
+                        const struct timespec *abstime, const char *file,
+                        uint line);
 #endif
 
 static inline int my_cond_timedwait(native_cond_t *cond, my_mutex_t *mp,
                                     const struct timespec *abstime
 #ifdef SAFE_MUTEX
-                                    , const char *file, uint line
+                                    ,
+                                    const char *file, uint line
 #endif
-                                    )
-{
+) {
 #ifdef SAFE_MUTEX
   return safe_cond_timedwait(cond, mp->m_u.m_safe_ptr, abstime, file, line);
 #else
-  return native_cond_timedwait(cond, & mp->m_u.m_native, abstime);
+  return native_cond_timedwait(cond, &mp->m_u.m_native, abstime);
 #endif
 }
 
 static inline int my_cond_wait(native_cond_t *cond, my_mutex_t *mp
 #ifdef SAFE_MUTEX
-                               , const char *file, uint line
+                               ,
+                               const char *file, uint line
 #endif
-                               )
-{
+) {
 #ifdef SAFE_MUTEX
   return safe_cond_wait(cond, mp->m_u.m_safe_ptr, file, line);
 #else
-  return native_cond_wait(cond, & mp->m_u.m_native);
+  return native_cond_wait(cond, &mp->m_u.m_native);
 #endif
 }
-
-C_MODE_END
 
 #endif /* THR_COND_INCLUDED */

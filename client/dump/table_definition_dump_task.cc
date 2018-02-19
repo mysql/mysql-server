@@ -26,11 +26,9 @@
 
 using namespace Mysql::Tools::Dump;
 
-Table_definition_dump_task::Table_definition_dump_task(Table* related_table)
-  : Abstract_table_dump_task(related_table)
-{}
+Table_definition_dump_task::Table_definition_dump_task(Table *related_table)
+    : Abstract_table_dump_task(related_table) {}
 
-Table_definition_dump_task::~Table_definition_dump_task()
-{
-  delete (Table*)this->get_related_db_object();
+Table_definition_dump_task::~Table_definition_dump_task() {
+  delete (Table *)this->get_related_db_object();
 }

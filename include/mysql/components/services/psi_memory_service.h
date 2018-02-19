@@ -23,23 +23,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #ifndef COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H
 #define COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H
 
-#include <mysql/components/services/psi_memory_bits.h>
 #include <mysql/components/service.h>
+#include <mysql/components/services/psi_memory_bits.h>
 
 BEGIN_SERVICE_DEFINITION(psi_memory_v1)
-  /** @sa register_memory_v1_t. */
-  register_memory_v1_t register_memory;
-  /** @sa memory_alloc_v1_t. */
-  memory_alloc_v1_t memory_alloc;
-  /** @sa memory_realloc_v1_t. */
-  memory_realloc_v1_t memory_realloc;
-  /** @sa memory_claim_v1_t. */
-  memory_claim_v1_t memory_claim;
-  /** @sa memory_free_v1_t. */
-  memory_free_v1_t memory_free;
+/** @sa register_memory_v1_t. */
+register_memory_v1_t register_memory;
+/** @sa memory_alloc_v1_t. */
+memory_alloc_v1_t memory_alloc;
+/** @sa memory_realloc_v1_t. */
+memory_realloc_v1_t memory_realloc;
+/** @sa memory_claim_v1_t. */
+memory_claim_v1_t memory_claim;
+/** @sa memory_free_v1_t. */
+memory_free_v1_t memory_free;
 END_SERVICE_DEFINITION(psi_memory_v1)
 
 #define REQUIRES_PSI_MEMORY_SERVICE REQUIRES_SERVICE(psi_memory_v1)
 
 #endif /* COMPONENTS_SERVICES_PSI_MEMORY_SERVICE_H */
-

@@ -24,35 +24,31 @@
 #define SQL_CALL_INCLUDED
 
 #include "my_sqlcommand.h"
-#include "sql/sql_cmd_dml.h" // Sql_cmd_dml
+#include "sql/sql_cmd_dml.h"  // Sql_cmd_dml
 
 class Item;
 class THD;
 class sp_name;
-template <class T> class List;
+template <class T>
+class List;
 
-class Sql_cmd_call : public Sql_cmd_dml
-{
-public:
+class Sql_cmd_call : public Sql_cmd_dml {
+ public:
   explicit Sql_cmd_call(sp_name *proc_name_arg, List<Item> *prog_args_arg)
-  : Sql_cmd_dml(), proc_name(proc_name_arg), proc_args(prog_args_arg)
-  {}
+      : Sql_cmd_dml(), proc_name(proc_name_arg), proc_args(prog_args_arg) {}
 
-  virtual enum_sql_command sql_command_code() const
-  {
-    return SQLCOM_CALL;
-  }
+  virtual enum_sql_command sql_command_code() const { return SQLCOM_CALL; }
 
   virtual bool is_data_change_stmt() const { return false; }
 
-protected:
+ protected:
   virtual bool precheck(THD *thd);
 
   virtual bool prepare_inner(THD *thd);
 
   virtual bool execute_inner(THD *thd);
 
-private:
+ private:
   sp_name *proc_name;
   List<Item> *proc_args;
 };

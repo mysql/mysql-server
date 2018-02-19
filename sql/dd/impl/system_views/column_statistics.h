@@ -34,12 +34,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.COLUMN_STATISTICS system view
   definition.
 */
-class Column_statistics :
-  public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Column_statistics
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_SCHEMA_NAME,
     FIELD_TABLE_NAME,
     FIELD_COLUMN_NAME,
@@ -50,17 +48,17 @@ public:
 
   static const Column_statistics &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("COLUMN_STATISTICS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Column_statistics::view_name(); }
+  virtual const String_type &name() const {
+    return Column_statistics::view_name();
+  }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__COLUMN_STATISTICS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__COLUMN_STATISTICS_INCLUDED

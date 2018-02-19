@@ -36,16 +36,18 @@
 #include "my_io.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/psi/mysql_file.h"             // mysql_file_open
+#include "mysql/components/services/log_builtins.h"
+#include "mysql/psi/mysql_file.h"  // mysql_file_open
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "sql/dd/dd_schema.h"                 // Schema_MDL_locker
-#include "sql/log.h"                          // LogErr()
-#include "sql/mysqld.h"                       // key_file_dbopt
-#include "sql/sql_class.h"                    // THD
-#include "sql/sql_table.h"                    // build_tablename
+#include "sql/dd/dd_schema.h"  // Schema_MDL_locker
+#include "sql/log.h"           // LogErr()
+#include "sql/mysqld.h"        // key_file_dbopt
+#include "sql/sql_class.h"     // THD
+#include "sql/sql_table.h"     // build_tablename
 #include "sql/system_variables.h"
-#include "sql/transaction.h"                  // trans_commit
+#include "sql/thd_raii.h"
+#include "sql/transaction.h"  // trans_commit
 #include "sql_string.h"
 
 namespace dd {
@@ -62,64 +64,52 @@ namespace upgrade_57 {
   @retval true   ON FAILURE
 
 */
-static bool load_db_schema_collation(THD *thd,
-                                     const LEX_STRING *db_opt_path,
-                                     const CHARSET_INFO **schema_charset)
-{
+static bool load_db_schema_collation(THD *thd, const LEX_STRING *db_opt_path,
+                                     const CHARSET_INFO **schema_charset) {
   IO_CACHE cache;
   File file;
   char buf[256];
   uint nbytes;
 
-  if ((file= mysql_file_open(key_file_dbopt, db_opt_path->str,
-                             O_RDONLY, MYF(0))) < 0)
-  {
+  if ((file = mysql_file_open(key_file_dbopt, db_opt_path->str, O_RDONLY,
+                              MYF(0))) < 0) {
     LogErr(WARNING_LEVEL, ER_CANT_OPEN_DB_OPT_USING_DEFAULT_CHARSET,
            db_opt_path->str);
     return false;
   }
 
-  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0)))
-  {
+  if (init_io_cache(&cache, file, IO_SIZE, READ_CACHE, 0, 0, MYF(0))) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_CACHE_FOR_DB_OPT, db_opt_path->str);
     goto err;
   }
 
-  while ((int) (nbytes= my_b_gets(&cache, (char*) buf, sizeof(buf))) > 0)
-  {
-    char *pos= buf + nbytes - 1;
+  while ((int)(nbytes = my_b_gets(&cache, (char *)buf, sizeof(buf))) > 0) {
+    char *pos = buf + nbytes - 1;
 
     /* Remove end space and control characters */
-    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1]))
-      pos--;
+    while (pos > buf && !my_isgraph(&my_charset_latin1, pos[-1])) pos--;
 
-    *pos=0;
-    if ((pos= strrchr(buf, '=')))
-    {
-      if (!strncmp(buf,"default-character-set", (pos-buf)))
-      {
+    *pos = 0;
+    if ((pos = strrchr(buf, '='))) {
+      if (!strncmp(buf, "default-character-set", (pos - buf))) {
         /*
            Try character set name, and if it fails try collation name, probably
            it's an old 4.1.0 db.opt file, which didn't have separate
            default-character-set and default-collation commands.
         */
-        if (!(*schema_charset= get_charset_by_csname(pos + 1,
-                                                    MY_CS_PRIMARY, MYF(0))) &&
-            !(*schema_charset= get_charset_by_name(pos + 1, MYF(0))))
-        {
+        if (!(*schema_charset =
+                  get_charset_by_csname(pos + 1, MY_CS_PRIMARY, MYF(0))) &&
+            !(*schema_charset = get_charset_by_name(pos + 1, MYF(0)))) {
           LogErr(WARNING_LEVEL, ER_CANT_IDENTIFY_CHARSET_USING_DEFAULT,
                  db_opt_path->str);
 
-          *schema_charset= thd->variables.collation_server;
+          *schema_charset = thd->variables.collation_server;
         }
-      }
-      else if (!strncmp(buf, "default-collation", (pos - buf)))
-      {
-        if (!(*schema_charset= get_charset_by_name(pos + 1, MYF(0))) )
-        {
+      } else if (!strncmp(buf, "default-collation", (pos - buf))) {
+        if (!(*schema_charset = get_charset_by_name(pos + 1, MYF(0)))) {
           LogErr(WARNING_LEVEL, ER_CANT_IDENTIFY_CHARSET_USING_DEFAULT,
                  db_opt_path->str);
-          *schema_charset= thd->variables.collation_server;
+          *schema_charset = thd->variables.collation_server;
         }
       }
     }
@@ -134,77 +124,64 @@ err:
   return true;
 }
 
-
 /**
    Update the Schemata:DD for every database present
    in the data directory.
 */
 
-bool migrate_schema_to_dd(THD *thd, const char *dbname)
-{
+bool migrate_schema_to_dd(THD *thd, const char *dbname) {
   char dbopt_path_buff[FN_REFLEN + 1];
   char schema_name[NAME_LEN + 1];
   LEX_STRING dbopt_file_name;
-  const CHARSET_INFO *schema_charset= thd->variables.collation_server;
+  const CHARSET_INFO *schema_charset = thd->variables.collation_server;
 
   // Construct the schema name from its canonical format.
   filename_to_tablename(dbname, schema_name, sizeof(schema_name));
 
-  dbopt_file_name.str= dbopt_path_buff;
-  dbopt_file_name.length= build_table_filename(dbopt_path_buff, FN_REFLEN - 1,
-                                               schema_name, "db", ".opt", 0);
+  dbopt_file_name.str = dbopt_path_buff;
+  dbopt_file_name.length = build_table_filename(dbopt_path_buff, FN_REFLEN - 1,
+                                                schema_name, "db", ".opt", 0);
 
-  if (!my_access(dbopt_file_name.str, F_OK))
-  {
+  if (!my_access(dbopt_file_name.str, F_OK)) {
     // Get the collation id for the database.
     if (load_db_schema_collation(thd, &dbopt_file_name, &schema_charset))
       return true;
-  }
-  else
-  {
+  } else {
     LogErr(WARNING_LEVEL, ER_DB_OPT_NOT_FOUND_USING_DEFAULT_CHARSET, dbname);
   }
 
   // Disable autocommit option
   Disable_autocommit_guard autocommit_guard(thd);
 
-  if (dd::create_schema(thd, schema_name, schema_charset))
-  {
+  if (dd::create_schema(thd, schema_name, schema_charset)) {
     trans_rollback_stmt(thd);
     // Full rollback in case we have THD::transaction_rollback_request.
     trans_rollback(thd);
     return true;
   }
 
-  if (trans_commit_stmt(thd) || trans_commit(thd))
-    return true;
+  if (trans_commit_stmt(thd) || trans_commit(thd)) return true;
 
   return false;
 }
-
 
 /**
   Scans datadir for databases and lists all the database names.
 */
 
-bool find_schema_from_datadir(std::vector<String_type> *db_name)
-{
+bool find_schema_from_datadir(std::vector<String_type> *db_name) {
   MY_DIR *a;
   uint i;
   FILEINFO *file;
 
-  if (!(a = my_dir(mysql_real_data_home, MYF(MY_WANT_STAT))))
-    return true;
+  if (!(a = my_dir(mysql_real_data_home, MYF(MY_WANT_STAT)))) return true;
 
-  for (i = 0; i < (uint)a->number_off_files; i++)
-  {
-    file= a->dir_entry+i;
+  for (i = 0; i < (uint)a->number_off_files; i++) {
+    file = a->dir_entry + i;
 
-    if (file->name[0]  == '.')
-      continue;
+    if (file->name[0] == '.') continue;
 
-    if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode))
-    {
+    if (MY_S_ISDIR(a->dir_entry[i].mystat->st_mode)) {
       db_name->push_back(a->dir_entry[i].name);
       continue;
     }
@@ -214,7 +191,5 @@ bool find_schema_from_datadir(std::vector<String_type> *db_name)
   return false;
 }
 
-
-} // namespace upgrade
-} // namespace dd
-
+}  // namespace upgrade_57
+}  // namespace dd

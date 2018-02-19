@@ -133,17 +133,12 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Master_Host = '127.0.0.1'
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 include/rpl_reset.inc
 include/assert.inc [Password length is 32]
 SET SQL_LOG_BIN=0;
-GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY '012345678901234567890123456789ab';
-Warnings:
-Warning	1287	Using GRANT for creating new user is deprecated and will be removed in future release. Create new user with CREATE USER statement.
+CREATE USER rpl@127.0.0.1 IDENTIFIED BY '012345678901234567890123456789ab';
+GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1;
 SET SQL_LOG_BIN=1;
 include/stop_slave.inc
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', master_user='rpl', master_password='012345678901234567890123456789ab', master_ssl=1;
@@ -159,7 +154,7 @@ DROP USER rpl@127.0.0.1;
 FLUSH PRIVILEGES;
 SET SQL_LOG_BIN=1;
 include/stop_slave_io.inc
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL=0;
+CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

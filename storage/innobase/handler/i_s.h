@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -24,12 +24,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-/**************************************************//**
-@file handler/i_s.h
-InnoDB INFORMATION SCHEMA tables interface to MySQL.
+/** @file handler/i_s.h
+ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
-Created July 18, 2007 Vasil Dimov
-*******************************************************/
+ Created July 18, 2007 Vasil Dimov
+ *******************************************************/
 
 #ifndef i_s_h
 #define i_s_h
@@ -39,34 +38,34 @@ struct TABLE_LIST;
 
 const char plugin_author[] = "Oracle Corporation";
 
-extern struct st_mysql_plugin	i_s_innodb_trx;
-extern struct st_mysql_plugin	i_s_innodb_cmp;
-extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
-extern struct st_mysql_plugin	i_s_innodb_cmp_per_index;
-extern struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset;
-extern struct st_mysql_plugin	i_s_innodb_cmpmem;
-extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
-extern struct st_mysql_plugin   i_s_innodb_metrics;
-extern struct st_mysql_plugin	i_s_innodb_ft_default_stopword;
-extern struct st_mysql_plugin	i_s_innodb_ft_deleted;
-extern struct st_mysql_plugin	i_s_innodb_ft_being_deleted;
-extern struct st_mysql_plugin	i_s_innodb_ft_index_cache;
-extern struct st_mysql_plugin	i_s_innodb_ft_index_table;
-extern struct st_mysql_plugin	i_s_innodb_ft_config;
-extern struct st_mysql_plugin	i_s_innodb_buffer_page;
-extern struct st_mysql_plugin	i_s_innodb_buffer_page_lru;
-extern struct st_mysql_plugin	i_s_innodb_buffer_stats;
-extern struct st_mysql_plugin	i_s_innodb_temp_table_info;
-extern struct st_mysql_plugin	i_s_innodb_tables;
-extern struct st_mysql_plugin	i_s_innodb_tablestats;
-extern struct st_mysql_plugin	i_s_innodb_indexes;
-extern struct st_mysql_plugin	i_s_innodb_columns;
-extern struct st_mysql_plugin	i_s_innodb_fields;
-extern struct st_mysql_plugin	i_s_innodb_foreign;
-extern struct st_mysql_plugin	i_s_innodb_foreign_cols;
-extern struct st_mysql_plugin	i_s_innodb_tablespaces;
-extern struct st_mysql_plugin	i_s_innodb_datafiles;
-extern struct st_mysql_plugin	i_s_innodb_virtual;
-extern struct st_mysql_plugin	i_s_innodb_cached_indexes;
+extern struct st_mysql_plugin i_s_innodb_trx;
+extern struct st_mysql_plugin i_s_innodb_cmp;
+extern struct st_mysql_plugin i_s_innodb_cmp_reset;
+extern struct st_mysql_plugin i_s_innodb_cmp_per_index;
+extern struct st_mysql_plugin i_s_innodb_cmp_per_index_reset;
+extern struct st_mysql_plugin i_s_innodb_cmpmem;
+extern struct st_mysql_plugin i_s_innodb_cmpmem_reset;
+extern struct st_mysql_plugin i_s_innodb_metrics;
+extern struct st_mysql_plugin i_s_innodb_ft_default_stopword;
+extern struct st_mysql_plugin i_s_innodb_ft_deleted;
+extern struct st_mysql_plugin i_s_innodb_ft_being_deleted;
+extern struct st_mysql_plugin i_s_innodb_ft_index_cache;
+extern struct st_mysql_plugin i_s_innodb_ft_index_table;
+extern struct st_mysql_plugin i_s_innodb_ft_config;
+extern struct st_mysql_plugin i_s_innodb_buffer_page;
+extern struct st_mysql_plugin i_s_innodb_buffer_page_lru;
+extern struct st_mysql_plugin i_s_innodb_buffer_stats;
+extern struct st_mysql_plugin i_s_innodb_temp_table_info;
+extern struct st_mysql_plugin i_s_innodb_tables;
+extern struct st_mysql_plugin i_s_innodb_tablestats;
+extern struct st_mysql_plugin i_s_innodb_indexes;
+extern struct st_mysql_plugin i_s_innodb_columns;
+extern struct st_mysql_plugin i_s_innodb_fields;
+extern struct st_mysql_plugin i_s_innodb_foreign;
+extern struct st_mysql_plugin i_s_innodb_foreign_cols;
+extern struct st_mysql_plugin i_s_innodb_tablespaces;
+extern struct st_mysql_plugin i_s_innodb_datafiles;
+extern struct st_mysql_plugin i_s_innodb_virtual;
+extern struct st_mysql_plugin i_s_innodb_cached_indexes;
 
 #endif /* i_s_h */

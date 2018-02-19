@@ -26,6 +26,7 @@
 #include <ndb_opts.h>
 
 #include <ndb_version.h>
+#include "my_alloc.h"
 #include "my_default.h"
 
 static const char *load_default_groups[]= { "mysql_cluster", 0 };
@@ -172,6 +173,7 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
                    struct my_option * long_options,
                    const char * default_groups[])
 :
+  opts_mem_root(),
   main_argc_ptr(& argc_ref),
   main_argv_ptr(& argv_ref),
   mycnf_default_groups(default_groups ? default_groups : load_default_groups),
@@ -179,15 +181,13 @@ Ndb_opts::Ndb_opts(int & argc_ref, char** & argv_ref,
   short_usage_fn(g_ndb_opt_short_usage)
 {
   my_load_defaults(MYSQL_CONFIG_NAME,  mycnf_default_groups,
-                   main_argc_ptr, main_argv_ptr, NULL);
+                   main_argc_ptr, main_argv_ptr,  &opts_mem_root, NULL);
   Ndb_opts::registerUsage(this);
-  defaults_argv = * main_argv_ptr;
 };
 
 Ndb_opts::~Ndb_opts()
 {
   Ndb_opts::release();
-  free_defaults(defaults_argv);
 }
 
 int Ndb_opts::handle_options(bool (*get_opt_fn)

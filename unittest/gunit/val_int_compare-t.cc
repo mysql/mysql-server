@@ -29,8 +29,7 @@
 
 namespace val_int_compare_unittest {
 
-TEST(ValIntCompare, Equality)
-{
+TEST(ValIntCompare, Equality) {
   EXPECT_TRUE(Integer_value(UINT_MAX, false) == Integer_value(UINT_MAX, true));
   EXPECT_TRUE(Integer_value(0, false) == Integer_value(0, true));
   EXPECT_TRUE(Integer_value(1, false) == Integer_value(1, true));
@@ -40,8 +39,7 @@ TEST(ValIntCompare, Equality)
                Integer_value(0xffffffffffffffff, true));
 }
 
-TEST(ValIntCompare, LessThan)
-{
+TEST(ValIntCompare, LessThan) {
   EXPECT_TRUE(Integer_value(INT_MIN, false) < Integer_value(INT_MAX, false));
   EXPECT_TRUE(Integer_value(INT_MIN, false) < Integer_value(INT_MAX, true));
   EXPECT_FALSE(Integer_value(INT_MAX, false) < Integer_value(INT_MAX, true));
@@ -57,11 +55,10 @@ TEST(ValIntCompare, LessThan)
   EXPECT_TRUE(Integer_value(0, false) < Integer_value(1, true));
 }
 
-TEST(ValIntCompare, LessThanOrEqual)
-{
+TEST(ValIntCompare, LessThanOrEqual) {
   EXPECT_TRUE(Integer_value(INT_MIN, false) <= Integer_value(INT_MAX, false));
   EXPECT_TRUE(Integer_value(INT_MIN, false) <= Integer_value(INT_MAX, true));
   EXPECT_TRUE(Integer_value(INT_MAX, false) <= Integer_value(INT_MAX, true));
 }
 
-}
+}  // namespace val_int_compare_unittest

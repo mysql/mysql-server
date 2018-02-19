@@ -891,7 +891,6 @@ linked_server_sources
 linked_tools_sources
 locked
 ltmain.sh
-man/*.1
 merge/*.ds?
 merge/*.vcproj
 missing

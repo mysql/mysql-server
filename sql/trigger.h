@@ -27,28 +27,24 @@
 #include "my_config.h"
 
 #include <string.h>
-
-#include "sql/dd/properties.h"
 #ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
 #endif
 #include <sys/types.h>
 
+#include "lex_string.h"
 #include "my_inttypes.h"
 #include "mysql_com.h"
-#include "sql/key.h"
-#include "sql/sql_alloc.h"            // Sql_alloc
-#include "sql/table.h"                // GRANT_INFO
-#include "sql/thr_malloc.h"
-#include "sql/trigger_def.h"          // enum_trigger_event_type
+#include "sql/table.h"        // GRANT_INFO
+#include "sql/trigger_def.h"  // enum_trigger_event_type
 
 class Query_tables_list;
 class String;
 class THD;
 class sp_head;
+struct MEM_ROOT;
 
 typedef ulonglong sql_mode_t;
-
 
 /**
   This class represents a trigger object.
@@ -74,121 +70,94 @@ typedef ulonglong sql_mode_t;
 
       @see Trigger::create_from_parser().
 */
-class Trigger : public Sql_alloc
-{
-public:
-  static Trigger *create_from_parser(THD *thd,
-                                     TABLE *subject_table,
+class Trigger {
+ public:
+  static Trigger *create_from_parser(THD *thd, TABLE *subject_table,
                                      String *binlog_create_trigger_stmt);
 
-  static Trigger *create_from_dd(MEM_ROOT *mem_root,
-                                 const LEX_CSTRING &trigger_name,
-                                 const LEX_CSTRING &db_name,
-                                 const LEX_CSTRING &subject_table_name,
-                                 const LEX_CSTRING &definition,
-                                 const LEX_CSTRING &definition_utf8,
-                                 sql_mode_t sql_mode,
-                                 const LEX_CSTRING &definer_user,
-                                 const LEX_CSTRING &definer_host,
-                                 const LEX_CSTRING &client_cs_name,
-                                 const LEX_CSTRING &connection_cl_name,
-                                 const LEX_CSTRING &db_cl_name,
-                                 enum_trigger_event_type trg_event_type,
-                                 enum_trigger_action_time_type trg_time_type,
-                                 uint action_order,
-                                 timeval created_timestamp);
+  static Trigger *create_from_dd(
+      MEM_ROOT *mem_root, const LEX_CSTRING &trigger_name,
+      const LEX_CSTRING &db_name, const LEX_CSTRING &subject_table_name,
+      const LEX_CSTRING &definition, const LEX_CSTRING &definition_utf8,
+      sql_mode_t sql_mode, const LEX_CSTRING &definer_user,
+      const LEX_CSTRING &definer_host, const LEX_CSTRING &client_cs_name,
+      const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
+      enum_trigger_event_type trg_event_type,
+      enum_trigger_action_time_type trg_time_type, uint action_order,
+      timeval created_timestamp);
 
-public:
+ public:
   bool execute(THD *thd);
 
   bool parse(THD *thd, bool is_upgrade);
 
-  void add_tables_and_routines(THD *thd,
-                               Query_tables_list *prelocking_ctx,
+  void add_tables_and_routines(THD *thd, Query_tables_list *prelocking_ctx,
                                TABLE_LIST *table_list);
 
   void print_upgrade_warning(THD *thd);
 
-public:
+ public:
   /************************************************************************
    * Attribute accessors.
    ***********************************************************************/
 
-  const LEX_CSTRING &get_db_name() const
-  { return m_db_name; }
+  const LEX_CSTRING &get_db_name() const { return m_db_name; }
 
-  const LEX_CSTRING &get_subject_table_name() const
-  { return m_subject_table_name; }
+  const LEX_CSTRING &get_subject_table_name() const {
+    return m_subject_table_name;
+  }
 
-  const LEX_CSTRING &get_trigger_name() const
-  { return m_trigger_name; }
+  const LEX_CSTRING &get_trigger_name() const { return m_trigger_name; }
 
-  const LEX_CSTRING &get_definition() const
-  { return m_definition; }
+  const LEX_CSTRING &get_definition() const { return m_definition; }
 
-  const LEX_CSTRING &get_definition_utf8() const
-  { return m_definition_utf8; }
+  const LEX_CSTRING &get_definition_utf8() const { return m_definition_utf8; }
 
-  sql_mode_t get_sql_mode() const
-  { return m_sql_mode; }
+  sql_mode_t get_sql_mode() const { return m_sql_mode; }
 
-  const LEX_CSTRING &get_definer() const
-  { return m_definer; }
+  const LEX_CSTRING &get_definer() const { return m_definer; }
 
-  const LEX_CSTRING &get_definer_user() const
-  { return m_definer_user; }
+  const LEX_CSTRING &get_definer_user() const { return m_definer_user; }
 
-  const LEX_CSTRING &get_definer_host() const
-  { return m_definer_host; }
+  const LEX_CSTRING &get_definer_host() const { return m_definer_host; }
 
-  const LEX_CSTRING &get_client_cs_name() const
-  { return m_client_cs_name; }
+  const LEX_CSTRING &get_client_cs_name() const { return m_client_cs_name; }
 
-  const LEX_CSTRING &get_connection_cl_name() const
-  { return m_connection_cl_name; }
+  const LEX_CSTRING &get_connection_cl_name() const {
+    return m_connection_cl_name;
+  }
 
-  const LEX_CSTRING &get_db_cl_name() const
-  { return m_db_cl_name; }
+  const LEX_CSTRING &get_db_cl_name() const { return m_db_cl_name; }
 
-  enum_trigger_event_type get_event() const
-  { return m_event; }
+  enum_trigger_event_type get_event() const { return m_event; }
 
   const LEX_CSTRING &get_event_as_string() const;
 
-  enum_trigger_action_time_type get_action_time() const
-  { return m_action_time; }
+  enum_trigger_action_time_type get_action_time() const {
+    return m_action_time;
+  }
 
   const LEX_CSTRING &get_action_time_as_string() const;
 
-  bool is_created_timestamp_null() const
-  {
-    return m_created_timestamp.tv_sec == 0 &&
-           m_created_timestamp.tv_usec == 0;
+  bool is_created_timestamp_null() const {
+    return m_created_timestamp.tv_sec == 0 && m_created_timestamp.tv_usec == 0;
   }
 
-  timeval get_created_timestamp() const
-  {
-    return m_created_timestamp;
+  timeval get_created_timestamp() const { return m_created_timestamp; }
+
+  ulonglong get_action_order() const { return m_action_order; }
+
+  void set_action_order(ulonglong action_order) {
+    m_action_order = action_order;
   }
 
-  ulonglong get_action_order() const
-  { return m_action_order; }
+  sp_head *get_sp() { return m_sp; }
 
-  void set_action_order(ulonglong action_order)
-  { m_action_order= action_order; }
+  GRANT_INFO *get_subject_table_grant() { return &m_subject_table_grant; }
 
-  sp_head *get_sp()
-  { return m_sp; }
+  bool has_parse_error() const { return m_has_parse_error; }
 
-  GRANT_INFO *get_subject_table_grant()
-  { return &m_subject_table_grant; }
-
-  bool has_parse_error() const
-  { return m_has_parse_error; }
-
-  const char *get_parse_error_message() const
-  { return m_parse_error_message; }
-
+  const char *get_parse_error_message() const { return m_parse_error_message; }
 
   /**
     Construct a full CREATE TRIGGER statement from Trigger's data members.
@@ -205,40 +174,35 @@ public:
   bool create_full_trigger_definition(THD *thd,
                                       String *full_trigger_definition) const;
 
-private:
-  Trigger(const LEX_CSTRING &trigger_name,
-          MEM_ROOT *mem_root,
-          const LEX_CSTRING &db_name,
-          const LEX_CSTRING &table_name,
-          const LEX_CSTRING &definition,
-          const LEX_CSTRING &definition_utf8,
-          sql_mode_t sql_mode,
-          const LEX_CSTRING &definer_user,
-          const LEX_CSTRING &definer_host,
-          const LEX_CSTRING &client_cs_name,
-          const LEX_CSTRING &connection_cl_name,
-          const LEX_CSTRING &db_cl_name,
+ private:
+  Trigger(const LEX_CSTRING &trigger_name, MEM_ROOT *mem_root,
+          const LEX_CSTRING &db_name, const LEX_CSTRING &table_name,
+          const LEX_CSTRING &definition, const LEX_CSTRING &definition_utf8,
+          sql_mode_t sql_mode, const LEX_CSTRING &definer_user,
+          const LEX_CSTRING &definer_host, const LEX_CSTRING &client_cs_name,
+          const LEX_CSTRING &connection_cl_name, const LEX_CSTRING &db_cl_name,
           enum_trigger_event_type event_type,
-          enum_trigger_action_time_type action_time,
-          uint action_order,
+          enum_trigger_action_time_type action_time, uint action_order,
           timeval created_timestamp);
 
-public:
+ public:
   ~Trigger();
 
-private:
-  void set_trigger_name(const LEX_CSTRING &trigger_name)
-  { m_trigger_name= trigger_name; }
+ private:
+  void set_trigger_name(const LEX_CSTRING &trigger_name) {
+    m_trigger_name = trigger_name;
+  }
 
-  void set_trigger_def(const LEX_CSTRING &trigger_def)
-  { m_definition= trigger_def; }
+  void set_trigger_def(const LEX_CSTRING &trigger_def) {
+    m_definition = trigger_def;
+  }
 
-  void set_trigger_def_utf8(const LEX_CSTRING &trigger_def_utf8)
-  { m_definition_utf8= trigger_def_utf8; }
+  void set_trigger_def_utf8(const LEX_CSTRING &trigger_def_utf8) {
+    m_definition_utf8 = trigger_def_utf8;
+  }
 
-  void set_parse_error_message(const char *error_message)
-  {
-    m_has_parse_error= true;
+  void set_parse_error_message(const char *error_message) {
+    m_has_parse_error = true;
     strncpy(m_parse_error_message, error_message,
             sizeof(m_parse_error_message));
   }
@@ -256,7 +220,8 @@ private:
     mysql.trigger.
   */
   LEX_CSTRING m_full_trigger_definition;
-private:
+
+ private:
   /************************************************************************
    * Mandatory trigger attributes loaded from data dictionary.
    * All these strings are allocated on m_mem_root.
@@ -317,7 +282,7 @@ private:
   */
   ulonglong m_action_order;
 
-private:
+ private:
   /************************************************************************
    * All these strings are allocated on the trigger table's mem-root.
    ***********************************************************************/
@@ -325,7 +290,7 @@ private:
   /// Trigger name.
   LEX_CSTRING m_trigger_name;
 
-private:
+ private:
   /************************************************************************
    * Other attributes.
    ***********************************************************************/
@@ -350,5 +315,4 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-#endif // TRIGGER_H_INCLUDED
-
+#endif  // TRIGGER_H_INCLUDED

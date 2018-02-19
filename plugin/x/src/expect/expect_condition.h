@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -30,7 +30,6 @@
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 
-
 namespace xpl {
 
 class Expect_condition {
@@ -39,12 +38,10 @@ class Expect_condition {
 
  public:
   explicit Expect_condition(const uint32_t k, const std::string &v)
-  : m_key(k), m_value(v) {
-  }
+      : m_key(k), m_value(v) {}
 
   Expect_condition(const Expect_condition &other)
-  : m_key(other.m_key), m_value(other.m_value) {
-  }
+      : m_key(other.m_key), m_value(other.m_value) {}
 
   virtual ~Expect_condition() {}
 

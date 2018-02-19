@@ -34,12 +34,10 @@ namespace system_views {
   The class representing INFORMATION_SCHEMA.STATISTICS system view
   definition.
 */
-class Statistics_base :
-        public System_view_impl<System_view_select_definition_impl>
-{
-public:
-  enum enum_fields
-  {
+class Statistics_base
+    : public System_view_impl<System_view_select_definition_impl> {
+ public:
+  enum enum_fields {
     FIELD_TABLE_CATALOG,
     FIELD_TABLE_SCHEMA,
     FIELD_TABLE_NAME,
@@ -66,53 +64,46 @@ public:
   virtual const String_type &name() const = 0;
 };
 
-
 /*
  The class representing INFORMATION_SCHEMA.STATISTICS system view definition
 */
-class Statistics: public Statistics_base
-{
-public:
+class Statistics : public Statistics_base {
+ public:
   Statistics();
 
   static const Statistics_base &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("STATISTICS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Statistics::view_name(); }
+  virtual const String_type &name() const { return Statistics::view_name(); }
 };
-
 
 /*
  The class represents system view definition used by SHOW STATISTICS when
 */
-class Show_statistics: public Statistics
-{
-public:
+class Show_statistics : public Statistics {
+ public:
   Show_statistics();
 
   static const Statistics_base &instance();
 
-  static const String_type &view_name()
-  {
+  static const String_type &view_name() {
     static String_type s_view_name("SHOW_STATISTICS");
     return s_view_name;
   }
 
-  virtual const String_type &name() const
-  { return Show_statistics::view_name(); }
+  virtual const String_type &name() const {
+    return Show_statistics::view_name();
+  }
 
   // This view definition is hidden from user.
-  virtual bool hidden() const
-  { return true; }
+  virtual bool hidden() const { return true; }
 };
 
-}
-}
+}  // namespace system_views
+}  // namespace dd
 
-#endif // DD_SYSTEM_VIEWS__STATISTICS_INCLUDED
+#endif  // DD_SYSTEM_VIEWS__STATISTICS_INCLUDED

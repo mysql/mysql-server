@@ -414,7 +414,7 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --source include/wait_until_disconnected.inc
 
 # Remove schema directory and files.
---remove_files_wildcard $SCHEMA_DIR
+--remove_files_wildcard $SCHEMA_DIR *
 --rmdir $SCHEMA_DIR
 
 # Restart the server.
@@ -453,7 +453,7 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --source include/wait_until_disconnected.inc
 
 # Remove schema directory and files.
---remove_files_wildcard $SCHEMA_DIR
+--remove_files_wildcard $SCHEMA_DIR *
 --rmdir $SCHEMA_DIR
 
 # Restart the server.
@@ -495,7 +495,7 @@ CREATE TABLE s.t_innodb (pk INTEGER PRIMARY KEY) ENGINE= InnoDB;
 --source include/wait_until_disconnected.inc
 
 # Remove schema directory and files.
---remove_files_wildcard $SCHEMA_DIR
+--remove_files_wildcard $SCHEMA_DIR *
 --rmdir $SCHEMA_DIR
 
 # Restart the server.

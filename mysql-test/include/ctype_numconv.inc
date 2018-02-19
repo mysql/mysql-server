@@ -275,14 +275,6 @@ create table t1 as select md5('a') as c1;
 show create table t1;
 drop table t1;
 
-select password('a'), hex(password('a'));
---disable_warnings
-create table t1 as select password('a') as c1;
---enable_warnings
-#The above query returns 2 warnings in ps test.
-show create table t1;
-drop table t1;
-
 select sha('a'), hex(sha('a'));
 create table t1 as select sha('a') as c1;
 show create table t1;
@@ -1607,8 +1599,6 @@ drop function f1;
 --echo # Bug#54668 User variable assignments get wrong type
 --echo #
 SET @ST_X=md5('a');
-SELECT charset(@ST_X), collation(@ST_X);
-SET @ST_X=password('a');
 SELECT charset(@ST_X), collation(@ST_X);
 SET @ST_X=sha('a');
 SELECT charset(@ST_X), collation(@ST_X);

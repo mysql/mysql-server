@@ -100,6 +100,13 @@ FUNCTION (MYSQL_ADD_EXECUTABLE)
   SET_TARGET_PROPERTIES(${target} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${TARGET_RUNTIME_OUTPUT_DIRECTORY})
 
+  IF(WIN32_CLANG AND WITH_ASAN)
+    TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan-x86_64.lib")
+    TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_cxx-x86_64.lib")
+    SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS
+      "/wholearchive:\"${ASAN_LIB_DIR}/clang_rt.asan-x86_64.lib\" /wholearchive:\"${ASAN_LIB_DIR}/clang_rt.asan_cxx-x86_64.lib\"")
+  ENDIF()
+
   # Add unit test, do not install it.
   IF (ARG_ADD_TEST)
     ADD_TEST(${ARG_ADD_TEST}

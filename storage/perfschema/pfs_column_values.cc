@@ -41,17 +41,17 @@ LEX_STRING cond_instrument_prefix = {C_STRING_WITH_LEN("wait/synch/cond")};
 LEX_STRING file_instrument_prefix = {C_STRING_WITH_LEN("wait/io/file")};
 
 LEX_STRING table_io_class_name = {
-  C_STRING_WITH_LEN("wait/io/table/sql/handler")};
+    C_STRING_WITH_LEN("wait/io/table/sql/handler")};
 
 LEX_STRING table_lock_class_name = {
-  C_STRING_WITH_LEN("wait/lock/table/sql/handler")};
+    C_STRING_WITH_LEN("wait/lock/table/sql/handler")};
 
 LEX_STRING socket_instrument_prefix = {C_STRING_WITH_LEN("wait/io/socket")};
 
 LEX_STRING idle_class_name = {C_STRING_WITH_LEN("idle")};
 
 LEX_STRING metadata_lock_class_name = {
-  C_STRING_WITH_LEN("wait/lock/metadata/sql/mdl")};
+    C_STRING_WITH_LEN("wait/lock/metadata/sql/mdl")};
 
 LEX_STRING thread_instrument_prefix = {C_STRING_WITH_LEN("thread")};
 
@@ -62,7 +62,7 @@ LEX_STRING statement_instrument_prefix = {C_STRING_WITH_LEN("statement")};
 LEX_STRING transaction_instrument_prefix = {C_STRING_WITH_LEN("transaction")};
 
 LEX_STRING builtin_memory_instrument_prefix = {
-  C_STRING_WITH_LEN("memory/performance_schema/")};
+    C_STRING_WITH_LEN("memory/performance_schema/")};
 
 LEX_STRING memory_instrument_prefix = {C_STRING_WITH_LEN("memory")};
 

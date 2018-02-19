@@ -36,8 +36,8 @@
 #include "my_macros.h"
 #include "my_psi_config.h"  // IWYU pragma: keep
 #include "my_sharedlib.h"
-#include "psi_base.h"
 #include "mysql/components/services/psi_rwlock_bits.h"
+#include "psi_base.h"
 
 /*
   MAINTAINER:
@@ -46,11 +46,8 @@
   is not needed in C++, but required for C.
 */
 
-C_MODE_START
-
 /** Entry point for the performance schema interface. */
-struct PSI_rwlock_bootstrap
-{
+struct PSI_rwlock_bootstrap {
   /**
     ABI interface finder.
     Calling this method with an interface version number returns either
@@ -69,8 +66,7 @@ typedef struct PSI_rwlock_bootstrap PSI_rwlock_bootstrap;
   Performance Schema Rwlock Interface, version 1.
   @since PSI_RWLOCK_VERSION_1
 */
-struct PSI_rwlock_service_v1
-{
+struct PSI_rwlock_service_v1 {
   /** @sa register_rwlock_v1_t. */
   register_rwlock_v1_t register_rwlock;
   /** @sa init_rwlock_v1_t. */
@@ -96,7 +92,5 @@ extern MYSQL_PLUGIN_IMPORT PSI_rwlock_service_t *psi_rwlock_service;
 #endif /* HAVE_PSI_RWLOCK_INTERFACE */
 
 /** @} (end of group psi_abi_rwlock) */
-
-C_MODE_END
 
 #endif /* MYSQL_PSI_RWLOCK_H */

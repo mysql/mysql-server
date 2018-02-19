@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -33,17 +33,16 @@
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 #include "plugin/x/ngs/include/ngs_common/types.h"
 
-
-namespace ngs
-{
+namespace ngs {
 
 class Output_buffer;
-typedef ngs::Memory_instrumented<Output_buffer>::Unique_ptr Output_buffer_unique_ptr;
+typedef ngs::Memory_instrumented<Output_buffer>::Unique_ptr
+    Output_buffer_unique_ptr;
 
-class Output_buffer : public Buffer, public google::protobuf::io::ZeroCopyOutputStream
-{
-public:
-  Output_buffer(Page_pool& page_pool);
+class Output_buffer : public Buffer,
+                      public google::protobuf::io::ZeroCopyOutputStream {
+ public:
+  Output_buffer(Page_pool &page_pool);
 
   bool add_int32(int32_t i);
   bool add_int8(int8_t i);
@@ -52,18 +51,18 @@ public:
   Const_buffer_sequence get_buffers();
 
   void save_state();
-  void rollback(); // restores last saved state
+  void rollback();  // restores last saved state
 
-public:
-  virtual bool Next(void** data, int* size);
+ public:
+  virtual bool Next(void **data, int *size);
   virtual void BackUp(int count);
 
   virtual int64_t ByteCount() const;
 
-private:
+ private:
   size_t m_saved_length;
 };
 
-} // namespace ngs
+}  // namespace ngs
 
-#endif // _NGS_OUTPUT_BUFFER_H_
+#endif  // _NGS_OUTPUT_BUFFER_H_

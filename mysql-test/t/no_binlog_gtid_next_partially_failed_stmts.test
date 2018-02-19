@@ -171,7 +171,7 @@ SELECT user, column_name, column_priv FROM mysql.columns_priv;
 # Check-4: GRANT a privilege to a non-existent user
 --replace_result $master_uuid MASTER_UUID
 --eval SET SESSION GTID_NEXT='$master_uuid:7'
---error ER_PASSWORD_NO_MATCH
+--error ER_CANT_CREATE_USER_WITH_GRANT
 GRANT SELECT(a) ON t1 TO u1@h, u2@h;
 --echo #
 --echo # The SELECT privilege on column a is not granted to u1@h,

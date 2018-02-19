@@ -26,6 +26,7 @@
 #include <util/version.h>
 #include "my_sys.h"
 #include "my_dir.h"
+#include "my_thread_local.h"
 
 #include <NdbOut.hpp>
 #include "SchemaFile.hpp"

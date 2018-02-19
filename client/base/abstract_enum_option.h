@@ -29,18 +29,17 @@
 
 #include "client/base/abstract_option.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Base{
-namespace Options{
+namespace Mysql {
+namespace Tools {
+namespace Base {
+namespace Options {
 
 /**
   Abstract option to handle enum option values.
  */
-template<typename T_type, typename T_typelib> class Abstract_enum_option
-  : public Abstract_option<T_type>
-{
-protected:
+template <typename T_type, typename T_typelib>
+class Abstract_enum_option : public Abstract_option<T_type> {
+ protected:
   /**
     Constructs new enum option.
     @param value Pointer to object to receive option value.
@@ -52,24 +51,23 @@ protected:
     @param default_value default value to be supplied to internal option
       data structure.
    */
-  Abstract_enum_option(T_type* value, const T_typelib* type, ulong var_type,
-    std::string name, std::string description, longlong default_value);
+  Abstract_enum_option(T_type *value, const T_typelib *type, ulong var_type,
+                       std::string name, std::string description,
+                       longlong default_value);
 };
 
-
-template<typename T_type, typename T_typelib>Abstract_enum_option<T_type, T_typelib>
-::Abstract_enum_option(
-  T_type* value, const T_typelib* type, ulong var_type, std::string name,
-  std::string description, longlong default_value)
-  : Abstract_option<T_type>(
-      value, var_type, name, description, default_value)
-{
-  this->m_option_structure.typelib= const_cast<T_typelib*>(type);
+template <typename T_type, typename T_typelib>
+Abstract_enum_option<T_type, T_typelib>::Abstract_enum_option(
+    T_type *value, const T_typelib *type, ulong var_type, std::string name,
+    std::string description, longlong default_value)
+    : Abstract_option<T_type>(value, var_type, name, description,
+                              default_value) {
+  this->m_option_structure.typelib = const_cast<T_typelib *>(type);
 }
 
-}
-}
-}
-}
+}  // namespace Options
+}  // namespace Base
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

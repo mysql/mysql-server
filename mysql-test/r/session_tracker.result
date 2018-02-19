@@ -175,7 +175,7 @@ SYSTEM
 # Testing sql_mode
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 SET @@session.session_track_system_variables='sql_mode';
 SELECT @@session.session_track_system_variables;
@@ -185,16 +185,16 @@ SET @sql_mode_saved= @@session.sql_mode;
 SET @@session.sql_mode='traditional';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 
 SET @@session.sql_mode='traditional';
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 
 SELECT @@session.sql_mode;
 @@session.sql_mode
-STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+STRICT_TRANS_TABLES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,TRADITIONAL,NO_ENGINE_SUBSTITUTION
 SET @@session.sql_mode='invalid';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'invalid'
 # Test the wildcard value for tracking.
@@ -207,45 +207,15 @@ SET @@session.session_track_system_variables='*';
 SET @@session.sql_mode= @sql_mode_saved;
 -- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
 -- sql_mode
--- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+-- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
-# Expect change info.
-SET @@old_passwords=0;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- old_passwords
--- 0
-
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-# Expect change info.
-SET @@session.sql_mode= @sql_mode_saved;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- sql_mode
--- ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
-
-# Test the wildcard value for tracking.
-SET @@session.session_track_system_variables='*,old_passwords';
-Warnings:
-Warning	1231	* is not a valid system variable and will be ignored.
-# Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
-# Expect change info.
-SET @@old_passwords=0;
--- Tracker : SESSION_TRACK_SYSTEM_VARIABLES
--- old_passwords
--- 0
-
-Warnings:
-Warning	1681	'old_passwords' is deprecated and will be removed in a future release.
-# Expect no change info.
-SET @@session.sql_mode= @sql_mode_saved;
 # Switch off the session system variables tracker (using empty string).
 SET @@session.session_track_system_variables='';
 # Expect no change info.
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 # Switch off the session system variables tracker (using empty NULL).
 SET @@session.session_track_system_variables=NULL;
@@ -253,7 +223,7 @@ SET @@session.session_track_system_variables=NULL;
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 # Check to see that string NULL acts no different from other invalid strings.
 SET @@session.session_track_system_variables='var1,NULL';
@@ -264,7 +234,7 @@ Warning	1231	NULL is not a valid system variable and will be ignored.
 SET @@session.sql_mode= @sql_mode_saved;
 SELECT @@session.sql_mode;
 @@session.sql_mode
-ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 
 
 # Testing with stored procedure.
@@ -319,8 +289,6 @@ SET @@session.sql_mode='ANSI';
 -- sql_mode
 -- REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ONLY_FULL_GROUP_BY,ANSI
 
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 # Tracking by self-assigning the value of a system variable.
 
 SELECT @@session.sql_mode;

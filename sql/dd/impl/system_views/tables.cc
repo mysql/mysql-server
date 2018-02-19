@@ -29,15 +29,12 @@
 namespace dd {
 namespace system_views {
 
-const Tables_base &Tables::instance()
-{
-  static Tables_base *s_instance= new Tables();
+const Tables_base &Tables::instance() {
+  static Tables_base *s_instance = new Tables();
   return *s_instance;
 }
 
-
-Tables_base::Tables_base()
-{
+Tables_base::Tables_base() {
   m_target_def.add_field(FIELD_TABLE_CATALOG, "TABLE_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_TABLE_SCHEMA, "TABLE_SCHEMA",
@@ -47,26 +44,32 @@ Tables_base::Tables_base()
   m_target_def.add_field(FIELD_TABLE_TYPE, "TABLE_TYPE", "tbl.type");
   m_target_def.add_field(FIELD_ENGINE, "ENGINE",
                          "IF(tbl.type = 'BASE TABLE', tbl.engine, NULL)");
-  m_target_def.add_field(FIELD_VERSION, "VERSION",
-                 "IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */)");
+  m_target_def.add_field(
+      FIELD_VERSION, "VERSION",
+      "IF(tbl.type = 'VIEW', NULL, 10 /* FRM_VER_TRUE_VARCHAR */)");
   m_target_def.add_field(FIELD_ROW_FORMAT, "ROW_FORMAT", "tbl.row_format");
 
   m_target_def.add_field(FIELD_CREATE_TIME, "CREATE_TIME", "tbl.created");
   m_target_def.add_field(FIELD_TABLE_COLLATION, "TABLE_COLLATION", "col.name");
-  m_target_def.add_field(FIELD_CREATE_OPTIONS, "CREATE_OPTIONS",
-    "IF (tbl.type = 'VIEW', NULL,"
-    "  GET_DD_CREATE_OPTIONS(tbl.options,"
-    "  IF(IFNULL(tbl.partition_expression, 'NOT_PART_TBL')='NOT_PART_TBL',"
-    "     0, 1)))");
-  m_target_def.add_field(FIELD_TABLE_COMMENT,"TABLE_COMMENT",
-         "INTERNAL_GET_COMMENT_OR_ERROR(sch.name, tbl.name, tbl.type, "
-                                       "tbl.options, tbl.comment)");
+  m_target_def.add_field(
+      FIELD_CREATE_OPTIONS, "CREATE_OPTIONS",
+      "IF (tbl.type = 'VIEW', NULL,"
+      "  GET_DD_CREATE_OPTIONS(tbl.options,"
+      "  IF(IFNULL(tbl.partition_expression, 'NOT_PART_TBL')='NOT_PART_TBL',"
+      "     0, 1)))");
+  m_target_def.add_field(
+      FIELD_TABLE_COMMENT, "TABLE_COMMENT",
+      "INTERNAL_GET_COMMENT_OR_ERROR(sch.name, tbl.name, tbl.type, "
+      "tbl.options, tbl.comment)");
 
   m_target_def.add_from("mysql.tables tbl");
   m_target_def.add_from("JOIN mysql.schemata sch ON tbl.schema_id=sch.id");
-  m_target_def.add_from("JOIN mysql.catalogs cat ON " "cat.id=sch.catalog_id");
-  m_target_def.add_from("LEFT JOIN mysql.collations col ON "
-                        "tbl.collation_id=col.id");
+  m_target_def.add_from(
+      "JOIN mysql.catalogs cat ON "
+      "cat.id=sch.catalog_id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.collations col ON "
+      "tbl.collation_id=col.id");
 
   m_target_def.add_where("CAN_ACCESS_TABLE(sch.name, tbl.name)");
   m_target_def.add_where("AND IS_VISIBLE_DD_OBJECT(tbl.hidden)");
@@ -76,8 +79,7 @@ Tables_base::Tables_base()
   Adding column definition so as to pick cached table statistics from
   mysql.table_stats.
 */
-Tables::Tables()
-{
+Tables::Tables() {
   m_target_def.set_view_name(view_name());
 
   /*
@@ -133,7 +135,8 @@ Tables::Tables()
                          "  tbl.se_private_id, tbl.hidden != 'Visible', "
                          "  ts.se_private_data,"
                          "  COALESCE(stat.auto_increment, 0),"
-                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), tbl.se_private_data)");
+                         "  COALESCE(CAST(stat.cached_time as UNSIGNED), 0), "
+                         "tbl.se_private_data)");
   m_target_def.add_field(FIELD_UPDATE_TIME, "UPDATE_TIME",
                          "INTERNAL_UPDATE_TIME(sch.name, tbl.name,"
                          "  IF(ISNULL(tbl.partition_type), tbl.engine, ''),"
@@ -161,13 +164,15 @@ Tables::Tables()
     metadata when fetching table dynamic statistics. E.g., InnoDB would
     read the SE specific space_id from se_private_data column.
   */
-  m_target_def.add_from("LEFT JOIN mysql.tablespaces ts ON "
-                        "tbl.tablespace_id=ts.id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.tablespaces ts ON "
+      "tbl.tablespace_id=ts.id");
 
-  m_target_def.add_from("LEFT JOIN mysql.table_stats stat ON "
-                        "tbl.name=stat.table_name "
-                        "AND sch.name=stat.schema_name");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.table_stats stat ON "
+      "tbl.name=stat.table_name "
+      "AND sch.name=stat.schema_name");
 }
 
-} // system_views
-} // dd
+}  // namespace system_views
+}  // namespace dd

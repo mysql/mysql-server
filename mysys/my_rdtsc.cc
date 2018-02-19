@@ -62,8 +62,8 @@
   elapsed_time= (time2 - time1) - overhead
 */
 
-#include <atomic>
 #include <stdio.h>
+#include <atomic>
 
 #include "my_config.h"
 #include "my_inttypes.h"
@@ -74,18 +74,19 @@
 
 #if defined(TIME_WITH_SYS_TIME)
 #include <sys/time.h>
-#include <time.h>           /* for clock_gettime */
+#include <time.h> /* for clock_gettime */
 #endif
 
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
-#include <sys/times.h>       /* for times */
+#include <sys/times.h> /* for times */
 #endif
 
 #if defined(__APPLE__) && defined(__MACH__)
 #include <mach/mach_time.h>
 #endif
 
-#if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
+#if defined(__SUNPRO_CC) && defined(__sparcv9) && defined(_LP64) && \
+    !defined(__SunOS_5_7)
 extern "C" ulonglong my_timer_cycles_il_sparc64();
 #elif defined(__SUNPRO_CC) && defined(_ILP32) && !defined(__SunOS_5_7)
 extern "C" ulonglong my_timer_cycles_il_sparc32();
@@ -93,7 +94,8 @@ extern "C" ulonglong my_timer_cycles_il_sparc32();
 extern "C" ulonglong my_timer_cycles_il_i386();
 #elif defined(__SUNPRO_CC) && defined(__x86_64) && defined(_LP64)
 extern "C" ulonglong my_timer_cycles_il_x86_64();
-#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
+#elif defined(__SUNPRO_C) && defined(__sparcv9) && defined(_LP64) && \
+    !defined(__SunOS_5_7)
 ulonglong my_timer_cycles_il_sparc64();
 #elif defined(__SUNPRO_C) && defined(_ILP32) && !defined(__SunOS_5_7)
 ulonglong my_timer_cycles_il_sparc32();
@@ -111,21 +113,21 @@ ulonglong my_timer_cycles_il_x86_64();
   gethrtime which is okay for solaris.
 */
 
-ulonglong my_timer_cycles(void)
-{
+ulonglong my_timer_cycles(void) {
 #if defined(__GNUC__) && defined(__i386__)
   /* This works much better if compiled with "gcc -O3". */
   ulonglong result;
-  __asm__ __volatile__ ("rdtsc" : "=A" (result));
+  __asm__ __volatile__("rdtsc" : "=A"(result));
   return result;
 #elif defined(__SUNPRO_C) && defined(__i386)
   __asm("rdtsc");
 #elif defined(__GNUC__) && defined(__x86_64__)
   ulonglong result;
-  __asm__ __volatile__ ("rdtsc\n\t" \
-                        "shlq $32,%%rdx\n\t" \
-                        "orq %%rdx,%%rax"
-                        : "=a" (result) :: "%edx");
+  __asm__ __volatile__(
+      "rdtsc\n\t"
+      "shlq $32,%%rdx\n\t"
+      "orq %%rdx,%%rax"
+      : "=a"(result)::"%edx");
   return result;
 #elif defined(_WIN64) && defined(_M_X64)
   /* For 64-bit Windows: unsigned __int64 __rdtsc(); */
@@ -133,16 +135,18 @@ ulonglong my_timer_cycles(void)
 #elif defined(__GNUC__) && defined(__ia64__)
   {
     ulonglong result;
-    __asm __volatile__ ("mov %0=ar.itc" : "=r" (result));
+    __asm __volatile__("mov %0=ar.itc" : "=r"(result));
     return result;
   }
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (defined(__64BIT__) || defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && \
+    (defined(__64BIT__) || defined(_ARCH_PPC64))
   {
     ulonglong result;
-    __asm __volatile__ ("mftb %0" : "=r" (result));
+    __asm __volatile__("mftb %0" : "=r"(result));
     return result;
   }
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && \
+    (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   {
     /*
       mftbu means "move from time-buffer-upper to result".
@@ -151,52 +155,58 @@ ulonglong my_timer_cycles(void)
     */
     unsigned int x1, x2, x3;
     ulonglong result;
-    for (;;)
-    {
-       __asm __volatile__ ( "mftbu %0" : "=r"(x1) );
-       __asm __volatile__ ( "mftb %0" : "=r"(x2) );
-       __asm __volatile__ ( "mftbu %0" : "=r"(x3) );
-       if (x1 == x3) break;
+    for (;;) {
+      __asm __volatile__("mftbu %0" : "=r"(x1));
+      __asm __volatile__("mftb %0" : "=r"(x2));
+      __asm __volatile__("mftbu %0" : "=r"(x3));
+      if (x1 == x3) break;
     }
     result = x1;
-    return ( result << 32 ) | x2;
+    return (result << 32) | x2;
   }
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
+    defined(_LP64) && !defined(__SunOS_5_7)
   return (my_timer_cycles_il_sparc64());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && !defined(__SunOS_5_7)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
+    !defined(__SunOS_5_7)
   return (my_timer_cycles_il_sparc32());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && defined(_ILP32)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
+    defined(_ILP32)
   /* This is probably redundant for __SUNPRO_C. */
   return (my_timer_cycles_il_i386());
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && \
+    defined(_LP64)
   return (my_timer_cycles_il_x86_64());
-#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && defined(_LP64)
+#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
+    defined(_LP64)
   {
     ulonglong result;
-    __asm __volatile__ ("rd %%tick,%0" : "=r" (result));
+    __asm __volatile__("rd %%tick,%0" : "=r"(result));
     return result;
   }
 #elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
   {
-      union {
-              ulonglong wholeresult;
-              struct {
-                      ulong high;
-                      ulong low;
-              }       splitresult;
-      } result;
-    __asm __volatile__ ("rd %%tick,%1; srlx %1,32,%0" : "=r" (result.splitresult.high), "=r" (result.splitresult.low));
+    union {
+      ulonglong wholeresult;
+      struct {
+        ulong high;
+        ulong low;
+      } splitresult;
+    } result;
+    __asm __volatile__("rd %%tick,%1; srlx %1,32,%0"
+                       : "=r"(result.splitresult.high),
+                         "=r"(result.splitresult.low));
     return result.wholeresult;
   }
 #elif defined(__GNUC__) && defined(__aarch64__)
   {
     ulonglong result;
-    __asm __volatile__ ("mrs %[rt],cntvct_el0" : [rt] "=r" (result));
+    __asm __volatile__("mrs %[rt],cntvct_el0" : [rt] "=r"(result));
     return result;
   }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
-  return (ulonglong) gethrtime();
+  return (ulonglong)gethrtime();
 #else
   return 0;
 #endif
@@ -208,24 +218,22 @@ ulonglong my_timer_cycles(void)
   (b) really has nanosecond resolution.
 */
 
-ulonglong my_timer_nanoseconds(void)
-{
+ulonglong my_timer_nanoseconds(void) {
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* SunOS 5.10+, Solaris, HP-UX: hrtime_t gethrtime(void) */
-  return (ulonglong) gethrtime();
+  return (ulonglong)gethrtime();
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
   {
     struct timespec tp;
     clock_gettime(CLOCK_REALTIME, &tp);
-    return (ulonglong) tp.tv_sec * 1000000000 + (ulonglong) tp.tv_nsec;
+    return (ulonglong)tp.tv_sec * 1000000000 + (ulonglong)tp.tv_nsec;
   }
 #elif defined(__APPLE__) && defined(__MACH__)
   {
     ulonglong tm;
-    static mach_timebase_info_data_t timebase_info= {0,0};
-    if (timebase_info.denom == 0)
-      (void) mach_timebase_info(&timebase_info);
-    tm= mach_absolute_time();
+    static mach_timebase_info_data_t timebase_info = {0, 0};
+    if (timebase_info.denom == 0) (void)mach_timebase_info(&timebase_info);
+    tm = mach_absolute_time();
     return (tm * timebase_info.numer) / timebase_info.denom;
   }
 #else
@@ -242,21 +250,20 @@ ulonglong my_timer_nanoseconds(void)
   the frequency is same as the cycle frequency.)
 */
 
-ulonglong my_timer_microseconds(void)
-{
+ulonglong my_timer_microseconds(void) {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static std::atomic<ulonglong> atomic_last_value { 0 };
+    static std::atomic<ulonglong> atomic_last_value{0};
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == 0)
-      atomic_last_value= (ulonglong) tv.tv_sec * 1000000 + (ulonglong) tv.tv_usec;
-    else
-    {
+      atomic_last_value =
+          (ulonglong)tv.tv_sec * 1000000 + (ulonglong)tv.tv_usec;
+    else {
       /*
         There are reports that gettimeofday(2) can have intermittent failures
         on some platform, see for example Bug#36819.
-        We are not trying again or looping, just returning the best value possible
-        under the circumstances ...
+        We are not trying again or looping, just returning the best value
+        possible under the circumstances ...
       */
       atomic_last_value++;
     }
@@ -268,7 +275,7 @@ ulonglong my_timer_microseconds(void)
     LARGE_INTEGER t_cnt;
 
     QueryPerformanceCounter(&t_cnt);
-    return (ulonglong) t_cnt.QuadPart;
+    return (ulonglong)t_cnt.QuadPart;
   }
 #else
   return 0;
@@ -281,32 +288,31 @@ ulonglong my_timer_microseconds(void)
   GetSystemTimeAsFileTime.
 */
 
-ulonglong my_timer_milliseconds(void)
-{
+ulonglong my_timer_milliseconds(void) {
 #if defined(HAVE_GETTIMEOFDAY)
   {
-    static ulonglong last_ms_value= 0;
+    static ulonglong last_ms_value = 0;
     struct timeval tv;
     if (gettimeofday(&tv, NULL) == 0)
-      last_ms_value= (ulonglong) tv.tv_sec * 1000 +
-                     (ulonglong) tv.tv_usec / 1000;
-    else
-    {
+      last_ms_value =
+          (ulonglong)tv.tv_sec * 1000 + (ulonglong)tv.tv_usec / 1000;
+    else {
       /*
         There are reports that gettimeofday(2) can have intermittent failures
         on some platform, see for example Bug#36819.
-        We are not trying again or looping, just returning the best value possible
-        under the circumstances ...
+        We are not trying again or looping, just returning the best value
+        possible under the circumstances ...
       */
       last_ms_value++;
     }
     return last_ms_value;
   }
 #elif defined(_WIN32)
-   FILETIME ft;
-   GetSystemTimeAsFileTime( &ft );
-   return ((ulonglong)ft.dwLowDateTime +
-                  (((ulonglong)ft.dwHighDateTime) << 32))/10000;
+  FILETIME ft;
+  GetSystemTimeAsFileTime(&ft);
+  return ((ulonglong)ft.dwLowDateTime +
+          (((ulonglong)ft.dwHighDateTime) << 32)) /
+         10000;
 #else
   return 0;
 #endif
@@ -318,15 +324,14 @@ ulonglong my_timer_milliseconds(void)
   bad, sometimes even worse than gettimeofday's overhead.
 */
 
-ulonglong my_timer_ticks(void)
-{
+ulonglong my_timer_ticks(void) {
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
   {
     struct tms times_buf;
-    return (ulonglong) times(&times_buf);
+    return (ulonglong)times(&times_buf);
   }
 #elif defined(_WIN32)
-  return (ulonglong) GetTickCount();
+  return (ulonglong)GetTickCount();
 #else
   return 0;
 #endif
@@ -353,25 +358,21 @@ ulonglong my_timer_ticks(void)
   for cycles, at least. But remember it's a minimum.
 */
 
-extern "C" {
 static void my_timer_init_overhead(ulonglong *overhead,
                                    ulonglong (*cycle_timer)(void),
                                    ulonglong (*this_timer)(void),
-                                   ulonglong best_timer_overhead)
-{
+                                   ulonglong best_timer_overhead) {
   ulonglong time1, time2;
   int i;
 
   /* *overhead, least of 20 calculations - cycles.overhead */
-  for (i= 0, *overhead= 1000000000; i < 20; ++i)
-  {
-    time1= cycle_timer();
+  for (i = 0, *overhead = 1000000000; i < 20; ++i) {
+    time1 = cycle_timer();
     this_timer(); /* rather than 'time_tmp= timer();' */
-    time2= cycle_timer() - time1;
-    if (*overhead > time2)
-      *overhead= time2;
+    time2 = cycle_timer() - time1;
+    if (*overhead > time2) *overhead = time2;
   }
-  *overhead-= best_timer_overhead;
+  *overhead -= best_timer_overhead;
 }
 
 /*
@@ -389,47 +390,35 @@ static void my_timer_init_overhead(ulonglong *overhead,
   We don't check with ticks because they take too long.
 */
 static ulonglong my_timer_init_resolution(ulonglong (*this_timer)(void),
-                                          ulonglong overhead_times_2)
-{
+                                          ulonglong overhead_times_2) {
   ulonglong time1, time2;
   ulonglong best_jump;
   int i, jumps, divisible_by_1000, divisible_by_1000000;
 
-  divisible_by_1000= divisible_by_1000000= 0;
-  best_jump= 1000000;
-  for (i= jumps= 0; jumps < 3 && i < MY_TIMER_ITERATIONS * 10; ++i)
-  {
-    time1= this_timer();
-    time2= this_timer();
-    time2-= time1;
-    if (time2)
-    {
+  divisible_by_1000 = divisible_by_1000000 = 0;
+  best_jump = 1000000;
+  for (i = jumps = 0; jumps < 3 && i < MY_TIMER_ITERATIONS * 10; ++i) {
+    time1 = this_timer();
+    time2 = this_timer();
+    time2 -= time1;
+    if (time2) {
       ++jumps;
-      if (!(time2 % 1000))
-      {
+      if (!(time2 % 1000)) {
         ++divisible_by_1000;
-        if (!(time2 % 1000000))
-          ++divisible_by_1000000;
+        if (!(time2 % 1000000)) ++divisible_by_1000000;
       }
-      if (best_jump > time2)
-        best_jump= time2;
+      if (best_jump > time2) best_jump = time2;
       /* For milliseconds, one jump is enough. */
-      if (overhead_times_2 == 0)
-        break;
+      if (overhead_times_2 == 0) break;
     }
   }
-  if (jumps == 3)
-  {
-    if (jumps == divisible_by_1000000)
-      return 1000000;
-    if (jumps == divisible_by_1000)
-      return 1000;
+  if (jumps == 3) {
+    if (jumps == divisible_by_1000000) return 1000000;
+    if (jumps == divisible_by_1000) return 1000;
   }
-  if (best_jump > overhead_times_2)
-    return best_jump;
+  if (best_jump > overhead_times_2) return best_jump;
   return 1;
 }
-} // extern C
 
 /*
   Calculate cycle frequency by seeing how many cycles pass
@@ -437,25 +426,22 @@ static ulonglong my_timer_init_resolution(ulonglong (*this_timer)(void),
   periods originally, and the result was often very wrong.
 */
 
-static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti)
-{
+static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti) {
   int i;
   ulonglong time1, time2, time3, time4;
   ulonglong time_limit;
-  time1= my_timer_cycles();
-  time2= my_timer_microseconds();
-  time3= time2; /* Avoids a Microsoft/IBM compiler warning */
-  time_limit= time2 + 200;
-  for (i= 0; i < MY_TIMER_ITERATIONS; ++i)
-  {
-    time3= my_timer_microseconds();
+  time1 = my_timer_cycles();
+  time2 = my_timer_microseconds();
+  time3 = time2; /* Avoids a Microsoft/IBM compiler warning */
+  time_limit = time2 + 200;
+  for (i = 0; i < MY_TIMER_ITERATIONS; ++i) {
+    time3 = my_timer_microseconds();
     if (time3 > time_limit) break;
   }
-  time4= my_timer_cycles() - mti->cycles.overhead;
-  time4-= mti->microseconds.overhead;
+  time4 = my_timer_cycles() - mti->cycles.overhead;
+  time4 -= mti->microseconds.overhead;
 
-  if (time3 <= time2)
-  {
+  if (time3 <= time2) {
     /*
       Seen happening with ASAN / UBSAN builds.
       my_timer_microseconds()
@@ -476,135 +462,135 @@ static ulonglong my_timer_init_frequency(MY_TIMER_INFO *mti)
   Set: function, overhead, actual frequency, resolution.
 */
 
-extern "C" void my_timer_init(MY_TIMER_INFO *mti)
-{
+void my_timer_init(MY_TIMER_INFO *mti) {
   ulonglong (*best_timer)(void);
   ulonglong best_timer_overhead;
   ulonglong time1, time2;
   int i;
 
   /* cycles */
-  mti->cycles.frequency= 1000000000;
+  mti->cycles.frequency = 1000000000;
 #if defined(__GNUC__) && defined(__i386__)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__SUNPRO_C) && defined(__i386)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86;
 #elif defined(__GNUC__) && defined(__x86_64__)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_X86_64;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_X86_64;
 #elif defined(_WIN64) && defined(_M_X64)
-  mti->cycles.routine= MY_TIMER_ROUTINE_RDTSC;
+  mti->cycles.routine = MY_TIMER_ROUTINE_RDTSC;
 #elif defined(__GNUC__) && defined(__ia64__)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_IA64;
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (defined(__64BIT__) || defined(_ARCH_PPC64))
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_PPC64;
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_PPC;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && !defined(__SunOS_5_7)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && defined(_ILP32)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
-#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && defined(_LP64)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64;
-#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && defined(_LP64)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_IA64;
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && \
+    (defined(__64BIT__) || defined(_ARCH_PPC64))
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_PPC64;
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && \
+    (!defined(__64BIT__) && !defined(_ARCH_PPC64))
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_PPC;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && \
+    defined(_LP64) && !defined(__SunOS_5_7)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(_ILP32) && \
+    !defined(__SunOS_5_7)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC32;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__i386) && \
+    defined(_ILP32)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_I386;
+#elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__x86_64) && \
+    defined(_LP64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_SUNPRO_X86_64;
+#elif defined(__GNUC__) && (defined(__sparcv9) || defined(__sparc_v9__)) && \
+    defined(_LP64)
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
 #elif defined(__GNUC__) && defined(__aarch64__)
-  mti->cycles.routine= MY_TIMER_ROUTINE_ASM_AARCH64;
+  mti->cycles.routine = MY_TIMER_ROUTINE_ASM_AARCH64;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
-  mti->cycles.routine= MY_TIMER_ROUTINE_GETHRTIME;
+  mti->cycles.routine = MY_TIMER_ROUTINE_GETHRTIME;
 #else
-  mti->cycles.routine= 0;
+  mti->cycles.routine = 0;
 #endif
 
-  if (!mti->cycles.routine || !my_timer_cycles())
-  {
-    mti->cycles.routine= 0;
-    mti->cycles.resolution= 0;
-    mti->cycles.frequency= 0;
-    mti->cycles.overhead= 0;
+  if (!mti->cycles.routine || !my_timer_cycles()) {
+    mti->cycles.routine = 0;
+    mti->cycles.resolution = 0;
+    mti->cycles.frequency = 0;
+    mti->cycles.overhead = 0;
   }
 
   /* nanoseconds */
-  mti->nanoseconds.frequency=  1000000000; /* initial assumption */
+  mti->nanoseconds.frequency = 1000000000; /* initial assumption */
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_GETHRTIME;
+  mti->nanoseconds.routine = MY_TIMER_ROUTINE_GETHRTIME;
 #elif defined(HAVE_CLOCK_GETTIME)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_CLOCK_GETTIME;
+  mti->nanoseconds.routine = MY_TIMER_ROUTINE_CLOCK_GETTIME;
 #elif defined(__APPLE__) && defined(__MACH__)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_MACH_ABSOLUTE_TIME;
+  mti->nanoseconds.routine = MY_TIMER_ROUTINE_MACH_ABSOLUTE_TIME;
 #else
-  mti->nanoseconds.routine= 0;
+  mti->nanoseconds.routine = 0;
 #endif
-  if (!mti->nanoseconds.routine || !my_timer_nanoseconds())
-  {
-    mti->nanoseconds.routine= 0;
-    mti->nanoseconds.resolution= 0;
-    mti->nanoseconds.frequency= 0;
-    mti->nanoseconds.overhead= 0;
+  if (!mti->nanoseconds.routine || !my_timer_nanoseconds()) {
+    mti->nanoseconds.routine = 0;
+    mti->nanoseconds.resolution = 0;
+    mti->nanoseconds.frequency = 0;
+    mti->nanoseconds.overhead = 0;
   }
 
   /* microseconds */
-  mti->microseconds.frequency= 1000000; /* initial assumption */
+  mti->microseconds.frequency = 1000000; /* initial assumption */
 #if defined(HAVE_GETTIMEOFDAY)
-   mti->microseconds.routine= MY_TIMER_ROUTINE_GETTIMEOFDAY;
+  mti->microseconds.routine = MY_TIMER_ROUTINE_GETTIMEOFDAY;
 #elif defined(_WIN32)
   {
     LARGE_INTEGER li;
     /* Windows: typical frequency = 3579545, actually 1/3 microsecond. */
     if (!QueryPerformanceFrequency(&li))
-      mti->microseconds.routine= 0;
-    else
-    {
-      mti->microseconds.frequency= li.QuadPart;
-      mti->microseconds.routine= MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER;
+      mti->microseconds.routine = 0;
+    else {
+      mti->microseconds.frequency = li.QuadPart;
+      mti->microseconds.routine = MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER;
     }
   }
 #else
-  mti->microseconds.routine= 0;
+  mti->microseconds.routine = 0;
 #endif
-  if (!mti->microseconds.routine || !my_timer_microseconds())
-  {
-    mti->microseconds.routine= 0;
-    mti->microseconds.resolution= 0;
-    mti->microseconds.frequency= 0;
-    mti->microseconds.overhead= 0;
+  if (!mti->microseconds.routine || !my_timer_microseconds()) {
+    mti->microseconds.routine = 0;
+    mti->microseconds.resolution = 0;
+    mti->microseconds.frequency = 0;
+    mti->microseconds.overhead = 0;
   }
 
   /* milliseconds */
-  mti->milliseconds.frequency= 1000; /* initial assumption */
+  mti->milliseconds.frequency = 1000; /* initial assumption */
 #if defined(HAVE_GETTIMEOFDAY)
-  mti->milliseconds.routine= MY_TIMER_ROUTINE_GETTIMEOFDAY;
+  mti->milliseconds.routine = MY_TIMER_ROUTINE_GETTIMEOFDAY;
 #elif defined(_WIN32)
-  mti->milliseconds.routine= MY_TIMER_ROUTINE_GETSYSTEMTIMEASFILETIME;
+  mti->milliseconds.routine = MY_TIMER_ROUTINE_GETSYSTEMTIMEASFILETIME;
 #else
-  mti->milliseconds.routine= 0;
+  mti->milliseconds.routine = 0;
 #endif
-  if (!mti->milliseconds.routine || !my_timer_milliseconds())
-  {
-    mti->milliseconds.routine= 0;
-    mti->milliseconds.resolution= 0;
-    mti->milliseconds.frequency= 0;
-    mti->milliseconds.overhead= 0;
+  if (!mti->milliseconds.routine || !my_timer_milliseconds()) {
+    mti->milliseconds.routine = 0;
+    mti->milliseconds.resolution = 0;
+    mti->milliseconds.frequency = 0;
+    mti->milliseconds.overhead = 0;
   }
 
   /* ticks */
-  mti->ticks.frequency= 100; /* permanent assumption */
+  mti->ticks.frequency = 100; /* permanent assumption */
 #if defined(HAVE_SYS_TIMES_H) && defined(HAVE_TIMES)
-  mti->ticks.routine= MY_TIMER_ROUTINE_TIMES;
+  mti->ticks.routine = MY_TIMER_ROUTINE_TIMES;
 #elif defined(_WIN32)
-  mti->ticks.routine= MY_TIMER_ROUTINE_GETTICKCOUNT;
+  mti->ticks.routine = MY_TIMER_ROUTINE_GETTICKCOUNT;
 #else
-  mti->ticks.routine= 0;
+  mti->ticks.routine = 0;
 #endif
-  if (!mti->ticks.routine || !my_timer_ticks())
-  {
-    mti->ticks.routine= 0;
-    mti->ticks.resolution= 0;
-    mti->ticks.frequency= 0;
-    mti->ticks.overhead= 0;
+  if (!mti->ticks.routine || !my_timer_ticks()) {
+    mti->ticks.routine = 0;
+    mti->ticks.resolution = 0;
+    mti->ticks.frequency = 0;
+    mti->ticks.overhead = 0;
   }
 
   /*
@@ -613,163 +599,132 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
     I doubt it ever will be as bad as microseconds.
   */
   if (mti->cycles.routine)
-    best_timer= &my_timer_cycles;
-  else
-  {
-    if (mti->nanoseconds.routine)
-    {
-      best_timer= &my_timer_nanoseconds;
-    }
-    else
-      best_timer= &my_timer_microseconds;
+    best_timer = &my_timer_cycles;
+  else {
+    if (mti->nanoseconds.routine) {
+      best_timer = &my_timer_nanoseconds;
+    } else
+      best_timer = &my_timer_microseconds;
   }
 
   /* best_timer_overhead = least of 20 calculations */
-  for (i= 0, best_timer_overhead= 1000000000; i < 20; ++i)
-  {
-    time1= best_timer();
-    time2= best_timer() - time1;
-    if (best_timer_overhead > time2)
-      best_timer_overhead= time2;
+  for (i = 0, best_timer_overhead = 1000000000; i < 20; ++i) {
+    time1 = best_timer();
+    time2 = best_timer() - time1;
+    if (best_timer_overhead > time2) best_timer_overhead = time2;
   }
   if (mti->cycles.routine)
-    my_timer_init_overhead(&mti->cycles.overhead,
-                           best_timer,
-                           &my_timer_cycles,
+    my_timer_init_overhead(&mti->cycles.overhead, best_timer, &my_timer_cycles,
                            best_timer_overhead);
   if (mti->nanoseconds.routine)
-    my_timer_init_overhead(&mti->nanoseconds.overhead,
-                           best_timer,
-                           &my_timer_nanoseconds,
-                           best_timer_overhead);
+    my_timer_init_overhead(&mti->nanoseconds.overhead, best_timer,
+                           &my_timer_nanoseconds, best_timer_overhead);
   if (mti->microseconds.routine)
-    my_timer_init_overhead(&mti->microseconds.overhead,
-                           best_timer,
-                           &my_timer_microseconds,
-                           best_timer_overhead);
+    my_timer_init_overhead(&mti->microseconds.overhead, best_timer,
+                           &my_timer_microseconds, best_timer_overhead);
   if (mti->milliseconds.routine)
-    my_timer_init_overhead(&mti->milliseconds.overhead,
-                           best_timer,
-                           &my_timer_milliseconds,
-                           best_timer_overhead);
+    my_timer_init_overhead(&mti->milliseconds.overhead, best_timer,
+                           &my_timer_milliseconds, best_timer_overhead);
   if (mti->ticks.routine)
-    my_timer_init_overhead(&mti->ticks.overhead,
-                           best_timer,
-                           &my_timer_ticks,
+    my_timer_init_overhead(&mti->ticks.overhead, best_timer, &my_timer_ticks,
                            best_timer_overhead);
 
-/*
-  Calculate resolution for nanoseconds or microseconds
-  or milliseconds, by seeing if it's always divisible
-  by 1000, and by noticing how much jumping occurs.
-  For ticks, just assume the resolution is 1.
-*/
-  if (mti->cycles.routine)
-    mti->cycles.resolution= 1;
+  /*
+    Calculate resolution for nanoseconds or microseconds
+    or milliseconds, by seeing if it's always divisible
+    by 1000, and by noticing how much jumping occurs.
+    For ticks, just assume the resolution is 1.
+  */
+  if (mti->cycles.routine) mti->cycles.resolution = 1;
   if (mti->nanoseconds.routine)
-    mti->nanoseconds.resolution=
-    my_timer_init_resolution(&my_timer_nanoseconds, 20000);
+    mti->nanoseconds.resolution =
+        my_timer_init_resolution(&my_timer_nanoseconds, 20000);
   if (mti->microseconds.routine)
-    mti->microseconds.resolution=
-    my_timer_init_resolution(&my_timer_microseconds, 20);
+    mti->microseconds.resolution =
+        my_timer_init_resolution(&my_timer_microseconds, 20);
   if (mti->milliseconds.routine)
-    mti->milliseconds.resolution=
-    my_timer_init_resolution(&my_timer_milliseconds, 0);
-  if (mti->ticks.routine)
-    mti->ticks.resolution= 1;
+    mti->milliseconds.resolution =
+        my_timer_init_resolution(&my_timer_milliseconds, 0);
+  if (mti->ticks.routine) mti->ticks.resolution = 1;
 
-/*
-  Calculate cycles frequency,
-  if we have both a cycles routine and a microseconds routine.
-  In tests, this usually results in a figure within 2% of
-  what "cat /proc/cpuinfo" says.
-  If the microseconds routine is QueryPerformanceCounter
-  (i.e. it's Windows), and the microseconds frequency is >
-  500,000,000 (i.e. it's Windows Server so it uses RDTSC)
-  and the microseconds resolution is > 100 (i.e. dreadful),
-  then calculate cycles frequency = microseconds frequency.
-*/
-  if (mti->cycles.routine
-  &&  mti->microseconds.routine)
-  {
-    if (mti->microseconds.routine ==
-    MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER
-    &&  mti->microseconds.frequency > 500000000
-    &&  mti->microseconds.resolution > 100)
-      mti->cycles.frequency= mti->microseconds.frequency;
-    else
-    {
+  /*
+    Calculate cycles frequency,
+    if we have both a cycles routine and a microseconds routine.
+    In tests, this usually results in a figure within 2% of
+    what "cat /proc/cpuinfo" says.
+    If the microseconds routine is QueryPerformanceCounter
+    (i.e. it's Windows), and the microseconds frequency is >
+    500,000,000 (i.e. it's Windows Server so it uses RDTSC)
+    and the microseconds resolution is > 100 (i.e. dreadful),
+    then calculate cycles frequency = microseconds frequency.
+  */
+  if (mti->cycles.routine && mti->microseconds.routine) {
+    if (mti->microseconds.routine == MY_TIMER_ROUTINE_QUERYPERFORMANCECOUNTER &&
+        mti->microseconds.frequency > 500000000 &&
+        mti->microseconds.resolution > 100)
+      mti->cycles.frequency = mti->microseconds.frequency;
+    else {
       ulonglong time1, time2, lowest;
-      time1= my_timer_init_frequency(mti);
+      time1 = my_timer_init_frequency(mti);
       /* Repeat once in case there was an interruption. */
-      time2= my_timer_init_frequency(mti);
+      time2 = my_timer_init_frequency(mti);
 
       lowest = 0;
-      if (time1 != 0)
-      {
+      if (time1 != 0) {
         lowest = time1;
       }
-      if ((time2 != 0) && (time2 < lowest))
-      {
+      if ((time2 != 0) && (time2 < lowest)) {
         lowest = time2;
       }
 
-      mti->cycles.frequency= lowest;
+      mti->cycles.frequency = lowest;
     }
   }
 
-/*
-  Calculate milliseconds frequency =
-  (cycles-frequency/#-of-cycles) * #-of-milliseconds,
-  if we have both a milliseconds routine and a cycles
-  routine.
-  This will be inaccurate if milliseconds resolution > 1.
-  This is probably only useful when testing new platforms.
-*/
-  if (mti->milliseconds.routine
-  &&  mti->milliseconds.resolution < 1000
-  &&  mti->microseconds.routine
-  &&  mti->cycles.routine)
-  {
+  /*
+    Calculate milliseconds frequency =
+    (cycles-frequency/#-of-cycles) * #-of-milliseconds,
+    if we have both a milliseconds routine and a cycles
+    routine.
+    This will be inaccurate if milliseconds resolution > 1.
+    This is probably only useful when testing new platforms.
+  */
+  if (mti->milliseconds.routine && mti->milliseconds.resolution < 1000 &&
+      mti->microseconds.routine && mti->cycles.routine) {
     int i;
     ulonglong time1, time2, time3, time4;
-    time1= my_timer_cycles();
-    time2= my_timer_milliseconds();
-    time3= time2; /* Avoids a Microsoft/IBM compiler warning */
-    for (i= 0; i < MY_TIMER_ITERATIONS * 1000; ++i)
-    {
-      time3= my_timer_milliseconds();
+    time1 = my_timer_cycles();
+    time2 = my_timer_milliseconds();
+    time3 = time2; /* Avoids a Microsoft/IBM compiler warning */
+    for (i = 0; i < MY_TIMER_ITERATIONS * 1000; ++i) {
+      time3 = my_timer_milliseconds();
       if (time3 - time2 > 10) break;
     }
-    time4= my_timer_cycles();
-    mti->milliseconds.frequency=
-    (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
+    time4 = my_timer_cycles();
+    mti->milliseconds.frequency =
+        (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
   }
 
-/*
-  Calculate ticks.frequency =
-  (cycles-frequency/#-of-cycles * #-of-ticks,
-  if we have both a ticks routine and a cycles
-  routine,
-  This is probably only useful when testing new platforms.
-*/
-  if (mti->ticks.routine
-  &&  mti->microseconds.routine
-  &&  mti->cycles.routine)
-  {
+  /*
+    Calculate ticks.frequency =
+    (cycles-frequency/#-of-cycles * #-of-ticks,
+    if we have both a ticks routine and a cycles
+    routine,
+    This is probably only useful when testing new platforms.
+  */
+  if (mti->ticks.routine && mti->microseconds.routine && mti->cycles.routine) {
     int i;
     ulonglong time1, time2, time3, time4;
-    time1= my_timer_cycles();
-    time2= my_timer_ticks();
-    time3= time2; /* Avoids a Microsoft/IBM compiler warning */
-    for (i= 0; i < MY_TIMER_ITERATIONS * 1000; ++i)
-    {
-      time3= my_timer_ticks();
+    time1 = my_timer_cycles();
+    time2 = my_timer_ticks();
+    time3 = time2; /* Avoids a Microsoft/IBM compiler warning */
+    for (i = 0; i < MY_TIMER_ITERATIONS * 1000; ++i) {
+      time3 = my_timer_ticks();
       if (time3 - time2 > 10) break;
     }
-    time4= my_timer_cycles();
-    mti->ticks.frequency=
-    (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
+    time4 = my_timer_cycles();
+    mti->ticks.frequency =
+        (mti->cycles.frequency * (time3 - time2)) / (time4 - time1);
   }
 }
 
@@ -935,4 +890,3 @@ extern "C" void my_timer_init(MY_TIMER_INFO *mti)
    Irix, Mac. We didn't test with SCO.
 
 */
-

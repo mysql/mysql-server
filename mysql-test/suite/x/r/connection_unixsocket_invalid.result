@@ -41,7 +41,7 @@ call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) f
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: Permission denied, while connecting to  SOCKET (code 2002)
 not ok
-call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*no_existing/mysqlx.socket.lock");
+call mtr.add_suppression("Plugin mysqlx reported: .Setup of UNIX socket \(.+\) failed, can't create lock file .*ne/x.sock.lock");
 # restart: --loose-mysqlx-socket= SOCKET
 in main, line 0:ERROR: No such file or directory, while connecting to  SOCKET (code 2002)
 not ok

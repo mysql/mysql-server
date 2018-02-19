@@ -30,52 +30,44 @@
 #include "client/client_priv.h"
 
 using namespace Mysql::Tools::Base::Options;
-using std::placeholders::_1;
 using Mysql::Nullable;
+using std::placeholders::_1;
 using std::string;
 
-Password_option::Password_option(Nullable<string>* value, string name, string description)
-  : Abstract_string_option<Password_option>(value, GET_PASSWORD, name, description)
-{
-  this->value_optional()
-    ->add_callback(
-      new std::function<void(char*)>(
-        std::bind(&Password_option::password_callback, this, _1)));
+Password_option::Password_option(Nullable<string> *value, string name,
+                                 string description)
+    : Abstract_string_option<Password_option>(value, GET_PASSWORD, name,
+                                              description) {
+  this->value_optional()->add_callback(new std::function<void(char *)>(
+      std::bind(&Password_option::password_callback, this, _1)));
 }
 
-void Password_option::password_callback(char* argument)
-{
-  if (argument == ::disabled_my_option)
-  {
-    // This prevents ::disabled_my_option being overriden later in this function.
-    argument= (char*) "";
+void Password_option::password_callback(char *argument) {
+  if (argument == ::disabled_my_option) {
+    // This prevents ::disabled_my_option being overriden later in this
+    // function.
+    argument = (char *)"";
   }
 
-  if (argument != NULL)
-  {
+  if (argument != NULL) {
     /*
      Destroy argument value, this modifies part of argv passed to main
      routine. This makes command line on linux changed, so no user can see
      password shortly after program starts. This works for example for
      /proc/<pid>/cmdline file and ps tool.
      */
-    for (char* pos= argument; *pos != 0; pos++)
-    {
-      *pos= '*';
+    for (char *pos = argument; *pos != 0; pos++) {
+      *pos = '*';
     }
 
     /*
      This cuts argument length to hide password length on linux commandline
      showing tools.
      */
-    if (*argument)
-      argument[1]= 0;
-  }
-  else
-  {
-    char *password= ::get_tty_password(NULL);
+    if (*argument) argument[1] = 0;
+  } else {
+    char *password = ::get_tty_password(NULL);
     *this->m_destination_value = Nullable<string>(password);
     my_free(password);
-
   }
 }

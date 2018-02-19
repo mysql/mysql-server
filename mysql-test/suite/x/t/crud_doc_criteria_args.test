@@ -33,7 +33,7 @@
 drop schema if exists xtest;
 create schema xtest;
 use xtest;
-create table mycoll (doc JSON, _id VARCHAR(32) NOT NULL PRIMARY KEY);
+create table mycoll (doc JSON, _id VARBINARY(32) NOT NULL PRIMARY KEY);
 insert into mycoll (doc, _id) values ('{"_id": "1", "name": "Robb", "amount": 125.21}', json_unquote(json_extract(doc, '$._id')));
 insert into mycoll (doc, _id) values ('{"_id": "2", "name": "Bran", "amount": 542.75}', json_unquote(json_extract(doc, '$._id')));
 insert into mycoll (doc, _id) values ('{"_id": "3", "name": "Arya", "amount": 98.89}', json_unquote(json_extract(doc, '$._id')));

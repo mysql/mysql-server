@@ -242,8 +242,6 @@ DROP DATABASE b12688860_db;
 # sql_mode = 'NO_BACKSLASH_ESCAPES'
 SET @OLD_SQL_MODE = @@SQL_MODE;
 SET GLOBAL sql_mode = 'NO_BACKSLASH_ESCAPES';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW GLOBAL VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	NO_BACKSLASH_ESCAPES
@@ -272,8 +270,6 @@ Database: test  Wildcard: `t%
 DROP TABLE ```t1`, ```t2`;
 # sql_mode = ''
 SET GLOBAL sql_mode = '';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SHOW GLOBAL VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	

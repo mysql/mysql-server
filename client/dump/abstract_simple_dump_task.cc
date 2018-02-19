@@ -26,19 +26,11 @@
 
 using namespace Mysql::Tools::Dump;
 
-void Abstract_simple_dump_task::set_completed()
-{
-  m_is_completed= true;
-}
+void Abstract_simple_dump_task::set_completed() { m_is_completed = true; }
 
-bool Abstract_simple_dump_task::is_completed() const
-{
-  return m_is_completed;
-}
+bool Abstract_simple_dump_task::is_completed() const { return m_is_completed; }
 
-Abstract_simple_dump_task::~Abstract_simple_dump_task()
-{}
+Abstract_simple_dump_task::~Abstract_simple_dump_task() {}
 
 Abstract_simple_dump_task::Abstract_simple_dump_task()
-  : m_is_completed(false)
-{}
+    : m_is_completed(false) {}

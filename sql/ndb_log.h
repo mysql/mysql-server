@@ -57,7 +57,8 @@ enum ndb_log_loglevel {
    NDB_LOG_INFORMATION_LEVEL= 2
 };
 void ndb_log_print(enum ndb_log_loglevel loglevel,
-                   const char* prefix, const char* fmt, va_list va_args);
+                   const char* prefix, const char* fmt, va_list va_args)
+  MY_ATTRIBUTE((format(printf, 3, 0)));
 
 /*
   @brief Write potentially long message to standard error.

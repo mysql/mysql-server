@@ -29,36 +29,27 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_time.h"                 // interval_type
-#include "mysql/udf_registration_types.h"
-#include "sql/sql_alloc.h"           // Sql_alloc
+#include "my_time.h"  // interval_type
 
 class Item;
 class THD;
 class sp_name;
 
-#define EVEX_GET_FIELD_FAILED   -2
-#define EVEX_BAD_PARAMS         -5
-#define EVEX_MICROSECOND_UNSUP  -6
+#define EVEX_GET_FIELD_FAILED -2
+#define EVEX_BAD_PARAMS -5
+#define EVEX_MICROSECOND_UNSUP -6
 #define EVEX_MAX_INTERVAL_VALUE 1000000000L
 
-class Event_parse_data : public Sql_alloc
-{
-public:
+class Event_parse_data {
+ public:
   /*
     ENABLED = feature can function normally (is turned on)
     SLAVESIDE_DISABLED = feature is turned off on slave
     DISABLED = feature is turned off
   */
-  enum enum_status
-  {
-    ENABLED = 1,
-    DISABLED,
-    SLAVESIDE_DISABLED
-  };
+  enum enum_status { ENABLED = 1, DISABLED, SLAVESIDE_DISABLED };
 
-  enum enum_on_completion
-  {
+  enum enum_on_completion {
     /*
       On CREATE EVENT, DROP is the DEFAULT as per the docs.
       On ALTER  EVENT, "no change" is the DEFAULT.
@@ -82,12 +73,12 @@ public:
 
   LEX_STRING dbname;
   LEX_STRING name;
-  LEX_STRING definer;// combination of user and host
+  LEX_STRING definer;  // combination of user and host
   LEX_STRING comment;
 
-  Item* item_starts;
-  Item* item_ends;
-  Item* item_execute_at;
+  Item *item_starts;
+  Item *item_ends;
+  Item *item_execute_at;
 
   my_time_t starts;
   my_time_t ends;
@@ -97,65 +88,59 @@ public:
   bool execute_at_null;
 
   sp_name *identifier;
-  Item* item_expression;
+  Item *item_expression;
   longlong expression;
   interval_type interval;
 
-  bool
-  check_parse_data(THD *thd);
+  bool check_parse_data(THD *thd);
 
-  bool
-  check_dates(THD *thd, int previous_on_completion);
+  bool check_dates(THD *thd, int previous_on_completion);
 
   Event_parse_data()
-    :on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
-    status(Event_parse_data::ENABLED), status_changed(false),
-    do_not_create(false), body_changed(false),
-    item_starts(NULL), item_ends(NULL), item_execute_at(NULL),
-    starts_null(true), ends_null(true), execute_at_null(true),
-    item_expression(NULL), expression(0)
-  {
+      : on_completion(Event_parse_data::ON_COMPLETION_DEFAULT),
+        status(Event_parse_data::ENABLED),
+        status_changed(false),
+        do_not_create(false),
+        body_changed(false),
+        item_starts(NULL),
+        item_ends(NULL),
+        item_execute_at(NULL),
+        starts_null(true),
+        ends_null(true),
+        execute_at_null(true),
+        item_expression(NULL),
+        expression(0) {
     DBUG_ENTER("Event_parse_data::Event_parse_data");
 
     /* Actually in the parser STARTS is always set */
-    starts= ends= execute_at= 0;
+    starts = ends = execute_at = 0;
 
-    comment.str= NULL;
-    comment.length= 0;
+    comment.str = NULL;
+    comment.length = 0;
 
     DBUG_VOID_RETURN;
   }
 
-  ~Event_parse_data()
-  {};
+  ~Event_parse_data(){};
 
-private:
+ private:
+  void init_definer(THD *thd);
 
-  void
-  init_definer(THD *thd);
+  void init_name(THD *thd, sp_name *spn);
 
-  void
-  init_name(THD *thd, sp_name *spn);
+  int init_execute_at(THD *thd);
 
-  int
-  init_execute_at(THD *thd);
+  int init_interval(THD *thd);
 
-  int
-  init_interval(THD *thd);
+  int init_starts(THD *thd);
 
-  int
-  init_starts(THD *thd);
+  int init_ends(THD *thd);
 
-  int
-  init_ends(THD *thd);
+  void report_bad_value(THD *thd, const char *item_name, Item *bad_item);
 
-  void
-  report_bad_value(THD *thd, const char *item_name, Item *bad_item);
+  void check_if_in_the_past(THD *thd, my_time_t ltime_utc);
 
-  void
-  check_if_in_the_past(THD *thd, my_time_t ltime_utc);
-
-  Event_parse_data(const Event_parse_data &);	/* Prevent use of these */
+  Event_parse_data(const Event_parse_data &); /* Prevent use of these */
   void check_originator_id(THD *thd);
   void operator=(Event_parse_data &);
 };

@@ -31,8 +31,10 @@
 #include "my_thread.h"
 #include "sql/item_func.h"
 #include "sql/mysqld_thd_manager.h"
+#include "sql/plugin_table.h"
 /* Iteration on THD from the sql layer. */
 #include "sql/sql_class.h"
+#include "sql/table.h"
 #include "storage/perfschema/pfs_buffer_container.h"
 #include "storage/perfschema/pfs_column_types.h"
 #include "storage/perfschema/pfs_column_values.h"
@@ -40,23 +42,16 @@
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_visitor.h"
 
-class Find_thd_user_var : public Find_THD_Impl
-{
-public:
-  Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd)
-  {
-  }
+class Find_thd_user_var : public Find_THD_Impl {
+ public:
+  Find_thd_user_var(THD *unsafe_thd) : m_unsafe_thd(unsafe_thd) {}
 
-  virtual bool
-  operator()(THD *thd)
-  {
-    if (thd != m_unsafe_thd)
-    {
+  virtual bool operator()(THD *thd) {
+    if (thd != m_unsafe_thd) {
       return false;
     }
 
-    if (thd->user_vars.empty())
-    {
+    if (thd->user_vars.empty()) {
       return false;
     }
 
@@ -64,13 +59,11 @@ public:
     return true;
   }
 
-private:
+ private:
   THD *m_unsafe_thd;
 };
 
-void
-User_variables::materialize(PFS_thread *pfs, THD *thd)
-{
+void User_variables::materialize(PFS_thread *pfs, THD *thd) {
   reset();
 
   m_pfs = pfs;
@@ -82,8 +75,7 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
   /* Protects thd->user_vars. */
   mysql_mutex_assert_owner(&thd->LOCK_thd_data);
 
-  for (const auto &key_and_value : thd->user_vars)
-  {
+  for (const auto &key_and_value : thd->user_vars) {
     user_var_entry *sql_uvar = key_and_value.second.get();
 
     /*
@@ -116,12 +108,9 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
     String str_buffer;
     uint decimals = 0;
     str_value = sql_uvar->val_str(&null_value, &str_buffer, decimals);
-    if (str_value != NULL)
-    {
+    if (str_value != NULL) {
       pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
-    }
-    else
-    {
+    } else {
       pfs_uvar.m_value.make_row(NULL, 0);
     }
   }
@@ -130,70 +119,58 @@ User_variables::materialize(PFS_thread *pfs, THD *thd)
 THR_LOCK table_uvar_by_thread::m_table_lock;
 
 Plugin_table table_uvar_by_thread::m_table_def(
-  /* Schema name */
-  "performance_schema",
-  /* Name */
-  "user_variables_by_thread",
-  /* Definition */
-  "  THREAD_ID BIGINT unsigned not null,\n"
-  "  VARIABLE_NAME VARCHAR(64) not null,\n"
-  "  VARIABLE_VALUE LONGBLOB,\n"
-  "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
-  /* Options */
-  " ENGINE=PERFORMANCE_SCHEMA",
-  /* Tablespace */
-  nullptr);
+    /* Schema name */
+    "performance_schema",
+    /* Name */
+    "user_variables_by_thread",
+    /* Definition */
+    "  THREAD_ID BIGINT unsigned not null,\n"
+    "  VARIABLE_NAME VARCHAR(64) not null,\n"
+    "  VARIABLE_VALUE LONGBLOB,\n"
+    "  PRIMARY KEY (THREAD_ID, VARIABLE_NAME) USING HASH\n",
+    /* Options */
+    " ENGINE=PERFORMANCE_SCHEMA",
+    /* Tablespace */
+    nullptr);
 
 PFS_engine_table_share table_uvar_by_thread::m_share = {
-  &pfs_readonly_acl,
-  table_uvar_by_thread::create,
-  NULL, /* write_row */
-  NULL, /* delete_all_rows */
-  table_uvar_by_thread::get_row_count,
-  sizeof(pos_t),
-  &m_table_lock,
-  &m_table_def,
-  false, /* perpetual */
-  PFS_engine_table_proxy(),
-  {0},
-  false /* m_in_purgatory */
+    &pfs_readonly_acl,
+    table_uvar_by_thread::create,
+    NULL, /* write_row */
+    NULL, /* delete_all_rows */
+    table_uvar_by_thread::get_row_count,
+    sizeof(pos_t),
+    &m_table_lock,
+    &m_table_def,
+    false, /* perpetual */
+    PFS_engine_table_proxy(),
+    {0},
+    false /* m_in_purgatory */
 };
 
-bool
-PFS_index_uvar_by_thread::match(PFS_thread *pfs)
-{
-  if (m_fields >= 1)
-  {
-    if (!m_key_1.match(pfs))
-    {
+bool PFS_index_uvar_by_thread::match(PFS_thread *pfs) {
+  if (m_fields >= 1) {
+    if (!m_key_1.match(pfs)) {
       return false;
     }
   }
   return true;
 }
 
-bool
-PFS_index_uvar_by_thread::match(const User_variable *pfs)
-{
-  if (m_fields >= 2)
-  {
-    if (!m_key_2.match(&pfs->m_name))
-    {
+bool PFS_index_uvar_by_thread::match(const User_variable *pfs) {
+  if (m_fields >= 2) {
+    if (!m_key_2.match(&pfs->m_name)) {
       return false;
     }
   }
   return true;
 }
 
-PFS_engine_table *
-table_uvar_by_thread::create(PFS_engine_table_share *)
-{
+PFS_engine_table *table_uvar_by_thread::create(PFS_engine_table_share *) {
   return new table_uvar_by_thread();
 }
 
-ha_rows
-table_uvar_by_thread::get_row_count(void)
-{
+ha_rows table_uvar_by_thread::get_row_count(void) {
   /*
     This is an estimate only, not a hard limit.
     The row count is given as a multiple of thread_max,
@@ -207,36 +184,25 @@ table_uvar_by_thread::get_row_count(void)
 }
 
 table_uvar_by_thread::table_uvar_by_thread()
-  : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos()
-{
-}
+    : PFS_engine_table(&m_share, &m_pos), m_pos(), m_next_pos() {}
 
-void
-table_uvar_by_thread::reset_position(void)
-{
+void table_uvar_by_thread::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int
-table_uvar_by_thread::rnd_next(void)
-{
+int table_uvar_by_thread::rnd_next(void) {
   PFS_thread *thread;
   bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL)
-    {
-      if (materialize(thread) == 0)
-      {
+    if (thread != NULL) {
+      if (materialize(thread) == 0) {
         const User_variable *uvar = m_THD_cache.get(m_pos.m_index_2);
-        if (uvar != NULL)
-        {
+        if (uvar != NULL) {
           /* If make_row() fails, get the next thread. */
-          if (!make_row(thread, uvar))
-          {
+          if (!make_row(thread, uvar)) {
             m_next_pos.set_after(&m_pos);
             return 0;
           }
@@ -248,21 +214,16 @@ table_uvar_by_thread::rnd_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_uvar_by_thread::rnd_pos(const void *pos)
-{
+int table_uvar_by_thread::rnd_pos(const void *pos) {
   PFS_thread *thread;
 
   set_position(pos);
 
   thread = global_thread_container.get(m_pos.m_index_1);
-  if (thread != NULL)
-  {
-    if (materialize(thread) == 0)
-    {
+  if (thread != NULL) {
+    if (materialize(thread) == 0) {
       const User_variable *uvar = m_THD_cache.get(m_pos.m_index_2);
-      if (uvar != NULL)
-      {
+      if (uvar != NULL) {
         return make_row(thread, uvar);
       }
     }
@@ -271,9 +232,7 @@ table_uvar_by_thread::rnd_pos(const void *pos)
   return HA_ERR_RECORD_DELETED;
 }
 
-int
-table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
-{
+int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_uvar_by_thread *result = NULL;
   DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);
@@ -282,31 +241,21 @@ table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool)
   return 0;
 }
 
-int
-table_uvar_by_thread::index_next(void)
-{
+int table_uvar_by_thread::index_next(void) {
   PFS_thread *thread;
   bool has_more_thread = true;
 
-  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread())
-  {
+  for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
     thread = global_thread_container.get(m_pos.m_index_1, &has_more_thread);
-    if (thread != NULL)
-    {
-      if (m_opened_index->match(thread))
-      {
-        if (materialize(thread) == 0)
-        {
+    if (thread != NULL) {
+      if (m_opened_index->match(thread)) {
+        if (materialize(thread) == 0) {
           const User_variable *uvar;
-          do
-          {
+          do {
             uvar = m_THD_cache.get(m_pos.m_index_2);
-            if (uvar != NULL)
-            {
-              if (m_opened_index->match(uvar))
-              {
-                if (!make_row(thread, uvar))
-                {
+            if (uvar != NULL) {
+              if (m_opened_index->match(uvar)) {
+                if (!make_row(thread, uvar)) {
                   m_next_pos.set_after(&m_pos);
                   return 0;
                 }
@@ -322,29 +271,23 @@ table_uvar_by_thread::index_next(void)
   return HA_ERR_END_OF_FILE;
 }
 
-int
-table_uvar_by_thread::materialize(PFS_thread *thread)
-{
-  if (m_THD_cache.is_materialized(thread))
-  {
+int table_uvar_by_thread::materialize(PFS_thread *thread) {
+  if (m_THD_cache.is_materialized(thread)) {
     return 0;
   }
 
-  if (!thread->m_lock.is_populated())
-  {
+  if (!thread->m_lock.is_populated()) {
     return 1;
   }
 
   THD *unsafe_thd = thread->m_thd;
-  if (unsafe_thd == NULL)
-  {
+  if (unsafe_thd == NULL) {
     return 1;
   }
 
   Find_thd_user_var finder(unsafe_thd);
   THD *safe_thd = Global_THD_manager::get_instance()->find_thd(&finder);
-  if (safe_thd == NULL)
-  {
+  if (safe_thd == NULL) {
     return 1;
   }
 
@@ -353,9 +296,8 @@ table_uvar_by_thread::materialize(PFS_thread *thread)
   return 0;
 }
 
-int
-table_uvar_by_thread::make_row(PFS_thread *thread, const User_variable *uvar)
-{
+int table_uvar_by_thread::make_row(PFS_thread *thread,
+                                   const User_variable *uvar) {
   pfs_optimistic_state lock;
 
   /* Protect this reader against a thread termination */
@@ -367,20 +309,15 @@ table_uvar_by_thread::make_row(PFS_thread *thread, const User_variable *uvar)
   m_row.m_variable_name = &uvar->m_name;
   m_row.m_variable_value = &uvar->m_value;
 
-  if (!thread->m_lock.end_optimistic_lock(&lock))
-  {
+  if (!thread->m_lock.end_optimistic_lock(&lock)) {
     return HA_ERR_RECORD_DELETED;
   }
 
   return 0;
 }
 
-int
-table_uvar_by_thread::read_row_values(TABLE *table,
-                                      unsigned char *buf,
-                                      Field **fields,
-                                      bool read_all)
-{
+int table_uvar_by_thread::read_row_values(TABLE *table, unsigned char *buf,
+                                          Field **fields, bool read_all) {
   Field *f;
 
   /* Set the null bits */
@@ -390,33 +327,26 @@ table_uvar_by_thread::read_row_values(TABLE *table,
   DBUG_ASSERT(m_row.m_variable_name != NULL);
   DBUG_ASSERT(m_row.m_variable_value != NULL);
 
-  for (; (f = *fields); fields++)
-  {
-    if (read_all || bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch (f->field_index)
-      {
-      case 0: /* THREAD_ID */
-        set_field_ulonglong(f, m_row.m_thread_internal_id);
-        break;
-      case 1: /* VARIABLE_NAME */
-        set_field_varchar_utf8(
-          f, m_row.m_variable_name->m_str, m_row.m_variable_name->m_length);
-        break;
-      case 2: /* VARIABLE_VALUE */
-        if (m_row.m_variable_value->get_value_length() > 0)
-        {
-          set_field_blob(f,
-                         m_row.m_variable_value->get_value(),
-                         m_row.m_variable_value->get_value_length());
-        }
-        else
-        {
-          f->set_null();
-        }
-        break;
-      default:
-        DBUG_ASSERT(false);
+  for (; (f = *fields); fields++) {
+    if (read_all || bitmap_is_set(table->read_set, f->field_index)) {
+      switch (f->field_index) {
+        case 0: /* THREAD_ID */
+          set_field_ulonglong(f, m_row.m_thread_internal_id);
+          break;
+        case 1: /* VARIABLE_NAME */
+          set_field_varchar_utf8(f, m_row.m_variable_name->m_str,
+                                 m_row.m_variable_name->m_length);
+          break;
+        case 2: /* VARIABLE_VALUE */
+          if (m_row.m_variable_value->get_value_length() > 0) {
+            set_field_blob(f, m_row.m_variable_value->get_value(),
+                           m_row.m_variable_value->get_value_length());
+          } else {
+            f->set_null();
+          }
+          break;
+        default:
+          DBUG_ASSERT(false);
       }
     }
   }

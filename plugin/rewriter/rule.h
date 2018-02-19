@@ -32,10 +32,8 @@
 #include "plugin/rewriter/persisted_rule.h"
 #include "plugin/rewriter/services.h"
 
-
 /// The results of an attempt to rewrite a query parse tree.
-struct Rewrite_result
-{
+struct Rewrite_result {
   /**
     Means the query was successfully rewritten, and the new query is available
     in new_query.
@@ -51,21 +49,12 @@ struct Rewrite_result
   Rewrite_result() : was_rewritten(false), digest_matched(false) {}
 };
 
-
 /**
   The in-memory representation of a pattern.
 */
-class Pattern
-{
-public:
-
-  enum Load_status
-  {
-    OK,
-    PARSE_ERROR,
-    NOT_A_SELECT_STATEMENT,
-    NO_DIGEST
-  };
+class Pattern {
+ public:
+  enum Load_status { OK, PARSE_ERROR, NOT_A_SELECT_STATEMENT, NO_DIGEST };
 
   int number_parameters;
 
@@ -99,14 +88,12 @@ public:
   */
   std::string parse_error_message() { return m_parse_error_message; }
 
-private:
+ private:
   std::string m_parse_error_message;
 };
 
-
-class Replacement
-{
-public:
+class Replacement {
+ public:
   /// The query string of the replacement
   std::string query_string;
 
@@ -125,23 +112,19 @@ public:
 
   std::vector<int> slots() const { return m_param_slots; }
 
-private:
-
+ private:
   /// The positions in query_string of each parameter ('?')
   std::vector<int> m_param_slots;
 
   std::string m_parse_error_message;
 };
 
-
 /**
   Internal representation of a rewrite rule.
   A rewrite rule consists of a pattern and a replacement.
 */
-class Rule
-{
-public:
-
+class Rule {
+ public:
   enum Load_status {
     OK,
     PATTERN_PARSE_ERROR,
@@ -152,24 +135,22 @@ public:
   };
 
   /// The digest buffer.
-  const uchar* digest_buffer() const { return m_pattern.digest.c_ptr(); }
+  const uchar *digest_buffer() const { return m_pattern.digest.c_ptr(); }
 
   /// The pattern in normalized form.
   std::string normalized_pattern() { return m_pattern.normalized_pattern; }
 
   /// Loads and parses the rule and replacement.
-  Load_status load(MYSQL_THD thd, const Persisted_rule *diskrule)
-  {
-    switch (m_pattern.load(thd, diskrule))
-    {
-    case Pattern::OK:
-      break;
-    case Pattern::PARSE_ERROR:
-      return PATTERN_PARSE_ERROR;
-    case Pattern::NOT_A_SELECT_STATEMENT:
-      return PATTERN_NOT_A_SELECT_STATEMENT;
-    case Pattern::NO_DIGEST:
-      return PATTERN_GOT_NO_DIGEST;
+  Load_status load(MYSQL_THD thd, const Persisted_rule *diskrule) {
+    switch (m_pattern.load(thd, diskrule)) {
+      case Pattern::OK:
+        break;
+      case Pattern::PARSE_ERROR:
+        return PATTERN_PARSE_ERROR;
+      case Pattern::NOT_A_SELECT_STATEMENT:
+        return PATTERN_NOT_A_SELECT_STATEMENT;
+      case Pattern::NO_DIGEST:
+        return PATTERN_GOT_NO_DIGEST;
     }
 
     if (m_replacement.load(thd, diskrule->replacement.value()))
@@ -181,7 +162,6 @@ public:
     return OK;
   }
 
-
   /**
     Applies the rule on a query, thereby creating a new one. This is done by
     merging the replacement and literals from the query.
@@ -192,7 +172,6 @@ public:
     @retval true The query did not match the pattern, nothing is allocated.
   */
   Rewrite_result create_new_query(MYSQL_THD thd);
-
 
   /**
     Asks the parser service for the current query in normalized form and
@@ -211,7 +190,8 @@ public:
   std::string replacement_parse_error_message() {
     return m_replacement.parse_error_message();
   }
-private:
+
+ private:
   Pattern m_pattern;
   Replacement m_replacement;
 };

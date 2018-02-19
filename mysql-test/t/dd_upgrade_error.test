@@ -22,7 +22,7 @@ let $MYSQLD_DATADIR1 = $MYSQL_TMP_DIR/data57;
 --exec echo $MYSQL_TMP_DIR/bootstrap.log
 
 --echo # Copy mismatch .frms to test_mismatch dir
---copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/
+--copy_files_wildcard $MYSQL_TMP_DIR/data57/mismatch_frms/ $MYSQL_TMP_DIR/data57/test_mismatch/ *
 
 --echo # Copy pre 5.0 decimal files to test dir
 --copy_file $MYSQLTEST_VARDIR/std_data/41_decimal.frm $MYSQL_TMP_DIR/data57/test/41_decimal.frm

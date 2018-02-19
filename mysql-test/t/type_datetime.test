@@ -653,20 +653,8 @@ DROP TABLE test.t;
 --echo #
 --echo # Bug#25866743 - ASSERTION FAILED: FALSE IN
 --echo #                ITEM_FUNC_GEOMETRY_FROM_TEXT::VAL_STR
---echo # Bug#25867000 - CRASH IN ITEM_FUNC_PASSWORD::VAL_STR_ASCII
 --echo # Bug#25866143 CRASH IN ST_ASWKB STRING::COPY
 --echo #
-
---error ER_GIS_INVALID_DATA
-do
-mbrintersects(
- st_asbinary(1),
- password(sec_to_time(4221094224))
-);
-
---error ER_GIS_INVALID_DATA
-do st_intersects(st_srid(st_linestringfromwkb('' )),
-  ( -29033 between (password(last_day(json_valid(abs('&#] $ {')))))and(6683)));
 
 --error ER_DATA_OUT_OF_RANGE
 do is_ipv4_mapped(bin(maketime(11111,exp(repeat('1',32)),'')));

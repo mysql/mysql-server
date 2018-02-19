@@ -503,7 +503,7 @@ ALTER TABLE t1 CHARACTER SET latin1 COLLATE latin1_bin;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `latin1_f` char(32) COLLATE latin1_bin DEFAULT NULL
+  `latin1_f` char(32) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=ENGINE DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 SHOW FIELDS FROM  t1;
 Field	Type	Null	Key	Default	Extra
@@ -670,8 +670,6 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 select least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci);
 least(_latin1'a',_latin2'b',_latin5'c' collate latin5_turkish_ci)
 a

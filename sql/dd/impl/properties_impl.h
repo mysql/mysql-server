@@ -29,17 +29,17 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "mem_root_fwd.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
-#include "my_sys.h"                // strmake_root
-#include "sql/dd/properties.h"     // dd::Properties
-#include "sql/dd/string_type.h"    // dd::String_type
+#include "my_sys.h"              // strmake_root
+#include "sql/dd/properties.h"   // dd::Properties
+#include "sql/dd/string_type.h"  // dd::String_type
+
+struct MEM_ROOT;
 
 namespace dd {
 
 ///////////////////////////////////////////////////////////////////////////
-
 
 /**
   The Properties_impl class implements the Properties interface.
@@ -76,53 +76,43 @@ namespace dd {
   interface are commented there.
 */
 
-class Properties_impl : public Properties
-{
-public:
+class Properties_impl : public Properties {
+ public:
   static Properties *parse_properties(const String_type &raw_properties);
 
-public:
+ public:
   Properties_impl();
 
-  virtual const Properties_impl *impl() const
-  { return this; }
+  virtual const Properties_impl *impl() const { return this; }
 
-  virtual Properties::Iterator begin()
-  { return m_map->begin(); }
+  virtual Properties::Iterator begin() { return m_map->begin(); }
 
   /* purecov: begin inspected */
-  virtual Properties::Const_iterator begin() const
-  { return m_map->begin(); }
+  virtual Properties::Const_iterator begin() const { return m_map->begin(); }
   /* purecov: end */
 
-  virtual Properties::Iterator end()
-  { return m_map->end(); }
+  virtual Properties::Iterator end() { return m_map->end(); }
 
   /* purecov: begin inspected */
-  virtual Properties::Const_iterator end() const
-  { return m_map->end(); }
+  virtual Properties::Const_iterator end() const { return m_map->end(); }
   /* purecov: end */
 
-  virtual size_type size() const
-  { return m_map->size(); }
+  virtual size_type size() const { return m_map->size(); }
 
-  virtual bool empty() const
-  { return m_map->empty(); }
+  virtual bool empty() const { return m_map->empty(); }
 
   /* purecov: begin deadcode */
-  virtual void clear()
-  { return m_map->clear(); }
+  virtual void clear() { return m_map->clear(); }
   /* purecov: end */
 
-  virtual bool exists(const String_type &key) const
-  { return m_map->find(key) != m_map->end(); }
+  virtual bool exists(const String_type &key) const {
+    return m_map->find(key) != m_map->end();
+  }
 
-  virtual bool remove(const String_type &key)
-  {
-    Properties::Iterator it= m_map->find(key);
+  virtual bool remove(const String_type &key) {
+    Properties::Iterator it = m_map->find(key);
 
-    if (it == m_map->end())
-      return true;
+    if (it == m_map->end()) return true;
 
     m_map->erase(it);
     return false;
@@ -141,11 +131,9 @@ public:
     exists.
   */
 
-  virtual const String_type &value(const String_type &key) const
-  {
-    Properties::Const_iterator it= m_map->find(key);
-    if (it == m_map->end())
-    {
+  virtual const String_type &value(const String_type &key) const {
+    Properties::Const_iterator it = m_map->find(key);
+    if (it == m_map->end()) {
       // Key not present.
       DBUG_ASSERT(false); /* purecov: inspected */
       return Properties_impl::EMPTY_STR;
@@ -154,43 +142,33 @@ public:
     return it->second;
   }
 
-  virtual const char* value_cstr(const String_type &key) const
-  { return value(key).c_str(); }
+  virtual const char *value_cstr(const String_type &key) const {
+    return value(key).c_str();
+  }
 
-  virtual bool get(const String_type &key,
-                   String_type &value) const
-  {
-    if (exists(key))
-    {
-      value= this->value(key);
+  virtual bool get(const String_type &key, String_type &value) const {
+    if (exists(key)) {
+      value = this->value(key);
       return false;
     }
     return true;
   }
 
-  virtual bool get(const String_type &key,
-                   LEX_STRING &value,
-                   MEM_ROOT *mem_root) const
-  {
-    if (exists(key))
-    {
-      String_type str= this->value(key);
-      value.length= str.length();
-      value.str= (char*) strmake_root(
-                           mem_root,
-                           str.c_str(),
-                           str.length());
+  virtual bool get(const String_type &key, LEX_STRING &value,
+                   MEM_ROOT *mem_root) const {
+    if (exists(key)) {
+      String_type str = this->value(key);
+      value.length = str.length();
+      value.str = (char *)strmake_root(mem_root, str.c_str(), str.length());
       return false;
     }
     return true;
   }
 
-  virtual bool get_int64(const String_type &key, int64 *value) const
-  {
-    String_type str= this->value(key);
+  virtual bool get_int64(const String_type &key, int64 *value) const {
+    String_type str = this->value(key);
 
-    if (to_int64(str, value))
-    {
+    if (to_int64(str, value)) {
       DBUG_ASSERT(false); /* purecov: inspected */
       return true;
     }
@@ -198,12 +176,10 @@ public:
     return false;
   }
 
-  virtual bool get_uint64(const String_type &key, uint64 *value) const
-  {
-    String_type str= this->value(key);
+  virtual bool get_uint64(const String_type &key, uint64 *value) const {
+    String_type str = this->value(key);
 
-    if (to_uint64(str, value))
-    {
+    if (to_uint64(str, value)) {
       DBUG_ASSERT(false); /* purecov: inspected */
       return true;
     }
@@ -211,12 +187,10 @@ public:
     return false;
   }
 
-  virtual bool get_int32(const String_type &key, int32 *value) const
-  {
-    String_type str= this->value(key);
+  virtual bool get_int32(const String_type &key, int32 *value) const {
+    String_type str = this->value(key);
 
-    if (to_int32(str, value))
-    {
+    if (to_int32(str, value)) {
       DBUG_ASSERT(false); /* purecov: inspected */
       return true;
     }
@@ -224,12 +198,10 @@ public:
     return false;
   }
 
-  virtual bool get_uint32(const String_type &key, uint32 *value) const
-  {
-    String_type str= this->value(key);
+  virtual bool get_uint32(const String_type &key, uint32 *value) const {
+    String_type str = this->value(key);
 
-    if (to_uint32(str, value))
-    {
+    if (to_uint32(str, value)) {
       DBUG_ASSERT(false); /* purecov: inspected */
       return true;
     }
@@ -237,61 +209,60 @@ public:
     return false;
   }
 
-  virtual bool get_bool(const String_type &key, bool *value) const
-  {
-    String_type str= this->value(key);
+  virtual bool get_bool(const String_type &key, bool *value) const {
+    String_type str = this->value(key);
 
-    if (to_bool(str, value))
-    {
+    if (to_bool(str, value)) {
       DBUG_ASSERT(false); /* purecov: inspected */
       return true;
     }
 
     return false;
   }
-
 
   // Set with implicit conversion from primitive types to string
 
-  virtual void set(const String_type &key, const String_type &value)
-  {
-    if (key != "")
-      (*m_map)[key]= value;
+  virtual void set(const String_type &key, const String_type &value) {
+    if (key != "") (*m_map)[key] = value;
   }
 
-  virtual void set_int64(const String_type &key, int64 value)
-  { set(key, from_int64(value)); }
+  virtual void set_int64(const String_type &key, int64 value) {
+    set(key, from_int64(value));
+  }
 
-  virtual void set_uint64(const String_type &key, uint64 value)
-  { set(key, from_uint64(value)); }
+  virtual void set_uint64(const String_type &key, uint64 value) {
+    set(key, from_uint64(value));
+  }
 
-  virtual void set_int32(const String_type &key, int32 value)
-  { set(key, from_int32(value)); }
+  virtual void set_int32(const String_type &key, int32 value) {
+    set(key, from_int32(value));
+  }
 
-  virtual void set_uint32(const String_type &key, uint32 value)
-  { set(key, from_uint32(value)); }
+  virtual void set_uint32(const String_type &key, uint32 value) {
+    set(key, from_uint32(value));
+  }
 
-  virtual void set_bool(const String_type &key, bool value)
-  { set(key, from_bool(value)); }
+  virtual void set_bool(const String_type &key, bool value) {
+    set(key, from_bool(value));
+  }
 
-  virtual Properties& assign(const Properties& properties)
-  {
+  virtual Properties &assign(const Properties &properties) {
     // The precondition is that this object is empty
     DBUG_ASSERT(empty());
     // Deep copy the m_map.
-    *m_map= *(properties.impl()->m_map);
+    *m_map = *(properties.impl()->m_map);
     return *this;
   }
 
-private:
+ private:
   static const String_type EMPTY_STR;
 
-private:
+ private:
   std::unique_ptr<Properties::Map> m_map;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PROPERTIES_IMPL_INCLUDED
+#endif  // DD__PROPERTIES_IMPL_INCLUDED

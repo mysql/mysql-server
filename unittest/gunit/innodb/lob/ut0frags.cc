@@ -31,13 +31,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 using namespace zlob;
 
-void line()
-{
-  std::cout << " - - - - - - - - - - - " << std::endl;
-}
+void line() { std::cout << " - - - - - - - - - - - " << std::endl; }
 
-void basic_0()
-{
+void basic_0() {
   zlob::z_frag_page_t frag_page;
 
   frag_page.print(std::cout);
@@ -47,8 +43,7 @@ void basic_0()
   frag_page.print(std::cout);
 }
 
-void basic_1()
-{
+void basic_1() {
   zlob::z_frag_page_t frag_page;
 
   line();
@@ -65,8 +60,7 @@ void basic_1()
   frag_page.print(std::cout);
 }
 
-void basic_2()
-{
+void basic_2() {
   zlob::z_frag_page_t frag_page;
 
   line();
@@ -85,11 +79,9 @@ void basic_2()
   frag_page.dealloc_fragment(frag);
   line();
   frag_page.print(std::cout);
-
 }
 
-void basic_3()
-{
+void basic_3() {
   zlob::z_frag_page_t frag_page;
   frag_page.alloc();
 
@@ -113,11 +105,9 @@ void basic_3()
 
   line();
   frag_page.print(std::cout);
-
 }
 
-void basic_4()
-{
+void basic_4() {
   zlob::z_frag_page_t frag_page;
   frag_page.alloc();
 
@@ -145,8 +135,7 @@ void basic_4()
   frag_page.print(std::cout);
 }
 
-void basic_5()
-{
+void basic_5() {
   zlob::z_frag_page_t frag_page;
   frag_page.alloc();
 
@@ -180,8 +169,7 @@ void basic_5()
   frag_page.print(std::cout);
 }
 
-void basic_6()
-{
+void basic_6() {
   zlob::z_frag_page_t frag_page;
   frag_page.alloc();
 
@@ -200,7 +188,7 @@ void basic_6()
   line();
   frag_page.print(std::cout);
 
-  for(ulint i = 0; i < fragments.size(); i += 2) {
+  for (ulint i = 0; i < fragments.size(); i += 2) {
     frag_page.dealloc_fragment(fragments[i]);
   }
 
@@ -230,11 +218,6 @@ void test7() {
 
   frag_node_t node3 = frag_page.get_frag_node(f3);
   std::cout << node3 << std::endl;
-
 }
 
-int main()
-{
-  test7();
-}
-
+int main() { test7(); }

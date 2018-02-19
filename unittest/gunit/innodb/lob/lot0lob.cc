@@ -37,8 +37,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lot0types.h"
 
 #ifdef UNIV_DEBUG
-#define Fname(x) const char* fname = x;
-#define LOG(x) {std::cout << fname << ":" << x << std::endl;}
+#define Fname(x) const char *fname = x;
+#define LOG(x) \
+  { std::cout << fname << ":" << x << std::endl; }
 #else
 #define Fname(x)
 #define LOG(x)
@@ -59,197 +60,178 @@ static buf_block_t *create_data_page();
 @param[in,out]  ref  the LOB reference.
 @param[in]  blob  the large object.
 @param[in]  len  the length (in bytes) of the large object.*/
-dberr_t
-insert(
-	trx_id_t	trxid,
-	ref_t		ref,
-	byte*		blob,
-	ulint		len)
-{
-	Fname("lob::insert");
+dberr_t insert(trx_id_t trxid, ref_t ref, byte *blob, ulint len) {
+  Fname("lob::insert");
 
-	dberr_t ret = DB_SUCCESS;
-	ulint total_written = 0;
-	byte *ptr = blob;
+  dberr_t ret = DB_SUCCESS;
+  ulint total_written = 0;
+  byte *ptr = blob;
 
-	LOG("LOB length = " << len);
-	base_node_page_t page;
-	buf_block_t *base = page.alloc();
+  LOG("LOB length = " << len);
+  base_node_page_t page;
+  buf_block_t *base = page.alloc();
 
-	flst_base_node_t *index_list = page.index_list();
+  flst_base_node_t *index_list = page.index_list();
 
-	ulint to_write = page.write(trxid, ptr, len);
-	total_written += to_write;
-	ulint remaining = len;
-	LOG("Remaining = " << remaining);
+  ulint to_write = page.write(trxid, ptr, len);
+  total_written += to_write;
+  ulint remaining = len;
+  LOG("Remaining = " << remaining);
 
-	{
-		flst_node_t *node = page.alloc_index_entry();
-		index_entry_t entry(node);
-		entry.set_versions_null();
-		entry.set_trx_id(trxid);
-		entry.set_page_no(page.get_page_no());
-		entry.set_data_len(to_write);
-		flst_add_last(index_list, node);
+  {
+    flst_node_t *node = page.alloc_index_entry();
+    index_entry_t entry(node);
+    entry.set_versions_null();
+    entry.set_trx_id(trxid);
+    entry.set_page_no(page.get_page_no());
+    entry.set_data_len(to_write);
+    flst_add_last(index_list, node);
 
-		page.set_trx_id(trxid);
-		page.set_data_len(to_write);
-	}
+    page.set_trx_id(trxid);
+    page.set_data_len(to_write);
+  }
 
-	while (remaining > 0)
-	{
-		LOG("Allocate a new LOB page");
-		data_page_t data_page;
-		data_page.alloc();
+  while (remaining > 0) {
+    LOG("Allocate a new LOB page");
+    data_page_t data_page;
+    data_page.alloc();
 
-		LOG("Copy data into the new LOB page");
-		to_write = data_page.write(trxid, ptr, remaining);
-		total_written += to_write;
-		data_page.set_trx_id(trxid);
+    LOG("Copy data into the new LOB page");
+    to_write = data_page.write(trxid, ptr, remaining);
+    total_written += to_write;
+    data_page.set_trx_id(trxid);
 
-		/* Allocate a new index entry */
-		flst_node_t *node = page.alloc_index_entry();
+    /* Allocate a new index entry */
+    flst_node_t *node = page.alloc_index_entry();
 
-		LOG("Update the node data");
-		index_entry_t entry(node);
-		entry.set_versions_null();
-		entry.set_trx_id(trxid);
-		entry.set_page_no(data_page.get_page_no());
-		entry.set_data_len(to_write);
+    LOG("Update the node data");
+    index_entry_t entry(node);
+    entry.set_versions_null();
+    entry.set_trx_id(trxid);
+    entry.set_page_no(data_page.get_page_no());
+    entry.set_data_len(to_write);
 
-		LOG("Append the node data into the LOB list");
-		flst_add_last(index_list, node);
-		ut_a(flst_validate(index_list));
-	}
-	g_lob.insert(std::pair<ref_t, buf_block_t *>(ref, base));
+    LOG("Append the node data into the LOB list");
+    flst_add_last(index_list, node);
+    ut_a(flst_validate(index_list));
+  }
+  g_lob.insert(std::pair<ref_t, buf_block_t *>(ref, base));
 
 #ifdef UNIV_DEBUG
-	page.print_index_entries(std::cout);
+  page.print_index_entries(std::cout);
 #endif /* UNIV_DEBUG */
 
-	return(ret);
+  return (ret);
 }
 
-ulint
-read(
-	trx_id_t	trxid,
-	ref_t		ref,
-	ulint		offset,
-	ulint		len,
-	byte*		buf)
-{
-	Fname("lob::read");
-	ulint total_read = 0;
-	ulint actual_read = 0;
+ulint read(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte *buf) {
+  Fname("lob::read");
+  ulint total_read = 0;
+  ulint actual_read = 0;
 
-	auto it = g_lob.find(ref);
+  auto it = g_lob.find(ref);
 
-	if (it == g_lob.end()) {
-		return(0);
-	}
+  if (it == g_lob.end()) {
+    return (0);
+  }
 
-	buf_block_t *first = it->second;
-	base_node_page_t first_page(first);
+  buf_block_t *first = it->second;
+  base_node_page_t first_page(first);
 
-	flst_base_node_t *base_node = first_page.index_list();
-	fil_addr_t node_loc = flst_get_first(base_node);
-	flst_node_t *node = nullptr;
+  flst_base_node_t *base_node = first_page.index_list();
+  fil_addr_t node_loc = flst_get_first(base_node);
+  flst_node_t *node = nullptr;
 
-	ulint skipped = 0;
+  ulint skipped = 0;
 
-	/* The skip loop. */
-	while (!fil_addr_is_null(node_loc))
-	{
-		node = fut_get_ptr(node_loc);
-		index_entry_t entry(node);
+  /* The skip loop. */
+  while (!fil_addr_is_null(node_loc)) {
+    node = fut_get_ptr(node_loc);
+    index_entry_t entry(node);
 
-		/** @todo Check if the reading trx can see the entry. */
+    /** @todo Check if the reading trx can see the entry. */
 
-		/* Get the amount of data */
-		ulint data_len = entry.get_data_len();
+    /* Get the amount of data */
+    ulint data_len = entry.get_data_len();
 
-		ulint will_skip = skipped + data_len;
+    ulint will_skip = skipped + data_len;
 
-		if (will_skip >= offset) {
-			/* Reached the page containing the offset. */
-			break;
-		}
+    if (will_skip >= offset) {
+      /* Reached the page containing the offset. */
+      break;
+    }
 
-		node_loc = flst_get_next_addr(node);
-		skipped += data_len;
-	}
+    node_loc = flst_get_next_addr(node);
+    skipped += data_len;
+  }
 
-	ulint page_offset = offset - skipped;
-	ulint want = len;
-	byte *ptr = buf;
+  ulint page_offset = offset - skipped;
+  ulint want = len;
+  byte *ptr = buf;
 
-	while (!fil_addr_is_null(node_loc) && want > 0)
-	{
-		LOG("want=" << want);
-		node = fut_get_ptr(node_loc);
-		index_entry_t entry(node);
+  while (!fil_addr_is_null(node_loc) && want > 0) {
+    LOG("want=" << want);
+    node = fut_get_ptr(node_loc);
+    index_entry_t entry(node);
 
-		if (entry.get_trx_id() > trxid) {
+    if (entry.get_trx_id() > trxid) {
+      flst_base_node_t *versions = entry.get_versions_list();
+      fil_addr_t node_versions = flst_get_first(versions);
 
-			flst_base_node_t *versions = entry.get_versions_list();
-			fil_addr_t node_versions = flst_get_first(versions);
+      while (!fil_addr_is_null(node_versions)) {
+        flst_node_t *node_old_version = fut_get_ptr(node_versions);
+        index_entry_t old_version_entry(node_old_version);
 
-			while (!fil_addr_is_null(node_versions))
-			{
-				flst_node_t *node_old_version = fut_get_ptr(node_versions);
-				index_entry_t old_version_entry(node_old_version);
+        if (old_version_entry.get_trx_id() <= trxid) {
+          /* The current trx can see this entry. */
+          entry.reset(node_old_version);
+          break;
+        }
+        node_versions = flst_get_next_addr(node_old_version);
+      }
 
-				if (old_version_entry.get_trx_id() <= trxid) {
-					/* The current trx can see this entry. */
-					entry.reset(node_old_version);
-					break;
-				}
-				node_versions = flst_get_next_addr(node_old_version);
-			}
+      if (fil_addr_is_null(node_versions)) {
+        node_loc = flst_get_next_addr(node);
+        continue;
+      }
+    }
 
-			if (fil_addr_is_null(node_versions)) {
-				node_loc = flst_get_next_addr(node);
-				continue;
-			}
-		}
+    /* Get the page number */
+    page_no_t page_no = entry.get_page_no();
 
-		/* Get the page number */
-		page_no_t page_no = entry.get_page_no();
+    LOG("page_no=" << page_no);
+    /* need data in this page. */
+    buf_block_t *block = buf_page_get(page_no);
+    page_type_t type = fil_page_get_type(block->m_frame);
 
-		LOG("page_no=" << page_no);
-		/* need data in this page. */
-		buf_block_t *block = buf_page_get(page_no);
-		page_type_t type = fil_page_get_type(block->m_frame);
+    if (type == FIL_PAGE_TYPE_LOB_FIRST) {
+      base_node_page_t page(block);
+      actual_read = page.read(trxid, page_offset, ptr, want);
+      ptr += actual_read;
+      want -= actual_read;
+    } else if (type == FIL_PAGE_TYPE_LOB_DATA) {
+      data_page_t page(block);
+      actual_read = page.read(trxid, page_offset, ptr, want);
+      ptr += actual_read;
+      want -= actual_read;
+    } else {
+      ut_error;
+    }
+    total_read += actual_read;
+    page_offset = 0;
 
-		if (type == FIL_PAGE_TYPE_LOB_FIRST) {
-			base_node_page_t page(block);
-			actual_read = page.read(trxid, page_offset, ptr, want);
-			ptr += actual_read;
-			want -= actual_read;
-		} else if (type == FIL_PAGE_TYPE_LOB_DATA) {
-			data_page_t page(block);
-			actual_read = page.read(trxid, page_offset, ptr, want);
-			ptr += actual_read;
-			want -= actual_read;
-		} else {
-			ut_error;
-		}
-		total_read += actual_read;
-		page_offset = 0;
+    node_loc = flst_get_next_addr(node);
+  }
 
-		node_loc = flst_get_next_addr(node);
-	}
-
-	LOG("Total bytes read=" << total_read << ", requested=" << len);
-	return(total_read);
+  LOG("Total bytes read=" << total_read << ", requested=" << len);
+  return (total_read);
 }
 
-buf_block_t *create_data_page()
-{
-	/* Allocate the page. */
-	data_page_t page;
-	buf_block_t *block = page.alloc();
-	return(block);
+buf_block_t *create_data_page() {
+  /* Allocate the page. */
+  data_page_t page;
+  buf_block_t *block = page.alloc();
+  return (block);
 }
 
 dberr_t replace(trx_id_t trxid, ref_t ref, ulint offset, ulint len, byte *buf) {
@@ -760,28 +742,27 @@ void remove(trx_id_t trxid, ref_t ref) {
   page.dealloc();
 }
 
-void print(
-	std::ostream&	out,
-	ref_t		ref)
-{
-	auto it = g_lob.find(ref);
+void print(std::ostream &out, ref_t ref) {
+  auto it = g_lob.find(ref);
 
-	if (it == g_lob.end()) {
-		return;
-	}
+  if (it == g_lob.end()) {
+    return;
+  }
 
-	buf_block_t *first = it->second;
-	base_node_page_t page(first);
+  buf_block_t *first = it->second;
+  base_node_page_t page(first);
 
-	out << "Number of index entries in first page: " << page.node_count() << std::endl;
-	out << "Amount of data in first page: " << page.max_space_available() << std::endl;
-	out << "Total size of LOB: "
-		<< page.max_space_available() + UNIV_PAGE_SIZE
-			* (page.node_count() - 1) << std::endl;
-	out << "Number of index entries in index page: "
-		<< node_page_t::node_count() << std::endl;
-	out << "Total size of LOB: "
-		<< UNIV_PAGE_SIZE * node_page_t::node_count() << std::endl;
+  out << "Number of index entries in first page: " << page.node_count()
+      << std::endl;
+  out << "Amount of data in first page: " << page.max_space_available()
+      << std::endl;
+  out << "Total size of LOB: "
+      << page.max_space_available() + UNIV_PAGE_SIZE * (page.node_count() - 1)
+      << std::endl;
+  out << "Number of index entries in index page: " << node_page_t::node_count()
+      << std::endl;
+  out << "Total size of LOB: " << UNIV_PAGE_SIZE * node_page_t::node_count()
+      << std::endl;
 }
 
 };  // namespace lob

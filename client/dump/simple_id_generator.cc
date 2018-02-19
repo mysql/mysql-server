@@ -26,11 +26,6 @@
 
 using namespace Mysql::Tools::Dump;
 
-Simple_id_generator::Simple_id_generator()
-  : m_next_id(1)
-{}
+Simple_id_generator::Simple_id_generator() : m_next_id(1) {}
 
-uint64 Simple_id_generator::create_id()
-{
-  return m_next_id++;
-}
+uint64 Simple_id_generator::create_id() { return m_next_id++; }

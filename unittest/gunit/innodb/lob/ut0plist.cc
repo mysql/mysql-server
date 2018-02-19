@@ -24,18 +24,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 *****************************************************************************/
 
-#include "lot0plist.h"
 #include "lot0buf.h"
+#include "lot0plist.h"
 
-void basic_0()
-{
-  buf_block_t* block = btr_page_alloc();
-  byte* frame = buf_block_get_frame(block);
+void basic_0() {
+  buf_block_t *block = btr_page_alloc();
+  byte *frame = buf_block_get_frame(block);
 
   plist_base_node_t base(frame, frame);
   base.init();
 
-  byte* ptr = frame + plist_base_node_t::SIZE;
+  byte *ptr = frame + plist_base_node_t::SIZE;
 
   for (ulint i = 0; i < 1; ++i) {
     plist_node_t node(frame, ptr);
@@ -46,15 +45,14 @@ void basic_0()
   base.print_list(std::cout);
 }
 
-void test_00()
-{
-  buf_block_t* block = btr_page_alloc();
-  byte* frame = buf_block_get_frame(block);
+void test_00() {
+  buf_block_t *block = btr_page_alloc();
+  byte *frame = buf_block_get_frame(block);
 
   plist_base_node_t base(frame, frame);
   base.init();
 
-  byte* ptr = frame + plist_base_node_t::SIZE;
+  byte *ptr = frame + plist_base_node_t::SIZE;
 
   for (ulint i = 0; i < 5; ++i) {
     plist_node_t node(frame, ptr);
@@ -74,15 +72,14 @@ void test_00()
   base.print_list(std::cout);
 }
 
-void test_01()
-{
-  buf_block_t* block = btr_page_alloc();
-  byte* frame = buf_block_get_frame(block);
+void test_01() {
+  buf_block_t *block = btr_page_alloc();
+  byte *frame = buf_block_get_frame(block);
 
   plist_base_node_t base(frame, frame);
   base.init();
 
-  byte* ptr = frame + plist_base_node_t::SIZE;
+  byte *ptr = frame + plist_base_node_t::SIZE;
 
   for (ulint i = 0; i < 5; ++i) {
     plist_node_t node(frame, ptr);
@@ -103,10 +100,8 @@ void test_01()
   base.print_list(std::cout);
 }
 
-int main()
-{
+int main() {
   basic_0();
   test_00();
   test_01();
 }
-

@@ -1,0 +1,161 @@
+# This test conflict cases between local and remote transactions.
+# This test proves the rollback mechanisms are working as intended
+
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+--echo #
+--echo # Create the test table on server 1
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Test case 1 - error on commit
+--echo # Start a transaction on server 1
+--echo # Execute a concurrent transaction on server 2.
+--echo # Try to commit the transaction on server 1, it should fail.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (1);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (1);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_ERROR_DURING_COMMIT
+COMMIT;
+
+--echo #
+--echo # Test case 1 - error on commit
+--echo # Check all is fine
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (2);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (3);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= On member1, the table t1 should contain 3 rows
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 3;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= On member2, the table t1 should contain 3 rows
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 3;
+--source include/assert.inc
+
+--echo #
+--echo # Test case 2 - error on second insert
+--echo # Start a transaction on server 1
+--echo # Execute a concurrent transaction on server 2.
+--echo # Try to execute another insert on server 1 transaction, it should fail.
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+BEGIN;
+INSERT INTO t1 VALUES (11);
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (11);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--error ER_TRANSACTION_ROLLBACK_DURING_COMMIT, ER_LOCK_DEADLOCK
+INSERT INTO t1 VALUES (12);
+
+COMMIT;
+
+--echo #
+--echo # Test case 2 - error on second insert
+--echo # Check all is fine
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= On member1, the rolled back transaction is not there
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE c1=12] = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= On member2, the rolled back transaction is not there
+--let $assert_cond= [SELECT COUNT(*) FROM t1 WHERE c1=12] = 0;
+--source include/assert.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (12);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+INSERT INTO t1 VALUES (13);
+
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text= On member1, the table t1 should contain 6 rows
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 6;
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= On member2, the table t1 should contain 6 rows
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 6;
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP TABLE t1;
+
+--source include/group_replication_end.inc

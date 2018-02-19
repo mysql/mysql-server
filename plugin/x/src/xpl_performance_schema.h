@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,12 @@
 #define _XPL_PERFORMANCE_SCHEMA_H_
 
 #include <mysql/psi/mysql_memory.h>
+#include <mysql/psi/mysql_rwlock.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_psi_config.h"
 #include "my_sys.h"
-
 
 #ifdef HAVE_PSI_INTERFACE
 
@@ -42,6 +42,7 @@ extern PSI_mutex_key KEY_mutex_x_lock_list_access;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_worker_pending;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_thread_exit;
 extern PSI_mutex_key KEY_mutex_x_scheduler_dynamic_post;
+extern PSI_mutex_key KEY_mutex_x_document_id_generate;
 
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_worker_pending;
 extern PSI_cond_key KEY_cond_x_scheduler_dynamic_thread_exit;
@@ -57,10 +58,8 @@ extern PSI_memory_key KEY_memory_x_objects;
 extern PSI_memory_key KEY_memory_x_recv_buffer;
 extern PSI_memory_key KEY_memory_x_send_buffer;
 
-#endif // HAVE_PSI_INTERFACE
-
+#endif  // HAVE_PSI_INTERFACE
 
 void xpl_init_performance_schema();
 
-
-#endif // _XPL_PERFORMANCE_SCHEMA_H_
+#endif  // _XPL_PERFORMANCE_SCHEMA_H_

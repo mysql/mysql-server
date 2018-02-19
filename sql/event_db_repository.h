@@ -35,7 +35,7 @@ class THD;
 typedef long my_time_t;
 
 namespace dd {
-  class Schema;
+class Schema;
 }
 
 /*
@@ -46,8 +46,7 @@ namespace dd {
   Note:  This enum should not be used for other purpose
          as it will be removed eventually.
 */
-enum enum_events_table_field
-{
+enum enum_events_table_field {
   ET_FIELD_DB = 0,
   ET_FIELD_NAME,
   ET_FIELD_BODY,
@@ -73,7 +72,6 @@ enum enum_events_table_field
   ET_FIELD_COUNT
 };
 
-
 /**
   @addtogroup Event_Scheduler
   @{
@@ -87,34 +85,32 @@ enum enum_events_table_field
   events.h and event_data_objects.h.
 */
 
-class Event_db_repository
-{
-public:
-  Event_db_repository(){}
+class Event_db_repository {
+ public:
+  Event_db_repository() {}
 
-  bool create_event(THD *thd, Event_parse_data *parse_data,
-                    bool create_if_not, bool *event_already_exists);
+  bool create_event(THD *thd, Event_parse_data *parse_data, bool create_if_not,
+                    bool *event_already_exists);
 
   bool update_event(THD *thd, Event_parse_data *parse_data,
                     LEX_STRING *new_dbname, LEX_STRING *new_name);
 
-  bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
-                  bool drop_if_exists, bool *event_exists);
+  bool drop_event(THD *thd, LEX_STRING db, LEX_STRING name, bool drop_if_exists,
+                  bool *event_exists);
 
   bool drop_schema_events(THD *thd, const dd::Schema &schema);
 
   bool load_named_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
                         Event_basic *et);
 
-  bool update_timing_fields_for_event(THD *thd,
-                                      LEX_STRING event_db_name,
+  bool update_timing_fields_for_event(THD *thd, LEX_STRING event_db_name,
                                       LEX_STRING event_name,
                                       my_time_t last_executed,
                                       ulonglong status);
 
   // Disallow copy construction and assignment.
-  Event_db_repository(const Event_db_repository &)= delete;
-  void operator=(Event_db_repository &)= delete;
+  Event_db_repository(const Event_db_repository &) = delete;
+  void operator=(Event_db_repository &) = delete;
 };
 
 /**

@@ -26,9 +26,9 @@
 #include <bitset>  // std::bitset
 #include <memory>  // std::unique_ptr
 
-#include "sql/dd/types/entity_object_table.h" // dd::Entity_object_table
-#include "sql/dd/types/entity_object.h"       // dd::Entity_object
-#include "sql/resourcegroups/resource_group_basic_types.h" // Range, Type
+#include "sql/dd/types/entity_object.h"        // dd::Entity_object
+#include "sql/dd/types/entity_object_table.h"  // dd::Entity_object_table
+#include "sql/resourcegroups/resource_group_basic_types.h"  // Range, Type
 
 namespace dd {
 
@@ -39,13 +39,12 @@ class Global_name_key;
 class Void_key;
 
 namespace tables {
-  class Resource_groups;
+class Resource_groups;
 }
 
-static constexpr int CPU_MASK_SIZE= 1024;
-class Resource_group : virtual public Entity_object
-{
-public:
+static constexpr int CPU_MASK_SIZE = 1024;
+class Resource_group : virtual public Entity_object {
+ public:
   typedef Resource_group_impl Impl;
   typedef Resource_group Cache_partition;
   typedef tables::Resource_groups DD_table;
@@ -53,20 +52,20 @@ public:
   typedef Global_name_key Name_key;
   typedef Void_key Aux_key;
 
-public:
+ public:
   ~Resource_group() override {}
 
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
-  static bool update_name_key(Name_key *key,
-                              const String_type &name);
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(Aux_key *) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
   virtual const resourcegroups::Type &resource_group_type() const = 0;
   virtual void set_resource_group_type(const resourcegroups::Type &type) = 0;
@@ -76,13 +75,13 @@ public:
 
   virtual const std::bitset<CPU_MASK_SIZE> &cpu_id_mask() const = 0;
   virtual void set_cpu_id_mask(
-    const std::vector<resourcegroups::Range>& vcpu_vec) = 0;
+      const std::vector<resourcegroups::Range> &vcpu_vec) = 0;
 
   virtual int thread_priority() const = 0;
   virtual void set_thread_priority(int priority) = 0;
 
   virtual Resource_group *clone() const = 0;
 };
-} // namespace dd
+}  // namespace dd
 
-#endif // DD__RESOURCE_GROUP_INCLUDED
+#endif  // DD__RESOURCE_GROUP_INCLUDED

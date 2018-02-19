@@ -23,7 +23,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/dd/string_type.h"
-#include "sql/dd/types/routine.h"   // dd::Routine
+#include "sql/dd/types/routine.h"  // dd::Routine
 
 class THD;
 struct st_sp_chistics;
@@ -40,7 +40,6 @@ struct st_sp_chistics;
 void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
                                          st_sp_chistics *sp_chistics);
 
-
 /**
   Helper method to prepare stored routine type in string format using the
   Routine object read from the Data Dictionary.
@@ -51,10 +50,8 @@ void prepare_sp_chistics_from_dd_routine(const dd::Routine *routine,
   @param[out]  return_type_str  Stored routine return type in string format.
 */
 
-void prepare_return_type_string_from_dd_routine(THD *thd,
-                                                const dd::Routine *routine,
-                                                dd::String_type *return_type_str);
-
+void prepare_return_type_string_from_dd_routine(
+    THD *thd, const dd::Routine *routine, dd::String_type *return_type_str);
 
 /**
   Method to prepare stored routine's parameter string using the Routine
@@ -67,10 +64,8 @@ void prepare_return_type_string_from_dd_routine(THD *thd,
                                 stored routine.
 */
 
-void prepare_params_string_from_dd_routine(THD *thd,
-                                           const dd::Routine *routine,
+void prepare_params_string_from_dd_routine(THD *thd, const dd::Routine *routine,
                                            dd::String_type *params_str);
-
 
 /**
   Method to check whether routine object is of stored function type
@@ -79,6 +74,7 @@ void prepare_params_string_from_dd_routine(THD *thd,
   @param[in]  routine     Routine object read from the Data Dictionary.
 */
 
-inline bool is_dd_routine_type_function(const dd::Routine *routine)
-{ return (routine->type() == dd::Routine::RT_FUNCTION); }
-#endif // DD_SP_INCLUDED
+inline bool is_dd_routine_type_function(const dd::Routine *routine) {
+  return (routine->type() == dd::Routine::RT_FUNCTION);
+}
+#endif  // DD_SP_INCLUDED

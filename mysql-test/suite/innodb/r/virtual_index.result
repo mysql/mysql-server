@@ -19,8 +19,6 @@ DROP TABLE t1;
 # OFFSETS)
 #
 SET @@SESSION.sql_mode=0;
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 CREATE TABLE t1(
 c1 int(1)AUTO_INCREMENT,
 c2 int(1),
@@ -126,8 +124,6 @@ DROP TABLE ibstd_08;
 # AND SEGFAULT
 #
 set sql_mode="";
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 create table t (a int) engine=innodb;
 create table s (
 b int generated always as (1) virtual,

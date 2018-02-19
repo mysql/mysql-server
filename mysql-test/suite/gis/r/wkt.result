@@ -1230,3 +1230,13 @@ Warning	3565	There's no spatial reference system with SRID 10. The axis order is
 DO ST_ASWKT(x'0A000000010100000000000000000000000000000000000000');
 Warnings:
 Warning	3565	There's no spatial reference system with SRID 10. The axis order is unknown.
+#
+# Bug #27427677 SIG 11 IN STRING::APPEND() METHOD,
+# SQL-COMMON/SQL_STRING.CC:535
+#
+CREATE TABLE t1(c1 GEOMETRY);
+INSERT INTO t1 VALUES (ST_GeomFromText('GEOMETRYCOLLECTION(POINT(0 0))'));
+SELECT ST_AsText(c1) AS f1 FROM t1 ORDER BY f1;
+f1
+GEOMETRYCOLLECTION(POINT(0 0))
+DROP TABLE t1;

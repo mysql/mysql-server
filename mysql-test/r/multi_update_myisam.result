@@ -66,8 +66,6 @@ Warning	1264	Out of range value for column 'field1' at row 2
 UPDATE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 ERROR 22003: Out of range value for column 'field1' at row 1
 SET SESSION SQL_MODE='';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 UPDATE IGNORE (SELECT 128 as col1) x, table_11757486 SET field1=x.col1;
 Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1

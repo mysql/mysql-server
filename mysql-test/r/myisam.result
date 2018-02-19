@@ -1,8 +1,6 @@
 drop table if exists t1,t2;
 SET SQL_WARNINGS=1;
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET @default_table_open_cache = @@table_open_cache;
 CREATE TABLE t1 (
 STRING_DATA char(255) default NULL,
@@ -1755,7 +1753,7 @@ Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which 
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` char(10) CHARACTER SET utf8 DEFAULT NULL
+  `v` char(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
@@ -1808,7 +1806,7 @@ Note	1246	Converting column 'v' from VARCHAR to TEXT
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `v` mediumtext CHARACTER SET utf8
+  `v` mediumtext CHARACTER SET utf8 COLLATE utf8_general_ci
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
 drop table t1;
 create table t1 (v varchar(65535)) charset latin1;

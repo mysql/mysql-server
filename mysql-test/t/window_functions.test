@@ -48,6 +48,8 @@ eval $query;
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
+# From then on, we'll be counting row reads.
+
 --echo With LIMIT
 SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo DESC LIMIT 3;
 --echo With LIMIT when last tmp file step is optimized away
@@ -838,6 +840,16 @@ SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s
               w12 AS (ORDER BY sex),
               w13 AS (ORDER BY sex),
               w14 AS (ORDER BY sex)) t;
+
+#--echo # Before we flush status, let's display how many rows we read/write
+#--echo # (from real tables, from frame buffer...) in this big set of tests.
+#--echo # It will help spot any increase caused by future code changes.
+#SHOW STATUS LIKE 'Handler_read%';
+#SHOW STATUS LIKE 'Handler_write%';
+#SHOW STATUS LIKE 'Created_tmp_tables';
+# ^ this is disabled because it varies by a few units depending on if
+# test is run alone
+
 FLUSH STATUS;
 eval $query;
 SHOW STATUS LIKE 'Created_tmp_tables';
@@ -2573,6 +2585,10 @@ SELECT ROW_NUMBER() OVER w
 SELECT ROW_NUMBER() OVER w
   FROM t1
   WINDOW w AS (w2), w1 AS (w), w2 as (w1);
+--error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
+SELECT ROW_NUMBER() OVER w
+  FROM t1
+  WINDOW w AS (w1), w1 AS (w2), w2 as (w1);
 
 --error ER_WINDOW_CIRCULARITY_IN_WINDOW_GRAPH
 SELECT ROW_NUMBER() OVER w FROM t1 WINDOW w AS (w);
@@ -3941,8 +3957,6 @@ DROP TABLE sales;
 SELECT FROM_UNIXTIME(LAG('',99)OVER(ROWS UNBOUNDED PRECEDING),'%I %l %I');
 SELECT FROM_UNIXTIME(FIRST_VALUE(@b)RESPECT NULLS OVER(),
                  REPEAT('1',32))IS NOT FALSE;
-SELECT NULLIF((PASSWORD(FROM_UNIXTIME(NTH_VALUE(@b, 3) RESPECT NULLS
-                                  OVER(),(NOT(@f))))),(CURRENT_TIME()));
 SELECT ((NTILE(70)OVER())<<(FROM_UNIXTIME(LEAD('',67) RESPECT NULLS
                                       OVER(),SHA(''))));
 SELECT FROM_UNIXTIME(LAG('-778:36:16.905133',246) RESPECT NULLS OVER(),
@@ -4128,6 +4142,13 @@ DEGREES((1.595545e+308)), REPEAT(FIRST_VALUE('%0') OVER(), 30));
 --error ER_USER_LOCK_WRONG_NAME
 DO REPLACE((( RELEASE_LOCK( ACOS(0x41))) OR (1)), LAST_VALUE(9.750062e+306)
 RESPECT NULLS OVER(), UUID_SHORT());
+
+#--echo # Another monitoring of tmp table usage
+#SHOW STATUS LIKE 'Handler_read%';
+#SHOW STATUS LIKE 'Handler_write%';
+#SHOW STATUS LIKE 'Created_tmp_tables';
+# ^ this is disabled because it varies by a few units depending on if
+# test is run alone
 
 --echo # End of test for Bug#26975848, Bug#27062796, Bug#27062694
 

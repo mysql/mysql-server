@@ -22,12 +22,10 @@
 #include "unittest/gunit/fake_table.h"
 
 // We choose non-zero to avoid it working by coincidence.
-int Fake_TABLE::highest_table_id= 5;
+int Fake_TABLE::highest_table_id = 5;
 
 /**
-  This member method exists in sqllib but we need it for 
+  This member method exists in sqllib but we need it for
   merge_test_small.cc
 */
-GRANT_INFO::GRANT_INFO()
-{}
-
+GRANT_INFO::GRANT_INFO() {}

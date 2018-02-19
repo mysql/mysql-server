@@ -85,10 +85,8 @@ create procedure foo3()
   insert into t1 values (15);
 
 # let's create a non-privileged user
-set @orig_sql_mode= @@sql_mode;
-set sql_mode= (select replace(@@sql_mode,'NO_AUTO_CREATE_USER',''));
+create user "zedjzlcsjhd"@127.0.0.1;
 grant CREATE ROUTINE, EXECUTE on mysqltest1.* to "zedjzlcsjhd"@127.0.0.1;
-set sql_mode= @orig_sql_mode;
 grant SELECT on mysqltest1.t1 to "zedjzlcsjhd"@127.0.0.1;
 grant SELECT, INSERT on mysqltest1.t2 to "zedjzlcsjhd"@127.0.0.1;
 

@@ -26,9 +26,9 @@
 #include <memory>
 #include <string>
 #include <type_traits>
-#include <utility>
 #include <unordered_map>
 #include <unordered_set>
+#include <utility>
 
 #include "m_ctype.h"
 #include "my_inttypes.h"
@@ -48,26 +48,25 @@
   contained nullptr" in this case. Thus, you should normally prefer checking
   against container.end() yourself.
 */
-template<class Container, class Key>
+template <class Container, class Key>
 static inline auto find_or_nullptr(const Container &container, const Key &key)
-  -> typename std::enable_if<
-       std::is_pointer<typename Container::value_type::second_type>::value,
-       typename Container::value_type::second_type>::type
-{
-  const auto it= container.find(key);
+    -> typename std::enable_if<
+        std::is_pointer<typename Container::value_type::second_type>::value,
+        typename Container::value_type::second_type>::type {
+  const auto it = container.find(key);
   if (it == container.end())
     return nullptr;
   else
     return it->second;
 }
 
-template<class Container, class Key>
+template <class Container, class Key>
 static inline auto find_or_nullptr(const Container &container, const Key &key)
-  -> typename std::enable_if<
-       std::is_pointer<typename Container::value_type::second_type::pointer>::value,
-       typename Container::value_type::second_type::pointer>::type
-{
-  const auto it= container.find(key);
+    -> typename std::enable_if<
+        std::is_pointer<
+            typename Container::value_type::second_type::pointer>::value,
+        typename Container::value_type::second_type::pointer>::type {
+  const auto it = container.find(key);
   if (it == container.end())
     return nullptr;
   else
@@ -78,17 +77,13 @@ static inline auto find_or_nullptr(const Container &container, const Key &key)
   For unordered_multimap<Key, Value>, erase the first specific element that
   matches _both_ the given key and value.
 */
-template<class Container>
-typename Container::iterator
-erase_specific_element(Container *container,
-                       const typename Container::key_type &key,
-                       const typename Container::value_type::second_type &value)
-{
-  auto it_range= container->equal_range(key);
-  for (auto it= it_range.first; it != it_range.second; ++it)
-  {
-    if (it->second == value)
-      return container->erase(it);
+template <class Container>
+typename Container::iterator erase_specific_element(
+    Container *container, const typename Container::key_type &key,
+    const typename Container::value_type::second_type &value) {
+  auto it_range = container->equal_range(key);
+  for (auto it = it_range.first; it != it_range.second; ++it) {
+    if (it->second == value) return container->erase(it);
   }
   return container->end();
 }
@@ -97,24 +92,20 @@ erase_specific_element(Container *container,
   Same as regular erase_specific_element(), but for the case where the
   container holds unique_ptr elements.
 */
-template<class Container>
-static inline auto
-erase_specific_element(Container *container,
-                       const typename Container::key_type &key,
-                       typename Container::value_type::second_type::pointer value)
-  -> typename std::enable_if<
-       std::is_pointer<typename Container::value_type::second_type::pointer>::value,
-       typename Container::iterator>::type
-{
-  auto it_range= container->equal_range(key);
-  for (auto it= it_range.first; it != it_range.second; ++it)
-  {
-    if (it->second.get() == value)
-      return container->erase(it);
+template <class Container>
+static inline auto erase_specific_element(
+    Container *container, const typename Container::key_type &key,
+    typename Container::value_type::second_type::pointer value) ->
+    typename std::enable_if<
+        std::is_pointer<
+            typename Container::value_type::second_type::pointer>::value,
+        typename Container::iterator>::type {
+  auto it_range = container->equal_range(key);
+  for (auto it = it_range.first; it != it_range.second; ++it) {
+    if (it->second.get() == value) return container->erase(it);
   }
   return container->end();
 }
-
 
 /**
   std::unique_ptr, but with a custom delete function.
@@ -122,61 +113,54 @@ erase_specific_element(Container *container,
   but this allows you to have a unique_ptr to a forward-declared class,
   so it keeps include dependencies down somewhat.
 */
-template<class T>
-using unique_ptr_with_deleter = std::unique_ptr<T, void(*)(T*)>;
+template <class T>
+using unique_ptr_with_deleter = std::unique_ptr<T, void (*)(T *)>;
 
 struct My_free_deleter {
-  void operator() (void *ptr) const { my_free(ptr); }
+  void operator()(void *ptr) const { my_free(ptr); }
 };
 
 /** std::unique_ptr, but with my_free as deleter. */
-template<class T>
+template <class T>
 using unique_ptr_my_free = std::unique_ptr<T, My_free_deleter>;
 
 struct Free_deleter {
-  void operator() (void *ptr) const { free(ptr); }
+  void operator()(void *ptr) const { free(ptr); }
 };
 
 /** std::unique_ptr, but with free as deleter. */
-template<class T>
+template <class T>
 using unique_ptr_free = std::unique_ptr<T, Free_deleter>;
 
-
 /** A Hasher that hashes std::strings according to a MySQL collation. */
-class Collation_hasher
-{
-public:
+class Collation_hasher {
+ public:
   explicit Collation_hasher(const CHARSET_INFO *cs_arg)
-    : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
+      : cs(cs_arg), hash_sort(cs->coll->hash_sort) {}
 
-  size_t operator() (const std::string &s) const
-  {
-    ulong nr1= 1, nr2= 4;
+  size_t operator()(const std::string &s) const {
+    ulong nr1 = 1, nr2 = 4;
     hash_sort(cs, pointer_cast<const uchar *>(s.data()), s.size(), &nr1, &nr2);
     return nr1;
   }
 
-private:
+ private:
   const CHARSET_INFO *cs;
   decltype(cs->coll->hash_sort) hash_sort;
 };
 
 /** A KeyEqual that compares std::strings according to a MySQL collation. */
-class Collation_key_equal
-{
-public:
+class Collation_key_equal {
+ public:
   explicit Collation_key_equal(const CHARSET_INFO *cs_arg)
-    : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
+      : cs(cs_arg), strnncollsp(cs->coll->strnncollsp) {}
 
-  size_t operator() (const std::string &a, const std::string &b) const
-  {
-    return strnncollsp(
-      cs,
-      pointer_cast<const uchar *>(a.data()), a.size(),
-      pointer_cast<const uchar *>(b.data()), b.size()) == 0;
+  size_t operator()(const std::string &a, const std::string &b) const {
+    return strnncollsp(cs, pointer_cast<const uchar *>(a.data()), a.size(),
+                       pointer_cast<const uchar *>(b.data()), b.size()) == 0;
   }
 
-private:
+ private:
   const CHARSET_INFO *cs;
   decltype(cs->coll->strnncollsp) strnncollsp;
 };
@@ -185,134 +169,126 @@ private:
   std::unordered_map, but with my_malloc, so that you can track the memory
   used using PSI memory keys.
 */
-template<class Key, class Value,
-         class Hash = std::hash<Key>,
-         class KeyEqual = std::equal_to<Key>>
+template <class Key, class Value, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
 class malloc_unordered_map
-  : public std::unordered_map<Key, Value, Hash, KeyEqual,
-                              Malloc_allocator<std::pair<const Key, Value>>>
-{
-public:
+    : public std::unordered_map<Key, Value, Hash, KeyEqual,
+                                Malloc_allocator<std::pair<const Key, Value>>> {
+ public:
   /*
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
     is missing several unordered_map constructors, so let's give in everything.
   */
   malloc_unordered_map(PSI_memory_key psi_key)
-    : std::unordered_map<Key, Value, Hash, KeyEqual,
-                         Malloc_allocator<std::pair<const Key, Value>>>
-        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_map<Key, Value, Hash, KeyEqual,
+                           Malloc_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Hash(), KeyEqual(),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /**
   std::unordered_set, but with my_malloc, so that you can track the memory
   used using PSI memory keys.
 */
-template<class Key,
-         class Hash = std::hash<Key>,
-         class KeyEqual = std::equal_to<Key>>
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
 class malloc_unordered_set
-  : public std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
-{
-public:
+    : public std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>> {
+ public:
   /*
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
     is missing several unordered_set constructors, so let's give in everything.
   */
   malloc_unordered_set(PSI_memory_key psi_key)
-    : std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>
-        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_set<Key, Hash, KeyEqual, Malloc_allocator<Key>>(
+            /*bucket_count=*/10, Hash(), KeyEqual(),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /**
   std::unordered_multimap, but with my_malloc, so that you can track the memory
   used using PSI memory keys.
 */
-template<class Key, class Value,
-         class Hash = std::hash<Key>,
-         class KeyEqual = std::equal_to<Key>>
+template <class Key, class Value, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
 class malloc_unordered_multimap
-  : public std::unordered_multimap<Key, Value, Hash, KeyEqual,
-                                   Malloc_allocator<std::pair<const Key,
-                                                              Value>>>
-{
-public:
+    : public std::unordered_multimap<
+          Key, Value, Hash, KeyEqual,
+          Malloc_allocator<std::pair<const Key, Value>>> {
+ public:
   /*
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
-    is missing several unordered_multimap constructors, so let's give in everything.
+    is missing several unordered_multimap constructors, so let's give in
+    everything.
   */
   malloc_unordered_multimap(PSI_memory_key psi_key)
-    : std::unordered_multimap<Key, Value, Hash, KeyEqual,
-                              Malloc_allocator<std::pair<const Key, Value>>>
-        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_multimap<Key, Value, Hash, KeyEqual,
+                                Malloc_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Hash(), KeyEqual(),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /**
   std::unordered_map, but with my_malloc and collation-aware comparison.
 */
-template<class Key, class Value>
+template <class Key, class Value>
 class collation_unordered_map
-  : public std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
-                              Malloc_allocator<std::pair<const Key, Value>>>
-{
-public:
+    : public std::unordered_map<Key, Value, Collation_hasher,
+                                Collation_key_equal,
+                                Malloc_allocator<std::pair<const Key, Value>>> {
+ public:
   collation_unordered_map(const CHARSET_INFO *cs, PSI_memory_key psi_key)
-    : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
-                         Malloc_allocator<std::pair<const Key, Value>>>
-        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_map<Key, Value, Collation_hasher, Collation_key_equal,
+                           Malloc_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /**
   std::unordered_multimap, but with my_malloc and collation-aware comparison.
 */
-template<class Key, class Value>
+template <class Key, class Value>
 class collation_unordered_multimap
-  : public std::unordered_multimap<Key, Value, Collation_hasher,
-                                   Collation_key_equal,
-                                   Malloc_allocator<std::pair<const Key, Value>>>
-{
-public:
+    : public std::unordered_multimap<
+          Key, Value, Collation_hasher, Collation_key_equal,
+          Malloc_allocator<std::pair<const Key, Value>>> {
+ public:
   collation_unordered_multimap(CHARSET_INFO *cs, PSI_memory_key psi_key)
-    : std::unordered_multimap<Key, Value, Collation_hasher, Collation_key_equal,
-                         Malloc_allocator<std::pair<const Key, Value>>>
-        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_multimap<Key, Value, Collation_hasher,
+                                Collation_key_equal,
+                                Malloc_allocator<std::pair<const Key, Value>>>(
+            /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /**
   std::unordered_set, but with my_malloc and collation-aware comparison.
 */
-template<class Key>
+template <class Key>
 class collation_unordered_set
-  : public std::unordered_set<Key, Collation_hasher, Collation_key_equal,
-                              Malloc_allocator<Key>>
-{
-public:
+    : public std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                                Malloc_allocator<Key>> {
+ public:
   collation_unordered_set(CHARSET_INFO *cs, PSI_memory_key psi_key)
-    : std::unordered_set<Key, Collation_hasher, Collation_key_equal,
-                         Malloc_allocator<Key>>
-        (/*bucket_count=*/ 10, Collation_hasher(cs), Collation_key_equal(cs),
-         Malloc_allocator<>(psi_key)) {}
+      : std::unordered_set<Key, Collation_hasher, Collation_key_equal,
+                           Malloc_allocator<Key>>(
+            /*bucket_count=*/10, Collation_hasher(cs), Collation_key_equal(cs),
+            Malloc_allocator<>(psi_key)) {}
 };
 
 /** std::unordered_set, but allocated on a MEM_ROOT.  */
-template<class Key,
-         class Hash = std::hash<Key>,
-         class KeyEqual = std::equal_to<Key>>
+template <class Key, class Hash = std::hash<Key>,
+          class KeyEqual = std::equal_to<Key>>
 class memroot_unordered_set
-  : public std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>>
-{
-public:
+    : public std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>> {
+ public:
   /*
     In theory, we should be allowed to send in the allocator only, but GCC 4.8
     is missing several unordered_set constructors, so let's give in everything.
   */
   memroot_unordered_set(MEM_ROOT *mem_root)
-    : std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>>
-        (/*bucket_count=*/ 10, Hash(), KeyEqual(),
-         Memroot_allocator<Key>(mem_root)) {}
+      : std::unordered_set<Key, Hash, KeyEqual, Memroot_allocator<Key>>(
+            /*bucket_count=*/10, Hash(), KeyEqual(),
+            Memroot_allocator<Key>(mem_root)) {}
 };
 #endif  // MAP_HELPERS_INCLUDED

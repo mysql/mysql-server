@@ -2012,6 +2012,34 @@ where variable_name like 'created_tmp_%tables';
 --enable_query_log
 
 --echo #
+--echo # Bug#11747567: INTEGER CONSTANTS CASTED TO BIGINTS BY UNIONS
+--echo #
+
+CREATE TABLE t1(
+  a tinyint(4) DEFAULT NULL,
+  b int(11) DEFAULT NULL,
+  c bigint(20) DEFAULT NULL
+);
+
+CREATE VIEW v1 AS SELECT t1.a AS a, t1.b AS b,t1.c AS c, 1 AS
+`1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1` FROM t1 UNION SELECT -(1) AS `-1`,
+-(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`, -(1) AS `-1`;
+
+CREATE VIEW v2 AS SELECT 1 AS `1`, 1 AS `My_exp_1`, 1 AS `My_exp_1_1`,
+-(1) AS `-1`, -(1) AS `My_exp_-1`, -(1) AS `My_exp_1_-1`;
+
+CREATE VIEW v3 AS SELECT t1.a AS a, t1.b AS b, t1.c AS c FROM t1;
+
+DESCRIBE v1;
+DESCRIBE v2;
+DESCRIBE v3;
+
+DROP TABLE t1;
+DROP VIEW v1,v2,v3;
+
+--echo # End of test for Bug#11747567
+
+--echo #
 --echo # Bug #27068222 CREATE TABLE USING SELECT WITH UNION
 --echo #               FAILS FOR DATE COLUMN
 --echo #
@@ -2033,21 +2061,21 @@ DROP TABLE t1, t2;
 # Compare INT and DATE
 
 CREATE TABLE t1 (
- i1 INT NOT NULL,
- i2 INT NOT NULL DEFAULT '1234',
- # non-specified nullability => i3 is nullable
- i3 INT,
- i4 INT DEFAULT NULL,
- i5 INT DEFAULT '5678',
- d1 date NOT NULL,
- d2 date NOT NULL DEFAULT '2018-01-25',
- d3 date,
- d4 date DEFAULT NULL,
- d5 date DEFAULT '2017-11-14',
- g1 geometry NOT NULL
- );
+i1 INT NOT NULL,
+i2 INT NOT NULL DEFAULT '1234',
+# non-specified nullability => i3 is nullable
+i3 INT,
+i4 INT DEFAULT NULL,
+i5 INT DEFAULT '5678',
+d1 date NOT NULL,
+d2 date NOT NULL DEFAULT '2018-01-25',
+d3 date,
+d4 date DEFAULT NULL,
+d5 date DEFAULT '2017-11-14',
+g1 geometry NOT NULL
+);
 
- SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t1;
 
 # We'll test non-strict then strict mode
 let $c=2;
@@ -2064,7 +2092,7 @@ while ($c)
   CREATE TEMPORARY TABLE t2 AS
   SELECT * FROM t1;
 
-  --echo # we see that with CREATE SELECT (no UNION), defaults are inherited.
+--echo # we see that with CREATE SELECT (no UNION), defaults are inherited.
 
   SHOW CREATE TABLE t2;
 

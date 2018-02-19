@@ -311,19 +311,18 @@ bool Crosses::eval(const Geometry *g1, const Geometry *g2) const {
 
 // crosses(Cartesian_point, *)
 
-bool Crosses::eval(const Cartesian_point *g1, const Cartesian_point *g2) const {
+bool Crosses::eval(const Cartesian_point *, const Cartesian_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
 
-bool Crosses::eval(const Cartesian_point *g1,
-                   const Cartesian_linestring *g2) const {
+bool Crosses::eval(const Cartesian_point *,
+                   const Cartesian_linestring *) const {
   // A point may never cross another geometry.
   return false;
 }
 
-bool Crosses::eval(const Cartesian_point *g1,
-                   const Cartesian_polygon *g2) const {
+bool Crosses::eval(const Cartesian_point *, const Cartesian_polygon *) const {
   // A point may never cross another geometry.
   return false;
 }
@@ -335,20 +334,20 @@ bool Crosses::eval(const Cartesian_point *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Cartesian_point *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Crosses::eval(const Cartesian_point *,
+                   const Cartesian_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
 
-bool Crosses::eval(const Cartesian_point *g1,
-                   const Cartesian_multilinestring *g2) const {
+bool Crosses::eval(const Cartesian_point *,
+                   const Cartesian_multilinestring *) const {
   // A point may never cross another geometry.
   return false;
 }
 
-bool Crosses::eval(const Cartesian_point *g1,
-                   const Cartesian_multipolygon *g2) const {
+bool Crosses::eval(const Cartesian_point *,
+                   const Cartesian_multipolygon *) const {
   // A point may never cross another geometry.
   return false;
 }
@@ -357,8 +356,8 @@ bool Crosses::eval(const Cartesian_point *g1,
 
 // crosses(Cartesian_linestring, *)
 
-bool Crosses::eval(const Cartesian_linestring *g1,
-                   const Cartesian_point *g2) const {
+bool Crosses::eval(const Cartesian_linestring *,
+                   const Cartesian_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -379,8 +378,8 @@ bool Crosses::eval(const Cartesian_linestring *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Cartesian_linestring *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Crosses::eval(const Cartesian_linestring *,
+                   const Cartesian_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -399,7 +398,7 @@ bool Crosses::eval(const Cartesian_linestring *g1,
 
 // crosses(Cartesian_polygon, *)
 
-bool Crosses::eval(const Cartesian_polygon *g1, const Geometry *g2) const {
+bool Crosses::eval(const Cartesian_polygon *, const Geometry *) const {
   // If g1 is a 2d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -418,8 +417,8 @@ bool Crosses::eval(const Cartesian_geometrycollection *g1,
 
 // crosses(Cartesian_multipoint, *)
 
-bool Crosses::eval(const Cartesian_multipoint *g1,
-                   const Cartesian_point *g2) const {
+bool Crosses::eval(const Cartesian_multipoint *,
+                   const Cartesian_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -480,8 +479,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Cartesian_multipoint *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Crosses::eval(const Cartesian_multipoint *,
+                   const Cartesian_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -540,8 +539,8 @@ bool Crosses::eval(const Cartesian_multipoint *g1,
 
 // crosses(Cartesian_multilinestring, *)
 
-bool Crosses::eval(const Cartesian_multilinestring *g1,
-                   const Cartesian_point *g2) const {
+bool Crosses::eval(const Cartesian_multilinestring *,
+                   const Cartesian_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -562,8 +561,8 @@ bool Crosses::eval(const Cartesian_multilinestring *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Cartesian_multilinestring *g1,
-                   const Cartesian_multipoint *g2) const {
+bool Crosses::eval(const Cartesian_multilinestring *,
+                   const Cartesian_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -582,7 +581,7 @@ bool Crosses::eval(const Cartesian_multilinestring *g1,
 
 // crosses(Cartesian_multipolygon, *)
 
-bool Crosses::eval(const Cartesian_multipolygon *g1, const Geometry *g2) const {
+bool Crosses::eval(const Cartesian_multipolygon *, const Geometry *) const {
   // If g1 is a 2d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -591,20 +590,18 @@ bool Crosses::eval(const Cartesian_multipolygon *g1, const Geometry *g2) const {
 
 // crosses(Geographic_point, *)
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_point *g2) const {
+bool Crosses::eval(const Geographic_point *, const Geographic_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_linestring *g2) const {
+bool Crosses::eval(const Geographic_point *,
+                   const Geographic_linestring *) const {
   // A point may never cross another geometry.
   return false;
 }
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_polygon *g2) const {
+bool Crosses::eval(const Geographic_point *, const Geographic_polygon *) const {
   // A point may never cross another geometry.
   return false;
 }
@@ -616,20 +613,20 @@ bool Crosses::eval(const Geographic_point *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_multipoint *g2) const {
+bool Crosses::eval(const Geographic_point *,
+                   const Geographic_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_multilinestring *g2) const {
+bool Crosses::eval(const Geographic_point *,
+                   const Geographic_multilinestring *) const {
   // A point may never cross another geometry.
   return false;
 }
 
-bool Crosses::eval(const Geographic_point *g1,
-                   const Geographic_multipolygon *g2) const {
+bool Crosses::eval(const Geographic_point *,
+                   const Geographic_multipolygon *) const {
   // A point may never cross another geometry.
   return false;
 }
@@ -638,8 +635,8 @@ bool Crosses::eval(const Geographic_point *g1,
 
 // crosses(Geographic_linestring, *)
 
-bool Crosses::eval(const Geographic_linestring *g1,
-                   const Geographic_point *g2) const {
+bool Crosses::eval(const Geographic_linestring *,
+                   const Geographic_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -660,8 +657,8 @@ bool Crosses::eval(const Geographic_linestring *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Geographic_linestring *g1,
-                   const Geographic_multipoint *g2) const {
+bool Crosses::eval(const Geographic_linestring *,
+                   const Geographic_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -680,7 +677,7 @@ bool Crosses::eval(const Geographic_linestring *g1,
 
 // crosses(Geographic_polygon, *)
 
-bool Crosses::eval(const Geographic_polygon *g1, const Geometry *g2) const {
+bool Crosses::eval(const Geographic_polygon *, const Geometry *) const {
   // If g1 is a 2d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -699,8 +696,8 @@ bool Crosses::eval(const Geographic_geometrycollection *g1,
 
 // crosses(Geographic_multipoint, *)
 
-bool Crosses::eval(const Geographic_multipoint *g1,
-                   const Geographic_point *g2) const {
+bool Crosses::eval(const Geographic_multipoint *,
+                   const Geographic_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -761,8 +758,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Geographic_multipoint *g1,
-                   const Geographic_multipoint *g2) const {
+bool Crosses::eval(const Geographic_multipoint *,
+                   const Geographic_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -821,8 +818,8 @@ bool Crosses::eval(const Geographic_multipoint *g1,
 
 // crosses(Geographic_multilinestring, *)
 
-bool Crosses::eval(const Geographic_multilinestring *g1,
-                   const Geographic_point *g2) const {
+bool Crosses::eval(const Geographic_multilinestring *,
+                   const Geographic_point *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -843,8 +840,8 @@ bool Crosses::eval(const Geographic_multilinestring *g1,
       *this, g1, g2);
 }
 
-bool Crosses::eval(const Geographic_multilinestring *g1,
-                   const Geographic_multipoint *g2) const {
+bool Crosses::eval(const Geographic_multilinestring *,
+                   const Geographic_multipoint *) const {
   // If g2 is a 0d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }
@@ -863,8 +860,7 @@ bool Crosses::eval(const Geographic_multilinestring *g1,
 
 // crosses(Geographic_multipolygon, *)
 
-bool Crosses::eval(const Geographic_multipolygon *g1,
-                   const Geometry *g2) const {
+bool Crosses::eval(const Geographic_multipolygon *, const Geometry *) const {
   // If g1 is a 2d geometry, return NULL (SQL/MM 2015, Sect. 5.1.51).
   throw null_value_exception();
 }

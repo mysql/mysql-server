@@ -29,6 +29,8 @@
 #include <NdbApi.hpp>
 #include <NDBT.hpp>
 
+#include "my_alloc.h"
+
 static const char* _dbname = "TEST_DB";
 
 static struct my_option my_long_options[] =

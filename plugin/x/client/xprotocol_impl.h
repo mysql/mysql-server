@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -43,24 +43,20 @@
 #include "plugin/x/client/xprotocol_factory.h"
 #include "plugin/x/client/xquery_instances.h"
 
-
 namespace xcl {
 
 class Result;
 
-class Protocol_impl :
-    public XProtocol,
-    public std::enable_shared_from_this<Protocol_impl> {
+class Protocol_impl : public XProtocol,
+                      public std::enable_shared_from_this<Protocol_impl> {
  public:
-  Protocol_impl(std::shared_ptr<Context> context,
-      Protocol_factory *factory);
+  Protocol_impl(std::shared_ptr<Context> context, Protocol_factory *factory);
 
  public:  // Implementation of XProtocol methods
   Handler_id add_notice_handler(
       Notice_handler handler,
       const Handler_position position = Handler_position::Begin,
       const Handler_priority priority = Handler_priority_medium) override;
-
 
   Handler_id add_received_message_handler(
       Server_message_handler handler,
@@ -80,11 +76,9 @@ class Protocol_impl :
 
   XConnection &get_connection() override { return *m_sync_connection; }
 
-  XError send(const Client_message_type_id mid,
-              const Message &msg) override;
+  XError send(const Client_message_type_id mid, const Message &msg) override;
 
-  XError send(const Header_message_type_id mid,
-              const uint8_t *buffer,
+  XError send(const Header_message_type_id mid, const uint8_t *buffer,
               const std::size_t length) override;
 
   // Overrides for Client Session Messages
@@ -159,19 +153,15 @@ class Protocol_impl :
     return send(Mysqlx::ClientMessages::EXPECT_CLOSE, m);
   }
 
-  XError recv(Header_message_type_id *out_mid,
-              uint8_t **buffer,
+  XError recv(Header_message_type_id *out_mid, uint8_t **buffer,
               std::size_t *buffer_size) override;
 
   std::unique_ptr<Message> deserialize_received_message(
-      const Header_message_type_id mid,
-      const uint8_t *payload,
-      const std::size_t payload_size,
-      XError *out_error) override;
+      const Header_message_type_id mid, const uint8_t *payload,
+      const std::size_t payload_size, XError *out_error) override;
 
-  std::unique_ptr<Message> recv_single_message(
-      Server_message_type_id *out_mid,
-      XError *out_error) override;
+  std::unique_ptr<Message> recv_single_message(Server_message_type_id *out_mid,
+                                               XError *out_error) override;
 
   XError recv_ok() override;
 
@@ -180,29 +170,23 @@ class Protocol_impl :
 
   XError execute_close() override;
   std::unique_ptr<XQuery_result> execute_with_resultset(
-      const Client_message_type_id mid,
-      const Message &msg,
+      const Client_message_type_id mid, const Message &msg,
       XError *out_error) override;
 
-  std::unique_ptr<XQuery_result> execute_stmt(
-      const Mysqlx::Sql::StmtExecute &m,
-      XError *out_error) override;
+  std::unique_ptr<XQuery_result> execute_stmt(const Mysqlx::Sql::StmtExecute &m,
+                                              XError *out_error) override;
 
-  std::unique_ptr<XQuery_result> execute_find(
-      const Mysqlx::Crud::Find &m,
-      XError *out_error) override;
+  std::unique_ptr<XQuery_result> execute_find(const Mysqlx::Crud::Find &m,
+                                              XError *out_error) override;
 
-  std::unique_ptr<XQuery_result> execute_update(
-      const Mysqlx::Crud::Update &m,
-      XError *out_error) override;
+  std::unique_ptr<XQuery_result> execute_update(const Mysqlx::Crud::Update &m,
+                                                XError *out_error) override;
 
-  std::unique_ptr<XQuery_result> execute_insert(
-      const Mysqlx::Crud::Insert &m,
-      XError *out_error) override;
+  std::unique_ptr<XQuery_result> execute_insert(const Mysqlx::Crud::Insert &m,
+                                                XError *out_error) override;
 
-  std::unique_ptr<XQuery_result> execute_delete(
-      const Mysqlx::Crud::Delete &m,
-      XError *out_error) override;
+  std::unique_ptr<XQuery_result> execute_delete(const Mysqlx::Crud::Delete &m,
+                                                XError *out_error) override;
 
   std::unique_ptr<Capabilities> execute_fetch_capabilities(
       XError *out_error) override;
@@ -215,37 +199,36 @@ class Protocol_impl :
                               const std::string &method = "") override;
 
  private:
-  template<typename Message_type>
-  std::unique_ptr<XQuery_result> execute(
-      const Message_type &message,
-      XError *out_error) {
+  template <typename Message_type>
+  std::unique_ptr<XQuery_result> execute(const Message_type &message,
+                                         XError *out_error) {
     *out_error = send(message);
 
-    if (*out_error)
-      return {};
+    if (*out_error) return {};
 
     return recv_resultset(out_error);
   }
 
-  XError   recv_id(const XProtocol::Server_message_type_id id);
+  XError recv_id(const XProtocol::Server_message_type_id id);
   Message *recv_id(const XProtocol::Server_message_type_id id,
                    XError *out_error);
   Message *recv_payload(const Server_message_type_id mid,
-                        const std::size_t msglen,
-                        XError *out_error);
+                        const std::size_t msglen, XError *out_error);
   Message *recv_message_with_header(Server_message_type_id *out_mid,
                                     XError *out_error);
 
   template <typename Auth_continue_handler>
   XError authenticate_challenge_response(const std::string &user,
-      const std::string &pass, const std::string &db);
+                                         const std::string &pass,
+                                         const std::string &db);
 
   XError authenticate_plain(const std::string &user, const std::string &pass,
                             const std::string &db);
   XError authenticate_mysql41(const std::string &user, const std::string &pass,
                               const std::string &db);
   XError authenticate_sha256_memory(const std::string &user,
-      const std::string &pass, const std::string &db);
+                                    const std::string &pass,
+                                    const std::string &db);
 
   XError perform_close();
 
@@ -259,63 +242,54 @@ class Protocol_impl :
 
   /**
     Dispatch received messages to each registered handler. If the handler
-    processed the message it should return "Handler_consumed" to stop dispatching
-    to other handlers. Latest pushed handlers should be called first
+    processed the message it should return "Handler_consumed" to stop
+    dispatching to other handlers. Latest pushed handlers should be called first
     (called in reversed-pushed-order).
   */
-  Handler_result dispatch_received_message(
-      const Server_message_type_id id,
-      const Message &message);
+  Handler_result dispatch_received_message(const Server_message_type_id id,
+                                           const Message &message);
 
   /** Dispatch send message to each registered handler.
-   Latest pushed handlers should be called first (called in reversed-pushed-order)*/
-  void dispatch_send_message(
-      const Client_message_type_id id,
-      const Message &message);
+   Latest pushed handlers should be called first (called in
+   reversed-pushed-order)*/
+  void dispatch_send_message(const Client_message_type_id id,
+                             const Message &message);
 
   template <typename Handler>
   class Handler_with_id {
    public:
-    Handler_with_id(
-        const Handler_id id,
-        const int priority,
-        const Handler handler)
-    : m_id(id),
-      m_priority(priority),
-      m_handler(handler) { }
+    Handler_with_id(const Handler_id id, const int priority,
+                    const Handler handler)
+        : m_id(id), m_priority(priority), m_handler(handler) {}
 
     Handler_id m_id;
-    int        m_priority;
-    Handler    m_handler;
+    int m_priority;
+    Handler m_handler;
 
-    static bool compare(
-        const Handler_with_id &lhs,
-        const Handler_with_id &rhs) {
+    static bool compare(const Handler_with_id &lhs,
+                        const Handler_with_id &rhs) {
       return lhs.m_priority < rhs.m_priority;
     }
   };
 
   using Notice_handler_with_id = Handler_with_id<Notice_handler>;
-  using Server_handler_with_id =
-      Handler_with_id<Server_message_handler>;
-  using Client_handler_with_id =
-      Handler_with_id<Client_message_handler>;
+  using Server_handler_with_id = Handler_with_id<Server_message_handler>;
+  using Client_handler_with_id = Handler_with_id<Client_message_handler>;
 
   Protocol_factory *m_factory;
-  Handler_id        m_last_handler_id{0};
-  std::list<Notice_handler_with_id>  m_notice_handlers;
-  std::list<Client_handler_with_id>  m_message_send_handlers;
-  std::list<Server_handler_with_id>  m_message_received_handlers;
-  std::unique_ptr<XConnection>       m_sync_connection;
-  std::unique_ptr<Query_instances>   m_query_instances;
-  std::shared_ptr<Context>           m_context;
+  Handler_id m_last_handler_id{0};
+  std::list<Notice_handler_with_id> m_notice_handlers;
+  std::list<Client_handler_with_id> m_message_send_handlers;
+  std::list<Server_handler_with_id> m_message_received_handlers;
+  std::unique_ptr<XConnection> m_sync_connection;
+  std::unique_ptr<Query_instances> m_query_instances;
+  std::shared_ptr<Context> m_context;
 };
 
 template <typename Auth_continue_handler>
-XError Protocol_impl::authenticate_challenge_response(
-    const std::string &user,
-    const std::string &pass,
-    const std::string &db) {
+XError Protocol_impl::authenticate_challenge_response(const std::string &user,
+                                                      const std::string &pass,
+                                                      const std::string &db) {
   Auth_continue_handler auth_continue_handler(this);
   XError error;
 
@@ -326,33 +300,28 @@ XError Protocol_impl::authenticate_challenge_response(
 
     error = send(Mysqlx::ClientMessages::SESS_AUTHENTICATE_START, auth);
 
-    if (error)
-      return error;
+    if (error) return error;
   }
 
   {
     std::unique_ptr<Message> message{
-      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, &error)};
+        recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_CONTINUE, &error)};
 
-    if (error)
-      return error;
+    if (error) return error;
 
     Mysqlx::Session::AuthenticateContinue &auth_continue =
-        *static_cast<Mysqlx::Session::AuthenticateContinue *>(
-             message.get());
+        *static_cast<Mysqlx::Session::AuthenticateContinue *>(message.get());
 
     error = auth_continue_handler(user, pass, db, auth_continue);
 
-    if (error)
-      return error;
+    if (error) return error;
   }
 
   {
     std::unique_ptr<Message> message{
-      recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, &error)};
+        recv_id(::Mysqlx::ServerMessages::SESS_AUTHENTICATE_OK, &error)};
 
-    if (error)
-      return error;
+    if (error) return error;
   }
 
   return {};

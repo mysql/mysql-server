@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -35,21 +35,19 @@
 #include "plugin/x/client/mysqlxclient/xargument.h"
 #include "plugin/x/client/mysqlxclient/xmessage.h"
 
-
 namespace xcl {
 
 class Capabilities_builder {
  private:
-  class Capability_visitor: public Argument_value::Argument_visitor {
+  class Capability_visitor : public Argument_value::Argument_visitor {
    public:
     using Capability = ::Mysqlx::Connection::Capability;
-    using Scalar     = ::Mysqlx::Datatypes::Scalar;
+    using Scalar = ::Mysqlx::Datatypes::Scalar;
     using Capability_ptr = std::unique_ptr<Capability>;
 
    public:
     explicit Capability_visitor(Capability *capability)
-    : m_capability(capability) {
-    }
+        : m_capability(capability) {}
 
    private:
     void visit(const int64_t value) override {
@@ -58,9 +56,8 @@ class Capabilities_builder {
       scalr->set_v_signed_int(value);
     }
 
-    void visit(const std::string &value,
-               const Argument_value::String_type st
-               MY_ATTRIBUTE((unused))) override {
+    void visit(const std::string &value, const Argument_value::String_type st
+                                             MY_ATTRIBUTE((unused))) override {
       auto scalr = get_scalar();
       scalr->set_type(Mysqlx::Datatypes::Scalar_Type_V_STRING);
       scalr->mutable_v_string()->set_value(value);
@@ -73,23 +70,17 @@ class Capabilities_builder {
     }
 
     // Methods below shouldn't be called
-    void visit()  override {
-    }
+    void visit() override {}
 
-    void visit(const uint64_t value MY_ATTRIBUTE((unused))) override {
-    }
+    void visit(const uint64_t value MY_ATTRIBUTE((unused))) override {}
 
-    void visit(const double value MY_ATTRIBUTE((unused))) override {
-    }
+    void visit(const double value MY_ATTRIBUTE((unused))) override {}
 
-    void visit(const float value MY_ATTRIBUTE((unused))) override {
-    }
+    void visit(const float value MY_ATTRIBUTE((unused))) override {}
 
-    void visit(const Object &value MY_ATTRIBUTE((unused))) override {
-    }
+    void visit(const Object &value MY_ATTRIBUTE((unused))) override {}
 
-    void visit(const Arguments &value MY_ATTRIBUTE((unused))) override {
-    }
+    void visit(const Arguments &value MY_ATTRIBUTE((unused))) override {}
 
     Scalar *get_scalar() {
       auto any = m_capability->mutable_value();
@@ -104,9 +95,8 @@ class Capabilities_builder {
   using CapabilitiesSet = ::Mysqlx::Connection::CapabilitiesSet;
 
  public:
-  Capabilities_builder &add_capability(
-      const std::string &name,
-      const xcl::Argument_value &argument) {
+  Capabilities_builder &add_capability(const std::string &name,
+                                       const xcl::Argument_value &argument) {
     auto capabilities = m_cap_set.mutable_capabilities();
     auto capability = capabilities->add_capabilities();
     Capability_visitor capability_scalar_vallue_filler(capability);
@@ -117,18 +107,15 @@ class Capabilities_builder {
     return *this;
   }
 
-  Capabilities_builder &add_capabilities_from_object(
-      const Object &obj) {
-        for (const auto &cap : obj) {
+  Capabilities_builder &add_capabilities_from_object(const Object &obj) {
+    for (const auto &cap : obj) {
       add_capability(cap.first, cap.second);
     }
 
     return *this;
   }
 
-  CapabilitiesSet &get_result() {
-    return m_cap_set;
-  }
+  CapabilitiesSet &get_result() { return m_cap_set; }
 
  private:
   CapabilitiesSet m_cap_set;

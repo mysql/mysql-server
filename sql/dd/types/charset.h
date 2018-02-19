@@ -24,7 +24,7 @@
 #define DD__CHARSET_INCLUDED
 
 #include "my_inttypes.h"
-#include "sql/dd/types/entity_object.h" // dd::Entity_object
+#include "sql/dd/types/entity_object.h"  // dd::Entity_object
 
 namespace dd {
 
@@ -37,14 +37,13 @@ class Global_name_key;
 class Void_key;
 
 namespace tables {
-  class Character_sets;
+class Character_sets;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Charset : virtual public Entity_object
-{
-public:
+class Charset : virtual public Entity_object {
+ public:
   typedef Charset_impl Impl;
   typedef Charset Cache_partition;
   typedef tables::Character_sets DD_table;
@@ -53,23 +52,22 @@ public:
   typedef Void_key Aux_key;
 
   // We need a set of functions to update a preallocated key.
-  virtual bool update_id_key(Id_key *key) const
-  { return update_id_key(key, id()); }
+  virtual bool update_id_key(Id_key *key) const {
+    return update_id_key(key, id());
+  }
 
   static bool update_id_key(Id_key *key, Object_id id);
 
-  virtual bool update_name_key(Name_key *key) const
-  { return update_name_key(key, name()); }
+  virtual bool update_name_key(Name_key *key) const {
+    return update_name_key(key, name());
+  }
 
-  static bool update_name_key(Name_key *key,
-                              const String_type &name);
+  static bool update_name_key(Name_key *key, const String_type &name);
 
-  virtual bool update_aux_key(Aux_key*) const
-  { return true; }
+  virtual bool update_aux_key(Aux_key *) const { return true; }
 
-public:
-  virtual ~Charset()
-  { };
+ public:
+  virtual ~Charset(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Default collation.
@@ -100,6 +98,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__CHARSET_INCLUDED
+#endif  // DD__CHARSET_INCLUDED

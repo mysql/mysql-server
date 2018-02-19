@@ -29,17 +29,15 @@
 using namespace Mysql::Tools::Base::Options;
 using std::string;
 
-Char_array_option::Char_array_option(
-    char** value, bool allocated, string name, string description)
-  : Abstract_value_option<char*>(value, allocated ? GET_STR_ALLOC : GET_STR,
-      name, description, (uint64)NULL)
-{
-  *value= NULL;
+Char_array_option::Char_array_option(char **value, bool allocated, string name,
+                                     string description)
+    : Abstract_value_option<char *>(value, allocated ? GET_STR_ALLOC : GET_STR,
+                                    name, description, (uint64)NULL) {
+  *value = NULL;
 }
 
-Char_array_option* Char_array_option::set_value(char* value)
-{
-  *(char**)this->m_option_structure.value= value;
-  this->m_option_structure.def_value= (uint64)value;
+Char_array_option *Char_array_option::set_value(char *value) {
+  *(char **)this->m_option_structure.value = value;
+  this->m_option_structure.def_value = (uint64)value;
   return this;
 }

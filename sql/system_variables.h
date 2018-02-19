@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,93 +27,82 @@
 #include <sys/types.h>
 
 #include "m_ctype.h"
-#include "my_base.h"          // ha_rows
+#include "my_base.h"  // ha_rows
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
-#include "my_thread_local.h"  // my_thread_id
-#include "mysql/udf_registration_types.h"
-#include "sql/rpl_gtid.h"     // Gitd_specification
-#include "sql/sql_plugin_ref.h" // plugin_ref
+#include "my_thread_local.h"     // my_thread_id
+#include "sql/rpl_gtid.h"        // Gitd_specification
+#include "sql/sql_plugin_ref.h"  // plugin_ref
 
 class MY_LOCALE;
 class Time_zone;
 
 typedef ulonglong sql_mode_t;
-typedef struct st_list LIST;
-typedef struct charset_info_st CHARSET_INFO;
+struct LIST;
 
 // Values for binlog_format sysvar
 enum enum_binlog_format {
-  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
-  BINLOG_FORMAT_STMT=  1, ///< statement-based
-  BINLOG_FORMAT_ROW=   2, ///< row-based
-  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
+  BINLOG_FORMAT_MIXED = 0,  ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT = 1,   ///< statement-based
+  BINLOG_FORMAT_ROW = 2,    ///< row-based
+  BINLOG_FORMAT_UNSPEC =
+      3  ///< thd_binlog_format() returns it when binlog is closed
 };
 
 // Values for rbr_exec_mode_options sysvar
-enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
-                          RBR_EXEC_MODE_IDEMPOTENT,
-                          RBR_EXEC_MODE_LAST_BIT };
+enum enum_rbr_exec_mode {
+  RBR_EXEC_MODE_STRICT,
+  RBR_EXEC_MODE_IDEMPOTENT,
+  RBR_EXEC_MODE_LAST_BIT
+};
 
 // Values for binlog_row_image sysvar
 enum enum_binlog_row_image {
   /** PKE in the before image and changed columns in the after image */
-  BINLOG_ROW_IMAGE_MINIMAL= 0,
-  /** Whenever possible, before and after image contain all columns except blobs. */
-  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  BINLOG_ROW_IMAGE_MINIMAL = 0,
+  /** Whenever possible, before and after image contain all columns except
+     blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB = 1,
   /** All columns in both before and after image. */
-  BINLOG_ROW_IMAGE_FULL= 2
+  BINLOG_ROW_IMAGE_FULL = 2
 };
 
 // Bits for binlog_row_value_options sysvar
-enum enum_binlog_row_value_options
-{
+enum enum_binlog_row_value_options {
   /// Store JSON updates in partial form
-  PARTIAL_JSON_UPDATES= 1
+  PARTIAL_JSON_UPDATES = 1
 };
 
 // Values for binlog_row_metadata sysvar
 enum enum_binlog_row_metadata {
-  BINLOG_ROW_METADATA_MINIMAL= 0,
-  BINLOG_ROW_METADATA_FULL= 1
+  BINLOG_ROW_METADATA_MINIMAL = 0,
+  BINLOG_ROW_METADATA_FULL = 1
 };
 
 // Values for transaction_write_set_extraction sysvar
-enum enum_transaction_write_set_hashing_algorithm { HASH_ALGORITHM_OFF= 0,
-                                                    HASH_ALGORITHM_MURMUR32= 1,
-                                                    HASH_ALGORITHM_XXHASH64= 2 };
-
-// Values for session_track_gtids sysvar
-enum enum_session_track_gtids {
-  OFF= 0,
-  OWN_GTID= 1,
-  ALL_GTIDS= 2
+enum enum_transaction_write_set_hashing_algorithm {
+  HASH_ALGORITHM_OFF = 0,
+  HASH_ALGORITHM_MURMUR32 = 1,
+  HASH_ALGORITHM_XXHASH64 = 2
 };
 
+// Values for session_track_gtids sysvar
+enum enum_session_track_gtids { OFF = 0, OWN_GTID = 1, ALL_GTIDS = 2 };
+
 /* Bits for different SQL modes modes (including ANSI mode) */
-#define MODE_REAL_AS_FLOAT              1
-#define MODE_PIPES_AS_CONCAT            2
-#define MODE_ANSI_QUOTES                4
-#define MODE_IGNORE_SPACE               8
-#define MODE_NOT_USED                   16
-#define MODE_ONLY_FULL_GROUP_BY         32
-#define MODE_NO_UNSIGNED_SUBTRACTION    64
-#define MODE_NO_DIR_IN_CREATE           128
-#define MODE_POSTGRESQL                 256
-#define MODE_ORACLE                     512
-#define MODE_MSSQL                      1024
-#define MODE_DB2                        2048
-#define MODE_MAXDB                      4096
-#define MODE_NO_KEY_OPTIONS             8192
-#define MODE_NO_TABLE_OPTIONS           16384
-#define MODE_NO_FIELD_OPTIONS           32768
-#define MODE_MYSQL323                   65536L
-#define MODE_MYSQL40                    (MODE_MYSQL323*2)
-#define MODE_ANSI                       (MODE_MYSQL40*2)
-#define MODE_NO_AUTO_VALUE_ON_ZERO      (MODE_ANSI*2)
-#define MODE_NO_BACKSLASH_ESCAPES       (MODE_NO_AUTO_VALUE_ON_ZERO*2)
-#define MODE_STRICT_TRANS_TABLES        (MODE_NO_BACKSLASH_ESCAPES*2)
-#define MODE_STRICT_ALL_TABLES          (MODE_STRICT_TRANS_TABLES*2)
+#define MODE_REAL_AS_FLOAT 1
+#define MODE_PIPES_AS_CONCAT 2
+#define MODE_ANSI_QUOTES 4
+#define MODE_IGNORE_SPACE 8
+#define MODE_NOT_USED 16
+#define MODE_ONLY_FULL_GROUP_BY 32
+#define MODE_NO_UNSIGNED_SUBTRACTION 64
+#define MODE_NO_DIR_IN_CREATE 128
+#define MODE_ANSI 262144L
+#define MODE_NO_AUTO_VALUE_ON_ZERO (MODE_ANSI * 2)
+#define MODE_NO_BACKSLASH_ESCAPES (MODE_NO_AUTO_VALUE_ON_ZERO * 2)
+#define MODE_STRICT_TRANS_TABLES (MODE_NO_BACKSLASH_ESCAPES * 2)
+#define MODE_STRICT_ALL_TABLES (MODE_STRICT_TRANS_TABLES * 2)
 /*
  * NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
  * removed in 5.7 and their functionality is merged with STRICT MODE.
@@ -121,20 +110,46 @@ enum enum_session_track_gtids {
  * but they are not used. Setting these modes in 5.7 will give warning and
  * have no effect.
  */
-#define MODE_NO_ZERO_IN_DATE            (MODE_STRICT_ALL_TABLES*2)
-#define MODE_NO_ZERO_DATE               (MODE_NO_ZERO_IN_DATE*2)
-#define MODE_INVALID_DATES              (MODE_NO_ZERO_DATE*2)
-#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES*2)
-#define MODE_TRADITIONAL                (MODE_ERROR_FOR_DIVISION_BY_ZERO*2)
-#define MODE_NO_AUTO_CREATE_USER        (MODE_TRADITIONAL*2)
-#define MODE_HIGH_NOT_PRECEDENCE        (MODE_NO_AUTO_CREATE_USER*2)
-#define MODE_NO_ENGINE_SUBSTITUTION     (MODE_HIGH_NOT_PRECEDENCE*2)
-#define MODE_PAD_CHAR_TO_FULL_LENGTH    (1ULL << 31)
+#define MODE_NO_ZERO_IN_DATE (MODE_STRICT_ALL_TABLES * 2)
+#define MODE_NO_ZERO_DATE (MODE_NO_ZERO_IN_DATE * 2)
+#define MODE_INVALID_DATES (MODE_NO_ZERO_DATE * 2)
+#define MODE_ERROR_FOR_DIVISION_BY_ZERO (MODE_INVALID_DATES * 2)
+#define MODE_TRADITIONAL (MODE_ERROR_FOR_DIVISION_BY_ZERO * 2)
+#define MODE_HIGH_NOT_PRECEDENCE (1ULL << 29)
+#define MODE_NO_ENGINE_SUBSTITUTION (MODE_HIGH_NOT_PRECEDENCE * 2)
+#define MODE_PAD_CHAR_TO_FULL_LENGTH (1ULL << 31)
 /*
   If this mode is set the fractional seconds which cannot fit in given fsp will
   be truncated.
 */
-#define MODE_TIME_TRUNCATE_FRACTIONAL   (1ULL << 32)
+#define MODE_TIME_TRUNCATE_FRACTIONAL (1ULL << 32)
+
+#define MODE_ALLOWED_MASK                                                      \
+  (MODE_REAL_AS_FLOAT | MODE_PIPES_AS_CONCAT | MODE_ANSI_QUOTES |              \
+   MODE_IGNORE_SPACE | MODE_NOT_USED | MODE_ONLY_FULL_GROUP_BY |               \
+   MODE_NO_UNSIGNED_SUBTRACTION | MODE_NO_DIR_IN_CREATE | MODE_ANSI |          \
+   MODE_NO_AUTO_VALUE_ON_ZERO | MODE_NO_BACKSLASH_ESCAPES |                    \
+   MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES | MODE_NO_ZERO_IN_DATE |  \
+   MODE_NO_ZERO_DATE | MODE_INVALID_DATES | MODE_ERROR_FOR_DIVISION_BY_ZERO |  \
+   MODE_TRADITIONAL | MODE_HIGH_NOT_PRECEDENCE | MODE_NO_ENGINE_SUBSTITUTION | \
+   MODE_PAD_CHAR_TO_FULL_LENGTH | MODE_TIME_TRUNCATE_FRACTIONAL)
+
+/*
+  We can safely ignore and reset these obsolete mode bits while replicating:
+*/
+#define MODE_IGNORED_MASK                         \
+  (0x00100 |  /* was: MODE_POSTGRESQL          */ \
+   0x00200 |  /* was: MODE_ORACLE              */ \
+   0x00400 |  /* was: MODE_MSSQL               */ \
+   0x00800 |  /* was: MODE_DB2                 */ \
+   0x01000 |  /* was: MODE_MAXDB               */ \
+   0x02000 |  /* was: MODE_NO_KEY_OPTIONS      */ \
+   0x04000 |  /* was: MODE_NO_TABLE_OPTIONS    */ \
+   0x08000 |  /* was: MODE_NO_FIELD_OPTIONS    */ \
+   0x10000 |  /* was: MODE_MYSQL323            */ \
+   0x20000 |  /* was: MODE_MYSQL40             */ \
+   0x10000000 /* was: MODE_NO_AUTO_CREATE_USER */ \
+  )
 
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
@@ -147,9 +162,7 @@ enum enum_session_track_gtids {
   in scripts/mysql_system_tables.sql and scripts/mysql_system_tables_fix.sql
 */
 
-
-struct System_variables
-{
+struct System_variables {
   /*
     How dynamically allocated system variables are handled:
 
@@ -160,7 +173,7 @@ struct System_variables
     neccessary and bytes copied from global to make up for missing data.
   */
   ulong dynamic_variables_version;
-  char* dynamic_variables_ptr;
+  char *dynamic_variables_ptr;
   uint dynamic_variables_head;    /* largest valid variable offset */
   uint dynamic_variables_size;    /* how many bytes are in use */
   LIST *dynamic_variables_allocs; /* memory hunks for PLUGIN_VAR_MEMALLOC */
@@ -172,19 +185,19 @@ struct System_variables
   bool windowing_use_high_precision;
   /* A bitmap for switching optimizations on/off */
   ulonglong optimizer_switch;
-  ulonglong optimizer_trace; ///< bitmap to tune optimizer tracing
-  ulonglong optimizer_trace_features; ///< bitmap to select features to trace
-  long      optimizer_trace_offset;
-  long      optimizer_trace_limit;
-  ulong     optimizer_trace_max_mem_size;
-  sql_mode_t sql_mode; ///< which non-standard SQL behaviour should be enabled
-  ulonglong option_bits; ///< OPTION_xxx constants, e.g. OPTION_PROFILING
+  ulonglong optimizer_trace;           ///< bitmap to tune optimizer tracing
+  ulonglong optimizer_trace_features;  ///< bitmap to select features to trace
+  long optimizer_trace_offset;
+  long optimizer_trace_limit;
+  ulong optimizer_trace_max_mem_size;
+  sql_mode_t sql_mode;  ///< which non-standard SQL behaviour should be enabled
+  ulonglong option_bits;  ///< OPTION_xxx constants, e.g. OPTION_PROFILING
   ha_rows select_limit;
   ha_rows max_join_size;
   ulong auto_increment_increment, auto_increment_offset;
   ulong bulk_insert_buff_size;
-  uint  eq_range_index_dive_limit;
-  uint  cte_max_recursion_depth;
+  uint eq_range_index_dive_limit;
+  uint cte_max_recursion_depth;
   ulonglong histogram_generation_max_mem_size;
   ulong join_buff_size;
   ulong lock_wait_timeout;
@@ -220,10 +233,10 @@ struct System_variables
   ulong trans_alloc_block_size;
   ulong trans_prealloc_size;
   ulong group_concat_max_len;
-  ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
-  ulong rbr_exec_mode_options; // see enum_rbr_exec_mode
+  ulong binlog_format;  ///< binlog format for this thd (see enum_binlog_format)
+  ulong rbr_exec_mode_options;  // see enum_rbr_exec_mode
   bool binlog_direct_non_trans_update;
-  ulong binlog_row_image; // see enum_binlog_row_image
+  ulong binlog_row_image;  // see enum_binlog_row_image
   ulonglong binlog_row_value_options;
   bool sql_log_bin;
   // see enum_transaction_write_set_hashing_algorithm
@@ -233,6 +246,7 @@ struct System_variables
   ulong updatable_views_with_limit;
   uint max_user_connections;
   ulong my_aes_mode;
+  ulong ssl_fips_mode;
   /**
     Controls what resultset metadata will be sent to the client.
     @sa enum_resultset_metadata
@@ -253,7 +267,6 @@ struct System_variables
   bool keep_files_on_create;
 
   bool old_alter_table;
-  uint old_passwords;
   bool big_tables;
 
   plugin_ref table_plugin;
@@ -265,9 +278,9 @@ struct System_variables
   const CHARSET_INFO *character_set_results;
 
   /* Both charset and collation parts of these variables are important */
-  const CHARSET_INFO  *collation_server;
-  const CHARSET_INFO  *collation_database;
-  const CHARSET_INFO  *collation_connection;
+  const CHARSET_INFO *collation_server;
+  const CHARSET_INFO *collation_database;
+  const CHARSET_INFO *collation_connection;
 
   /* Error messages */
   MY_LOCALE *lc_messages;
@@ -293,14 +306,14 @@ struct System_variables
 
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
-  ulong session_track_gtids; // see enum_session_track_gtids
+  ulong session_track_gtids;  // see enum_session_track_gtids
 
   ulong max_execution_time;
 
   char *track_sysvars_ptr;
   bool session_track_schema;
   bool session_track_state_change;
-  ulong   session_track_transaction_info;
+  ulong session_track_transaction_info;
 
   /*
     Time in seconds, after which the statistics in mysql.table/index_stats
@@ -317,9 +330,9 @@ struct System_variables
   // Used for replication delay and lag monitoring
   ulonglong original_commit_timestamp;
 
-  ulong internal_tmp_mem_storage_engine; // enum_internal_tmp_mem_storage_engine
+  ulong
+      internal_tmp_mem_storage_engine;  // enum_internal_tmp_mem_storage_engine
 };
-
 
 /**
   Per thread status variables.
@@ -327,8 +340,7 @@ struct System_variables
   add_to_status/add_diff_to_status can work.
 */
 
-struct System_status_var
-{
+struct System_status_var {
   /* IMPORTANT! See first_system_status_var definition below. */
   ulonglong created_tmp_disk_tables;
   ulonglong created_tmp_tables;
@@ -390,7 +402,7 @@ struct System_status_var
   ulonglong questions;
 
   ulong com_other;
-  ulong com_stat[(uint) SQLCOM_END];
+  ulong com_stat[(uint)SQLCOM_END];
 
   /*
     IMPORTANT! See last_system_status_var definition below. Variables after
@@ -416,17 +428,16 @@ struct System_status_var
 #define FIRST_STATUS_VAR created_tmp_disk_tables
 
 /* Number of contiguous global status variables. */
-const int COUNT_GLOBAL_STATUS_VARS= ((offsetof(System_status_var, LAST_STATUS_VAR) -
-                                      offsetof(System_status_var, FIRST_STATUS_VAR)) /
-                                      sizeof(ulonglong)) + 1;
+const int COUNT_GLOBAL_STATUS_VARS =
+    ((offsetof(System_status_var, LAST_STATUS_VAR) -
+      offsetof(System_status_var, FIRST_STATUS_VAR)) /
+     sizeof(ulonglong)) +
+    1;
 
-
-void add_diff_to_status(System_status_var *to_var,
-                        System_status_var *from_var,
+void add_diff_to_status(System_status_var *to_var, System_status_var *from_var,
                         System_status_var *dec_var);
-
 
 void add_to_status(System_status_var *to_var, System_status_var *from_var,
                    bool reset_from_var);
 
-#endif // SYSTEM_VARIABLES_INCLUDED
+#endif  // SYSTEM_VARIABLES_INCLUDED

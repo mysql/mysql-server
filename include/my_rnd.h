@@ -33,15 +33,7 @@
 
 #include "mysql_com.h"  // IWYU pragma: keep
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 double my_rnd_ssl(struct rand_struct *rand_st);
 int my_rand_buffer(unsigned char *buffer, size_t buffer_size);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* MY_RANDOM_INCLUDED */

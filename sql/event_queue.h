@@ -44,15 +44,10 @@
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/components/services/psi_stage_bits.h"
-#include "mysql/psi/mysql_cond.h"
-#include "mysql/psi/mysql_mutex.h"
-#include "mysql/psi/psi_base.h"
-#include "mysql/psi/psi_stage.h"
-#include "priority_queue.h"                     // Priority_queue
-#include "sql/event_data_objects.h"             // Event_queue_element
-#include "sql/event_parse_data.h"               // Event_parse_data
-#include "sql/malloc_allocator.h"               // IWYU pragma: keep
-#include "sql/malloc_allocator.h"               // IWYU pragma: keep
+#include "priority_queue.h"          // Priority_queue
+#include "sql/event_data_objects.h"  // Event_queue_element
+#include "sql/event_parse_data.h"    // Event_parse_data
+#include "sql/malloc_allocator.h"    // IWYU pragma: keep
 
 class THD;
 
@@ -79,22 +74,18 @@ extern PSI_cond_key key_COND_queue_state;
   @remark
     execute_at.second_part is not considered during comparison
 */
-struct Event_queue_less
-{
+struct Event_queue_less {
   /// Maps compare function to strict weak ordering required by Priority_queue.
-  bool operator()(Event_queue_element *left, Event_queue_element *right)
-  {
+  bool operator()(Event_queue_element *left, Event_queue_element *right) {
     return event_queue_element_compare_q(left, right) > 0;
   }
 
   int event_queue_element_compare_q(Event_queue_element *left,
-                                    Event_queue_element *right)
-  {
+                                    Event_queue_element *right) {
     if (left->m_status == Event_parse_data::DISABLED)
       return right->m_status != Event_parse_data::DISABLED;
 
-    if (right->m_status == Event_parse_data::DISABLED)
-      return 1;
+    if (right->m_status == Event_parse_data::DISABLED) return 1;
 
     my_time_t lhs = left->m_execute_at;
     my_time_t rhs = right->m_execute_at;
@@ -102,95 +93,74 @@ struct Event_queue_less
   }
 };
 
-
 /**
   Queue of active events awaiting execution.
 */
 
-class Event_queue
-{
-public:
+class Event_queue {
+ public:
   Event_queue();
   ~Event_queue();
 
-  bool
-  init_queue();
+  bool init_queue();
 
   /* Methods for queue management follow */
 
-  bool
-  create_event(THD *thd, Event_queue_element *new_element,
-               bool *created);
+  bool create_event(THD *thd, Event_queue_element *new_element, bool *created);
 
-  void
-  update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
-               Event_queue_element *new_element);
+  void update_event(THD *thd, LEX_STRING dbname, LEX_STRING name,
+                    Event_queue_element *new_element);
 
-  void
-  drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
+  void drop_event(THD *thd, LEX_STRING dbname, LEX_STRING name);
 
-  void
-  drop_schema_events(LEX_STRING schema);
+  void drop_schema_events(LEX_STRING schema);
 
-  void
-  recalculate_activation_times(THD *thd);
+  void recalculate_activation_times(THD *thd);
 
-  bool
-  get_top_for_execution_if_time(THD *thd,
-                                Event_queue_element_for_exec **event_name);
+  bool get_top_for_execution_if_time(THD *thd,
+                                     Event_queue_element_for_exec **event_name);
 
+  void dump_internal_status();
 
-  void
-  dump_internal_status();
+ private:
+  void empty_queue();
 
-private:
-  void
-  empty_queue();
-
-  void
-  deinit_queue();
+  void deinit_queue();
   /* helper functions for working with mutexes & conditionals */
-  void
-  lock_data(const char *func, uint line);
+  void lock_data(const char *func, uint line);
 
-  void
-  unlock_data(const char *func, uint line);
+  void unlock_data(const char *func, uint line);
 
-  void
-  cond_wait(THD *thd, struct timespec *abstime, const PSI_stage_info *stage,
-            const char *src_func, const char *src_file, uint src_line);
+  void cond_wait(THD *thd, struct timespec *abstime,
+                 const PSI_stage_info *stage, const char *src_func,
+                 const char *src_file, uint src_line);
 
-  void
-  find_n_remove_event(LEX_STRING db, LEX_STRING name);
+  void find_n_remove_event(LEX_STRING db, LEX_STRING name);
 
+  void drop_matching_events(LEX_STRING pattern,
+                            bool (*)(LEX_STRING, Event_basic *));
 
-  void
-  drop_matching_events(LEX_STRING pattern,
-                       bool (*)(LEX_STRING, Event_basic *));
-
-
-  void
-  dbug_dump_queue(time_t now);
+  void dbug_dump_queue(time_t now);
 
   /* LOCK_event_queue is the mutex which protects the access to the queue. */
   mysql_mutex_t LOCK_event_queue;
   mysql_cond_t COND_queue_state;
 
   /* The sorted queue with the Event_queue_element objects */
-  Priority_queue<Event_queue_element*,
-                 std::vector<Event_queue_element*,
-                             Malloc_allocator<Event_queue_element*> >,
+  Priority_queue<Event_queue_element *,
+                 std::vector<Event_queue_element *,
+                             Malloc_allocator<Event_queue_element *>>,
                  Event_queue_less>
-  queue;
+      queue;
 
   my_time_t next_activation_at;
 
   uint mutex_last_locked_at_line;
   uint mutex_last_unlocked_at_line;
   uint mutex_last_attempted_lock_at_line;
-  const char* mutex_last_locked_in_func;
-  const char* mutex_last_unlocked_in_func;
-  const char* mutex_last_attempted_lock_in_func;
+  const char *mutex_last_locked_in_func;
+  const char *mutex_last_unlocked_in_func;
+  const char *mutex_last_attempted_lock_in_func;
   bool mutex_queue_data_locked;
   bool mutex_queue_data_attempting_lock;
   bool waiting_on_cond;

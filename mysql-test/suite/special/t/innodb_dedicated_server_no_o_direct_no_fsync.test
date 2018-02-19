@@ -80,6 +80,7 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Resizing redo log");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Starting to delete and rewrite log files.");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: New log files created");
 call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] InnoDB: Option innodb_dedicated_server is ignored ");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] No argument was provided to --log-bin, and --log-bin-index was not used");
 --enable_query_log
 
 --echo

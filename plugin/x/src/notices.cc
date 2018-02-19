@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -55,12 +55,14 @@ inline Mysqlx::Notice::Warning::Level get_warning_level(
 }
 
 bool end_warning_row(xpl::Process_resultset::Row *row,
-                     ngs::Protocol_encoder_interface &proto, bool skip_single_error,
-                     std::string &last_error, unsigned int &num_errors) {
+                     ngs::Protocol_encoder_interface &proto,
+                     bool skip_single_error, std::string &last_error,
+                     unsigned int &num_errors) {
   typedef Mysqlx::Notice::Warning Warning;
 
   if (!last_error.empty()) {
-    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL, last_error);
+    proto.send_notice(ngs::Frame_type::WARNING, ngs::Frame_scope::LOCAL,
+                      last_error);
     last_error.clear();
   }
 
@@ -94,10 +96,8 @@ inline void send_local_notice(const Mysqlx::Notice::SessionStateChanged &notice,
                               ngs::Protocol_encoder_interface *proto) {
   std::string data;
   notice.SerializeToString(&data);
-  proto->send_notice(
-      ngs::Frame_type::SESSION_STATE_CHANGED,
-      ngs::Frame_scope::LOCAL,
-      data);
+  proto->send_notice(ngs::Frame_type::SESSION_STATE_CHANGED,
+                     ngs::Frame_scope::LOCAL, data);
 }
 
 }  // namespace
@@ -117,41 +117,37 @@ ngs::Error_code send_warnings(ngs::Sql_session_interface &da,
   return da.execute(q.data(), q.length(), &resultset);
 }
 
-
-ngs::Error_code send_account_expired(
-    ngs::Protocol_encoder_interface &proto) {
+ngs::Error_code send_account_expired(ngs::Protocol_encoder_interface &proto) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::ACCOUNT_EXPIRED);
   send_local_notice(change, &proto);
   return ngs::Success();
 }
 
-
-ngs::Error_code send_generated_insert_id(
-    ngs::Protocol_encoder_interface &proto,
-    uint64_t i) {
+ngs::Error_code send_generated_insert_id(ngs::Protocol_encoder_interface &proto,
+                                         uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_INSERT_ID);
-  change.mutable_value()->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
-  change.mutable_value()->set_v_unsigned_int(i);
+  Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
+  v->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
+  v->set_v_unsigned_int(i);
   send_local_notice(change, &proto);
   return ngs::Success();
 }
 
-ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto, uint64_t i) {
+ngs::Error_code send_rows_affected(ngs::Protocol_encoder_interface &proto,
+                                   uint64_t i) {
   proto.send_rows_affected(i);
-
   return ngs::Success();
 }
 
-
-ngs::Error_code send_client_id(
-    ngs::Protocol_encoder_interface &proto,
-    uint64_t i) {
+ngs::Error_code send_client_id(ngs::Protocol_encoder_interface &proto,
+                               uint64_t i) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::CLIENT_ID_ASSIGNED);
-  change.mutable_value()->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
-  change.mutable_value()->set_v_unsigned_int(i);
+  Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
+  v->set_type(Mysqlx::Datatypes::Scalar::V_UINT);
+  v->set_v_unsigned_int(i);
   send_local_notice(change, &proto);
   return ngs::Success();
 }
@@ -160,8 +156,26 @@ ngs::Error_code send_message(ngs::Protocol_encoder_interface &proto,
                              const std::string &message) {
   Mysqlx::Notice::SessionStateChanged change;
   change.set_param(Mysqlx::Notice::SessionStateChanged::PRODUCED_MESSAGE);
-  change.mutable_value()->set_type(Mysqlx::Datatypes::Scalar::V_STRING);
-  change.mutable_value()->mutable_v_string()->set_value(message);
+  Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
+  v->set_type(Mysqlx::Datatypes::Scalar::V_STRING);
+  v->mutable_v_string()->set_value(message);
+  send_local_notice(change, &proto);
+  return ngs::Success();
+}
+
+ngs::Error_code send_generated_document_ids(
+    ngs::Protocol_encoder_interface &proto,
+    const std::vector<std::string> &ids) {
+  if (ids.empty()) return ngs::Success();
+
+  Mysqlx::Notice::SessionStateChanged change;
+  change.set_param(Mysqlx::Notice::SessionStateChanged::GENERATED_DOCUMENT_IDS);
+  for (const auto &id : ids) {
+    Mysqlx::Datatypes::Scalar *v = change.mutable_value()->Add();
+    v->set_type(Mysqlx::Datatypes::Scalar::V_OCTETS);
+    v->mutable_v_octets()->set_value(id);
+  }
+
   send_local_notice(change, &proto);
   return ngs::Success();
 }

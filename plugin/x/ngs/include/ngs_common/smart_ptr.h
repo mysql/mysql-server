@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -22,14 +22,12 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-
 #ifndef _NGS_SMART_PTR_H_
 #define _NGS_SMART_PTR_H_
 
 #include <memory>
 
-namespace ngs
-{
+namespace ngs {
 using std::dynamic_pointer_cast;
 using std::enable_shared_from_this;
 using std::make_shared;
@@ -39,10 +37,9 @@ using std::static_pointer_cast;
 using std::unique_ptr;
 using std::weak_ptr;
 
-namespace detail
-{
+namespace detail {
 using std::allocate_shared;
-} // namespace detail
-} // namespace ngs
+}  // namespace detail
+}  // namespace ngs
 
-#endif // _NGS_SMART_PTR_H_
+#endif  // _NGS_SMART_PTR_H_

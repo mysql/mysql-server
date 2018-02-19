@@ -23,15 +23,15 @@
 #ifndef PFS_PLUGIN_TABLE_H
 #define PFS_PLUGIN_TABLE_H
 
-#include <mysql/plugin.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
+#include <mysql/plugin.h>
 
 /**
   @file storage/perfschema/pfs_plugin_table.h
   The performance schema implementation of plugin table.
 */
 extern SERVICE_TYPE(pfs_plugin_table)
-  SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table);
+    SERVICE_IMPLEMENTATION(performance_schema, pfs_plugin_table);
 
 void init_pfs_plugin_table();
 void cleanup_pfs_plugin_table();

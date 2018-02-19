@@ -34,10 +34,7 @@
 using std::vector;
 using namespace Mysql::Tools::Base::Options;
 
-
-void Composite_options_provider::add_providers(
-  I_options_provider* first, ...)
-{
+void Composite_options_provider::add_providers(I_options_provider *first, ...) {
   DBUG_ASSERT(this->m_options_providers.size() == 0);
 
   va_list options_to_add;
@@ -45,12 +42,10 @@ void Composite_options_provider::add_providers(
 
   this->add_provider(first);
 
-  for (;;)
-  {
-    Options::I_options_provider* options_provider=
-      va_arg(options_to_add, I_options_provider*);
-    if (options_provider == NULL)
-    {
+  for (;;) {
+    Options::I_options_provider *options_provider =
+        va_arg(options_to_add, I_options_provider *);
+    if (options_provider == NULL) {
       break;
     }
 
@@ -60,39 +55,32 @@ void Composite_options_provider::add_providers(
 }
 
 void Composite_options_provider::add_provider(
-  I_options_provider* options_provider)
-{
+    I_options_provider *options_provider) {
   this->m_options_providers.push_back(options_provider);
   options_provider->set_option_changed_listener(this);
 }
 
-void Composite_options_provider::options_parsed()
-{
-  vector<I_options_provider*>::iterator it;
-  for (it= this->m_options_providers.begin();
-    it != this->m_options_providers.end();
-    it++)
-  {
+void Composite_options_provider::options_parsed() {
+  vector<I_options_provider *>::iterator it;
+  for (it = this->m_options_providers.begin();
+       it != this->m_options_providers.end(); it++) {
     (*it)->options_parsed();
   }
 }
 
-vector<my_option> Composite_options_provider::generate_options()
-{
+vector<my_option> Composite_options_provider::generate_options() {
   vector<my_option> result;
 
   // Add options for all children providers.
-  vector<I_options_provider*>::iterator it;
-  for (it= this->m_options_providers.begin();
-    it != this->m_options_providers.end();
-    it++)
-  {
-    vector<my_option> new_options= (*it)->generate_options();
+  vector<I_options_provider *>::iterator it;
+  for (it = this->m_options_providers.begin();
+       it != this->m_options_providers.end(); it++) {
+    vector<my_option> new_options = (*it)->generate_options();
     result.insert(result.end(), new_options.begin(), new_options.end());
   }
 
   // Add options from this provider.
-  vector<my_option> new_options= Abstract_options_provider::generate_options();
+  vector<my_option> new_options = Abstract_options_provider::generate_options();
   result.insert(result.end(), new_options.begin(), new_options.end());
 
   return result;

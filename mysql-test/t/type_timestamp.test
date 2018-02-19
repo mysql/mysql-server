@@ -306,21 +306,6 @@ select max(t) from t1 group by a;
 drop table t1;
 
 #
-# Test for bug #7418 "TIMESTAMP not always converted to DATETIME in MAXDB
-# mode". TIMESTAMP columns should be converted DATETIME columns in MAXDB
-# mode regardless of whether a display width is given.
-#
-set sql_mode='maxdb';
-create table t1 (a timestamp, b timestamp);
-
-#Replace default engine value with static engine string 
---replace_result $DEFAULT_ENGINE ENGINE
-show create table t1;
-# restore default mode
-set sql_mode='';
-drop table t1;
-
-#
 # Bug#7806 - insert on duplicate key and auto-update of timestamp
 #
 create table t1 (a int auto_increment primary key, b int, c timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);

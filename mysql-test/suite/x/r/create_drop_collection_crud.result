@@ -85,7 +85,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
@@ -93,7 +93,7 @@ RUN SHOW CREATE TABLE xplugintest_1.table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
@@ -123,7 +123,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   `col1` int(11) DEFAULT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -163,22 +163,19 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5115
-  msg: "Document is missing a required field"
-  sql_state: "HY000"
-}
 
+1 rows affected
+auto-generated id(s): 0000XXXXXXXX0000000000000001
 RUN SELECT * FROM table2
 doc	_id	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	0000XXXXXXXX0000000000000001	null
 {"a": 1, "_id": [100, 200]}	[100, 200]	null
 {"a": 2, "_id": [300, 400]}	[300, 400]	300
 0 rows affected
 RUN ALTER TABLE table2 DROP COLUMN _id
 
-2 rows affected
-Records: 2  Duplicates: 0  Warnings: 0
+3 rows affected
+Records: 3  Duplicates: 0  Warnings: 0
 RUN INSERT INTO table2 (doc,col1) VALUES ('{"a":4,"b":[400,400]}',400)
 
 1 rows affected
@@ -203,12 +200,14 @@ send Mysqlx.Crud.Insert {
 
 
 1 rows affected
+auto-generated id(s): 0000XXXXXXXX0000000000000002
 RUN SELECT * FROM table2
 doc	col1
+{"a": 3, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000001"}	null
 {"a": 1, "_id": [100, 200]}	null
 {"a": 2, "_id": [300, 400]}	300
 {"a": 4, "b": [400, 400]}	400
-{"a": 5, "b": [500, 500]}	null
+{"a": 5, "b": [500, 500], "_id": "0000XXXXXXXX0000000000000002"}	null
 0 rows affected
 RUN SHOW CREATE TABLE table2
 Table	Create Table
@@ -249,7 +248,7 @@ RUN SHOW CREATE TABLE table2
 Table	Create Table
 table2	CREATE TABLE `table2` (
   `doc` json DEFAULT NULL,
-  `_id` varchar(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
+  `_id` varbinary(32) GENERATED ALWAYS AS (json_unquote(json_extract(`doc`,_utf8mb4'$._id'))) STORED NOT NULL,
   PRIMARY KEY (`_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 0 rows affected
@@ -304,9 +303,8 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Sql.StmtExecuteOk {
-}
 
+command ok
 RUN SHOW CREATE TABLE table2
 While executing SHOW CREATE TABLE table2:
 Got expected error: Table 'xplugintest.table2' doesn't exist (code 1146)
@@ -333,13 +331,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1051
-  msg: "Unknown table \'xplugintest.table2\'"
-  sql_state: "42S02"
-}
-
+Got expected error: Unknown table 'xplugintest.table2' (code 1051)
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection"
   args {
@@ -363,13 +355,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1051
-  msg: "Unknown table \'xplugintest_non_existing.table2\'"
-  sql_state: "42S02"
-}
-
+Got expected error: Unknown table 'xplugintest_non_existing.table2' (code 1051)
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection"
   args {
@@ -384,13 +370,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5015
-  msg: "Invalid number of arguments, expected 2 but got 1"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid number of arguments, expected 2 but got 1 (code 5015)
 send Mysqlx.Sql.StmtExecute {
   stmt: "drop_collection"
   args {
@@ -414,13 +394,7 @@ send Mysqlx.Sql.StmtExecute {
   namespace: "xplugin"
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5016
-  msg: "Invalid type for argument \'schema\' at #1 (should be string)"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid type for argument 'schema' at #1 (should be string) (code 5016)
 Mysqlx.Ok {
   msg: "bye!"
 }

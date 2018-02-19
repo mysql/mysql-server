@@ -43,12 +43,12 @@ typedef unsigned int uint;
 typedef unsigned short ushort;
 #endif
 #if !defined(HAVE_ULONG)
-typedef unsigned long	ulong;		  /* Short for unsigned long */
+typedef unsigned long ulong; /* Short for unsigned long */
 #endif
 
-typedef unsigned char	uchar;	/* Short for unsigned char */
-typedef signed char int8;       /* Signed integer >= 8  bits */
-typedef unsigned char uint8;    /* Unsigned integer >= 8  bits */
+typedef unsigned char uchar; /* Short for unsigned char */
+typedef signed char int8;    /* Signed integer >= 8  bits */
+typedef unsigned char uint8; /* Unsigned integer >= 8  bits */
 typedef short int16;
 typedef unsigned short uint16;
 #if SIZEOF_INT == 4
@@ -61,17 +61,17 @@ typedef unsigned long uint32;
 #error Neither int or long is of 4 bytes width
 #endif
 
-/* 
-  Using [unsigned] long long is preferable as [u]longlong because we use 
-  [unsigned] long long unconditionally in many places, 
+/*
+  Using [unsigned] long long is preferable as [u]longlong because we use
+  [unsigned] long long unconditionally in many places,
   for example in constants with [U]LL suffix.
 */
 typedef unsigned long long int ulonglong; /* ulong or unsigned long long */
-typedef long long int	longlong;
+typedef long long int longlong;
 typedef longlong int64;
 typedef ulonglong uint64;
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 typedef unsigned __int64 my_ulonglong;
 #else
 typedef unsigned long long my_ulonglong;
@@ -88,9 +88,9 @@ typedef ulonglong my_off_t;
 typedef unsigned long my_off_t;
 #endif
 #endif /*_WIN32*/
-#define MY_FILEPOS_ERROR	(~(my_off_t) 0)
+#define MY_FILEPOS_ERROR (~(my_off_t)0)
 
-#if defined (_WIN32)
+#if defined(_WIN32)
 /*
  off_t is 32 bit long. We do not use C runtime functions
  with off_t but native Win32 file IO APIs, that work with
@@ -100,41 +100,35 @@ typedef unsigned long my_off_t;
 #define SIZEOF_OFF_T 8
 #endif
 
-#define INT_MIN64       (~0x7FFFFFFFFFFFFFFFLL)
-#define INT_MAX64       0x7FFFFFFFFFFFFFFFLL
-#define INT_MIN32       (~0x7FFFFFFFL)
-#define INT_MAX32       0x7FFFFFFFL
-#define UINT_MAX32      0xFFFFFFFFL
-#define INT_MIN24       (~0x007FFFFF)
-#define INT_MAX24       0x007FFFFF
-#define UINT_MAX24      0x00FFFFFF
-#define INT_MIN16       (~0x7FFF)
-#define INT_MAX16       0x7FFF
-#define UINT_MAX16      0xFFFF
-#define INT_MIN8        (~0x7F)
-#define INT_MAX8        0x7F
-#define UINT_MAX8       0xFF
+#define INT_MIN64 (~0x7FFFFFFFFFFFFFFFLL)
+#define INT_MAX64 0x7FFFFFFFFFFFFFFFLL
+#define INT_MIN32 (~0x7FFFFFFFL)
+#define INT_MAX32 0x7FFFFFFFL
+#define UINT_MAX32 0xFFFFFFFFL
+#define INT_MIN24 (~0x007FFFFF)
+#define INT_MAX24 0x007FFFFF
+#define UINT_MAX24 0x00FFFFFF
+#define INT_MIN16 (~0x7FFF)
+#define INT_MAX16 0x7FFF
+#define UINT_MAX16 0xFFFF
+#define INT_MIN8 (~0x7F)
+#define INT_MAX8 0x7F
+#define UINT_MAX8 0xFF
 
 #ifndef SIZE_T_MAX
-#define SIZE_T_MAX      (~((size_t) 0))
+#define SIZE_T_MAX (~((size_t)0))
 #endif
 
 /*
   Max size that must be added to a so that we know Size to make
   adressable obj.
 */
-typedef ptrdiff_t       my_ptrdiff_t;
+typedef ptrdiff_t my_ptrdiff_t;
 
-/* Define some general constants */
-#ifndef TRUE
-#define TRUE            (1)     /* Logical true */
-#define FALSE           (0)     /* Logical false */
-#endif
-
-typedef int             myf;    /* Type of MyFlags in my_funcs */
+typedef int myf; /* Type of MyFlags in my_funcs */
 
 /* Macros for converting *constants* to the right type */
-#define MYF(v)          (myf) (v)
+#define MYF(v) (myf)(v)
 
 /* Length of decimal number represented by INT32. */
 #define MY_INT32_NUM_DECIMAL_DIGITS 11U
@@ -143,7 +137,7 @@ typedef int             myf;    /* Type of MyFlags in my_funcs */
 #define MY_INT64_NUM_DECIMAL_DIGITS 21U
 
 #ifdef _WIN32
-typedef SSIZE_T   ssize_t;
+typedef SSIZE_T ssize_t;
 #endif
 
 /*
@@ -151,7 +145,7 @@ typedef SSIZE_T   ssize_t;
   at the time.
 */
 #ifdef _WIN32
-typedef int       sigset_t;
+typedef int sigset_t;
 #endif
 
 #endif  // MY_INTTYPES_INCLUDED

@@ -28,10 +28,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/registry.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /**
   @ingroup group_ext_plugin_services
   A bridge service allowing plugins to work with the registry.
@@ -47,8 +43,7 @@ extern "C" {
   acquire otherwise resources will be leaked and normal unload order
   may be affected.
 */
-extern struct plugin_registry_service_st
-{
+extern "C" struct plugin_registry_service_st {
   /**
     Acquire a pointer to the registry service
 
@@ -86,7 +81,7 @@ extern struct plugin_registry_service_st
     See also: @ref PAGE_COMPONENTS, @ref PAGE_COMPONENTS_REGISTRY,
     @ref mysql_plugin_registry_acquire(), @ref mysql_plugin_registry_release()
   */
-  SERVICE_TYPE(registry) *(*mysql_plugin_registry_acquire_func)();
+  SERVICE_TYPE(registry) * (*mysql_plugin_registry_acquire_func)();
   /**
     Release a pointer to the registry service
 
@@ -116,18 +111,19 @@ extern struct plugin_registry_service_st
     See also @ref PAGE_COMPONENTS, @ref PAGE_COMPONENTS_REGISTRY,
     @ref mysql_plugin_registry_release(), @ref mysql_plugin_registry_acquire()
   */
-  int (*mysql_plugin_registry_release_func)(SERVICE_TYPE(registry) *registry_ptr);
-} *plugin_registry_service;
+  int (*mysql_plugin_registry_release_func)(SERVICE_TYPE(registry) *
+                                            registry_ptr);
+} * plugin_registry_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
-#define mysql_plugin_registry_acquire()  plugin_registry_service->mysql_plugin_registry_acquire_func()
-#define mysql_plugin_registry_release(r) plugin_registry_service->mysql_plugin_registry_release_func(r)
+#define mysql_plugin_registry_acquire() \
+  plugin_registry_service->mysql_plugin_registry_acquire_func()
+#define mysql_plugin_registry_release(r) \
+  plugin_registry_service->mysql_plugin_registry_release_func(r)
 #else
-  SERVICE_TYPE(registry) * mysql_plugin_registry_acquire();
-  int mysql_plugin_registry_release(SERVICE_TYPE(registry) *);
+SERVICE_TYPE(registry) * mysql_plugin_registry_acquire();
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) *);
 #endif
-#ifdef __cplusplus
-}
-#endif
+
 #define MYSQL_SERVICE_PLUGIN_REGISTRY_INCLUDED
 #endif /* MYSQL_SERVICE_PLUGIN_REGISTRY_INCLUDED */

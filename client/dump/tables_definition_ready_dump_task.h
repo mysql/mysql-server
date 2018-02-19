@@ -27,22 +27,21 @@
 
 #include "client/dump/abstract_dump_task.h"
 
-namespace Mysql{
-namespace Tools{
-namespace Dump{
+namespace Mysql {
+namespace Tools {
+namespace Dump {
 
 /**
   Represents task for additional work once all Table_definition_dump_task are
   processed.
  */
-class Tables_definition_ready_dump_task : public Abstract_dump_task
-{
-public:
+class Tables_definition_ready_dump_task : public Abstract_dump_task {
+ public:
   Tables_definition_ready_dump_task();
 };
 
-}
-}
-}
+}  // namespace Dump
+}  // namespace Tools
+}  // namespace Mysql
 
 #endif

@@ -27,11 +27,11 @@ TempTable Indexed Cells implementation. */
 #include <cstddef> /* size_t */
 #include <limits>  /* std::numeric_limits */
 
-#include "my_dbug.h"        /* DBUG_ASSERT() */
-#include "my_hash_combine.h" /* my_hash_combine() */
-#include "sql/field.h"            /* Field */
-#include "sql/key.h"        /* KEY */
-#include "storage/temptable/include/temptable/cell.h" /* temptable::Cell */
+#include "my_dbug.h"                                   /* DBUG_ASSERT() */
+#include "my_hash_combine.h"                           /* my_hash_combine() */
+#include "sql/field.h"                                 /* Field */
+#include "sql/key.h"                                   /* KEY */
+#include "storage/temptable/include/temptable/cell.h"  /* temptable::Cell */
 #include "storage/temptable/include/temptable/index.h" /* temptable::Index */
 #include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
 #include "storage/temptable/include/temptable/row.h" /* temptable::Row, temptable::Rows, temptable::Rows_cursor */
@@ -40,14 +40,14 @@ TempTable Indexed Cells implementation. */
 
 namespace temptable {
 
-Indexed_cells::Indexed_cells(const unsigned char* mysql_search_cells,
+Indexed_cells::Indexed_cells(const unsigned char *mysql_search_cells,
                              uint16_t mysql_search_cells_length,
-                             const Index& index)
+                             const Index &index)
     : m_data_location(Data_location::MYSQL_BUF_INDEX_READ),
       m_number_of_cells(0 /* set below */),
       m_length(mysql_search_cells_length),
       m_mysql_buf(mysql_search_cells) {
-  const KEY& mysql_index = index.mysql_index();
+  const KEY &mysql_index = index.mysql_index();
 
   /* It is possible that a shorter buffer is provided than what would comprise
    * the entire index (prefix search). For example: if an index has 3 columns
@@ -71,7 +71,7 @@ Indexed_cells::Indexed_cells(const unsigned char* mysql_search_cells,
   }
 }
 
-Indexed_cells::Indexed_cells(const unsigned char* mysql_row, const Index& index)
+Indexed_cells::Indexed_cells(const unsigned char *mysql_row, const Index &index)
     : m_data_location(Data_location::MYSQL_BUF_WRITE_ROW),
       m_number_of_cells(static_cast<decltype(m_number_of_cells)>(
           index.number_of_indexed_columns())),
@@ -80,7 +80,7 @@ Indexed_cells::Indexed_cells(const unsigned char* mysql_row, const Index& index)
               std::numeric_limits<decltype(m_number_of_cells)>::max());
 }
 
-Indexed_cells::Indexed_cells(const Row& row, const Index& index)
+Indexed_cells::Indexed_cells(const Row &row, const Index &index)
     : m_data_location(Data_location::ROW),
       m_number_of_cells(static_cast<decltype(m_number_of_cells)>(
           index.number_of_indexed_columns())),
@@ -89,26 +89,27 @@ Indexed_cells::Indexed_cells(const Row& row, const Index& index)
               std::numeric_limits<decltype(m_number_of_cells)>::max());
 }
 
-Cell Indexed_cells::cell(size_t i, const Index& index) const {
+Cell Indexed_cells::cell(size_t i, const Index &index) const {
   DBUG_ASSERT(i < m_number_of_cells);
 
   /** Generate a cell from a `temptable::Row` object with a possibly reduced
    * length, if a prefix index is used. */
-  auto indexed_cell_from_row = [&index](
-      /** [in] Indexed cell number in the index. E.g. if we have a row
-       * (a, b, c, d) and an index on (b, c) and we want the cell `c`,
-       * then this will be 1. */
-      size_t i,
-      /** [in] Row that contains the data. */
-      const Row& row) -> Cell {
-    const auto& indexed_column = index.indexed_column(i);
+  auto indexed_cell_from_row =
+      [&index](
+          /** [in] Indexed cell number in the index. E.g. if we have a row
+           * (a, b, c, d) and an index on (b, c) and we want the cell `c`,
+           * then this will be 1. */
+          size_t i,
+          /** [in] Row that contains the data. */
+          const Row &row) -> Cell {
+    const auto &indexed_column = index.indexed_column(i);
 
     /* In the case of the above example, this will be 2. */
     const size_t cell_index_in_row = indexed_column.field_index();
 
-    const auto& column = index.table().columns().at(cell_index_in_row);
+    const auto &column = index.table().columns().at(cell_index_in_row);
 
-    const Cell& row_cell = row.cell(column, cell_index_in_row);
+    const Cell &row_cell = row.cell(column, cell_index_in_row);
 
     /* Lower row_cell.data_length() in case we have a prefix index, e.g.:
      * CREATE TABLE t (c CHAR(16), INDEX c(10)); */
@@ -145,17 +146,17 @@ Cell Indexed_cells::cell(size_t i, const Index& index) const {
   return Cell{false, 0, nullptr};
 }
 
-int Indexed_cells::compare(const Indexed_cells& rhs, const Index& index) const {
-  const Indexed_cells& lhs = *this;
+int Indexed_cells::compare(const Indexed_cells &rhs, const Index &index) const {
+  const Indexed_cells &lhs = *this;
   const size_t lhs_num = lhs.number_of_cells();
   const size_t rhs_num = rhs.number_of_cells();
 
   const size_t number_of_cells_to_compare = std::min(lhs_num, rhs_num);
 
   for (size_t i = 0; i < number_of_cells_to_compare; ++i) {
-    const Cell& lhs_cell = lhs.cell(i, index);
-    const Cell& rhs_cell = rhs.cell(i, index);
-    const auto& indexed_column = index.indexed_column(i);
+    const Cell &lhs_cell = lhs.cell(i, index);
+    const Cell &rhs_cell = rhs.cell(i, index);
+    const auto &indexed_column = index.indexed_column(i);
 
     const int cmp_result = lhs_cell.compare(indexed_column, rhs_cell);
 
@@ -171,17 +172,17 @@ int Indexed_cells::compare(const Indexed_cells& rhs, const Index& index) const {
 }
 
 Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
-                                                   const Index& index) const {
+                                                   const Index &index) const {
   if (m_length == 0) {
     return Cell{false, 0, nullptr};
   }
 
-  const KEY& mysql_index = index.mysql_index();
+  const KEY &mysql_index = index.mysql_index();
 
-  KEY_PART_INFO* mysql_key_part = &mysql_index.key_part[i];
-  Field* mysql_field = mysql_key_part->field;
+  KEY_PART_INFO *mysql_key_part = &mysql_index.key_part[i];
+  Field *mysql_field = mysql_key_part->field;
 
-  const unsigned char* p = m_mysql_buf;
+  const unsigned char *p = m_mysql_buf;
   for (size_t j = 0; j < i; ++j) {
     p += mysql_index.key_part[j].store_length;
   }
@@ -225,7 +226,7 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
       abort();
   }
 
-  const unsigned char* data = p + user_data_offset_in_cell;
+  const unsigned char *data = p + user_data_offset_in_cell;
 
   /* User data offset from the beginning of the search cells buffer. */
   DBUG_ASSERT(data >= m_mysql_buf);
@@ -251,13 +252,13 @@ Cell Indexed_cells::cell_from_mysql_buf_index_read(size_t i,
 }
 
 size_t Indexed_cells_hash::operator()(
-    const Indexed_cells& indexed_cells) const {
+    const Indexed_cells &indexed_cells) const {
   size_t h = 0;
 
   const size_t number_of_cells = indexed_cells.number_of_cells();
 
   for (size_t i = 0; i < number_of_cells; ++i) {
-    const Cell& cell = indexed_cells.cell(i, m_index);
+    const Cell &cell = indexed_cells.cell(i, m_index);
     const size_t cell_hash = cell.hash(m_index.indexed_column(i));
     my_hash_combine(h, cell_hash);
   }

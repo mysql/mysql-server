@@ -21,13 +21,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-/* 
+/*
   main() for mysqld.
   Calls mysqld_main() entry point exported by sql library.
 */
 extern int mysqld_main(int argc, char **argv);
 
-int main(int argc, char **argv)
-{
-  return mysqld_main(argc, argv);
-}
+int main(int argc, char **argv) { return mysqld_main(argc, argv); }

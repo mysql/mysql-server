@@ -175,6 +175,9 @@ MACRO(MERGE_LIBRARIES_SHARED)
     # Collect all dynamic libraries in the same directory
     SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
       LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
+    IF(WIN32_CLANG AND WITH_ASAN)
+      TARGET_LINK_LIBRARIES(${TARGET} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+    ENDIF()
 
     IF(WIN32)
       # This must be a cmake bug on windows ...

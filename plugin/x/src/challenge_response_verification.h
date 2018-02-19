@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -42,7 +42,7 @@ class Challenge_response_verification
  public:
   explicit Challenge_response_verification(
       ngs::SHA256_password_cache_interface *cache)
-    : k_salt(generate_salt()), m_sha256_password_cache(cache) {}
+      : k_salt(generate_salt()), m_sha256_password_cache(cache) {}
 
   const std::string &get_salt() const override { return k_salt; }
 

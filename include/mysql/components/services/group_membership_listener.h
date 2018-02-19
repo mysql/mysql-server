@@ -30,45 +30,44 @@
   quorum loss.
 */
 BEGIN_SERVICE_DEFINITION(group_membership_listener)
-  /**
-    This function SHALL be called whenever there is a new view
-    installed.
+/**
+  This function SHALL be called whenever there is a new view
+  installed.
 
-    The implementation SHALL consume the notification and
-    return false on success, true on failure.
+  The implementation SHALL consume the notification and
+  return false on success, true on failure.
 
-    The implementation MUST NOT block the caller. It MUST
-    handle the notification quickly or enqueue it and deal
-    with it asynchronously.
+  The implementation MUST NOT block the caller. It MUST
+  handle the notification quickly or enqueue it and deal
+  with it asynchronously.
 
-    @param view_id The view identifier. This must be copied
-                   if the string must outlive the notification
-                   lifecycle.
+  @param view_id The view identifier. This must be copied
+                 if the string must outlive the notification
+                 lifecycle.
 
-    @return false success, true on failure.
-  */
-  DECLARE_BOOL_METHOD(notify_view_change, (const char* view_id));
+  @return false success, true on failure.
+*/
+DECLARE_BOOL_METHOD(notify_view_change, (const char *view_id));
 
-  /**
-    This function SHALL be called whenever the state of a member
-    changes to UNREACHABLE and that makes the system block.
+/**
+  This function SHALL be called whenever the state of a member
+  changes to UNREACHABLE and that makes the system block.
 
-    The implementation SHALL consume the notification and
-    return false on success, true on failure.
+  The implementation SHALL consume the notification and
+  return false on success, true on failure.
 
-    The implementation MUST NOT block the caller. It MUST
-    handle the notification quickly or enqueue it and deal
-    with it asynchronously.
+  The implementation MUST NOT block the caller. It MUST
+  handle the notification quickly or enqueue it and deal
+  with it asynchronously.
 
-    @param view_id The view identifier. This must be copied
-                   if the string must outlive the notification
-                   lifecycle.
+  @param view_id The view identifier. This must be copied
+                 if the string must outlive the notification
+                 lifecycle.
 
-    @return false success, true on failure.
-  */
-  DECLARE_BOOL_METHOD(notify_quorum_loss, (const char* view_id));
+  @return false success, true on failure.
+*/
+DECLARE_BOOL_METHOD(notify_quorum_loss, (const char *view_id));
 
 END_SERVICE_DEFINITION(group_membership_listener)
 
 #endif /* GROUP_MEMBERSHIP_LISTENER_H */
-

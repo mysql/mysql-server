@@ -15,11 +15,7 @@ start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
 Last_SQL_Error = 'Fatal error: Failed during slave thread initialization'
 include/wait_for_slave_io_error.inc [errno=1593]
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 Last_IO_Error = 'Fatal error: Failed during slave I/O thread initialization '
-Warnings:
-Warning	3090	Changing sql mode 'NO_AUTO_CREATE_USER' is deprecated. It will be removed in a future release.
 SET GLOBAL debug="";
 RESET SLAVE;
 include/rpl_end.inc

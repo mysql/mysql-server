@@ -40,14 +40,12 @@ namespace tables {
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Events : public Entity_object_table_impl
-{
-public:
+class Events : public Entity_object_table_impl {
+ public:
   static const Events &instance();
 
-  enum enum_fields
-  {
-    FIELD_ID= static_cast<uint>(Common_field::ID),
+  enum enum_fields {
+    FIELD_ID = static_cast<uint>(Common_field::ID),
     FIELD_SCHEMA_ID,
     FIELD_NAME,
     FIELD_DEFINER,
@@ -73,17 +71,15 @@ public:
     FIELD_OPTIONS
   };
 
-  enum enum_indexes
-  {
-    INDEX_PK_ID= static_cast<uint>(Common_index::PK_ID),
-    INDEX_UK_SCHEMA_ID_NAME= static_cast<uint>(Common_index::UK_NAME),
+  enum enum_indexes {
+    INDEX_PK_ID = static_cast<uint>(Common_index::PK_ID),
+    INDEX_UK_SCHEMA_ID_NAME = static_cast<uint>(Common_index::UK_NAME),
     INDEX_K_CLIENT_COLLATION_ID,
     INDEX_K_CONNECTION_COLLATION_ID,
     INDEX_K_SCHEMA_COLLATION_ID
   };
 
-  enum enum_foreign_keys
-  {
+  enum enum_foreign_keys {
     FK_SCHEMA_ID,
     FK_CLIENT_COLLATION_ID,
     FK_CONNECTION_COLLATION_ID,
@@ -94,8 +90,7 @@ public:
 
   virtual Event *create_entity_object(const Raw_record &) const;
 
-  static bool update_object_key(Item_name_key *key,
-                                Object_id schema_id,
+  static bool update_object_key(Item_name_key *key, Object_id schema_id,
                                 const String_type &event_name);
 
   static Object_key *create_key_by_schema_id(Object_id schema_id);
@@ -103,7 +98,7 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
-}
+}  // namespace tables
+}  // namespace dd
 
-#endif // DD_TABLES__EVENTS_INCLUDED
+#endif  // DD_TABLES__EVENTS_INCLUDED

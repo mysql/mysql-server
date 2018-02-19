@@ -34,6 +34,7 @@
 #include <SysLogHandler.hpp>
 
 #include <NdbSleep.h>
+#include "my_alloc.h" // MEM_ROOT
 
 #define PATH_SEPARATOR DIR_SEPARATOR
 
@@ -586,7 +587,8 @@ bool parse_args(int argc, char **argv) {
   g_logger.info("Bootstrapping using %s", mycnf.c_str());
 
   const char *groups[] = {"atrt", 0};
-  int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv);
+  MEM_ROOT *alloc = new MEM_ROOT{PSI_NOT_INSTRUMENTED, 512};  // LEAK
+  int ret = load_defaults(mycnf.c_str(), groups, &argc, &argv, alloc);
 
   if (ret) {
     g_logger.error("Failed to load defaults, returned (%d)", ret);

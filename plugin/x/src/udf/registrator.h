@@ -28,14 +28,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql/components/my_service.h"
 #include "mysql/components/services/udf_registration.h"
 
-
 namespace xpl {
 namespace udf {
 
 class Registrator {
  public:
   struct Record {
-    const char* m_name;
+    const char *m_name;
     Item_result m_result;
     Udf_func_any m_func;
     Udf_func_init m_func_init;
@@ -45,18 +44,18 @@ class Registrator {
 
   Registrator();
   ~Registrator();
-  void registration(const Record& udf, Name_registry *udf_names);
+  void registration(const Record &udf, Name_registry *udf_names);
   bool unregistration(const std::string &udf_name);
   void unregistration(Name_registry *udf_names);
 
  private:
-  Registrator(const Registrator&) = delete;
+  Registrator(const Registrator &) = delete;
 
   SERVICE_TYPE(registry) * m_registry;
   my_service<SERVICE_TYPE(udf_registration)> m_registrator;
 };
 
-}  // namespace udf
-}  // namespace xpl
+}  // namespace udf
+}  // namespace xpl
 
 #endif  // PLUGIN_X_SRC_UDF_REGISTRATOR_H

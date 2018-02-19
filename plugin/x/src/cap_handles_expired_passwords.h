@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -11,7 +11,7 @@
  * documentation.  The authors of MySQL hereby grant you an additional
  * permission to link the program and your derivative works with the
  * separately licensed software that they have included with MySQL.
- *  
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -31,51 +31,39 @@
 #include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_log.h"
 
-namespace xpl
-{
+namespace xpl {
 
-class Cap_handles_expired_passwords : public ngs::Capability_handler
-{
-public:
-  Cap_handles_expired_passwords(xpl::Client &client)
-  : m_client(client)
-  {
+class Cap_handles_expired_passwords : public ngs::Capability_handler {
+ public:
+  Cap_handles_expired_passwords(xpl::Client &client) : m_client(client) {
     m_value = m_client.supports_expired_passwords();
   }
 
-private:
+ private:
   virtual const std::string name() const { return "client.pwd_expire_ok"; }
 
   virtual bool is_supported() const { return true; }
 
-  virtual void get(::Mysqlx::Datatypes::Any &any)
-  {
+  virtual void get(::Mysqlx::Datatypes::Any &any) {
     ngs::Setter_any::set_scalar(any, m_value);
   }
 
-  virtual bool set(const ::Mysqlx::Datatypes::Any &any)
-  {
-    try
-    {
+  virtual bool set(const ::Mysqlx::Datatypes::Any &any) {
+    try {
       m_value = ngs::Getter_any::get_numeric_value<bool>(any);
-    }
-    catch (const ngs::Error_code &error)
-    {
-      log_error("Capability expired password failed with error: %s", error.message.c_str());
+    } catch (const ngs::Error_code &error) {
+      log_error(ER_XPLUGIN_CAPABILITY_EXPIRED_PASSWORD, error.message.c_str());
       return false;
     }
     return true;
   }
 
-  virtual void commit()
-  {
-    m_client.set_supports_expired_passwords(m_value);
-  }
+  virtual void commit() { m_client.set_supports_expired_passwords(m_value); }
 
-private:
+ private:
   xpl::Client &m_client;
   bool m_value;
 };
 
-}
+}  // namespace xpl
 #endif

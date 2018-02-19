@@ -28,33 +28,35 @@
 */
 
 #include <stddef.h>
-#include <functional>           // std::less
+#include <functional>  // std::less
 #include <string>
-#include <utility>              // std::pair
-#include <vector>               // std::vector
+#include <utility>  // std::pair
+#include <vector>   // std::vector
 
-#include "my_base.h"            // ha_rows
-#include "sql/histograms/equi_height_bucket.h"
+#include "m_ctype.h"
+#include "my_alloc.h"
+#include "my_base.h"  // ha_rows
+#include "mysql_time.h"
 #include "sql/histograms/value_map_type.h"
-#include "sql/memroot_allocator.h" // Memroot_allocator
-#include "sql/thr_malloc.h"
 
 class String;
-class THD;
 class my_decimal;
-template <class T> class Memroot_allocator;
-
-typedef struct st_mysql_time MYSQL_TIME;
+template <class T>
+class Memroot_allocator;
 
 namespace histograms {
 
 class Histogram;
+namespace equi_height {
+template <class T>
+class Bucket;
+}  // namespace equi_height
 
 /**
   The maximum number of characters to evaluate when building histograms. For
   binary/blob values, this is the number of bytes to consider.
 */
-static const size_t HISTOGRAM_MAX_COMPARE_LENGTH= 42;
+static const size_t HISTOGRAM_MAX_COMPARE_LENGTH = 42;
 
 /**
   Histogram comparator.
@@ -62,9 +64,8 @@ static const size_t HISTOGRAM_MAX_COMPARE_LENGTH= 42;
   Typical usage is in a "value map", where we for instance need to sort based
   on string collation and similar.
 */
-struct Histogram_comparator
-{
-public:
+struct Histogram_comparator {
+ public:
   /**
     Overload operator(), so that we can use this struct as a custom comparator
     in std classes/functions.
@@ -76,50 +77,42 @@ public:
             otherwise.
   */
   template <class T>
-  bool operator()(const T &lhs, const T &rhs) const
-  {
+  bool operator()(const T &lhs, const T &rhs) const {
     return std::less<T>()(lhs, rhs);
   }
 
   template <class T>
-  bool operator()(const T &a, const std::pair<T, ha_rows> &b) const
-  {
+  bool operator()(const T &a, const std::pair<T, ha_rows> &b) const {
     return Histogram_comparator()(a, b.first);
   }
 
   template <class T>
-  bool operator()(const std::pair<T, ha_rows> &a, const T &b) const
-  {
+  bool operator()(const std::pair<T, ha_rows> &a, const T &b) const {
     return Histogram_comparator()(a.first, b);
   }
 
   template <class T>
-  bool operator()(const std::pair<const T, double> &a, const T &b) const
-  {
+  bool operator()(const std::pair<const T, double> &a, const T &b) const {
     return Histogram_comparator()(a.first, b);
   }
 
   template <class T>
-  bool operator()(const T &a, const std::pair<const T, double> &b) const
-  {
+  bool operator()(const T &a, const std::pair<const T, double> &b) const {
     return Histogram_comparator()(a, b.first);
   }
 
   template <class T>
-  bool operator()(const equi_height::Bucket<T> &a, const T &b) const
-  {
+  bool operator()(const equi_height::Bucket<T> &a, const T &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(), b);
   }
 
   template <class T>
   bool operator()(const equi_height::Bucket<T> &a,
-                  const equi_height::Bucket<T> &b) const
-  {
+                  const equi_height::Bucket<T> &b) const {
     return Histogram_comparator()(a.get_upper_inclusive(),
                                   b.get_lower_inclusive());
   }
 };
-
 
 /**
   The abstract base class for all Value_map types.
@@ -144,22 +137,21 @@ public:
     Value_map<longlong>). Ideally, this function would have been pure virtual,
     but it's not possible to have virtual member function templates.
 */
-class Value_map_base
-{
-private:
+class Value_map_base {
+ private:
   double m_sampling_rate;
   const CHARSET_INFO *m_charset;
   ha_rows m_num_null_values;
   const Value_map_type m_data_type;
-protected:
+
+ protected:
   MEM_ROOT m_mem_root;
 
-public:
+ public:
   Value_map_base(const CHARSET_INFO *charset, double sampling_rate,
                  Value_map_type data_type);
 
-  virtual ~Value_map_base()
-  {}
+  virtual ~Value_map_base() {}
 
   /**
     Returns the number of [value, count] pairs in the Value_map.
@@ -178,14 +170,14 @@ public:
     @return false on success, and true in case of errors (OOM).
   */
   template <class T>
-  bool add_values(const T& value, const ha_rows count);
+  bool add_values(const T &value, const ha_rows count);
 
   /**
     Increase the number of null values with the given count.
 
     @param count The number of null values.
   */
-  void add_null_values(const ha_rows count) { m_num_null_values+= count; }
+  void add_null_values(const ha_rows count) { m_num_null_values += count; }
 
   /// @return The number of null values in this Value_map.
   ha_rows get_num_null_values() const { return m_num_null_values; }
@@ -217,8 +209,9 @@ public:
 
     @param sampling_rate The sampling rate.
   */
-  void set_sampling_rate(double sampling_rate)
-  { m_sampling_rate= sampling_rate; }
+  void set_sampling_rate(double sampling_rate) {
+    m_sampling_rate = sampling_rate;
+  }
 
   /// @return the character set for the data this Value_map contains
   const CHARSET_INFO *get_character_set() const { return m_charset; }
@@ -226,7 +219,6 @@ public:
   /// @return the data type that this Value_map contains
   Value_map_type get_data_type() const { return m_data_type; }
 };
-
 
 /**
   Value_map class.
@@ -236,32 +228,32 @@ public:
   duplicate checking and the underlying container.
 */
 template <class T>
-class Value_map final : public Value_map_base
-{
-private:
-  using value_map_type= std::vector<std::pair<T, ha_rows>,
-                                    Memroot_allocator<std::pair<T, ha_rows>>>;
+class Value_map final : public Value_map_base {
+ private:
+  using value_map_type = std::vector<std::pair<T, ha_rows>,
+                                     Memroot_allocator<std::pair<T, ha_rows>>>;
 
   value_map_type m_value_map;
-public:
-  Value_map(const CHARSET_INFO *charset, Value_map_type data_type,
-            double sampling_rate= 0.0)
-  :Value_map_base(charset, sampling_rate, data_type),
-  m_value_map(typename value_map_type::allocator_type(&m_mem_root))
-  {}
 
-  virtual ~Value_map()
-  {}
+ public:
+  Value_map(const CHARSET_INFO *charset, Value_map_type data_type,
+            double sampling_rate = 0.0)
+      : Value_map_base(charset, sampling_rate, data_type),
+        m_value_map(typename value_map_type::allocator_type(&m_mem_root)) {}
+
+  virtual ~Value_map() {}
 
   size_t size() const override { return m_value_map.size(); }
 
-  typename value_map_type::const_iterator begin() const
-  { return m_value_map.cbegin(); }
+  typename value_map_type::const_iterator begin() const {
+    return m_value_map.cbegin();
+  }
 
-  typename value_map_type::const_iterator end() const
-  { return m_value_map.cend(); }
+  typename value_map_type::const_iterator end() const {
+    return m_value_map.cend();
+  }
 
-  bool add_values(const T& value, const ha_rows count);
+  bool add_values(const T &value, const ha_rows count);
 
   /**
     Insert a range of values into the Value_map.
@@ -280,10 +272,9 @@ public:
   bool insert(typename value_map_type::const_iterator begin,
               typename value_map_type::const_iterator end);
 
-  virtual Histogram *build_histogram(MEM_ROOT *mem_root, size_t num_buckets,
-                                   const std::string &db_name,
-                                   const std::string &tbl_name,
-                                   const std::string &col_name) const override;
+  virtual Histogram *build_histogram(
+      MEM_ROOT *mem_root, size_t num_buckets, const std::string &db_name,
+      const std::string &tbl_name, const std::string &col_name) const override;
 };
 
 // Explicit template instantiations.
@@ -298,6 +289,6 @@ template <>
 bool Histogram_comparator::operator()(const my_decimal &,
                                       const my_decimal &) const;
 
-} // namespace histograms
+}  // namespace histograms
 
 #endif

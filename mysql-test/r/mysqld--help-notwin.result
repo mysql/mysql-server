@@ -71,9 +71,10 @@ The following options may be given as the first argument:
  and let the master continue, or abort.
  --binlog-expire-logs-seconds=# 
  If non-zero, binary logs will be purged after
- binlog_expire_logs_seconds seconds; given
- expire_logs_days is not set; possible purges happen at
- startup and at binary log rotation
+ binlog_expire_logs_seconds seconds; If both this option
+ and expire_logs_days are set to non-zero  values, this
+ option takes priority. Purges happen at startup and at
+ binary log rotation.
  --binlog-format=name 
  What form of binary logging the master will use: either
  ROW for row-based binary logging, STATEMENT for
@@ -287,9 +288,12 @@ The following options may be given as the first argument:
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
- expire_logs_days days; given binlog_expire_logs_seconds
- is not set; possible purges happen at startup and at
- binary log rotation
+ expire_logs_days days; If this option alone is set on the
+ command line or in a configuration file, it overrides the
+ default value for binlog-expire-logs-seconds. If both
+ options are set to nonzero values,
+ binlog-expire-logs-seconds takes priority. Possible
+ purges happen at startup and at binary log rotation.
  --explicit-defaults-for-timestamp 
  This option causes CREATE TABLE to create all TIMESTAMP
  columns as NULL with DEFAULT NULL attribute, Without this
@@ -450,10 +454,6 @@ The following options may be given as the first argument:
  row based binary log.  If equal to 0, then the latest
  version of events are written.  This option is useful
  during some upgrades.
- --log-builtin-as-identified-by-password 
- Controls logging of CREATE/ALTER/GRANT and SET PASSWORD
- user statements in replication binlogs, general query
- logs and audit logs.
  --log-error[=name]  Error log file
  --log-error-services=name 
  Services that should be called when an error event is
@@ -668,8 +668,6 @@ The following options may be given as the first argument:
  --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
- --old-passwords=#   Determine which hash algorithm to use when generating
- passwords using the PASSWORD() function
  --old-style-user-limits 
  Enable old-style user limits (before 5.0.3, user
  resources were counted per each user+host vs. per
@@ -1334,7 +1332,7 @@ binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-error-action ABORT_SERVER
-binlog-expire-logs-seconds 0
+binlog-expire-logs-seconds 2592000
 binlog-format ROW
 binlog-group-commit-sync-delay 0
 binlog-group-commit-sync-no-delay-count 0
@@ -1384,7 +1382,7 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler ON
-expire-logs-days 30
+expire-logs-days 0
 explicit-defaults-for-timestamp TRUE
 external-locking FALSE
 flush FALSE
@@ -1431,7 +1429,6 @@ log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
-log-builtin-as-identified-by-password FALSE
 log-error stderr
 log-error-services log_filter_internal; log_sink_internal
 log-error-verbosity 2
@@ -1505,7 +1502,6 @@ no-dd-upgrade FALSE
 offline-mode FALSE
 old FALSE
 old-alter-table FALSE
-old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
@@ -1644,7 +1640,7 @@ slow-launch-time 2
 slow-query-log FALSE
 sort-buffer-size 262144
 sporadic-binlog-dump-fail FALSE
-sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+sql-mode ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
 stored-program-cache 256
 stored-program-definition-cache 256
 super-read-only FALSE

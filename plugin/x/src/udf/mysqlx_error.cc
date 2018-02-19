@@ -28,10 +28,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 namespace xpl {
 
 namespace {
-bool mysqlx_error_init(UDF_INIT *, UDF_ARGS *args, char *message)
-{
-  if (args->arg_count == 1 && args->arg_type[0] == INT_RESULT)
-    return false;
+bool mysqlx_error_init(UDF_INIT *, UDF_ARGS *args, char *message) {
+  if (args->arg_count == 1 && args->arg_type[0] == INT_RESULT) return false;
 
   sprintf(message, "Function expect only one numeric argument");
   return true;
@@ -44,15 +42,13 @@ char *mysqlx_error(UDF_INIT *, UDF_ARGS *args, char *, unsigned long *, char *,
   *error = 1;
   return nullptr;
 }
-} // namespace
+}  // namespace
 
 namespace udf {
 Registrator::Record get_mysqlx_error_record() {
-  return {"mysqlx_error",
-          STRING_RESULT,
+  return {"mysqlx_error", STRING_RESULT,
           reinterpret_cast<Udf_func_any>(mysqlx_error),
-          reinterpret_cast<Udf_func_init>(mysqlx_error_init),
-          nullptr};
+          reinterpret_cast<Udf_func_init>(mysqlx_error_init), nullptr};
 }
 }  // namespace udf
 }  // namespace xpl

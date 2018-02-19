@@ -36,20 +36,18 @@ class Partition;
 class Partition_value_impl;
 
 namespace tables {
-  class Table_partition_values;
+class Table_partition_values;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
-class Partition_value : virtual public Weak_object
-{
-public:
+class Partition_value : virtual public Weak_object {
+ public:
   typedef Partition_value_impl Impl;
   typedef tables::Table_partition_values DD_table;
 
-public:
-  virtual ~Partition_value()
-  { };
+ public:
+  virtual ~Partition_value(){};
 
   /////////////////////////////////////////////////////////////////////////
   // Partition.
@@ -94,7 +92,6 @@ public:
   virtual bool is_value_null() const = 0;
   virtual void set_value_null(bool is_null) = 0;
 
-
   /**
     Converts *this into json.
 
@@ -108,7 +105,6 @@ public:
   */
 
   virtual void serialize(Sdi_wcontext *wctx, Sdi_writer *w) const = 0;
-
 
   /**
     Re-establishes the state of *this by reading sdi information from
@@ -129,6 +125,6 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////
 
-}
+}  // namespace dd
 
-#endif // DD__PARTITION_VALUE_INCLUDED
+#endif  // DD__PARTITION_VALUE_INCLUDED

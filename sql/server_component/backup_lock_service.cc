@@ -20,27 +20,25 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "components/mysql_server/mysql_backup_lock.h"
+#include "mysql/components/services/backup_lock_service.h"
+#include "mysql/components/service_implementation.h"
 #include "sql/current_thd.h"      // current_thd
 #include "sql/sql_backup_lock.h"  // acquire_exclusive_backup_lock,
-                                  // release_backup_lock
 
-void mysql_backup_lock_service_init()
-{
-  return;
-}
+class THD;
+// release_backup_lock
 
+void mysql_backup_lock_service_init() { return; }
 
 DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
-  (MYSQL_THD opaque_thd,
-   enum enum_backup_lock_service_lock_kind lock_kind,
-   unsigned long lock_timeout))
-{
+                   (MYSQL_THD opaque_thd,
+                    enum enum_backup_lock_service_lock_kind lock_kind,
+                    unsigned long lock_timeout)) {
   THD *thd;
   if (opaque_thd)
-    thd= static_cast<THD*>(opaque_thd);
+    thd = static_cast<THD *>(opaque_thd);
   else
-    thd= current_thd;
+    thd = current_thd;
 
   if (lock_kind == BACKUP_LOCK_SERVICE_DEFAULT)
     return acquire_exclusive_backup_lock(thd, lock_timeout);
@@ -53,19 +51,14 @@ DEFINE_BOOL_METHOD(mysql_acquire_backup_lock,
   return true;
 }
 
-
-DEFINE_BOOL_METHOD(mysql_release_backup_lock,
-  (MYSQL_THD opaque_thd))
-{
+DEFINE_BOOL_METHOD(mysql_release_backup_lock, (MYSQL_THD opaque_thd)) {
   THD *thd;
   if (opaque_thd)
-    thd= static_cast<THD*>(opaque_thd);
+    thd = static_cast<THD *>(opaque_thd);
   else
-    thd= current_thd;
+    thd = current_thd;
 
   release_backup_lock(thd);
 
   return false;
 }
-
-

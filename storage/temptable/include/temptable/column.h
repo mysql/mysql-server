@@ -29,7 +29,7 @@ TempTable Column declaration. */
 #include <cstddef> /* size_t */
 #include <vector>  /* std::vector */
 
-#include "sql/field.h"        /* Field */
+#include "sql/field.h"                                     /* Field */
 #include "storage/temptable/include/temptable/allocator.h" /* temptable::Allocator */
 
 namespace temptable {
@@ -40,9 +40,9 @@ class Column {
   /** Constructor. */
   Column(
       /** [in] MySQL table that contains the column. */
-      const TABLE& mysql_table,
+      const TABLE &mysql_table,
       /** [in] MySQL field (column/cell) that describes the columns. */
-      const Field& mysql_field);
+      const Field &mysql_field);
 
   /** Check if the cells in this column can be NULL.
    * @return true if cells are allowed to be NULL. */
@@ -53,7 +53,7 @@ class Column {
    * @return true if the cell is NULL */
   bool is_null(
       /** [in] MySQL row that contains the cell to be checked. */
-      const unsigned char* mysql_row) const;
+      const unsigned char *mysql_row) const;
 
   /** In MySQL write_row() format - the offset of the byte (from the row start)
    * that contains the bit that denotes whether a given cell is NULL or not.
@@ -88,7 +88,7 @@ class Column {
    * given row */
   uint32_t user_data_length(
       /** [in] MySQL row that contains the cell. */
-      const unsigned char* mysql_row) const;
+      const unsigned char *mysql_row) const;
 
  private:
   /** True if can be NULL. */
@@ -125,7 +125,7 @@ typedef std::vector<Column, Allocator<Column>> Columns;
 
 inline bool Column::is_nullable() const { return m_nullable; }
 
-inline bool Column::is_null(const unsigned char* mysql_row) const {
+inline bool Column::is_null(const unsigned char *mysql_row) const {
   return m_nullable && m_null_bitmask & *(mysql_row + m_null_byte_offset);
 }
 
@@ -142,8 +142,8 @@ inline uint8_t Column::length_size() const {
 
 inline size_t Column::user_data_offset() const { return m_user_data_offset; }
 
-inline uint32_t Column::user_data_length(const unsigned char* mysql_row) const {
-  const unsigned char* p = mysql_row + m_length;
+inline uint32_t Column::user_data_length(const unsigned char *mysql_row) const {
+  const unsigned char *p = mysql_row + m_length;
   switch (m_length_bytes_size) {
     case 0:
       return m_length;

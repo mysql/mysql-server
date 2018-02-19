@@ -20,7 +20,7 @@ RUN CREATE TABLE categories (
   )
 
 0 rows affected
-Insert multiple rows 
+Insert multiple rows
 send Mysqlx.Crud.Insert {
   collection {
     name: "categories"
@@ -265,7 +265,7 @@ categoryid	categoryname	categorydescription	categoryimei	categorydecimal	categor
 19	GROUND	null	null	null	null
 20	null	null	null	null	null
 0 rows affected
-RUN CREATE TABLE categories_child( col1 INT , col2 JSON ,  
+RUN CREATE TABLE categories_child( col1 INT , col2 JSON ,
        FOREIGN KEY (col1) REFERENCES categories(categoryid))
 
 0 rows affected
@@ -312,13 +312,7 @@ send Mysqlx.Crud.Insert {
 }
 
 "Insert fails as referencing value not present in parent"
-Mysqlx.Error {
-  severity: ERROR
-  code: 1452
-  msg: "Cannot add or update a child row: a foreign key constraint fails (`xplugintest`.`categories_child`, CONSTRAINT `categories_child_ibfk_1` FOREIGN KEY (`col1`) REFERENCES `categories` (`categoryid`))"
-  sql_state: "23000"
-}
-
+Got expected error: Cannot add or update a child row: a foreign key constraint fails (`xplugintest`.`categories_child`, CONSTRAINT `categories_child_ibfk_1` FOREIGN KEY (`col1`) REFERENCES `categories` (`categoryid`)) (code 1452)
 RUN SELECT * FROM categories_child
 col1	col2
 18	null
@@ -451,13 +445,7 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5116
-  msg: "Document contains a field value that is not unique but required to be"
-  sql_state: "HY000"
-}
-
+Got expected error: Document contains a field value that is not unique but required to be (code 5116)
 "Error expected as non unique value for _id provided for member of JSON doc "
 RUN SELECT * FROM maincollection
 doc	_id
@@ -484,16 +472,13 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5115
-  msg: "Document is missing a required field"
-  sql_state: "HY000"
-}
 
+1 rows affected
+auto-generated id(s): 0000XXXXXXXX0000000000000001
 "Error expected as _id member is not provided for JSON doc "
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 0 rows affected
@@ -520,16 +505,11 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 5114
-  msg: "Invalid projection for document operation"
-  sql_state: "HY000"
-}
-
+Got expected error: Invalid projection for document operation (code 5114)
 "Error expected as projection given for DOCUMENT table "
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 0 rows affected
@@ -550,9 +530,10 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Got expected error: Document is missing a required field (code 5115)
+Got expected error (one of: 5114 5115 )
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 0 rows affected
@@ -580,6 +561,7 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 {"id": null, "_id": "4", "name": "Jackson"}	4
@@ -665,6 +647,7 @@ RUN COMMIT
 0 rows affected
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 {"id": null, "_id": "4", "name": "Jackson"}	4
@@ -692,16 +675,11 @@ send Mysqlx.Crud.Insert {
   }
 }
 
-Mysqlx.Error {
-  severity: ERROR
-  code: 1099
-  msg: "Table \'maincollection\' was locked with a READ lock and can\'t be updated"
-  sql_state: "HY000"
-}
-
+Got expected error: Table 'maincollection' was locked with a READ lock and can't be updated (code 1099)
 "Error as table is locked with read lock"
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 {"id": null, "_id": "4", "name": "Jackson"}	4
@@ -736,6 +714,7 @@ send Mysqlx.Crud.Insert {
 1 rows affected
 RUN SELECT * FROM maincollection
 doc	_id
+{"id": "3", "_id": "0000XXXXXXXX0000000000000001", "name": "Omar Bras"}	0000XXXXXXXX0000000000000001
 {"id": "1", "_id": "1", "name": "Omar Bras"}	1
 {"id": "2", "_id": "2", "name": "Omar Mex"}	2
 {"id": null, "_id": "4", "name": "Jackson"}	4

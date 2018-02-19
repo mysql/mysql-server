@@ -26,6 +26,8 @@ TempTable custom allocator. */
 #ifndef TEMPTABLE_ALLOCATOR_H
 #define TEMPTABLE_ALLOCATOR_H
 
+#include <fcntl.h>
+
 #include <algorithm> /* std::max */
 #include <atomic>    /* std::atomic */
 #include <cstddef>   /* size_t */
@@ -54,12 +56,13 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 #endif /* _WIN32 */
 // clang-format on
 
-#include "my_config.h"              /* HAVE_LIBNUMA */
+#include "my_config.h" /* HAVE_LIBNUMA */
 
+#include "memory_debugging.h"
 #include "my_dbug.h"                /* DBUG_ASSERT(), DBUG_PRINT() */
 #include "my_io.h"                  /* File */
 #include "my_psi_config.h"          /* HAVE_PSI_MEMORY_INTERFACE */
-#include "my_sys.h"                 /* create_temp_file(), my_*(), MEM_*() */
+#include "my_sys.h"                 /* create_temp_file(), my_*() */
 #include "mysql/psi/mysql_memory.h" /* PSI_MEMORY_CALL */
 #include "mysql/psi/psi_base.h"     /* PSI_NOT_INSTRUMENTED */
 #include "mysql/psi/psi_memory.h"   /* PSI_memory_key, PSI_memory_info */
@@ -85,7 +88,7 @@ https://msdn.microsoft.com/en-us/library/windows/desktop/aa366891(v=vs.85).aspx
 namespace temptable {
 
 #if defined(HAVE_WINNUMA)
-extern DWORD	win_page_size;
+extern DWORD win_page_size;
 #endif /* HAVE_WINNUMA */
 
 #ifdef TEMPTABLE_PFS_MEMORY
@@ -178,10 +181,10 @@ extern bool linux_numa_available;
 template <class T>
 class Allocator {
  public:
-  typedef T* pointer;
-  typedef const T* const_pointer;
-  typedef T& reference;
-  typedef const T& const_reference;
+  typedef T *pointer;
+  typedef const T *const_pointer;
+  typedef T &reference;
+  typedef const T &const_reference;
   typedef T value_type;
   typedef size_t size_type;
   typedef ptrdiff_t difference_type;
@@ -199,48 +202,48 @@ class Allocator {
   template <class U>
   Allocator(
       /** [in] Source Allocator object. */
-      const Allocator<U>& other);
+      const Allocator<U> &other);
 
   /** Move constructor from allocator of another type. */
   template <class U>
   Allocator(
       /** [in,out] Source Allocator object. */
-      Allocator<U>&& other);
+      Allocator<U> &&other);
 
   /** Destructor. */
   ~Allocator();
 
   /** Assignment operator, not used, thus disabled. */
   template <class U>
-  void operator=(const Allocator<U>&) = delete;
+  void operator=(const Allocator<U> &) = delete;
 
   /** Move operator, not used, thus disabled. */
   template <class U>
-  void operator=(const Allocator<U>&&) = delete;
+  void operator=(const Allocator<U> &&) = delete;
 
   /** Equality operator.
    * @return true if equal */
   template <class U>
   bool operator==(
       /** [in] Object to compare with. */
-      const Allocator<U>& rhs) const;
+      const Allocator<U> &rhs) const;
 
   /** Inequality operator.
    * @return true if not equal */
   template <class U>
   bool operator!=(
       /** [in] Object to compare with. */
-      const Allocator<U>& rhs) const;
+      const Allocator<U> &rhs) const;
 
   /** Allocate memory for storing `n_elements` number of elements. */
-  T* allocate(
+  T *allocate(
       /** [in] Number of elements that must be allocated. */
       size_t n_elements);
 
   /** Free a memory allocated by allocate(). */
   void deallocate(
       /** [in,out] Pointer to memory to free. */
-      T* ptr,
+      T *ptr,
       /** [in] Number of elements allocated. */
       size_t n_elements);
 
@@ -249,16 +252,16 @@ class Allocator {
   template <class U, class... Args>
   void construct(
       /** [in] Memory where to create the object. */
-      U* mem,
+      U *mem,
       /** Arguments to pass to U's constructor. */
-      Args&&... args);
+      Args &&... args);
 
   /** Destroy an object of type `U`. The memory is not returned to the OS, this
    * is the counterpart of `construct()`. */
   template <class U>
   void destroy(
       /** [in, out] Object to destroy. */
-      U* p);
+      U *p);
 
   /** Initialize necessary structures. Called once in the OS process lifetime,
    * before other methods. */
@@ -269,7 +272,7 @@ class Allocator {
   static void end_thread();
 
   /** Current not-yet-full block to feed allocations from. */
-  uint8_t* m_current_block;
+  uint8_t *m_current_block;
 
   /** Number of created blocks so far (by this Allocator object). This can go
    * negative because of the way std:: containers use the Allocator:
@@ -299,7 +302,7 @@ class Allocator {
   typedef uintptr_t Block_offset;
 
   /** Memory allocated by the Allocator is aligned to this number of bytes. */
-  static constexpr size_t ALIGN_TO = alignof(void*);
+  static constexpr size_t ALIGN_TO = alignof(void *);
 
   /** Block header size. Each block has a header of 3 numbers:
    * - block size
@@ -318,89 +321,89 @@ class Allocator {
    * @return true if aligned */
   static bool is_aligned(
       /** [in] Pointer to check. */
-      const void* ptr);
+      const void *ptr);
 #endif /* DBUG_OFF */
 
   /** Fetch (allocate) memory either from RAM or from disk.
    * @return pointer to allocated memory or nullptr */
-  void* mem_fetch(
+  void *mem_fetch(
       /** [in] Number of bytes to allocate. */
       size_t bytes);
 
   /** Drop (deallocate) memory returned by `fetch()`. */
   static void mem_drop(
       /** [in, out] Pointer returned by `fetch()`. */
-      void* ptr,
+      void *ptr,
       /** [in] Size of the allocated memory, as given to `fetch()`. */
       size_t bytes);
 
   /** Fetch (allocate) memory from RAM. The returned pointer must be passed to
    * `mem_drop_from_ram()` when no longer needed.
    * @return pointer to allocated memory or nullptr */
-  void* mem_fetch_from_ram(
+  void *mem_fetch_from_ram(
       /** [in] Number of bytes to allocate. */
       size_t bytes);
 
   /** Drop (deallocate) memory returned by `mem_fetch_from_ram()`. */
   static void mem_drop_from_ram(
       /** [in, out] Pointer returned by `mem_fetch_from_ram()`. */
-      void* ptr,
+      void *ptr,
       /** [in] Size of the memory, as given to `mem_fetch_from_ram()`. */
       size_t bytes);
 
   /** Fetch (allocate) memory from disk. The returned pointer must be passed
    * to `mem_drop_from_disk()` when no longer needed.
    * @return pointer to allocated memory or nullptr */
-  void* mem_fetch_from_disk(
+  void *mem_fetch_from_disk(
       /** [in] Number of bytes to allocate. */
       size_t bytes);
 
   /** Drop (deallocate) memory returned by `mem_fetch_from_disk()`. */
   static void mem_drop_from_disk(
       /** [in, out] Pointer returned by `mem_fetch_from_disk()`. */
-      void* ptr,
+      void *ptr,
       /** [in] Size of the memory, as given to `mem_fetch_from_disk()`. */
       size_t bytes);
 
   /** Get a pointer to the number that stores the size of a block.
    * @return pointer to the size */
-  static Block_offset* block_size_ptr(
+  static Block_offset *block_size_ptr(
       /** [in] Block to query. */
-      uint8_t* block);
+      uint8_t *block);
 
   /** Get a pointer to the number that stores the count of allocated chunks
    * from a block.
    * @return pointer to the count */
-  Block_offset* block_number_of_used_chunks_ptr(
+  Block_offset *block_number_of_used_chunks_ptr(
       /** [in] Block to query. */
-      uint8_t* block) const;
+      uint8_t *block) const;
 
   /** Get a pointer to the number that designates the first pristine offset of
    * a block. It is the offset of the first byte that is not occupied and
    * everything after it until the end of the block can be used to feed
    * allocations.
    * @return pointer to the count */
-  Block_offset* block_first_pristine_offset_ptr(
+  Block_offset *block_first_pristine_offset_ptr(
       /** [in] Block to query. */
-      uint8_t* block) const;
+      uint8_t *block) const;
 
   /** Generate a human readable string that describes a block.
    * @return human readable string */
   std::string block_to_string(
       /** [in] Block whose metadata to convert to string. */
-      uint8_t* block) const;
+      uint8_t *block) const;
 
   /** Check if a given number of bytes can be allocated from a block.
    * @return true if can be allocated */
   bool block_can_accommodate(
       /** [in] Block to check for enough space. */
-      uint8_t* block,
+      uint8_t *block,
       /** [in] Desired allocation size in bytes. */
       size_t desired_size) const;
 
   /** Create a block.
    * @return the newly created block */
-  uint8_t* block_create(
+  uint8_t *block_create(
       /** The number of bytes that first will be allocated from this block, it
        * will be able to satisfy at least one allocation of that size. */
       size_t first_alloc_size);
@@ -411,40 +414,40 @@ class Allocator {
    * pointer to it will become stale after this method completes. */
   void block_destroy(
       /** [in, out] Block to destroy. */
-      uint8_t* block);
+      uint8_t *block);
 
   /** Just free the memory occupied by a block, returning it to the OS as the
    * last part of destroying a block. */
   static void block_destroy_mem_free(
       /** [in, out] Block to destroy. */
-      uint8_t* block);
+      uint8_t *block);
 
   /** Allocate some bytes from a given block. When the caller no longer needs
    * the memory returned by this method he should call
    * `block_decrement_used_chunks()` on the same block (which can be derived
    * from the pointer with `block_deduce_from_ptr()`).
    * @return a pointer to the allocated chunk */
-  void* block_allocate_from(
+  void *block_allocate_from(
       /** [in] Block to allocate from. */
-      uint8_t* block,
+      uint8_t *block,
       /** [in] Number of bytes to allocate. */
       size_t requested_size);
 
   /** Derive a block from a pointer returned by `block_allocate_from()`.
    * @return block that contains `ptr` */
-  uint8_t* block_deduce_from_ptr(
+  uint8_t *block_deduce_from_ptr(
       /** [in] Chunk returned by `block_allocate_from()`. */
-      void* ptr) const;
+      void *ptr) const;
 
   /** Decrement the number of used chunks in a block by one.
    * @return new number of used chunks after the decrement */
   Block_offset block_decrement_used_chunks(
       /** [in, out] Block whose number of used chunks to decrement. */
-      uint8_t* block);
+      uint8_t *block);
 };
 
 /** Block that is shared between different tables within a given OS thread. */
-extern thread_local uint8_t* shared_block;
+extern thread_local uint8_t *shared_block;
 
 /** Total bytes allocated so far by all threads in RAM. This is used to check if
  * we have reached the `temptable_max_ram` threshold. */
@@ -458,13 +461,13 @@ inline Allocator<T>::Allocator()
 
 template <class T>
 template <class U>
-inline Allocator<T>::Allocator(const Allocator<U>& other)
+inline Allocator<T>::Allocator(const Allocator<U> &other)
     : m_current_block(other.m_current_block),
       m_number_of_blocks(other.m_number_of_blocks) {}
 
 template <class T>
 template <class U>
-inline Allocator<T>::Allocator(Allocator<U>&& other)
+inline Allocator<T>::Allocator(Allocator<U> &&other)
     : m_current_block(other.m_current_block),
       m_number_of_blocks(other.m_number_of_blocks) {
   other.m_current_block = nullptr;
@@ -476,18 +479,18 @@ inline Allocator<T>::~Allocator() {}
 
 template <class T>
 template <class U>
-inline bool Allocator<T>::operator==(const Allocator<U>&) const {
+inline bool Allocator<T>::operator==(const Allocator<U> &) const {
   return true;
 }
 
 template <class T>
 template <class U>
-inline bool Allocator<T>::operator!=(const Allocator<U>& rhs) const {
+inline bool Allocator<T>::operator!=(const Allocator<U> &rhs) const {
   return !(*this == rhs);
 }
 
 template <class T>
-inline T* Allocator<T>::allocate(size_t n_elements) {
+inline T *Allocator<T>::allocate(size_t n_elements) {
   static_assert(sizeof(T) > 0, "Zero sized objects are not supported");
   DBUG_ASSERT(n_elements <= std::numeric_limits<size_type>::max() / sizeof(T));
 
@@ -502,7 +505,7 @@ inline T* Allocator<T>::allocate(size_t n_elements) {
   /* Round up to the next multiple of ALIGN_TO. */
   size_bytes = (size_bytes + ALIGN_TO - 1) & ~(ALIGN_TO - 1);
 
-  uint8_t* b;
+  uint8_t *b;
 
   if (shared_block == nullptr) {
     shared_block = block_create(size_bytes);
@@ -517,11 +520,11 @@ inline T* Allocator<T>::allocate(size_t n_elements) {
     b = m_current_block;
   }
 
-  return reinterpret_cast<T*>(block_allocate_from(b, size_bytes));
+  return reinterpret_cast<T *>(block_allocate_from(b, size_bytes));
 }
 
 template <class T>
-inline void Allocator<T>::deallocate(T* ptr, size_t n_elements) {
+inline void Allocator<T>::deallocate(T *ptr, size_t n_elements) {
   if (ptr == nullptr) {
     return;
   }
@@ -535,7 +538,7 @@ inline void Allocator<T>::deallocate(T* ptr, size_t n_elements) {
   PSI_MEMORY_CALL(memory_free)(mem_key_logical, size_bytes, nullptr);
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
 
-  uint8_t* block = block_deduce_from_ptr(ptr);
+  uint8_t *block = block_deduce_from_ptr(ptr);
 
   DBUG_PRINT("temptable_allocator",
              ("deallocate from block: ptr=%p, size=%zu, deduced_block=(%s)",
@@ -544,7 +547,7 @@ inline void Allocator<T>::deallocate(T* ptr, size_t n_elements) {
   /* If we are freeing the rightmost chunk in this block, then lower the
    * first_pristine_offset mark, so that the memory region can be reused. */
   if (*block_first_pristine_offset_ptr(block) ==
-      reinterpret_cast<uint8_t*>(ptr) - block + size_bytes) {
+      reinterpret_cast<uint8_t *>(ptr) - block + size_bytes) {
     *block_first_pristine_offset_ptr(block) -=
         BLOCK_META_BYTES_PER_CHUNK + size_bytes;
   }
@@ -566,20 +569,21 @@ inline void Allocator<T>::deallocate(T* ptr, size_t n_elements) {
 
 template <class T>
 template <class U, class... Args>
-inline void Allocator<T>::construct(U* mem, Args&&... args) {
+inline void Allocator<T>::construct(U *mem, Args &&... args) {
   new (mem) U(std::forward<Args>(args)...);
 }
 
 template <class T>
 template <class U>
-inline void Allocator<T>::destroy(U* p) {
+inline void Allocator<T>::destroy(U *p) {
   p->~U();
 }
 
 template <class T>
 inline void Allocator<T>::init() {
 #ifdef TEMPTABLE_PFS_MEMORY
-  PSI_MEMORY_CALL(register_memory)("temptable", pfs_info, pfs_info_num_elements);
+  PSI_MEMORY_CALL(register_memory)
+  ("temptable", pfs_info, pfs_info_num_elements);
 #endif /* TEMPTABLE_PFS_MEMORY */
 
 #if defined(TEMPTABLE_USE_LINUX_NUMA)
@@ -597,13 +601,13 @@ inline void Allocator<T>::end_thread() {
 
 #ifndef DBUG_OFF
 template <class T>
-inline bool Allocator<T>::is_aligned(const void* ptr) {
+inline bool Allocator<T>::is_aligned(const void *ptr) {
   return reinterpret_cast<uintptr_t>(ptr) % ALIGN_TO == 0;
 }
 #endif /* DBUG_OFF */
 
 template <class T>
-inline void* Allocator<T>::mem_fetch(size_t bytes) {
+inline void *Allocator<T>::mem_fetch(size_t bytes) {
   DBUG_ASSERT(bytes <=
               std::numeric_limits<decltype(bytes)>::max() - sizeof(Mem_type));
   bytes += sizeof(Mem_type);
@@ -627,7 +631,7 @@ inline void* Allocator<T>::mem_fetch(size_t bytes) {
     }
   }
 
-  void* ptr;
+  void *ptr;
 
   if (t == Mem_type::RAM) {
     ptr = mem_fetch_from_ram(bytes);
@@ -641,13 +645,13 @@ inline void* Allocator<T>::mem_fetch(size_t bytes) {
     }
   }
 
-  *reinterpret_cast<Mem_type*>(ptr) = t;
+  *reinterpret_cast<Mem_type *>(ptr) = t;
 
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key =
       t == Mem_type::RAM ? mem_key_physical_ram : mem_key_physical_disk;
 
-  PSI_thread* owner_thread;
+  PSI_thread *owner_thread;
 
 #ifndef DBUG_OFF
   PSI_memory_key got_key =
@@ -661,16 +665,16 @@ inline void* Allocator<T>::mem_fetch(size_t bytes) {
                 "Mem_type must be multiple (or equal) to ALIGN_TO");
   DBUG_ASSERT(is_aligned(ptr));
 
-  return reinterpret_cast<Mem_type*>(ptr) + 1;
+  return reinterpret_cast<Mem_type *>(ptr) + 1;
 }
 
 template <class T>
-inline void Allocator<T>::mem_drop(void* ptr, size_t bytes) {
+inline void Allocator<T>::mem_drop(void *ptr, size_t bytes) {
   bytes += sizeof(Mem_type);
 
-  ptr = reinterpret_cast<Mem_type*>(ptr) - 1;
+  ptr = reinterpret_cast<Mem_type *>(ptr) - 1;
 
-  const Mem_type t = *reinterpret_cast<Mem_type*>(ptr);
+  const Mem_type t = *reinterpret_cast<Mem_type *>(ptr);
 
   if (t == Mem_type::RAM) {
     bytes_allocated_in_ram.fetch_sub(bytes);
@@ -687,7 +691,7 @@ inline void Allocator<T>::mem_drop(void* ptr, size_t bytes) {
 }
 
 template <class T>
-inline void* Allocator<T>::mem_fetch_from_ram(size_t bytes) {
+inline void *Allocator<T>::mem_fetch_from_ram(size_t bytes) {
 #if defined(TEMPTABLE_USE_LINUX_NUMA)
   if (linux_numa_available) {
     return numa_alloc_local(bytes);
@@ -699,8 +703,8 @@ inline void* Allocator<T>::mem_fetch_from_ram(size_t bytes) {
   USHORT numaNodeId;
   GetCurrentProcessorNumberEx(&processorNumber);
   GetNumaProcessorNodeEx(&processorNumber, &numaNodeId);
-  bytes = (bytes + win_page_size - 1) &
-          ~(static_cast<size_t>(win_page_size) - 1);
+  bytes =
+      (bytes + win_page_size - 1) & ~(static_cast<size_t>(win_page_size) - 1);
   return VirtualAllocExNuma(GetCurrentProcess(), NULL, bytes,
                             MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE,
                             numaNodeId);
@@ -711,7 +715,7 @@ inline void* Allocator<T>::mem_fetch_from_ram(size_t bytes) {
 
 template <class T>
 inline void Allocator<T>::mem_drop_from_ram(
-    void* ptr, size_t bytes MY_ATTRIBUTE((unused))) {
+    void *ptr, size_t bytes MY_ATTRIBUTE((unused))) {
 #if defined(TEMPTABLE_USE_LINUX_NUMA)
   if (linux_numa_available) {
     numa_free(ptr, bytes);
@@ -719,7 +723,7 @@ inline void Allocator<T>::mem_drop_from_ram(
     free(ptr);
   }
 #elif defined(HAVE_WINNUMA)
-  auto	ret = VirtualFree(ptr, 0, MEM_RELEASE);
+  auto ret = VirtualFree(ptr, 0, MEM_RELEASE);
   assert(ret != 0);
 #else
   free(ptr);
@@ -727,13 +731,12 @@ inline void Allocator<T>::mem_drop_from_ram(
 }
 
 template <class T>
-inline void* Allocator<T>::mem_fetch_from_disk(size_t bytes) {
+inline void *Allocator<T>::mem_fetch_from_disk(size_t bytes) {
   /* Save the file descriptor at the beginning, we will need it in
    * mem_drop_from_disk(). */
   DBUG_ASSERT(bytes <= std::numeric_limits<decltype(bytes)>::max() - ALIGN_TO);
 
-  DBUG_EXECUTE_IF("temptable_fetch_from_disk_return_null",
-      return nullptr;);
+  DBUG_EXECUTE_IF("temptable_fetch_from_disk_return_null", return nullptr;);
 
   bytes += ALIGN_TO;
 
@@ -746,8 +749,8 @@ inline void* Allocator<T>::mem_fetch_from_disk(size_t bytes) {
 #endif /* _WIN32 */
 
   char file_path[FN_REFLEN];
-  File f =
-      create_temp_file(file_path, nullptr, "mysql_temptable.", mode, MYF(MY_WME));
+  File f = create_temp_file(file_path, nullptr, "mysql_temptable.", mode,
+                            MYF(MY_WME));
 
   if (f >= 0) {
     unlink(file_path);
@@ -762,25 +765,25 @@ inline void* Allocator<T>::mem_fetch_from_disk(size_t bytes) {
     return nullptr;
   }
 
-  void* ptr = my_mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
+  void *ptr = my_mmap(nullptr, bytes, PROT_READ | PROT_WRITE, MAP_SHARED, f, 0);
 
   if (ptr == MAP_FAILED) {
     my_close(f, MYF(MY_WME));
     return nullptr;
   }
 
-  *reinterpret_cast<File*>(ptr) = f;
+  *reinterpret_cast<File *>(ptr) = f;
 
-  return reinterpret_cast<char*>(ptr) + ALIGN_TO;
+  return reinterpret_cast<char *>(ptr) + ALIGN_TO;
 }
 
 template <class T>
-inline void Allocator<T>::mem_drop_from_disk(void* ptr, size_t bytes) {
+inline void Allocator<T>::mem_drop_from_disk(void *ptr, size_t bytes) {
   bytes += ALIGN_TO;
 
-  ptr = reinterpret_cast<char*>(ptr) - ALIGN_TO;
+  ptr = reinterpret_cast<char *>(ptr) - ALIGN_TO;
 
-  File f = *reinterpret_cast<File*>(ptr);
+  File f = *reinterpret_cast<File *>(ptr);
 
   my_munmap(ptr, bytes);
 
@@ -788,30 +791,30 @@ inline void Allocator<T>::mem_drop_from_disk(void* ptr, size_t bytes) {
 }
 
 template <class T>
-inline typename Allocator<T>::Block_offset* Allocator<T>::block_size_ptr(
-    uint8_t* block) {
+inline typename Allocator<T>::Block_offset *Allocator<T>::block_size_ptr(
+    uint8_t *block) {
   DBUG_ASSERT(is_aligned(block));
-  return reinterpret_cast<Block_offset*>(block);
+  return reinterpret_cast<Block_offset *>(block);
 }
 
 template <class T>
-inline typename Allocator<T>::Block_offset*
-Allocator<T>::block_number_of_used_chunks_ptr(uint8_t* block) const {
+inline typename Allocator<T>::Block_offset *
+Allocator<T>::block_number_of_used_chunks_ptr(uint8_t *block) const {
   DBUG_ASSERT(is_aligned(block));
-  return reinterpret_cast<Block_offset*>(block + sizeof(Block_offset));
+  return reinterpret_cast<Block_offset *>(block + sizeof(Block_offset));
 }
 
 template <class T>
-inline typename Allocator<T>::Block_offset*
-Allocator<T>::block_first_pristine_offset_ptr(uint8_t* block) const {
+inline typename Allocator<T>::Block_offset *
+Allocator<T>::block_first_pristine_offset_ptr(uint8_t *block) const {
   DBUG_ASSERT(is_aligned(block));
-  return reinterpret_cast<Block_offset*>(block + 2 * sizeof(Block_offset));
+  return reinterpret_cast<Block_offset *>(block + 2 * sizeof(Block_offset));
 }
 
 template <class T>
-inline std::string Allocator<T>::block_to_string(uint8_t* block) const {
+inline std::string Allocator<T>::block_to_string(uint8_t *block) const {
   std::stringstream s;
-  s << "address=" << static_cast<void*>(block)
+  s << "address=" << static_cast<void *>(block)
     << ", size=" << *block_size_ptr(block)
     << ", num_chunks=" << *block_number_of_used_chunks_ptr(block)
     << ", first_pristine=" << *block_first_pristine_offset_ptr(block);
@@ -819,7 +822,7 @@ inline std::string Allocator<T>::block_to_string(uint8_t* block) const {
 }
 
 template <class T>
-inline bool Allocator<T>::block_can_accommodate(uint8_t* block,
+inline bool Allocator<T>::block_can_accommodate(uint8_t *block,
                                                 size_t desired_size) const {
   const auto block_size = *block_size_ptr(block);
   const auto first_pristine_offset = *block_first_pristine_offset_ptr(block);
@@ -833,7 +836,7 @@ inline bool Allocator<T>::block_can_accommodate(uint8_t* block,
 }
 
 template <class T>
-inline uint8_t* Allocator<T>::block_create(size_t first_alloc_size) {
+inline uint8_t *Allocator<T>::block_create(size_t first_alloc_size) {
   /* By default we allocate blocks of a few MiB each:
    * 1 MiB,
    * 2 MiB,
@@ -878,7 +881,7 @@ inline uint8_t* Allocator<T>::block_create(size_t first_alloc_size) {
 
   const size_t size = std::max(required_bytes, intended_bytes);
 
-  uint8_t* block = static_cast<uint8_t*>(mem_fetch(size));
+  uint8_t *block = static_cast<uint8_t *>(mem_fetch(size));
 
   *block_size_ptr(block) = size;
   *block_number_of_used_chunks_ptr(block) = 0;
@@ -900,7 +903,7 @@ inline uint8_t* Allocator<T>::block_create(size_t first_alloc_size) {
 }
 
 template <class T>
-inline void Allocator<T>::block_destroy(uint8_t* block) {
+inline void Allocator<T>::block_destroy(uint8_t *block) {
   DBUG_ASSERT(*block_number_of_used_chunks_ptr(block) == 0);
 
   --m_number_of_blocks;
@@ -909,13 +912,13 @@ inline void Allocator<T>::block_destroy(uint8_t* block) {
 }
 
 template <class T>
-inline void Allocator<T>::block_destroy_mem_free(uint8_t* block) {
+inline void Allocator<T>::block_destroy_mem_free(uint8_t *block) {
   const auto block_size = *block_size_ptr(block);
   mem_drop(block, block_size);
 }
 
 template <class T>
-inline void* Allocator<T>::block_allocate_from(uint8_t* block,
+inline void *Allocator<T>::block_allocate_from(uint8_t *block,
                                                size_t requested_size) {
   DBUG_ASSERT(requested_size % ALIGN_TO == 0);
   DBUG_ASSERT(block_can_accommodate(block, requested_size));
@@ -925,19 +928,19 @@ inline void* Allocator<T>::block_allocate_from(uint8_t* block,
   auto first_pristine_offset = *block_first_pristine_offset_ptr(block);
   DBUG_ASSERT(first_pristine_offset % ALIGN_TO == 0);
 
-  uint8_t* p = block + first_pristine_offset;
+  uint8_t *p = block + first_pristine_offset;
 
   /* Remove the "no access" flag we set on this memory during block creation.
    * Relax it to report read+depend_on_contents. */
   MEM_UNDEFINED(p, BLOCK_META_BYTES_PER_CHUNK + requested_size);
 
-  *reinterpret_cast<Block_offset*>(p) = first_pristine_offset;
+  *reinterpret_cast<Block_offset *>(p) = first_pristine_offset;
 
   *block_first_pristine_offset_ptr(block) +=
       BLOCK_META_BYTES_PER_CHUNK + requested_size;
 
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
-  PSI_thread* owner_thread;
+  PSI_thread *owner_thread;
 
 #ifndef DBUG_OFF
   PSI_memory_key key =
@@ -948,7 +951,7 @@ inline void* Allocator<T>::block_allocate_from(uint8_t* block,
   DBUG_ASSERT(key == mem_key_logical || key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
 
-  void* ret = static_cast<void*>(p + BLOCK_META_BYTES_PER_CHUNK);
+  void *ret = static_cast<void *>(p + BLOCK_META_BYTES_PER_CHUNK);
 
   DBUG_PRINT(
       "temptable_allocator",
@@ -959,17 +962,17 @@ inline void* Allocator<T>::block_allocate_from(uint8_t* block,
 }
 
 template <class T>
-inline uint8_t* Allocator<T>::block_deduce_from_ptr(void* ptr) const {
-  uint8_t* offset_ptr = static_cast<uint8_t*>(ptr) - sizeof(Block_offset);
+inline uint8_t *Allocator<T>::block_deduce_from_ptr(void *ptr) const {
+  uint8_t *offset_ptr = static_cast<uint8_t *>(ptr) - sizeof(Block_offset);
 
   DBUG_ASSERT(is_aligned(offset_ptr));
 
-  return offset_ptr - *reinterpret_cast<Block_offset*>(offset_ptr);
+  return offset_ptr - *reinterpret_cast<Block_offset *>(offset_ptr);
 }
 
 template <class T>
 inline typename Allocator<T>::Block_offset
-Allocator<T>::block_decrement_used_chunks(uint8_t* block) {
+Allocator<T>::block_decrement_used_chunks(uint8_t *block) {
   DBUG_ASSERT(*block_number_of_used_chunks_ptr(block) > 0);
   return --*block_number_of_used_chunks_ptr(block);
 }

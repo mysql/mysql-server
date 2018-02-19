@@ -1,0 +1,267 @@
+################################################################################
+# This test validates that in a group with two members, if one of the members
+# goes away, the group will block. In addition, it also checks that if the
+# group is forcefully reconfigured the system will resume operations.
+#
+# It is a variation of other reconfiguration tests that we have deployed
+# already, except that this tests the case of 2 servers only.
+#
+# The test does the following:
+# 0. The test requires two servers: server1 and server2.
+# 1. Bootstrap start group on server1. Start GR on server2. Create table on
+#   server2 for replicating data.
+# 2. Crashes one server: server2.
+# 3. Issue a transaction on the server1 that is still up and validate that it
+#    blocks (best effort test).
+# 4. Validate that the group configuration still shows up as two servers.
+# 5. Unblock the group by reconfiguring it forcefully to a single server.
+# 6. Check that the pending transaction was unblocked.
+# 7. Validate that the configuration is now a single server.
+# 8. Issue a new transaction and validate that it completes.
+# 9. Join server2 again.
+# 10. Check that the group configuration has changed on both servers.
+# 11. Check that the contents of the replicated table are in sync.
+################################################################################
+# This test does crashes servers, thence we skip it on valgrind.
+--source include/not_valgrind.inc
+--source include/big_test.inc
+--source include/force_restart.inc
+--source include/have_group_replication_plugin.inc
+
+###
+### 1. sets up the group with two servers: server1 and server2
+###
+
+--let $rpl_server_count= 2
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+--let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
+
+SET SQL_LOG_BIN=0;
+call mtr.add_suppression("site definition is null");
+SET SQL_LOG_BIN=1;
+
+# start the server
+--source include/start_group_replication.inc
+
+# save this, since it will be used to recover the server later on
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+--let $group_seeds_server2= `SELECT @@GLOBAL.group_replication_group_seeds`
+
+# create a table for replicating data
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+--source include/rpl_sync.inc
+
+###
+### 2. crashes one server: server2
+###
+
+#
+# We do kill the servers, using shutdown_server 0, and then
+# MTR will follow the expect file and restart the sever. We
+# wait for the server to start.
+#
+# However, since the servers loose its GCS configuration they
+# will not rejoin the group.
+#
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+#
+# Wait for the member state be unreachable, meaning
+# that we have lost quorum and we are conveying the
+# information to the user that the we are unable to
+# speak to server 2.
+#
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $member2_uuid
+--source include/gr_wait_for_member_state.inc
+# reset the group_replication_id var
+--let $group_replication_member_id= $member1_uuid
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+
+--replace_result $group_seeds_server2 GROUP_SEEDS_SERVER2
+--eval SET @@global.group_replication_group_seeds="$group_seeds_server2"
+--replace_result $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET @@global.group_replication_local_address="$local_address_server2"
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET @@global.group_replication_group_name="$group_replication_group_name"
+
+###
+### 3. issue a transaction on the server that is still up
+###    and validate that it blocks (best effort test)
+###
+# Group is blocked and so cannot change its configuration.
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+# This transaction will be blocked since group lost its majority.
+# Though it needs to be delivered to the group when unblocked.
+--send INSERT INTO t1 VALUES (1)
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+# wait until the transaction blocks on query end
+--let $wait_condition= select PROCESSLIST_STATE="query end" from performance_schema.threads where processlist_INFO LIKE "INSERT INTO t1 VALUES (1)"
+--source include/wait_condition.inc
+
+###
+### 4. validate that the group configuration still shows
+###    up as two servers (and one is unreachable)
+###
+
+# verify that there are still two members in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $assert_text= t1 does not have 2 inserted into it yet
+--let $assert_cond= COUNT(*)=0 FROM t1
+--source include/assert.inc
+
+--let $res= `SELECT COUNT(*)=1 FROM performance_schema.replication_group_members WHERE member_id="$member2_uuid" AND member_state="UNREACHABLE"`
+--let $assert_text= server 2 is marked as unreachable
+--let $assert_cond= $res = 1
+--source include/assert.inc
+
+###
+### 5. Unblock the group by reconfiguring it forcefully to a
+###    single server.
+
+--disable_query_log
+--eval SET GLOBAL group_replication_force_members= "$local_address_server1"
+--enable_query_log
+
+--let $assert_text= group_replication_force_members is correct
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_force_members]" = "$local_address_server1"
+--source include/assert.inc
+
+# verify that the table has now only 1 member
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+# no more unreachable entries in the table
+--let $res= `SELECT COUNT(*)=0 FROM performance_schema.replication_group_members WHERE member_state="UNREACHABLE"`
+--let $assert_text= No more unreachable servers in the P_S table.
+--let $assert_cond= $res = 1
+--source include/assert.inc
+
+###
+### 6. Check that the pending transaction was unblocked.
+###
+
+# the transaction will resume now
+--let $wait_condition= SELECT COUNT(*)=1 FROM t1
+--source include/wait_condition.inc
+
+# reap the transaction that had been waiting for the majority
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--reap
+
+###
+### 7. validate that the configuration is now a single server
+###
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $group_replication_number_of_members= 1
+--source include/gr_wait_for_number_of_members.inc
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $assert_text= Server 1 must be present on group members
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_members WHERE member_id="$server_uuid"] = 1
+--source include/assert.inc
+
+--let $raw_view_id= query_get_value(SELECT view_id FROM performance_schema.replication_group_member_stats, view_id, 1)
+--let $view_id= `SELECT RIGHT('$raw_view_id', 1)`
+--let $assert_text= The value of view_id must be random:3
+--let $assert_cond= $view_id >= 3
+--source include/assert.inc
+
+###
+### 8. issue a new transaction and validate that it completes.
+###
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+INSERT INTO t1 VALUES (2);
+
+--let $assert_text= 'There are two values in table t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1, count, 1] = 2
+--source include/assert.inc
+
+###
+### 9. join server 2 again
+###
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# this already waits for recovery to happen
+--source include/start_group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# sync just to make sure
+--source include/rpl_sync.inc
+
+###
+### 10. check that the group configuration has changed on both
+###     servers
+
+# validate that there are two servers in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# validate that there are two servers in the group
+--let $group_replication_number_of_members= 2
+--source include/gr_wait_for_number_of_members.inc
+
+###
+### 11. check that the contents of the replicated table are
+###      in sync
+###
+
+# validate that the table content is in sync
+--let diff_tables=server1:test.t1,server2:test.t1
+--source include/diff_tables.inc
+
+### Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+DROP table t1;
+
+--source include/group_replication_end.inc

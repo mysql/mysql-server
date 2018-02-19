@@ -86,7 +86,7 @@ GRANT SELECT ON test.* TO wp_administrators;
 TODO verify that joe@localhost can transfer wp_administrators
 # Granting a role on SQL objects must fail.
 GRANT engineering ON *.*, SUPER ON *.* TO joan, sally;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ' SUPER ON *.* TO joan, sally' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ', SUPER ON *.* TO joan, sally' at line 1
 # Mixing ACLs and roles in a grant must fail.
 GRANT SUPER, engineering ON *.* TO joan, sally;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use

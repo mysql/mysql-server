@@ -32,42 +32,37 @@
 
 namespace insert_delayed_unittest {
 
-using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using my_testing::Server_initializer;
 
-class InsertDelayed : public ParserTest
-{
-protected:
+class InsertDelayed : public ParserTest {
+ protected:
   virtual void SetUp() { initializer.SetUp(); }
   virtual void TearDown() { initializer.TearDown(); }
 };
 
-TEST_F(InsertDelayed, InsertDelayed)
-{
-  SELECT_LEX *sl1=
-    parse("INSERT INTO t1 VALUES (1)", 0);
+TEST_F(InsertDelayed, InsertDelayed) {
+  SELECT_LEX *sl1 = parse("INSERT INTO t1 VALUES (1)", 0);
 
-  thr_lock_type expected_lock_type=
-    sl1->table_list.first->lock_descriptor().type;
+  thr_lock_type expected_lock_type =
+      sl1->table_list.first->lock_descriptor().type;
 
-  SELECT_LEX *sl2=
-    parse("INSERT DELAYED INTO t1 VALUES (1)", ER_WARN_LEGACY_SYNTAX_CONVERTED);
+  SELECT_LEX *sl2 = parse("INSERT DELAYED INTO t1 VALUES (1)",
+                          ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
   EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
 }
 
-TEST_F(InsertDelayed, ReplaceDelayed)
-{
-  SELECT_LEX *sl1=
-    parse("REPLACE INTO t1 VALUES (1)", 0);
+TEST_F(InsertDelayed, ReplaceDelayed) {
+  SELECT_LEX *sl1 = parse("REPLACE INTO t1 VALUES (1)", 0);
 
-  thr_lock_type expected_lock_type=
-    sl1->table_list.first->lock_descriptor().type;
+  thr_lock_type expected_lock_type =
+      sl1->table_list.first->lock_descriptor().type;
 
-  SELECT_LEX *sl2=
-    parse("REPLACE DELAYED INTO t1 VALUES (1)", ER_WARN_LEGACY_SYNTAX_CONVERTED);
+  SELECT_LEX *sl2 = parse("REPLACE DELAYED INTO t1 VALUES (1)",
+                          ER_WARN_LEGACY_SYNTAX_CONVERTED);
 
   EXPECT_EQ(expected_lock_type, sl2->table_list.first->lock_descriptor().type);
 }
 
-}
+}  // namespace insert_delayed_unittest

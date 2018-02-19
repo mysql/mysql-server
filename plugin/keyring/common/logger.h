@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,33 +23,36 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 
+#include <stdarg.h>
+
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
+#include <mysqld_error.h>
 
 namespace keyring {
 
-class ILogger
-{
-public:
-  virtual void log(plugin_log_level level, const char *message)= 0;
+class ILogger {
+ public:
+  virtual void log(longlong level, const char *message) = 0;
+  virtual void log(longlong level, longlong errcode, ...) = 0;
   virtual ~ILogger() {}
 };
 
-class Logger : public ILogger
-{
-public:
-  Logger(MYSQL_PLUGIN plugin_info_ptr)
-    : plugin_info_ptr(plugin_info_ptr)
-  {}
+class Logger : public ILogger {
+ public:
   ~Logger() {}
-  void log(plugin_log_level level, const char *message)
-  {
-    my_plugin_log_message(&plugin_info_ptr, level, "%s", message);
+  void log(longlong level, const char *message) {
+    LogPluginErr(level, ER_KEYRING_LOGGER_ERROR_MSG, message);
   }
 
-private:
-  MYSQL_PLUGIN plugin_info_ptr;
+  void log(longlong level, longlong errcode, ...) {
+    va_list vl;
+    va_start(vl, errcode);
+    LogPluginErrV(level, errcode, vl);
+    va_end(vl);
+  }
 };
 
-} //namespace keyring
+}  // namespace keyring
 
-#endif //LOGGER_H
+#endif  // LOGGER_H

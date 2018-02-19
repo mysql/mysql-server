@@ -112,6 +112,9 @@ MACRO(MYSQL_ADD_COMPONENT)
       SET_TARGET_PROPERTIES(${target} PROPERTIES
         LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/component_output_directory
         )
+      IF(WIN32_CLANG AND WITH_ASAN)
+        TARGET_LINK_LIBRARIES(${target} "${ASAN_LIB_DIR}/clang_rt.asan_dll_thunk-x86_64.lib")
+      ENDIF()
       IF(NOT ARG_NO_INSTALL)
         # Install dynamic library.
         IF(NOT ARG_TEST)

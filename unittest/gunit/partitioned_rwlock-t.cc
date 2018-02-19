@@ -31,46 +31,42 @@
 #include "sql/auth/partitioned_rwlock.h"
 #include "unittest/gunit/thread_utils.h"
 
-
 namespace partitioned_rwlock_unittest {
 
 using thread::Thread;
 
-TEST(PartitionedRwlock, InitDestroy)
-{
+TEST(PartitionedRwlock, InitDestroy) {
   Partitioned_rwlock rwlock;
 
-  bool r= rwlock.init(32
+  bool r = rwlock.init(32
 #ifdef HAVE_PSI_INTERFACE
-                      , PSI_NOT_INSTRUMENTED
+                       ,
+                       PSI_NOT_INSTRUMENTED
 #endif
-                      );
+  );
   EXPECT_FALSE(r);
   rwlock.destroy();
 
-  r= rwlock.init(8
+  r = rwlock.init(8
 #ifdef HAVE_PSI_INTERFACE
-                 , PSI_NOT_INSTRUMENTED
+                  ,
+                  PSI_NOT_INSTRUMENTED
 #endif
-                 );
+  );
   EXPECT_FALSE(r);
   rwlock.destroy();
 }
 
-
-class Reader_thread : public Thread
-{
-public:
-  void init(uint thread_id, Partitioned_rwlock *rwlock, volatile uint *shared_counter)
-  {
-    m_thread_id= thread_id;
-    m_rwlock= rwlock;
-    m_shared_counter= shared_counter;
+class Reader_thread : public Thread {
+ public:
+  void init(uint thread_id, Partitioned_rwlock *rwlock,
+            volatile uint *shared_counter) {
+    m_thread_id = thread_id;
+    m_rwlock = rwlock;
+    m_shared_counter = shared_counter;
   }
-  virtual void run()
-  {
-    for (uint i=0; i < 1000; ++i)
-    {
+  virtual void run() {
+    for (uint i = 0; i < 1000; ++i) {
       Partitioned_rwlock_read_guard lock(m_rwlock, m_thread_id);
       /*
         With correct rwlock implementation readers should not
@@ -79,35 +75,31 @@ public:
       EXPECT_EQ(0U, (*m_shared_counter % 100));
     }
   }
-private:
+
+ private:
   uint m_thread_id;
   Partitioned_rwlock *m_rwlock;
   volatile uint *m_shared_counter;
 };
 
-class Writer_thread : public Thread
-{
-public:
+class Writer_thread : public Thread {
+ public:
   Writer_thread(Partitioned_rwlock *rwlock, volatile uint *shared_counter)
-    : m_rwlock(rwlock), m_shared_counter(shared_counter)
-  {
-  }
-  virtual void run()
-  {
-    for (uint i=0; i < 1000; ++i)
-    {
+      : m_rwlock(rwlock), m_shared_counter(shared_counter) {}
+  virtual void run() {
+    for (uint i = 0; i < 1000; ++i) {
       Partitioned_rwlock_write_guard lock(m_rwlock);
       /*
         Add 100 to counter value using 100 single increments. We rely
         on counter being "volatile" to prevent compiler optimizations.
       */
-      for (uint j=0; j < 100; ++j)
-      {
+      for (uint j = 0; j < 100; ++j) {
         ++*m_shared_counter;
       }
     }
   }
-private:
+
+ private:
   Partitioned_rwlock *m_rwlock;
   volatile uint *m_shared_counter;
 };
@@ -117,32 +109,30 @@ private:
   (e.g. if wrlock() operation doesn't lock all partitions).
 */
 
-TEST(PartitionedRwlock, Concurrent)
-{
-  const uint PARTS_NUM= 32;
+TEST(PartitionedRwlock, Concurrent) {
+  const uint PARTS_NUM = 32;
 
   Partitioned_rwlock rwlock;
-  volatile uint shared_counter= 0;
+  volatile uint shared_counter = 0;
   rwlock.init(PARTS_NUM
 #ifdef HAVE_PSI_INTERFACE
-              , PSI_NOT_INSTRUMENTED
+              ,
+              PSI_NOT_INSTRUMENTED
 #endif
-              );
+  );
 
   Reader_thread readers[PARTS_NUM];
   Writer_thread writer(&rwlock, &shared_counter);
-  for (uint i=0; i < PARTS_NUM; ++i)
+  for (uint i = 0; i < PARTS_NUM; ++i)
     readers[i].init(i, &rwlock, &shared_counter);
 
   writer.start();
-  for (uint i=0; i < PARTS_NUM; ++i)
-    readers[i].start();
+  for (uint i = 0; i < PARTS_NUM; ++i) readers[i].start();
 
-  for (uint i=0; i < PARTS_NUM; ++i)
-    readers[i].join();
+  for (uint i = 0; i < PARTS_NUM; ++i) readers[i].join();
   writer.join();
 
   rwlock.destroy();
 }
 
-}
+}  // namespace partitioned_rwlock_unittest

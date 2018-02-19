@@ -38,18 +38,15 @@
 
 #include "m_string.h"  // IWYU pragma: keep
 
-char * strcont(const char *str, const char *set)
-{
-  char * start = (char *) set;
+char *strcont(const char *str, const char *set) {
+  char *start = (char *)set;
 
-  while (*str)
-  {
-    while (*set)
-    {
-      if (*set++ == *str)
-	return ((char*) str);
+  while (*str) {
+    while (*set) {
+      if (*set++ == *str) return ((char *)str);
     }
-    set=start; str++;
+    set = start;
+    str++;
   }
   return (NullS);
 } /* strcont */

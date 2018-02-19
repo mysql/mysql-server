@@ -38,14 +38,9 @@
 #include <stdlib.h>
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-struct st_transaction_termination_ctx
-{
+struct Transaction_termination_ctx {
   unsigned long m_thread_id;
-  unsigned int m_flags; // reserved
+  unsigned int m_flags;  // reserved
 
   /*
     If the instruction is to rollback the transaction,
@@ -61,25 +56,23 @@ struct st_transaction_termination_ctx
   int m_sidno;
   long long int m_gno;
 };
-typedef struct st_transaction_termination_ctx Transaction_termination_ctx;
 
-extern struct rpl_transaction_ctx_service_st {
-  int (*set_transaction_ctx)(Transaction_termination_ctx transaction_termination_ctx);
-} *rpl_transaction_ctx_service;
+extern "C" struct rpl_transaction_ctx_service_st {
+  int (*set_transaction_ctx)(
+      Transaction_termination_ctx transaction_termination_ctx);
+} * rpl_transaction_ctx_service;
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
 
 #define set_transaction_ctx(transaction_termination_ctx) \
-  (rpl_transaction_ctx_service->set_transaction_ctx((transaction_termination_ctx)))
+  (rpl_transaction_ctx_service->set_transaction_ctx(     \
+      (transaction_termination_ctx)))
 
 #else
 
-int set_transaction_ctx(Transaction_termination_ctx transaction_termination_ctx);
+int set_transaction_ctx(
+    Transaction_termination_ctx transaction_termination_ctx);
 
-#endif
-
-#ifdef __cplusplus
-}
 #endif
 
 #define MYSQL_SERVICE_RPL_TRANSACTION_CTX_INCLUDED

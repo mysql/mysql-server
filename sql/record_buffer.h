@@ -25,7 +25,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_base.h"                            // ha_rows
+#include "my_base.h"  // ha_rows
 #include "my_dbug.h"
 
 /**
@@ -43,19 +43,19 @@
   from the record buffer to the memory area specified in the arguments of the
   handler function, typically TABLE::record[0].
 */
-class Record_buffer
-{
+class Record_buffer {
   /// The maximum number of records that can be stored in the buffer.
   ha_rows m_max_records;
   /// The number of bytes available for each record.
   size_t m_record_size;
   /// The number of records currently stored in the buffer.
-  ha_rows m_count= 0;
+  ha_rows m_count = 0;
   /// The @c uchar buffer that holds the records.
   uchar *m_buffer;
   /// Tells if end-of-range was found while filling the buffer.
-  bool m_out_of_range= false;
-public:
+  bool m_out_of_range = false;
+
+ public:
   /**
     Create a new record buffer with the specified size.
 
@@ -66,8 +66,7 @@ public:
                         `Record_buffer::buffer_size(records, record_size)`)
   */
   Record_buffer(ha_rows records, size_t record_size, uchar *buffer)
-    : m_max_records(records), m_record_size(record_size), m_buffer(buffer)
-  {}
+      : m_max_records(records), m_record_size(record_size), m_buffer(buffer) {}
 
   /**
     This function calculates how big the @c uchar buffer provided to
@@ -78,8 +77,7 @@ public:
     @param record_size  the size of each record
     @return the total number of bytes needed for all the records
   */
-  static constexpr size_t buffer_size(ha_rows records, size_t record_size)
-  {
+  static constexpr size_t buffer_size(ha_rows records, size_t record_size) {
     return static_cast<size_t>(records * record_size);
   }
 
@@ -106,8 +104,7 @@ public:
     @param pos the record number (must be smaller than records())
     @return the @c uchar buffer that holds the specified record
   */
-  uchar *record(ha_rows pos) const
-  {
+  uchar *record(ha_rows pos) const {
     DBUG_ASSERT(pos < max_records());
     return m_buffer + m_record_size * pos;
   }
@@ -116,8 +113,7 @@ public:
     Add a new record at the end of the buffer.
     @return the @c uchar buffer of the added record
   */
-  uchar *add_record()
-  {
+  uchar *add_record() {
     DBUG_ASSERT(m_count < max_records());
     return record(m_count++);
   }
@@ -125,8 +121,7 @@ public:
   /**
     Remove the record that was last added to the buffer.
   */
-  void remove_last()
-  {
+  void remove_last() {
     DBUG_ASSERT(m_count > 0);
     --m_count;
   }
@@ -135,17 +130,13 @@ public:
     Clear the buffer. Remove all the records. The end-of-range flag is
     preserved.
   */
-  void clear()
-  {
-    m_count= 0;
-  }
+  void clear() { m_count = 0; }
 
   /**
     Reset the buffer. Remove all records and clear the end-of-range flag.
   */
-  void reset()
-  {
-    m_count= 0;
+  void reset() {
+    m_count = 0;
     set_out_of_range(false);
   }
 
@@ -153,7 +144,7 @@ public:
     Set whether the end of the range was reached while filling the buffer.
     @param val true if end of range was reached, false if still within range
   */
-  void set_out_of_range(bool val) { m_out_of_range= val; }
+  void set_out_of_range(bool val) { m_out_of_range = val; }
 
   /**
     Check if the end of the range was reached while filling the buffer.

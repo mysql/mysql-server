@@ -24,11 +24,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define MYSQL_SERVER_COMPONENT_H
 
 #include <mysql/components/service.h>
-#include <mysql/components/services/registry.h>
 #include <mysql/components/services/dynamic_loader.h>
-#include <mysql/components/services/persistent_dynamic_loader.h>
 #include <mysql/components/services/dynamic_loader_scheme_file.h>
 #include <mysql/components/services/dynamic_privilege.h>
+#include <mysql/components/services/persistent_dynamic_loader.h>
+#include <mysql/components/services/registry.h>
 
 /**
   @file components/mysql_server/server_component.h
@@ -46,7 +46,7 @@ void registry_deinit();
 void dynamic_loader_init();
 void dynamic_loader_deinit();
 
-bool persistent_dynamic_loader_init(void* thd);
+bool persistent_dynamic_loader_init(void *thd);
 void persistent_dynamic_loader_deinit();
 
 void dynamic_loader_scheme_file_init();
@@ -58,7 +58,6 @@ void mysql_comp_sys_var_services_init();
 void mysql_comp_system_variable_source_init();
 void mysql_security_context_init();
 void mysql_backup_lock_service_init();
-
 
 /* implementation of the built-in components */
 
@@ -72,7 +71,7 @@ void mysql_backup_lock_service_init();
   @retval false success
   @retval true failure
 */
-bool mysql_services_bootstrap(SERVICE_TYPE(registry)** registry);
+bool mysql_services_bootstrap(SERVICE_TYPE(registry) * *registry);
 
 /**
   Shutdowns dynamic loader.
@@ -89,11 +88,12 @@ void shutdown_dynamic_loader();
 */
 bool mysql_services_shutdown();
 
-void mysql_components_handle_std_exception(const char* funcname);
+void mysql_components_handle_std_exception(const char *funcname);
 
 /* A declaration of registry service required for my_service<> to work. */
 extern SERVICE_TYPE(registry) imp_mysql_server_registry;
 
-extern SERVICE_TYPE(registry_registration) imp_mysql_server_registry_registration;
+extern SERVICE_TYPE(registry_registration)
+    imp_mysql_server_registry_registration;
 
 #endif /* MYSQL_SERVER_COMPONENT_H */
