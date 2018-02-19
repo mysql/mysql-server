@@ -1018,7 +1018,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Make sure dropping multiple indexes together works
 alter table t2 drop index uk3, drop index uk4;
 # Verify through show create table
@@ -1028,7 +1028,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # cleanup
 drop table t2,t1;
 #
@@ -1062,7 +1062,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk1` (`a`),
   UNIQUE KEY `uk2` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Modify column on t1 - remove not null
 alter table t1 modify column a int;
 # verify that pk is now on b.
@@ -1077,7 +1077,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk2` (`b`),
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the fk constraint is intact through inserts
 insert into t1 values (1,10), (2,20), (3,30);
 insert into t2 values (1), (2), (3);
@@ -1096,7 +1096,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) NOT NULL,
   UNIQUE KEY `uk1` (`a`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # Verify that the fk constraint is intact through inserts
 insert into t2 values (1), (2), (3);
 insert into t2 values (4);

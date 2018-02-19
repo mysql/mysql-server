@@ -217,7 +217,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`pk2`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE test.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -225,7 +225,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE test.t2 TABLESPACE table_space1 STORAGE DISK
 ENGINE=NDB;
 SHOW CREATE TABLE test.t2;
@@ -235,7 +235,7 @@ t2	CREATE TABLE `t2` (
   `b2` int(11) NOT NULL,
   `c2` int(11) NOT NULL,
   PRIMARY KEY (`pk2`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ALTER TABLE test.t1 STORAGE MEMORY ENGINE=NDBCLUSTER;
 SHOW CREATE TABLE test.t1;
 Table	Create Table
@@ -244,7 +244,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_space1` STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;
@@ -343,7 +343,7 @@ t1	CREATE TABLE `t1` (
   KEY `a2` (`a2`),
   KEY `a3` (`a3`),
   KEY `a8` (`a8`)
-) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) /*!50100 TABLESPACE `table_space1` STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE test.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -361,7 +361,7 @@ t2	CREATE TABLE `t2` (
   KEY `b2` (`b2`),
   KEY `b3` (`b3`),
   KEY `b8` (`b8`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM test.t1 order by a1;
 a1	a2	a3	a4	a5	a6	a7	a8	a9	a10
 1	2	2000000001	aaa1	34.2	04:03:02	2006-01-01	1971-05-28 16:55:03	bbbbbbbbbbbbb1	binary data

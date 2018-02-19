@@ -23,7 +23,7 @@ t2	CREATE TABLE `t2` (
   KEY `XB` (`b`),
   CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `myfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 values (2,1);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into t2 values (1,2);
@@ -51,7 +51,7 @@ t2	CREATE TABLE `t2` (
   `b` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`),
   KEY `XB` (`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 # test upper case parent database and table
 drop table T2;
 create table T2 (
@@ -71,7 +71,7 @@ t2	CREATE TABLE `t2` (
   KEY `XB` (`b`),
   CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `myfk2` FOREIGN KEY (`b`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 insert into t2 values (2,1);
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `myfk1` FOREIGN KEY (`a`) REFERENCES `t1` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION)
 insert into t2 values (1,2);
