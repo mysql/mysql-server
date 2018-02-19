@@ -88,7 +88,12 @@ bool ut_win_init_time() {
   }
   DWORD error = GetLastError();
 #ifndef UNIV_HOTBACKUP
+#ifndef UNIV_NO_ERR_MSGS
   log_errlog(ERROR_LEVEL, ER_WIN_LOAD_LIBRARY_FAILED, "kernel32.dll", error);
+#else
+  ib::error() << "LoadLibrary(\"kernel32.dll\") failed:"
+              << " GetLastError returns " << error;
+#endif /* UNIV_NO_ERR_MSGS */
 #else  /* !UNIV_HOTBACKUP */
   fprintf(stderr,
           "LoadLibrary(\"kernel32.dll\") failed:"
