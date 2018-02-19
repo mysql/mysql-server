@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7815,7 +7815,6 @@ int binlog_log_row(TABLE* table,
   {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF)
     {
-      bitmap_set_all(table->read_set);
       if (before_record && after_record)
       {
         size_t length= table->s->reclength;
