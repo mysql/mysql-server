@@ -1,7 +1,5 @@
 -- source include/have_multi_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
-# Avoid check for result file
---source include/ndb_no_result_file.inc
 
 --connection server2
 --echo Starting up background churn to create
