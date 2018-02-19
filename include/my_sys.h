@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -763,12 +763,10 @@ File create_temp_file(char *to, const char *dir, const char *pfx,
 		      int mode, myf MyFlags);
 
 // Use Prealloced_array or std::vector or something similar in C++
-#if defined(__cplusplus)
 
-#define init_dynamic_array please_use_an_appropriately_typed_container
-#define my_init_dynamic_array please_use_an_appropriately_typed_container
-
-#else
+#ifdef  __cplusplus
+extern "C" {
+#endif
 
 extern my_bool my_init_dynamic_array(DYNAMIC_ARRAY *array,
                                      PSI_memory_key key,
@@ -782,7 +780,9 @@ extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array, uint element_size,
 #define dynamic_element(array,array_index,type) \
   ((type)((array)->buffer) +(array_index))
 
-#endif  /* __cplusplus */
+#ifdef __cplusplus
+}
+#endif
 
 /* Some functions are still in use in C++, because HASH uses DYNAMIC_ARRAY */
 extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const void *element);
