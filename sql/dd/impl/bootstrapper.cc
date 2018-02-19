@@ -421,6 +421,20 @@ bool create_actual_table(THD *thd, const Object_table *object_table) {
 /* purecov: end */
 
 /**
+  Predicate to check if a table type is a non-inert DD ot DDSE table.
+
+  @param table_type    Type as defined in the System_tables registry.
+  @returns             true if the table is a non-inert DD or DDSE table,
+                       false otherwise
+*/
+bool is_non_inert_dd_or_ddse_table(System_tables::Types table_type) {
+  return table_type == System_tables::Types::CORE ||
+         table_type == System_tables::Types::SECOND ||
+         table_type == System_tables::Types::DDSE_PRIVATE ||
+         table_type == System_tables::Types::DDSE_PROTECTED;
+}
+
+/**
   Execute SQL statements to create the DD tables.
 
   The tables created here will be a subset of the target DD tables for this
@@ -497,9 +511,7 @@ bool create_tables(THD *thd, const std::set<String_type> *create_set) {
   bool error = false;
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end() && !error; ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         If a create set is submitted, create only the target tables that
         are in the create set.
@@ -1245,9 +1257,7 @@ void establish_table_name_sets(std::set<String_type> *create_set,
   DBUG_ASSERT(remove_set != nullptr && remove_set->empty());
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         In this context, all tables should have an Object_table. Minor
         downgrade is the only situation where an Object_table may not exist,
@@ -1389,9 +1399,7 @@ bool update_properties(THD *thd, const std::set<String_type> *create_set,
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   for (System_tables::Const_iterator it = System_tables::instance()->begin();
        it != System_tables::instance()->end(); ++it) {
-    if ((*it)->property() == System_tables::Types::CORE ||
-        (*it)->property() == System_tables::Types::SECOND ||
-        (*it)->property() == System_tables::Types::DDSE) {
+    if (is_non_inert_dd_or_ddse_table((*it)->property())) {
       /*
         This will not be called for minor downgrade, so all tables
         will have a corresponding Object_table.
@@ -2076,12 +2084,20 @@ bool DDSE_dict_init(THD *thd, dict_init_mode_t dict_init_mode, uint version) {
     Iterate over the table definitions and add them to the System_tables
     registry. The Object_table instances will later be used to execute
     CREATE TABLE statements to actually create the tables.
+
+    If Object_table::is_hidden(), then we add the tables as type DDSE_PRIVATE
+    (not available neither for DDL nor DML), otherwise, we add them as type
+    DDSE_PROTECTED (available for DML, not for DDL).
   */
   List_iterator<const Object_table> table_it(ddse_tables);
   const Object_table *ddse_table = nullptr;
   while ((ddse_table = table_it++)) {
+    System_tables::Types table_type = System_tables::Types::DDSE_PROTECTED;
+    if (ddse_table->is_hidden()) {
+      table_type = System_tables::Types::DDSE_PRIVATE;
+    }
     System_tables::instance()->add(MYSQL_SCHEMA_NAME.str, ddse_table->name(),
-                                   System_tables::Types::DDSE, ddse_table);
+                                   table_type, ddse_table);
   }
 
   /*

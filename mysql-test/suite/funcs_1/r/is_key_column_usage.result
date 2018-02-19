@@ -199,8 +199,6 @@ def	mysql	PRIMARY	def	mysql	help_relation	help_keyword_id
 def	mysql	PRIMARY	def	mysql	help_relation	help_topic_id
 def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
 def	performance_schema	PRIMARY	def	performance_schema	host_cache	IP
-def	mysql	PRIMARY	def	mysql	innodb_ddl_log	id
-def	mysql	PRIMARY	def	mysql	innodb_dynamic_metadata	table_id
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	stat_name
