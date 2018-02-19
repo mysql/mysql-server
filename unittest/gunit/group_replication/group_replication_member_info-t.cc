@@ -46,6 +46,7 @@ class ClusterMemberInfoTest : public ::testing::Test {
     uint plugin_version = 0x000400;
     uint write_set_algorithm = 1;
     string executed_gtid("aaaa:1-10");
+    uint lower_case_table_names = 0;
     string retrieved_gtid("bbbb:1-10");
     ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
     bool in_primary_mode = false;
@@ -63,7 +64,8 @@ class ClusterMemberInfoTest : public ::testing::Test {
         write_set_algorithm, gcs_member_id->get_member_id(), status,
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_PRIMARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight);
+        has_enforces_update_everywhere_checks, member_weight,
+        lower_case_table_names);
     local_node->update_gtid_sets(executed_gtid, retrieved_gtid);
   }
 
@@ -115,6 +117,7 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
     string uuid("8d7r947c-dr4a-17i3-59d1-f01faf1kkc44");
     uint port = 4444;
     uint write_set_algorithm = 1;
+    uint lower_case_table_names = 0;
     uint plugin_version = 0x000400;
     gcs_member_id = new Gcs_member_identifier("stuff");
     ulonglong gtid_assignment_block_size = 9223372036854775807ULL;
@@ -131,7 +134,8 @@ class ClusterMemberInfoManagerTest : public ::testing::Test {
         write_set_algorithm, gcs_member_id->get_member_id(), status,
         local_member_plugin_version, gtid_assignment_block_size,
         Group_member_info::MEMBER_ROLE_SECONDARY, in_primary_mode,
-        has_enforces_update_everywhere_checks, member_weight);
+        has_enforces_update_everywhere_checks, member_weight,
+        lower_case_table_names);
 
     cluster_member_mgr = new Group_member_info_manager(local_node);
   }
@@ -153,6 +157,7 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
   string uuid("781f947c-db4a-22e3-99d4-f01faf1a1c44");
   uint port = 4444;
   uint write_set_algorithm = 1;
+  uint lower_case_table_names = 0;
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11");
@@ -170,7 +175,8 @@ TEST_F(ClusterMemberInfoManagerTest, GetLocalInfoByUUIDTest) {
       (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
-      in_primary_mode, has_enforces_update_everywhere_checks, member_weight);
+      in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
+      lower_case_table_names);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -294,6 +300,7 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   string uuid("781f947c-db4a-22e3-99d4-f01faf1a1c44");
   uint port = 4444;
   uint write_set_algorithm = 1;
+  uint lower_case_table_names = 0;
   uint plugin_version = 0x000400;
   Gcs_member_identifier gcs_member_id("another_stuff");
   string executed_gtid("aaaa:1-11:12-14:16-20:22-30");
@@ -312,7 +319,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
       (char *)hostname.c_str(), port, (char *)uuid.c_str(), write_set_algorithm,
       gcs_member_id.get_member_id(), status, local_member_plugin_version,
       gtid_assignment_block_size, Group_member_info::MEMBER_ROLE_PRIMARY,
-      in_primary_mode, has_enforces_update_everywhere_checks, member_weight);
+      in_primary_mode, has_enforces_update_everywhere_checks, member_weight,
+      lower_case_table_names);
   new_member->update_gtid_sets(executed_gtid, retrieved_gtid);
 
   cluster_member_mgr->add(new_member);
@@ -373,6 +381,8 @@ TEST_F(ClusterMemberInfoManagerTest, EncodeDecodeLargeSets) {
   ASSERT_EQ(local_node->get_role(), retrieved_local_info->get_role());
   ASSERT_EQ(local_node->get_member_weight(),
             retrieved_local_info->get_member_weight());
+  ASSERT_EQ(local_node->get_lower_case_table_names(),
+            retrieved_local_info->get_lower_case_table_names());
 
   delete retrieved_local_info;
 }
