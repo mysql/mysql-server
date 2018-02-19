@@ -17815,6 +17815,9 @@ ER_NORMAL_SERVER_SHUTDOWN
 ER_KEYRING_MIGRATE_FAILED
   eng "Can not perform keyring migration : %s."
 
+ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
+  eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
