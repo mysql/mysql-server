@@ -3790,6 +3790,11 @@ static int client_mpvio_read_packet(struct st_plugin_vio *mpv, uchar **buf)
 
   /* otherwise read the data */
   pkt_len= (*mysql->methods->read_change_user_result)(mysql);
+
+  /* error while reading the change user request */
+  if (pkt_len == packet_error)
+    return (int)packet_error;
+
   mpvio->last_read_packet_len= pkt_len;
   *buf= mysql->net.read_pos;
 
