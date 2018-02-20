@@ -1248,7 +1248,7 @@ void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
   str->append("with ");
   if (m_recursive) str->append("recursive ");
   size_t len2 = str->length(), len3 = len2;
-  for (auto el : m_list.elements()) {
+  for (auto el : m_list->elements()) {
     if (str->length() != len3) {
       str->append(", ");
       len3 = str->length();
