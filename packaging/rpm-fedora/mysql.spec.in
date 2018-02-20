@@ -161,7 +161,13 @@ Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 Obsoletes:      mysql-community-bench < 5.7.8
 Obsoletes:      community-mysql-bench
 Obsoletes:      mysql-bench
+Obsoletes:      mariadb-backup
 Obsoletes:      mariadb-bench
+Obsoletes:      mariadb-cracklib-password-check
+Obsoletes:      mariadb-gssapi-server
+Obsoletes:      mariadb-rocksdb-engine
+Obsoletes:      mariadb-sphinx-engine
+Obsoletes:      mariadb-tokudb-engine
 Obsoletes:      mariadb-server
 Obsoletes:      mariadb-server-utils
 Obsoletes:      mariadb-galera-server
