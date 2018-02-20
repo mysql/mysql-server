@@ -8846,7 +8846,7 @@ ER_UNSUPPORTED_DATE
   eng "This MySQL server doesn't support dates later then 2038"
 
 ER_STARTING_AS
-  eng "%s (mysqld %s) starting as process %lu ..."
+  eng "%s (mysqld %s) starting as process %lu"
 
 ER_SHUTTING_DOWN_SLAVE_THREADS
   eng "Shutting down slave threads"
@@ -11231,7 +11231,7 @@ ER_FORCE_CLOSE_THREAD
   eng "%s: Forcing close of thread %ld  user: '%-.48s'."
 
 ER_SERVER_SHUTDOWN_COMPLETE  
-  eng "%s: Shutdown complete."
+  eng "%s: Shutdown complete (mysqld %s)  %s."
 
 ER_RPL_CANT_HAVE_SAME_BASENAME
   eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s' if --log-bin option is not used, default '%s' if --log-bin option is used without argument) and %s (default '%s') options to ensure they do not conflict."

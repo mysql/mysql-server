@@ -2037,7 +2037,8 @@ static void clean_up(bool print_message) {
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
+           server_version, MYSQL_COMPILATION_COMMENT);
   cleanup_errmsgs();
 
   free_connection_acceptors();
