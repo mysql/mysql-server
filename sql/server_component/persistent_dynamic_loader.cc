@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // commit_and_close_mysql_tables
+#include "sql/debug_sync.h"
 #include "sql/derror.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -337,21 +338,23 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
       close_mysql_tables(thd);
     });
 
-    if (mysql_dynamic_loader_imp::load(urns, component_count)) {
-      return true;
-    }
-
     if (open_component_table(thd, TL_WRITE, &component_table, INSERT_ACL)) {
       my_error(ER_COMPONENT_TABLE_INCORRECT, MYF(0));
       return true;
     }
 
-    /* Unload components if anything goes wrong with handling changes. */
-    auto guard = create_scope_guard([&urns, &component_count]() {
-      mysql_dynamic_loader_imp::unload(urns, component_count);
-    });
-
     uint64 group_id = ++mysql_persistent_dynamic_loader_imp::group_id;
+
+    /* Making a component_id_by_urn copy so, that if any error occurs it will
+       be restored
+    */
+    std::map<my_string, uint64> copy_urn_map(
+        mysql_persistent_dynamic_loader_imp::component_id_by_urn);
+
+    auto guard = create_scope_guard([&copy_urn_map]() {
+      /* Restoring back the component_id_by_urn */
+      mysql_persistent_dynamic_loader_imp::component_id_by_urn = copy_urn_map;
+    });
 
     /* Insert all component URNs into component table into one group. */
     CHARSET_INFO *system_charset = system_charset_info;
@@ -386,6 +389,9 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::load,
           urns[i], component_table->file->insert_id_for_cur_row);
 
       component_table->file->ha_release_auto_increment();
+    }
+    if (mysql_dynamic_loader_imp::load(urns, component_count)) {
+      return true;
     }
 
     guard.commit();
@@ -442,17 +448,17 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
     /* We don't replicate UNINSTALL_COMPONENT */
     Disable_binlog_guard binlog_guard(thd);
 
-    auto guard_close_tables = create_scope_guard([&thd]() {
+    /* Making component_id_by_urn copy so, that if any error occurs it will
+       be restored
+    */
+    std::map<my_string, uint64> copy_urn_map(
+        mysql_persistent_dynamic_loader_imp::component_id_by_urn);
+    auto guard_close_tables = create_scope_guard([&thd, &copy_urn_map]() {
+      /* Restoring back the component_id_by_urn */
+      mysql_persistent_dynamic_loader_imp::component_id_by_urn = copy_urn_map;
       trans_rollback_stmt(thd);
       close_mysql_tables(thd);
     });
-
-    bool result = mysql_dynamic_loader_imp::unload(urns, component_count);
-    if (result) {
-      /* No need to specify error, underlying service implementation would add
-        one. */
-      return result;
-    }
 
     DBUG_ASSERT(component_table->key_info != NULL);
 
@@ -476,6 +482,7 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       key_copy(key, component_table->record[0], component_table->key_info,
                component_table->key_info->key_length);
 
+      DEBUG_SYNC(thd, "before_ha_index_read_idx_map");
       res = component_table->file->ha_index_read_idx_map(
           component_table->record[0], 0, key, HA_WHOLE_KEY, HA_READ_KEY_EXACT);
       if (res != 0) {
@@ -499,6 +506,13 @@ DEFINE_BOOL_METHOD(mysql_persistent_dynamic_loader_imp::unload,
       }
 
       mysql_persistent_dynamic_loader_imp::component_id_by_urn.erase(it);
+    }
+
+    bool result = mysql_dynamic_loader_imp::unload(urns, component_count);
+    if (result) {
+      /* No need to specify error, underlying service implementation would add
+        one. */
+      return result;
     }
 
     guard_close_tables.commit();
