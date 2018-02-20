@@ -7640,77 +7640,78 @@ static int show_ssl_ctx_get_session_cache_mode(THD *, SHOW_VAR *var, char *) {
          inside an Event.
  */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_version(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_version(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_session_reused(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_session_reused(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_default_timeout(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_mode(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_depth(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_cipher(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl()) {
+  if (ssl) {
     int i;
     const char *p;
     char *end = buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i = 0; (p = SSL_get_cipher_list(thd->get_protocol()->get_ssl(), i)) &&
-                buff < end;
-         i++) {
+    for (i = 0; (p = SSL_get_cipher_list(ssl, i)) && buff < end; i++) {
       buff = my_stpnmov(buff, p, end - buff - 1);
       *buff++ = ':';
     }

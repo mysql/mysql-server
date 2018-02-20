@@ -2815,6 +2815,8 @@ static void cleanup_variables(THD *thd, struct System_variables *vars) {
     mysql_mutex_lock(&thd->LOCK_thd_data);
 
     plugin_var_memalloc_free(&thd->variables);
+    /* Remove references to session_sysvar_res_mgr memory before freeing it. */
+    thd->variables.track_sysvars_ptr = NULL;
     thd->session_sysvar_res_mgr.deinit();
   }
   DBUG_ASSERT(vars->table_plugin == NULL);

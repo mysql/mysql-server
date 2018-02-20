@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -232,15 +232,6 @@ class Protocol {
                             true then the server is shutting down.
   */
   virtual int shutdown(bool server_shutdown = false) = 0;
-
-  /**
-    Returns pointer to the SSL object/struct
-
-    @return
-      @retval SSL*    The SSL struct/object
-      @retval NULL    If HAVE_OPENSSL is not defined
-  */
-  virtual SSL_handle get_ssl() = 0;
   /**
     Returns the read/writing status
 

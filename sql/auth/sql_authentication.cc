@@ -1737,7 +1737,7 @@ static bool read_client_connect_attrs(char **ptr, size_t *max_bytes_available,
 static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user) {
 #if defined(HAVE_OPENSSL)
   Vio *vio = thd->get_protocol_classic()->get_vio();
-  SSL *ssl = thd->get_protocol()->get_ssl();
+  SSL *ssl = (SSL *)vio->ssl_arg;
   X509 *cert;
 #endif /* HAVE_OPENSSL */
 
@@ -2807,7 +2807,8 @@ static void server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->auth_info.host_or_ip_length = sctx_host_or_ip.length;
 
 #if defined(HAVE_OPENSSL)
-  if (thd->get_protocol()->get_ssl())
+  Vio *vio = thd->get_protocol_classic()->get_vio();
+  if (vio->ssl_arg)
     mpvio->vio_is_encrypted = 1;
   else
 #endif /* HAVE_OPENSSL */

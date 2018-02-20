@@ -1589,7 +1589,7 @@ int THD::send_explain_fields(Query_result *result) {
 }
 
 enum_vio_type THD::get_vio_type() {
-  DBUG_ENTER("shutdown_active_vio");
+  DBUG_ENTER("THD::get_vio_type");
   DBUG_RETURN(get_protocol()->connection_type());
 }
 
@@ -1599,6 +1599,7 @@ void THD::shutdown_active_vio() {
   if (active_vio) {
     vio_shutdown(active_vio);
     active_vio = 0;
+    m_SSL = NULL;
   }
   DBUG_VOID_RETURN;
 }

@@ -420,4 +420,10 @@ struct Vio {
   Vio &operator=(Vio &&vio);
 };
 
+#ifdef HAVE_OPENSSL
+#define SSL_handle SSL *
+#else
+#define SSL_handle void *
+#endif
+
 #endif /* vio_violite_h_ */
