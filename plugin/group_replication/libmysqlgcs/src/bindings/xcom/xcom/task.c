@@ -67,8 +67,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/time.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/node_connection.h"
 #include "plugin/group_replication/libmysqlgcs/xdr_gen/xcom_vp.h"
@@ -126,10 +126,189 @@ static task_env *task_unref(task_env *t);
 static void wake_all_io();
 static void task_sys_deinit();
 
-/* Return time as seconds */
-static double _now = 0.0;
+/*
+xcom_monotonic_seconds returns monotonically increasing time as seconds since
+January 1, 1970.
+The struct xcom_clock contains the system time when the clock was initialized,
+and the value of the monotonic system timer at approximately the same time.
+The time that is returned is the delta between the current monotonic system
+timer and the monotonic start time plus the system start time.
+This ensures a monotonically increasing time that is reasonably correlated
+with the system time.
 
-double task_now() { return _now; }
+Windows version and Posix version differ slightly, but use the same general
+approach.
+*/
+#define crash(x) g_critical("%s\n", x)
+
+#ifdef _WIN32
+
+/*
+All reasonably recent versions of Windows have QueryPerformanceCounter,
+which is guaranteed to be monotonic, so we use that, combined with
+GetSystemTimeAsFileTime to get the real start time.
+*/
+
+struct xcom_clock {
+  double real_start;        /* System time at init, in seconds */
+  uint64_t monotonic_start; /* Performance counter ticks at init */
+  uint64_t freq; /* Performance counter frecuency, in counts per second */
+  double now;    /* The last computed clock */
+  int done;
+};
+typedef struct xcom_clock xcom_clock;
+
+/* Return number of 100-ns intervals since January 1, 1970 */
+static inline uint64_t systime(void) {
+  /* Offset of January 1, 1970 from year 1601 */
+  static uint64_t const EPOCH = ((uint64_t)116444736000000000ULL);
+  FILETIME file_time;
+  uint64_t time;
+
+  /* GetSystemTimeAsFileTime is based on year 1601 as zero */
+  GetSystemTimeAsFileTime(&file_time);
+  time = ((uint64_t)file_time.dwLowDateTime);
+  time += ((uint64_t)file_time.dwHighDateTime) << 32;
+  /* We now have number of 100-ns intervals since January 1, 1601 */
+  time -= EPOCH; /* Rebase to 1970 */
+  return time;
+}
+
+/* Return the performance counter */
+static inline uint64_t get_pc(void) {
+  LARGE_INTEGER count;
+
+  /* On systems that run Windows XP or later, the function will always succeed
+   * and will thus never return zero. */
+  if (!QueryPerformanceCounter(&count)) {
+    crash("Need performance counter");
+  }
+  return (uint64_t)(count.QuadPart);
+}
+
+/* Return the frequency of the performance counter. It is guaranteed to not
+ * change during execution. */
+static inline uint64_t query_freq(void) {
+  LARGE_INTEGER freq;
+
+  /* On systems that run Windows XP or later, the function will always succeed
+   * and will thus never return zero. */
+  if (!QueryPerformanceFrequency(&freq) || !freq.QuadPart) {
+    crash("Need performance counter frequency");
+  }
+  return (uint64_t)(freq.QuadPart);
+}
+
+/* Compute monotonic clock by ading elapsed monotonic time to the time when the
+ * clock was initialized */
+static double xcom_monotonic_seconds(xcom_clock *clock) {
+  clock->now =
+      clock->real_start +
+      ((double)(get_pc() - clock->monotonic_start) / (double)clock->freq);
+  return clock->now;
+}
+
+/* Initialize the clock by setting the performance counter frequency, the
+ * current value of the performance counter, and the current value of the system
+ * time. */
+static void xcom_init_clock(xcom_clock *clock) {
+  clock->freq = query_freq();
+  clock->monotonic_start = get_pc();
+  clock->real_start = ((double)systime()) / 10000000.0;
+  xcom_monotonic_seconds(clock);
+  clock->done = 1;
+}
+
+#else
+
+/* POSIX 1003.1 defines clock_gettime(), which is required to support
+ * CLOCK_REALTIME: "All implementations shall support a clock_id of
+ * CLOCK_REALTIME as defined in <time.h>.  This  clock represents the realtime
+ * clock for the system."  An implementation does not need to support
+ * CLOCK_MONOTONIC, but: "If the Monotonic Clock option is supported, all
+ * implementations shall support a clock_id  of CLOCK_MONOTONIC defined in
+ * <time.h>. This clock represents the monotonic clock for the  system. For this
+ * clock, the value returned by clock_gettime() represents the amount of  time
+ * (in seconds and nanoseconds) since an unspecified point in the past (for
+ * example,  system start-up time, or the Epoch)" Even though POSIX does not
+ * specifically require it, all supported platforms have it, and on non-Windows
+ * systems this implementation of a monotonic clock requires it.*/
+
+#ifndef CLOCK_MONOTONIC
+/* Fail here if we have no monotonic clock on Posix */
+#error "Need CLOCK_MONOTONIC"
+#endif
+
+struct xcom_clock {
+  double real_start;      /* System time at init, in seconds */
+  double monotonic_start; /* Monotonic time at init, in seconds */
+  double offset; /* Delta between system time and monotonic time, at init */
+  double now;    /* The last computed clock */
+  int done;
+};
+typedef struct xcom_clock xcom_clock;
+
+/* Convert time in timespec to double. */
+static inline double ts_to_sec(struct timespec *ts) {
+  /* tv_nsec is number of nanoseconds */
+  return (double)ts->tv_sec + (double)ts->tv_nsec / 1000000000.0;
+}
+
+/* Returns elapsed time since some arbitrary time in the past */
+static inline double get_monotonic_time() {
+  struct timespec t;
+
+  clock_gettime(CLOCK_MONOTONIC, &t);
+  return ts_to_sec(&t);
+}
+
+/* Returns current system time */
+static inline double get_real_time() {
+  struct timespec t;
+
+  clock_gettime(CLOCK_REALTIME, &t);
+  return ts_to_sec(&t);
+}
+
+/* Compute the monotonic clock as the sum of the current monotonic time and its
+ * offset relative to the system time */
+static double xcom_monotonic_seconds(xcom_clock *clock) {
+  clock->now = get_monotonic_time() + clock->offset;
+  return clock->now;
+}
+
+/* Initialize clock by capturing the current values of monotonic time and system
+ * time and computing the offset. */
+static void xcom_init_clock(xcom_clock *clock) {
+  clock->monotonic_start = get_monotonic_time();
+  clock->real_start = get_real_time();
+  /* Capture the difference between real time and monotonic time */
+  clock->offset = clock->real_start - clock->monotonic_start;
+  xcom_monotonic_seconds(clock);
+  clock->done = 1;
+}
+
+#endif
+
+/* The monotonic clock used by xcom */
+static xcom_clock task_timer;
+
+/* Calls xcom_monotonic_seconds after having initialized the clock if necessary
+ */
+double seconds() {
+  if (!task_timer.done) {
+    xcom_init_clock(&task_timer);
+  }
+  return xcom_monotonic_seconds(&task_timer);
+}
+
+/* Return the value of the last call to seconds() */
+double task_now() {
+  if (!task_timer.done) {
+    xcom_init_clock(&task_timer);
+  }
+  return task_timer.now;
+}
 
 #ifdef _WIN32
 int gettimeofday(struct timeval *tp, struct timezone *tzp) {
@@ -149,12 +328,6 @@ int gettimeofday(struct timeval *tp, struct timezone *tzp) {
   return 0;
 }
 #endif
-
-double seconds(void) {
-  struct timeval tv;
-  if (gettimeofday(&tv, 0) < 0) return -1.0;
-  return _now = (double)tv.tv_sec + (double)tv.tv_usec / 1000000.0;
-}
 
 #ifdef NOTDEF
 static void task_queue_init(task_queue *q) { q->curn = 0; }
@@ -1303,6 +1476,7 @@ static int	statistics_task(task_arg arg)
 	    double	next;
 	END_ENV;
 	TASK_BEGIN
+	(void) arg;
 	    idle_time = 0.0;
 	send_count = 0;
 	receive_count = 0;
@@ -1333,6 +1507,7 @@ static void init_task_vars() {
 }
 
 void task_sys_init() {
+  xcom_init_clock(&task_timer);
   DBGOUT(FN; NDBG(FD_SETSIZE, d));
   init_task_vars();
   link_init(&tasks, type_hash("task_env"));
@@ -1341,8 +1516,7 @@ void task_sys_init() {
   /* assert(ash_nazg_gimbatul.suc > (linkage*)0x8000000); */
   /* assert(ash_nazg_gimbatul.pred > (linkage*)0x8000000); */
   iotasks_init(&iot);
-  seconds(); /* Needed to initialize _now */
-             /* task_new(statistics_task, null_arg, "statistics_task", 1);  */
+  /* task_new(statistics_task, null_arg, "statistics_task", 1); */
 }
 
 static void task_sys_deinit() {
