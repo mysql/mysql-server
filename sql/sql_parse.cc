@@ -5378,7 +5378,7 @@ bool PT_with_clause::lookup(TABLE_LIST *tl, PT_common_table_expr **found) {
       m_most_inner_in_parsing ? m_most_inner_in_parsing->common_table_expr()
                               : nullptr;
   bool in_self = false;
-  for (auto el : m_list.elements()) {
+  for (auto el : m_list->elements()) {
     // Search for a CTE named like 'tl', in this list, from left to right.
     if (el->is(right_bound)) {
       /*
