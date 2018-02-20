@@ -17940,6 +17940,10 @@ static int innodb_monitor_validate(
 
   name = value->val_str(value, buff, &len);
 
+  if (name == nullptr) {
+    return (1);
+  }
+
   /* Check if the value is a valid string. */
   size_t valid_len;
   bool len_error;
