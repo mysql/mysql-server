@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,9 +51,6 @@ void mysql_lock_abort_for_thread(THD *thd, TABLE *table);
 MYSQL_LOCK *mysql_lock_merge(MYSQL_LOCK *a, MYSQL_LOCK *b);
 /* Lock based on name */
 bool lock_schema_name(THD *thd, const char *db);
-
-/* Lock based on tablespace name */
-bool lock_tablespace_name(THD *thd, const char *tablespace);
 
 // Hash set to hold set of tablespace names.
 typedef malloc_unordered_set<std::string> Tablespace_hash_set;
