@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,16 +260,41 @@ class AccCheckScan {
   friend class Dbtup;
   friend class Dblqh;
   enum {
-    ZCHECK_LCP_STOP = 0,
-    ZNOT_CHECK_LCP_STOP = 1
+    ZCHECK_LCP_STOP     = 0,   // Execution should check-in with LQH
+    ZNOT_CHECK_LCP_STOP = 1    // Execution should not check-in with LQH
   };
+
 public:
   STATIC_CONST( SignalLength = 2 );
 private:
-  Uint32 accPtr;                // scanptr.i in ACC or TUX
+  Uint32 accPtr;                // scanptr.i in ACC/TUX/TUP
   Uint32 checkLcpStop;          // from enum
 };
 
+class CheckLcpStop
+{
+  friend class Dbacc;
+  friend class Dbtux;
+  friend class Dbtup;
+  friend class Dblqh;
+
+  enum ScanState
+  {
+    ZSCAN_RUNNABLE = 0,        // Scan runnable immediately
+    ZSCAN_RESOURCE_WAIT = 1,   // Scan waiting for something
+    ZSCAN_RUNNABLE_YIELD = 2   // Scan runnable, yielding cpu
+  };
+
+  enum Reply
+  {
+    ZTAKE_A_BREAK = RNIL       // In signal[0] after EXECUTE_DIRECT
+  };
+public:
+  STATIC_CONST( SignalLength = 2);
+private:
+  Uint32 scanPtrI;            // scanptr.i from ACC/TUX/TUP
+  Uint32 scanState;
+};
 
 #undef JAM_FILE_ID
 
