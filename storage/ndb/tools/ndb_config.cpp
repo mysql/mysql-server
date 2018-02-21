@@ -223,6 +223,19 @@ static int print_diff(const Iter&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
 
+typedef std::unique_ptr<ndb_mgm_configuration,
+  decltype(&ndb_mgm_destroy_configuration)> ndb_mgm_config_unique_ptr;
+
+
+static ndb_mgm_config_unique_ptr get_config()
+{
+  ndb_mgm_configuration* conf;
+  if (g_config_file || g_mycnf)
+    conf = load_configuration();
+  else
+    conf = fetch_configuration(g_config_from_node);
+  return ndb_mgm_config_unique_ptr({conf, ndb_mgm_destroy_configuration});
+}
 
 int
 main(int argc, char** argv){
@@ -279,12 +292,7 @@ main(int argc, char** argv){
   else if (g_system)
     g_section = CFG_SECTION_SYSTEM;
 
-  ndb_mgm_configuration * conf = 0;
-
-  if (g_config_file || g_mycnf)
-    conf = load_configuration();
-  else
-    conf = fetch_configuration(g_config_from_node);
+  ndb_mgm_config_unique_ptr conf = get_config();
 
   if (conf == 0)
   {
@@ -349,6 +357,15 @@ main(int argc, char** argv){
     }
   }
   printf("\n");
+  for (unsigned i = 0; i < select_list.size(); i++)
+  {
+    delete select_list[i];
+  }
+
+  for (unsigned i = 0; i < where_clause.size(); i++)
+  {
+    delete where_clause[i];
+  }
   return 0;
 }
 
@@ -360,7 +377,7 @@ print_diff(const Iter& iter)
   Uint32 val32;
   Uint64 val64;
   const char* config_value;
-  const char* node_type;
+  const char* node_type = nullptr;
   char str[300] = {0};
 
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
@@ -866,7 +883,14 @@ load_configuration()
     
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
-      return conf->m_configValues;
+    {
+      ndb_mgm_configuration* mgm_config = conf->m_configValues;
+      conf->m_configValues = nullptr;
+      //mgm_config is moved out of config. It has to be freed by caller.
+      delete conf;
+
+      return mgm_config;
+    }
     return 0;
   }
   
@@ -875,7 +899,14 @@ load_configuration()
   
   Config* conf = parser.parse_mycnf();
   if (conf)
-    return conf->m_configValues;
+  {
+    ndb_mgm_configuration* mgm_config = conf->m_configValues;
+    conf->m_configValues = nullptr;
+    //mgm_config is moved out of config. It has to be freed by caller.
+    delete conf;
+
+    return mgm_config;
+  }
 
   return 0;
 }

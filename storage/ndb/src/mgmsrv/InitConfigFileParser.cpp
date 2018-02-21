@@ -713,7 +713,7 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
                              *(Uint64*)options[i].value);
         value = buf;
 	break;
-      case GET_STR:
+      case GET_STR_ALLOC:
         value = *(char**)options[i].value;
         break;
       default:
@@ -778,18 +778,19 @@ load_defaults(Vector<struct my_option>& options, const char* groups[])
   }
 
   char ** tmp = (char**)argv;
-  MEM_ROOT *alloc= new MEM_ROOT;  // Yes, this leaks.
-  int ret = load_defaults("my", groups, &argc, &tmp, alloc);
+  MEM_ROOT alloc;
+  int ret = load_defaults("my", groups, &argc, &tmp, &alloc);
 
   my_defaults_file = save_file;
   my_defaults_extra_file = save_extra_file;
   my_defaults_group_suffix = save_group_suffix;
-  
-  if (ret == 0)
+
+  if (ret != 0)
   {
-    return handle_options(&argc, &tmp, options.getBase(), parse_mycnf_opt);
+    return ret;
   }
-  
+  ret = handle_options(&argc, &tmp, options.getBase(), parse_mycnf_opt);
+
   return ret;
 }
 
@@ -820,6 +821,10 @@ InitConfigFileParser::load_mycnf_groups(Vector<struct my_option> & options,
   return store_in_properties(copy, ctx, name);
 }
 
+/*
+  Use "GET_STR_ALLOC" instead of "GET_STR" and during exit, call my_free() to
+  release the memory allocated by my_strdup() from handle_options().
+*/
 Config *
 InitConfigFileParser::parse_mycnf() 
 {
@@ -847,9 +852,10 @@ InitConfigFileParser::parse_mycnf()
       case ConfigInfo::CI_ENUM:
       case ConfigInfo::CI_STRING: 
       case ConfigInfo::CI_BITMASK:
-	opt.value = (uchar**)malloc(sizeof(char *));
-	opt.var_type = GET_STR;
-	break;
+        opt.value = (uchar**)malloc(sizeof(char *));
+        *((char**)opt.value) = nullptr;
+        opt.var_type = GET_STR_ALLOC;
+        break;
       default:
         continue;
       }
@@ -874,28 +880,32 @@ InitConfigFileParser::parse_mycnf()
     opt.name = "ndbd";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndb_mgmd";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "mysqld";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
     opt.name = "ndbapi";
     opt.id = 256;
     opt.value = (uchar**)malloc(sizeof(char*));
-    opt.var_type = GET_STR;
+    *((char**)opt.value) = nullptr;
+    opt.var_type = GET_STR_ALLOC;
     opt.arg_type = REQUIRED_ARG;
     options.push_back(opt);
 
@@ -903,9 +913,9 @@ InitConfigFileParser::parse_mycnf()
     options.push_back(opt);
 
     ndbd = &options[idx];
-    ndb_mgmd = &options[idx+1];
-    mysqld = &options[idx+2];
-    api = &options[idx+3];
+    ndb_mgmd = &options[idx + 1];
+    mysqld = &options[idx + 2];
+    api = &options[idx + 3];
   }
   
   Context ctx(m_info);
@@ -1026,8 +1036,12 @@ InitConfigFileParser::parse_mycnf()
   res = run_config_rules(ctx);
 
 end:
-  for(int i = 0; options[i].name; i++)
+  for (int i = 0; options[i].name; i++)
+  {
+    if (options[i].var_type == GET_STR_ALLOC)
+      my_free(*((char**)options[i].value));
     free(options[i].value);
+  }
 
   return res;
 }
