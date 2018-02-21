@@ -12789,27 +12789,81 @@ void Dblqh::storedProcConfScanLab(Signal* signal,
 }//Dblqh::storedProcConfScanLab()
 
 /* ------------------------------------------------------------------------- 
- * When executing a scan we must come up to the surface at times to make 
- * sure we can quickly start local checkpoints.
+ * When executing a scan we must come up to the surface at times to wait
+ * for a resource to become available
  * ------------------------------------------------------------------------- */
 void Dblqh::execCHECK_LCP_STOP(Signal* signal)
 {
-  const Uint32 scanPtrI = signal->theData[0];
+  const CheckLcpStop* cls = (const CheckLcpStop*) signal->theData;
+  const Uint32 scanPtrI = cls->scanPtrI;
   jamEntry();
-  if (signal->theData[1] == ZTRUE)
+  switch(cls->scanState)
   {
-    ScanRecordPtr loc_scanptr;
+  case CheckLcpStop::ZSCAN_RUNNABLE:
+  {
     jam();
+    return;
+  }
+  case CheckLcpStop::ZSCAN_RESOURCE_WAIT:
+  {
+    jam();
+    /**
+     * Scan waiting for a resource, we will use a
+     * delayed CONTINUEB to continue it later
+     */
+
+    /* Tracking */
+    ScanRecordPtr loc_scanptr;
     loc_scanptr.i = scanPtrI;
     c_scanRecordPool.getPtr(loc_scanptr);
     loc_scanptr.p->scan_lastSeen = __LINE__;
     loc_scanptr.p->scan_check_lcp_stop++;
 
+     
     signal->theData[0] = ZCHECK_LCP_STOP_BLOCKED;
     signal->theData[1] = scanPtrI;
     sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 10, 2);
-    signal->theData[0] = RNIL;
-  }//if
+
+    /* Tell caller to take a break */
+    signal->theData[0] = CheckLcpStop::ZTAKE_A_BREAK;
+    return;
+  }
+  case CheckLcpStop::ZSCAN_RUNNABLE_YIELD:
+  {
+    jam();
+    /**
+     * Scan voluntarily yielding cpu
+     * We will use an immediate CONTINUEB to continue
+     * it ASAP.
+     */
+    {
+      /* Consider sending SCAN_HBREP if appropriate */
+      ScanRecordPtr scan;
+      TcConnectionrecPtr tc;
+      c_scanRecordPool.getPtr(scan, scanPtrI);
+      tc.i = scan.p->scanTcrec;
+      ptrCheckGuard(tc, ctcConnectrecFileSize, tcConnectionrec);
+
+      check_send_scan_hb_rep(signal, scan.p, tc.p);
+      
+      /* Tracking */      
+      scan.p->scan_lastSeen = __LINE__;
+      scan.p->scan_check_lcp_stop++;
+    }
+
+    signal->theData[0] = ZCHECK_LCP_STOP_BLOCKED;
+    signal->theData[1] = scanPtrI;
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
+
+    /* Tell caller to take a break */
+    signal->theData[0] = CheckLcpStop::ZTAKE_A_BREAK;
+    return;
+  }
+  default:
+    jam();
+    jamLine(cls->scanState);
+    ndbrequire(false);
+  }
 }//Dblqh::execCHECK_LCP_STOP()
 
 void Dblqh::checkLcpStopBlockedLab(Signal* signal)

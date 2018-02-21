@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -454,10 +454,12 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
 #endif
   if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
     jam();
-    signal->theData[0] = scan.m_userPtr;
-    signal->theData[1] = true;
+    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    cls->scanPtrI = scan.m_userPtr;
+    cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
     jamEntry();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
     return;   // stop
   }
   if (scan.m_lockwait) {
@@ -535,6 +537,7 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
       jamEntryDebug();
       switch (lockReq->returnCode) {
       case AccLockReq::Success:
+      {
         jam();
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
@@ -544,7 +547,9 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         }
 #endif
         break;
+      }
       case AccLockReq::IsBlocked:
+      {
         jam();
         // normal lock wait
         scan.m_state = ScanOp::Blocked;
@@ -556,36 +561,47 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
         }
 #endif
         // LQH will wake us up
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;  // stop
         break;
+      }
       case AccLockReq::Refused:
+      {
         jam();
         // we cannot see deleted tuple (assert only)
         ndbassert(false);
         // skip it
         scan.m_state = ScanOp::Next;
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;  // stop
         break;
+      }
       case AccLockReq::NoFreeOp:
+      {
         jam();
         // max ops should depend on max scans (assert only)
         ndbassert(false);
         // stay in Found state
         scan.m_state = ScanOp::Found;
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;  // stop
         break;
+      }
       default:
         ndbrequire(false);
         break;
@@ -593,6 +609,18 @@ Dbtux::execACC_CHECK_SCAN(Signal* signal)
     } else {
       scan.m_state = ScanOp::Locked;
     }
+  }
+  else if (scan.m_state == ScanOp::Next)
+  {
+    jam();
+    // Taking a break from searching the tree
+    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    cls->scanPtrI = scan.m_userPtr;
+    cls->scanState = CheckLcpStop::ZSCAN_RUNNABLE_YIELD;
+    EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
+    jam();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
+    return;
   }
   if (scan.m_state == ScanOp::Locked) {
     // we have lock or do not need one
@@ -860,6 +888,14 @@ Dbtux::scanFind(ScanOpPtr scanPtr)
           jam();
           scan.m_state = ScanOp::Found;
           // may not access non-pseudo cols but must return valid ent
+          scan.m_scanEnt = ent;
+          break;
+        }
+        else if (ret == 2)
+        {
+          // take a break
+          jam();
+          scan.m_state = ScanOp::Next;
           scan.m_scanEnt = ent;
           break;
         }
