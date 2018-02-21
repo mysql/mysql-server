@@ -790,9 +790,9 @@ LEX_CSTRING validate_password_plugin_name = {
 LEX_CSTRING default_auth_plugin_name;
 
 const LEX_CSTRING Cached_authentication_plugins::cached_plugins_names[(
-    uint)PLUGIN_LAST] = {C_STRING_WITH_LEN("caching_sha2_password"),
-                         C_STRING_WITH_LEN("mysql_native_password"),
-                         C_STRING_WITH_LEN("sha256_password")};
+    uint)PLUGIN_LAST] = {{C_STRING_WITH_LEN("caching_sha2_password")},
+                         {C_STRING_WITH_LEN("mysql_native_password")},
+                         {C_STRING_WITH_LEN("sha256_password")}};
 
 /**
   Use known pointers for cached plugins to improve comparison time
