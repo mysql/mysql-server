@@ -7439,11 +7439,14 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
   //---------------------------------------------------------------------------
     signal->theData[0] = scanPtr.p->scanUserptr;
     signal->theData[1] =
-                    ((scanPtr.p->scanLockHeld >= ZSCAN_MAX_LOCK) ||
-                     (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED));
+      (((scanPtr.p->scanLockHeld >= ZSCAN_MAX_LOCK) ||
+        (scanPtr.p->scanBucketState ==  ScanRec::SCAN_COMPLETED)) ?
+       CheckLcpStop::ZSCAN_RESOURCE_WAIT:
+       CheckLcpStop::ZSCAN_RUNNABLE);
+
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
     jamEntry();
-    if (signal->theData[0] == RNIL) {
+    if (signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK) {
       jam();
       scanPtr.p->scan_lastSeen = __LINE__;
       return;
