@@ -137,15 +137,96 @@ class Rsa_authentication_keys {
 
 /* Data Structures */
 
-extern LEX_CSTRING native_password_plugin_name;
-extern LEX_CSTRING sha256_password_plugin_name;
 extern LEX_CSTRING validate_password_plugin_name;
-extern LEX_CSTRING default_auth_plugin_name;
-extern LEX_CSTRING caching_sha2_password_plugin_name;
 
 extern bool allow_all_hosts;
 
-extern plugin_ref native_password_plugin;
+typedef enum {
+  PLUGIN_CACHING_SHA2_PASSWORD = 0,
+  PLUGIN_MYSQL_NATIVE_PASSWORD,
+  PLUGIN_SHA256_PASSWORD,
+  /* Add new plugin before this */
+  PLUGIN_LAST
+} cached_plugins_enum;
+
+extern LEX_CSTRING default_auth_plugin_name;
+
+class Cached_authentication_plugins {
+ public:
+  static const LEX_CSTRING cached_plugins_names[(uint)PLUGIN_LAST];
+  static void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin);
+
+  /**
+    Compare given plugin against one of the cached ones
+
+    @param [in] plugin_index Cached plugin index
+    @param [in] plugin       Plugin to be compared
+
+    @returns status of comparison
+      @retval true Match
+      @retval false Not a match
+  */
+  static bool compare_plugin(cached_plugins_enum plugin_index,
+                             LEX_CSTRING plugin) {
+    if (plugin_index < PLUGIN_LAST && plugin.str) {
+      optimize_plugin_compare_by_pointer(&plugin);
+      return (plugin.str == cached_plugins_names[plugin_index].str);
+    }
+    return false;
+  }
+
+  /**
+    Check if given plugin is a builtin
+
+    @param [in] plugin Plugin name
+
+    @returns true if builtin, false otherwise
+  */
+  static bool auth_plugin_is_built_in(LEX_CSTRING *plugin) {
+    for (uint i = 0; i < (uint)PLUGIN_LAST; ++i) {
+      if (plugin->str == cached_plugins_names[i].str) return true;
+    }
+    return false;
+  }
+
+  /**
+    Get name of the plugin at given index
+
+    @param [in] plugin_index Cached plugin index
+
+    @returns name of the cached plugin at given index
+  */
+  static const char *get_plugin_name(cached_plugins_enum plugin_index) {
+    if (plugin_index < PLUGIN_LAST)
+      return cached_plugins_names[plugin_index].str;
+    return 0;
+  }
+
+  Cached_authentication_plugins();
+  ~Cached_authentication_plugins();
+
+  plugin_ref get_cached_plugin_ref(const LEX_CSTRING *plugin);
+
+  /**
+    Fetch cached plugin handle
+
+    @param plugin_index Cached plugin index
+
+    @returns cached plugin_ref if found, 0 otherwise
+  */
+  plugin_ref get_cached_plugin_ref(cached_plugins_enum plugin_index) {
+    if (plugin_index < PLUGIN_LAST) return cached_plugins[plugin_index];
+    return 0;
+  }
+
+  plugin_ref cached_plugins[(uint)PLUGIN_LAST];
+  bool is_valid() { return m_valid; }
+
+ private:
+  bool m_valid;
+};
+
+extern Cached_authentication_plugins *g_cached_authentication_plugins;
 
 #define AUTH_DEFAULT_RSA_PRIVATE_KEY "private_key.pem"
 #define AUTH_DEFAULT_RSA_PUBLIC_KEY "public_key.pem"
