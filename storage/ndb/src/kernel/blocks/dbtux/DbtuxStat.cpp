@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -390,6 +390,16 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
     stat.m_batchCurr = 0;
     return 1;
   }
+  /* Take a break to avoid problems with a long stretch of equal keys */
+  const Uint32 MaxAddRowsWithoutBreak = 16;
+  if (stat.m_rowCount % MaxAddRowsWithoutBreak == 0)
+  {
+    jam();
+    D("Taking a break from stat scan");
+    return 2; // Take a break
+  }
+
+  /* Iterate to next index entry */
   return 0;
 }
 
