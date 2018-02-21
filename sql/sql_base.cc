@@ -5509,7 +5509,7 @@ int run_before_dml_hook(THD *thd) {
 /**
   Check whether a table being opened is a temporary table.
 
-  @parama table  table being opened
+  @param table  table being opened
 
   @return true if a table is temporary table, else false
 */
@@ -5826,8 +5826,8 @@ static bool open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for a table.
 
   @param[in]  thd      Thread context.
-  @param[in]  table_start  Pointer to a start of a list of tables to iterate
-  @param[in]  table_end    Pointer to a end of a list of tables where to stop
+  @param[in]  tables_start  Pointer to a start of a list of tables to iterate
+  @param[in]  tables_end    Pointer to a end of a list of tables where to stop
 
   @return  false on success, true on error.
 */
