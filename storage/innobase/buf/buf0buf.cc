@@ -1243,7 +1243,7 @@ static void buf_pool_free() {
 }
 
 /** Creates the buffer pool.
-@param[in]  total_Size    Size of the total pool in bytes.
+@param[in]  total_size    Size of the total pool in bytes.
 @param[in]  n_instances   Number of buffer pool instances to create.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
 dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
