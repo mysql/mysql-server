@@ -59,6 +59,7 @@ class Sharded_rw_lock {
     m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
 
     for_each([pfs_key, latch_level](rw_lock_t &lock) {
+      static_cast<void>(latch_level);  // clang -Wunused-lambda-capture
       rw_lock_create(pfs_key, &lock, latch_level);
     });
   }
