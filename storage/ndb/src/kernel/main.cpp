@@ -51,6 +51,7 @@ static unsigned opt_allocated_nodeid;
 static int opt_angel_pid;
 static int opt_retries;
 static int opt_delay;
+static int opt_logbuffer_size;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -115,6 +116,11 @@ static struct my_option my_long_options[] =
     "Number of seconds between each connection attempt",
     (uchar**) &opt_delay, (uchar**) &opt_delay, 0,
     GET_INT, REQUIRED_ARG, 5, 0, 3600, 0, 0, 0 },
+  { "logbuffer-size", NDB_OPT_NOSHORT,
+    "Size of the log buffer for data node ndb_x_out.log",
+    (uchar**) &opt_logbuffer_size, (uchar**) &opt_logbuffer_size, 0,
+    GET_ULONG, REQUIRED_ARG, 32768, 2048, ULONG_MAX, 0, 0, 0
+  },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -215,7 +221,8 @@ real_main(int argc, char** argv)
     ndbd_run(opt_foreground, opt_report_fd,
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
-             opt_allocated_nodeid, opt_retries, opt_delay);
+             opt_allocated_nodeid, opt_retries, opt_delay,
+             opt_logbuffer_size);
   }
 
   /**
