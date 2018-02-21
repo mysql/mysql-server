@@ -598,6 +598,13 @@ static bool acl_end_trans_and_close_tables(THD *thd, bool rollback_transaction,
   */
   DBUG_ASSERT(stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_END));
 
+  /*
+    ACL DDL operations must acquire IX Backup Lock in order to be mutually
+    exclusive with LOCK INSTANCE FOR BACKUP.
+  */
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE));
+
   if (rollback_transaction) {
     /*
       Transaction rollback request by SE is unlikely. Still let us
@@ -2289,6 +2296,9 @@ void grant_tables_setup_for_open(TABLE_LIST *tables, thr_lock_type lock_type,
   @retval  1    Skip GRANT handling during replication.
   @retval  0    OK.
   @retval  < 0  Error.
+
+  @note  IX Backup Lock is implicitly acquired as side effect of calling
+         this function.
 */
 
 int open_grant_tables(THD *thd, TABLE_LIST *tables,

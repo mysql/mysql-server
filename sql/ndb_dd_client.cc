@@ -139,6 +139,7 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
   MDL_request_list mdl_requests;
   MDL_request schema_request;
   MDL_request mdl_request;
+  MDL_request backup_lock_request;
 
   MDL_REQUEST_INIT(&schema_request,
                    MDL_key::SCHEMA, schema_name, "", MDL_INTENTION_EXCLUSIVE,
@@ -146,9 +147,13 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
   MDL_REQUEST_INIT(&mdl_request,
                    MDL_key::TABLE, schema_name, table_name, MDL_EXCLUSIVE,
                    MDL_EXPLICIT);
+  MDL_REQUEST_INIT(&backup_lock_request,
+                   MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE,
+                   MDL_EXPLICIT);
 
   mdl_requests.push_front(&schema_request);
   mdl_requests.push_front(&mdl_request);
+  mdl_requests.push_front(&backup_lock_request);
 
   if (m_thd->mdl_context.acquire_locks(&mdl_requests,
                                        m_thd->variables.lock_wait_timeout))
@@ -159,6 +164,7 @@ Ndb_dd_client::mdl_locks_acquire_exclusive(const char* schema_name,
   // Remember tickets of the acquired mdl locks
   m_acquired_mdl_tickets.push_back(schema_request.ticket);
   m_acquired_mdl_tickets.push_back(mdl_request.ticket);
+  m_acquired_mdl_tickets.push_back(backup_lock_request.ticket);
 
   return true;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,9 @@
 #include "mysqld_error.h"
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/resourcegroups/resource_group_mgr.h"  // Resource_group_mgr
-#include "sql/sql_class.h"                          // THD
-#include "sql/sql_plugin.h"                         // end_transaction
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_plugin.h"       // end_transaction
 #include "sql/thd_raii.h"
 
 bool Sql_cmd_install_component::execute(THD *thd) {
@@ -50,6 +51,9 @@ bool Sql_cmd_install_component::execute(THD *thd) {
              "persistent_dynamic_loader");
     return true;
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    return true;
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
@@ -81,6 +85,9 @@ bool Sql_cmd_uninstall_component::execute(THD *thd) {
              "persistent_dynamic_loader");
     return true;
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    return true;
 
   Disable_autocommit_guard autocommit_guard(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());

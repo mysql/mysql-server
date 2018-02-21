@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,6 +43,7 @@
 #include "sql/mdl.h"                // MDL_request
 #include "sql/mysqld.h"             // is_secure_file_path
 #include "sql/psi_memory_key.h"     // key_memory_DD_import
+#include "sql/sql_backup_lock.h"    // acquire_shared_backup_lock
 #include "sql/sql_class.h"          // THD
 #include "sql/sql_error.h"
 #include "sql/stateless_allocator.h"
@@ -142,6 +143,11 @@ bool Sql_cmd_import_table::execute(THD *thd) {
                      MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
     mdl_requests.push_front(r);
   }
+
+  MDL_request *mdl_request_for_backup_lock = new (thd->mem_root) MDL_request;
+  MDL_REQUEST_INIT(mdl_request_for_backup_lock, MDL_key::BACKUP_LOCK, "", "",
+                   MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+  mdl_requests.push_front(mdl_request_for_backup_lock);
 
   if (thd->mdl_context.acquire_locks(&mdl_requests,
                                      thd->variables.lock_wait_timeout)) {

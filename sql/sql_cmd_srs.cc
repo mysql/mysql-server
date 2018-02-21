@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,11 @@
 #include "sql/dd/dd.h"  // dd::create_object
 #include "sql/dd/impl/types/spatial_reference_system_impl.h"
 #include "sql/dd/types/spatial_reference_system.h"
-#include "sql/derror.h"       // ER_THD
-#include "sql/gis/srid.h"     // gis::srid_t
-#include "sql/sql_class.h"    // THD
-#include "sql/sql_prepare.h"  // Ed_connection
+#include "sql/derror.h"           // ER_THD
+#include "sql/gis/srid.h"         // gis::srid_t
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_class.h"        // THD
+#include "sql/sql_prepare.h"      // Ed_connection
 #include "sql/srs_fetcher.h"
 #include "sql/thd_raii.h"  // Disable_autocommit_guard
 #include "sql/transaction.h"
@@ -165,6 +166,9 @@ bool Sql_cmd_create_srs::execute(THD *thd) {
     return true;
   }
 
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    return true;
+
   Disable_autocommit_guard dag(thd);
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
@@ -226,6 +230,10 @@ bool Sql_cmd_drop_srs::execute(THD *thd) {
     my_error(ER_CMD_NEED_SUPER, MYF(0), "DROP SPATIAL REFERENCE SYSTEM");
     return true;
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    return true;
+
   Disable_autocommit_guard dag(thd);
   dd::cache::Dictionary_client *dd_client = thd->dd_client();
   dd::cache::Dictionary_client::Auto_releaser releaser(dd_client);
