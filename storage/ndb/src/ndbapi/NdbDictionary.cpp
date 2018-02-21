@@ -29,6 +29,7 @@
 #include <signaldata/CreateHashMap.hpp>
 #include <NdbBlob.hpp>
 #include "decimal.h"
+#include "m_ctype.h"
 
 /* NdbRecord static helper methods */
 

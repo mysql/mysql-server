@@ -65,6 +65,8 @@
 
 #include "Ndbinfo.hpp"
 
+struct CHARSET_INFO;
+
 #define JAM_FILE_ID 248
 
 

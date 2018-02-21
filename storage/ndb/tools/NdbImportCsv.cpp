@@ -22,6 +22,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "m_ctype.h"
 #include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <decimal_utils.hpp>
@@ -29,10 +30,6 @@
 #include "NdbImportCsvGram.hpp"
 // STL
 #include <cmath>
-// legacy
-#include <BaseString.hpp>
-
-#define snprintf BaseString::snprintf
 
 extern int NdbImportCsv_yyparse(NdbImportCsv::Parse& csvparse);
 #ifdef VM_TRACE

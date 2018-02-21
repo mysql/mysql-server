@@ -23,8 +23,11 @@
 */
 
 #include <NdbSqlUtil.hpp>
-#include <ndb_version.h>
+
 #include <math.h>
+
+#include "my_byteorder.h"
+#include "m_ctype.h"
 
 /*
  * Data types.  The entries must be in the numerical order.

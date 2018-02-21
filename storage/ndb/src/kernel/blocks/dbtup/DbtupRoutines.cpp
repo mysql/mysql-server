@@ -25,6 +25,9 @@
 #define DBTUP_C
 #define DBTUP_ROUTINES_CPP
 #include "Dbtup.hpp"
+
+#include "m_ctype.h"
+
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>

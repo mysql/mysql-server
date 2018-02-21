@@ -22,12 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-/*
- * testOIBasic - ordered index test
- *
- * dummy push to re-created mysql-5.1-telco ...
- */
-
 #include <ndb_global.h>
 
 #include <NdbOut.hpp>
@@ -39,7 +33,8 @@
 #include <NdbTick.h>
 #include <NdbHost.h>
 #include <NdbSleep.h>
-#include <my_sys.h>
+#include "m_ctype.h"
+#include "my_sys.h"
 #include <NdbSqlUtil.hpp>
 #include <ndb_version.h>
 

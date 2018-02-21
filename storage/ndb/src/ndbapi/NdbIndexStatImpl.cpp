@@ -21,6 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <algorithm>
+
 #include <ndb_global.h>
 #include <Ndb.hpp>
 #include <NdbTransaction.hpp>
@@ -33,11 +35,7 @@
 #include <NdbEventOperation.hpp>
 #include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
-
-#undef min
-#undef max
-#define min(a, b) ((a) <= (b) ? (a) : (b))
-#define max(a, b) ((a) >= (b) ? (a) : (b))
+#include "m_ctype.h"
 
 static const char* const g_headtable_name = NDB_INDEX_STAT_HEAD_TABLE;
 static const char* const g_sampletable_name = NDB_INDEX_STAT_SAMPLE_TABLE;
@@ -2170,7 +2168,7 @@ NdbIndexStatImpl::query_interpolate(const Cache& c,
   const uint posH2 = stat2.m_pos;
   const uint cnt1 = bound1.m_data.get_cnt();
   const uint cnt2 = bound2.m_data.get_cnt();
-  const uint mincnt = min(cnt1, cnt2);
+  const uint mincnt = std::min(cnt1, cnt2);
   Uint32 numEq = 0; // of bound1,bound2
 
   if (bound1.m_data.is_empty())
