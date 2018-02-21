@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,9 +74,10 @@
 #include "sql/field.h"
 #include "sql/handler.h"
 #include "sql/log.h"
-#include "sql/psi_memory_key.h"  // key_memory_servers
-#include "sql/records.h"         // init_read_record, end_read_record
-#include "sql/sql_base.h"        // close_mysql_tables
+#include "sql/psi_memory_key.h"   // key_memory_servers
+#include "sql/records.h"          // init_read_record, end_read_record
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // close_mysql_tables
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
@@ -616,7 +617,9 @@ void Server_options::store_altered_server(TABLE *table,
 }
 
 bool Sql_cmd_common_server::check_and_open_table(THD *thd) {
-  if (check_global_access(thd, SUPER_ACL)) return true;
+  if (check_global_access(thd, SUPER_ACL) ||
+      acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    return true;
 
   TABLE_LIST tables;
   tables.init_one_table("mysql", 5, "servers", 7, "servers", TL_WRITE);

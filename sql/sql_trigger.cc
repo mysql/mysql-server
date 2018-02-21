@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,12 +49,13 @@
 #include "sql/dd/types/abstract_table.h"  // dd::enum_table_type
 #include "sql/dd/types/table.h"
 #include "sql/dd/types/trigger.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
-#include "sql/mysqld.h"      // trust_function_creators
-#include "sql/sp_cache.h"    // sp_invalidate_cache()
-#include "sql/sp_head.h"     // sp_name
-#include "sql/sql_base.h"    // find_temporary_table()
+#include "sql/debug_sync.h"       // DEBUG_SYNC
+#include "sql/derror.h"           // ER_THD
+#include "sql/mysqld.h"           // trust_function_creators
+#include "sql/sp_cache.h"         // sp_invalidate_cache()
+#include "sql/sp_head.h"          // sp_name
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // find_temporary_table()
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables()
@@ -331,6 +332,9 @@ TABLE *Sql_cmd_ddl_trigger_common::open_and_lock_subj_table(
     tables->table =
         find_table_for_mdl_upgrade(thd, tables->db, tables->table_name, false);
     if (tables->table == nullptr) return nullptr;
+
+    if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+      return nullptr;
   } else {
     tables->table = open_n_lock_single_table(thd, tables, TL_READ_NO_INSERT, 0);
     if (tables->table == nullptr) return nullptr;

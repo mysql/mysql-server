@@ -68,6 +68,7 @@
 #include "sql/sp_rcontext.h"  // sp_rcontext
 #include "sql/sql_alter.h"
 #include "sql/sql_alter_instance.h"  // Alter_instance
+#include "sql/sql_backup_lock.h"     // acquire_shared_backup_lock
 #include "sql/sql_base.h"            // Open_table_context
 #include "sql/sql_class.h"           // THD
 #include "sql/sql_error.h"
@@ -438,7 +439,7 @@ static bool mysql_admin_table(
     bool repair_table_use_frm, uint extra_open_options,
     int (*prepare_func)(THD *, TABLE_LIST *, HA_CHECK_OPT *),
     int (handler::*operator_func)(THD *, HA_CHECK_OPT *), int check_view,
-    Alter_info *alter_info) {
+    Alter_info *alter_info, bool need_to_acquire_shared_backup_lock) {
   /*
     Prevent InnoDB from automatically committing InnoDB
     transaction each time data-dictionary tables are closed after
@@ -553,7 +554,21 @@ static bool mysql_admin_table(
 
         open_error = open_temporary_tables(thd, table);
 
-        if (!open_error) open_error = open_and_lock_tables(thd, table, 0);
+        if (!open_error) {
+          open_error = open_and_lock_tables(thd, table, 0);
+
+          if (!open_error && need_to_acquire_shared_backup_lock &&
+              /*
+                Acquire backup lock explicitly since lock types used by
+                admin statements won't cause its automatic acquisition
+                in open_and_lock_tables().
+              */
+              acquire_shared_backup_lock(thd,
+                                         thd->variables.lock_wait_timeout)) {
+            result_code = HA_ADMIN_FAILED;
+            goto send_result;
+          }
+        }
 
         thd->pop_diagnostics_area();
         if (tmp_da.is_error()) {
@@ -573,7 +588,21 @@ static bool mysql_admin_table(
 
         open_error = open_temporary_tables(thd, table);
 
-        if (!open_error) open_error = open_and_lock_tables(thd, table, 0);
+        if (!open_error) {
+          open_error = open_and_lock_tables(thd, table, 0);
+
+          if (!open_error && need_to_acquire_shared_backup_lock &&
+              /*
+                Acquire backup lock explicitly since lock types used by
+                admin statements won't cause its automatic acquisition
+                in open_and_lock_tables().
+              */
+              acquire_shared_backup_lock(thd,
+                                         thd->variables.lock_wait_timeout)) {
+            result_code = HA_ADMIN_FAILED;
+            goto send_result;
+          }
+        }
       }
 
       /*
@@ -986,23 +1015,28 @@ static bool mysql_admin_table(
         if (!result_code)  // recreation went ok
         {
           DEBUG_SYNC(thd, "ha_admin_open_ltable");
-          table->mdl_request.set_type(MDL_SHARED_READ);
-          if (!open_temporary_tables(thd, table) &&
-              (table->table = open_n_lock_single_table(thd, table,
-                                                       TL_READ_NO_INSERT, 0))) {
-            /*
+          if (acquire_shared_backup_lock(thd,
+                                         thd->variables.lock_wait_timeout)) {
+            result_code = HA_ADMIN_FAILED;
+          } else {
+            table->mdl_request.set_type(MDL_SHARED_READ);
+            if (!open_temporary_tables(thd, table) &&
+                (table->table = open_n_lock_single_table(
+                     thd, table, TL_READ_NO_INSERT, 0))) {
+              /*
              Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
              to force analyze on all partitions.
-            */
-            alter_info->flags &= ~(Alter_info::ALTER_ADMIN_PARTITION);
-            result_code = table->table->file->ha_analyze(thd, check_opt);
-            if (result_code == HA_ADMIN_ALREADY_DONE)
-              result_code = HA_ADMIN_OK;
-            else if (result_code)  // analyze failed
-              table->table->file->print_error(result_code, MYF(0));
-            alter_info->flags = save_flags;
-          } else
-            result_code = -1;  // open failed
+               */
+              alter_info->flags &= ~(Alter_info::ALTER_ADMIN_PARTITION);
+              result_code = table->table->file->ha_analyze(thd, check_opt);
+              if (result_code == HA_ADMIN_ALREADY_DONE)
+                result_code = HA_ADMIN_OK;
+              else if (result_code)  // analyze failed
+                table->table->file->print_error(result_code, MYF(0));
+              alter_info->flags = save_flags;
+            } else
+              result_code = -1;  // open failed
+          }
         }
         /* Start a new row for the final status row */
         protocol->start_row();
@@ -1205,7 +1239,7 @@ bool Sql_cmd_cache_index::assign_to_keycache(THD *thd, TABLE_LIST *tables) {
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret = mysql_admin_table(
       thd, tables, &check_opt, "assign_to_keycache", TL_READ_NO_INSERT, 0, 0, 0,
-      0, &handler::assign_to_keycache, 0, m_alter_info);
+      0, &handler::assign_to_keycache, 0, m_alter_info, false);
   DBUG_RETURN(ret);
 }
 
@@ -1232,7 +1266,7 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
   // ret is needed since DBUG_RETURN isn't friendly to function call parameters:
   const bool ret =
       mysql_admin_table(thd, tables, 0, "preload_keys", TL_READ_NO_INSERT, 0, 0,
-                        0, 0, &handler::preload_keys, 0, m_alter_info);
+                        0, 0, &handler::preload_keys, 0, m_alter_info, false);
   DBUG_RETURN(ret);
 }
 
@@ -1274,10 +1308,14 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
       Disable_autocommit_guard autocommit_guard(thd);
       switch (get_histogram_command()) {
         case Histogram_command::UPDATE_HISTOGRAM:
-          res = update_histogram(thd, table, results);
+          res = acquire_shared_backup_lock(thd,
+                                           thd->variables.lock_wait_timeout) ||
+                update_histogram(thd, table, results);
           break;
         case Histogram_command::DROP_HISTOGRAM:
-          res = drop_histogram(thd, table, results);
+          res = acquire_shared_backup_lock(thd,
+                                           thd->variables.lock_wait_timeout) ||
+                drop_histogram(thd, table, results);
 
           if (res) {
             /*
@@ -1338,7 +1376,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
   } else {
     res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "analyze",
                             lock_type, 1, 0, 0, 0, &handler::ha_analyze, 0,
-                            m_alter_info);
+                            m_alter_info, true);
   }
 
   /* ! we write after unlocking the table */
@@ -1367,7 +1405,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
 
   res = mysql_admin_table(thd, first_table, &thd->lex->check_opt, "check",
                           lock_type, 0, 0, HA_OPEN_FOR_REPAIR, 0,
-                          &handler::ha_check, 1, m_alter_info);
+                          &handler::ha_check, 1, m_alter_info, true);
 
   thd->lex->select_lex->table_list.first = first_table;
   thd->lex->query_tables = first_table;
@@ -1389,7 +1427,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
             ? mysql_recreate_table(thd, first_table, true)
             : mysql_admin_table(thd, first_table, &thd->lex->check_opt,
                                 "optimize", TL_WRITE, 1, 0, 0, 0,
-                                &handler::ha_optimize, 0, m_alter_info);
+                                &handler::ha_optimize, 0, m_alter_info, true);
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog) {
     /*
@@ -1416,7 +1454,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
   res = mysql_admin_table(
       thd, first_table, &thd->lex->check_opt, "repair", TL_WRITE, 1,
       thd->lex->check_opt.sql_flags & TT_USEFRM, HA_OPEN_FOR_REPAIR,
-      &prepare_for_repair, &handler::ha_repair, 0, m_alter_info);
+      &prepare_for_repair, &handler::ha_repair, 0, m_alter_info, true);
 
   /* ! we write after unlocking the table */
   if (!res && !thd->lex->no_write_to_binlog) {

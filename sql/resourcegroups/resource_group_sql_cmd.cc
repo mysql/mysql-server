@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
    as published by the Free Software Foundation.
@@ -55,7 +55,8 @@
 #include "sql/resourcegroups/resource_group.h"           // Resource_group
 #include "sql/resourcegroups/resource_group_mgr.h"       // Resource_group_mgr
 #include "sql/resourcegroups/thread_resource_control.h"  // Thread_resource_control
-#include "sql/sql_class.h"                               // THD
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"  // is_invalid_string
 #include "sql/system_variables.h"
@@ -215,6 +216,9 @@ bool resourcegroups::Sql_cmd_create_resource_group::execute(THD *thd) {
                                  num_vcpus))
     DBUG_RETURN(true);
 
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
+
   // Acquire exclusive lock on the resource group name.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
     DBUG_RETURN(true);
@@ -324,6 +328,9 @@ bool resourcegroups::Sql_cmd_alter_resource_group::execute(THD *thd) {
              "default resource groups.");
     DBUG_RETURN(true);
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
 
   // Acquire exclusive lock on the resource group name.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))
@@ -437,6 +444,9 @@ bool resourcegroups::Sql_cmd_drop_resource_group::execute(THD *thd) {
              "default resource groups.");
     DBUG_RETURN(true);
   }
+
+  if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+    DBUG_RETURN(true);
 
   // Acquire exclusive lock on the resource group name.
   if (acquire_exclusive_mdl_for_resource_group(thd, m_name.str))

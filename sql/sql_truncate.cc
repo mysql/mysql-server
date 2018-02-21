@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,9 +45,10 @@
 #include "sql/lock.h"  // MYSQL_OPEN_* flags
 #include "sql/mdl.h"
 #include "sql/query_options.h"
-#include "sql/sql_audit.h"  // mysql_audit_table_access_notify
-#include "sql/sql_base.h"   // open_and_lock_tables
-#include "sql/sql_class.h"  // THD
+#include "sql/sql_audit.h"        // mysql_audit_table_access_notify
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // open_and_lock_tables
+#include "sql/sql_class.h"        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -447,6 +448,9 @@ bool Sql_cmd_truncate_table::lock_table(THD *thd, TABLE_LIST *table_ref,
   if (thd->locked_tables_mode) {
     if (!(table = find_table_for_mdl_upgrade(thd, table_ref->db,
                                              table_ref->table_name, false)))
+      DBUG_RETURN(true);
+
+    if (acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
       DBUG_RETURN(true);
 
     *hton = table->s->db_type();

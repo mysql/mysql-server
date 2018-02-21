@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -533,6 +533,13 @@ static bool udf_end_transaction(THD *thd, bool rollback, udf_func *udf,
   }
 
   rollback_transaction = rollback_transaction || (insert_udf && u_f == nullptr);
+
+  /*
+    CREATE/DROP UDF operations must acquire IX Backup Lock in order
+    to be mutually exclusive with LOCK INSTANCE FOR BACKUP.
+  */
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::BACKUP_LOCK, "", "", MDL_INTENTION_EXCLUSIVE));
 
   /*
     Rollback the transaction if there is an error or there is a request by the

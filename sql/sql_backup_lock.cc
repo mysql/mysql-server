@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,8 +117,7 @@ void release_backup_lock(THD *thd) {
 
 /*
   The following rationale is for justification of choice for specific lock
-  types in the functions acquire_exclusive_backup_lock,
-  acquire_shared_backup_lock.
+  types to support BACKUP LOCK.
 
   IX and S locks are mutually incompatible. On the other hand both these
   lock types are compatible with themselves. IX lock has lower priority
