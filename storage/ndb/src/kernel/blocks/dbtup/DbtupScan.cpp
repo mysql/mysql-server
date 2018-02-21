@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -267,12 +267,15 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
   fragPtr.i = scan.m_fragPtrI;
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   Fragrecord& frag = *fragPtr.p;
-  if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
+  if (req->checkLcpStop == AccCheckScan::ZCHECK_LCP_STOP)
+  {
     jam();
-    signal->theData[0] = scan.m_userPtr;
-    signal->theData[1] = true;
+    CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+    cls->scanPtrI = scan.m_userPtr;
+    cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
     EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
     jamEntry();
+    ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
     return;
   }
   if (scan.m_bits & ScanOp::SCAN_LOCK_WAIT) {
@@ -365,47 +368,61 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
       jamEntry();
       switch (lockReq->returnCode) {
       case AccLockReq::Success:
+      {
         jam();
         scan.m_state = ScanOp::Locked;
         scan.m_accLockOp = lockReq->accOpPtr;
         break;
+      }
       case AccLockReq::IsBlocked:
+      {
         jam();
         // normal lock wait
         scan.m_state = ScanOp::Blocked;
         scan.m_bits |= ScanOp::SCAN_LOCK_WAIT;
         scan.m_accLockOp = lockReq->accOpPtr;
         // LQH will wake us up
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;
         break;
+      }
       case AccLockReq::Refused:
+      {
         jam();
         // we cannot see deleted tuple (assert only)
         ndbassert(false);
         // skip it
         scan.m_state = ScanOp::Next;
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;
         break;
+      }
       case AccLockReq::NoFreeOp:
+      {
         jam();
         // max ops should depend on max scans (assert only)
         ndbassert(false);
         // stay in Current state
         scan.m_state = ScanOp::Current;
-        signal->theData[0] = scan.m_userPtr;
-        signal->theData[1] = true;
+        CheckLcpStop* cls = (CheckLcpStop*) signal->theData;
+        cls->scanPtrI = scan.m_userPtr;
+        cls->scanState = CheckLcpStop::ZSCAN_RESOURCE_WAIT;
         EXECUTE_DIRECT(DBLQH, GSN_CHECK_LCP_STOP, signal, 2);
         jamEntry();
+        ndbassert(signal->theData[0] == CheckLcpStop::ZTAKE_A_BREAK);
         return;
         break;
+      }
       default:
         ndbrequire(false);
         break;
