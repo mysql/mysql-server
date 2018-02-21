@@ -1,4 +1,4 @@
-// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -225,7 +225,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
           for (std::size_t i = 0;
                i < down_cast<Geographic_multipoint *>(g2_mpt.get())->size();
                i++) {
-            auto &pt = (*down_cast<Geographic_multipoint *>(g1_mpt.get()))[i];
+            auto &pt = (*down_cast<Geographic_multipoint *>(g2_mpt.get()))[i];
             shared_interior |= bg::relate(
                 pt, *down_cast<Geographic_multilinestring *>(g1_mls.get()),
                 mask, geographic_pl_pa_strategy);
