@@ -735,7 +735,7 @@ bool Window::equal_sort(Window *w1, Window *w2) {
   return o1 == nullptr && o2 == nullptr;  // equal so far, now also same length
 }
 
-void Window::reorder_and_eliminate_sorts(THD *thd, List<Window> &windows,
+void Window::reorder_and_eliminate_sorts(List<Window> &windows,
                                          bool first_exec) {
   if (first_exec) {
     for (uint i = 0; i < windows.elements - 1; i++) {
@@ -1203,7 +1203,7 @@ bool Window::setup_windows(THD *thd, SELECT_LEX *select,
     if (check_border_sanity(thd, w, f, first_exec)) return true;
   }
 
-  reorder_and_eliminate_sorts(thd, windows, first_exec);
+  reorder_and_eliminate_sorts(windows, first_exec);
 
   if (first_exec) {
     /* Do this last, after any re-ordering */
