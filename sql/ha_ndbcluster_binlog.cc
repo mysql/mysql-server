@@ -1286,6 +1286,70 @@ class Ndb_binlog_setup {
     return true; // OK
   }
 
+  bool
+  remove_deleted_ndb_tables_from_dd()
+  {
+    Ndb_dd_client dd_client(m_thd);
+
+    // Fetch list of schemas in DD
+    std::vector<std::string> schema_names;
+    if (!dd_client.fetch_schema_names(&schema_names))
+    {
+      ndb_log_verbose(19,
+                      "Failed to remove deleted NDB tables, could not "
+                      "fetch schema names");
+      return false;
+    }
+
+    // Iterate over each schema and remove deleted NDB tables
+    // from the DD one by one
+    for (const auto name : schema_names)
+    {
+      const char* schema_name= name.c_str();
+      // Lock the schema in DD
+      if (!dd_client.mdl_lock_schema(schema_name))
+      {
+        ndb_log_info("Failed to MDL lock schema");
+        return false;
+      }
+
+      // Fetch list of NDB tables in DD, also acquire MDL lock on
+      // table names
+      std::unordered_set<std::string> ndb_tables_in_DD;
+      if (!dd_client.get_ndb_table_names_in_schema(schema_name,
+                                                   &ndb_tables_in_DD))
+      {
+        ndb_log_info("Failed to get list of NDB tables in DD");
+        return false;
+      }
+
+      // Fetch list of NDB tables in NDB
+      std::unordered_set<std::string> ndb_tables_in_NDB;
+      if (!get_ndb_table_names_in_schema(schema_name, &ndb_tables_in_NDB))
+      {
+        ndb_log_info("Failed to get list of NDB tables in NDB");
+        return false;
+      }
+
+      // Iterate over all NDB tables found in DD. If they
+      // don't exist in NDB anymore, then remove the table
+      // from DD
+
+      for (const auto ndb_table_name : ndb_tables_in_DD)
+      {
+        if (ndb_tables_in_NDB.count(ndb_table_name) == 0)
+        {
+          ndb_log_info("Removing table '%s.%s'",
+                       schema_name, ndb_table_name.c_str());
+          remove_table_from_dd(schema_name, ndb_table_name.c_str());
+        }
+      }
+    }
+
+    return true;
+
+  }
+
 
   bool
   install_table_from_NDB(THD *thd,
@@ -1562,16 +1626,6 @@ class Ndb_binlog_setup {
       return false;
     }
 
-    // Fetch list of NDB tables in DD, also acquire MDL lock on
-    // table names
-    std::unordered_set<std::string> ndb_tables_in_DD;
-    if (!dd_client.get_ndb_table_names_in_schema(schema_name,
-                                                 &ndb_tables_in_DD))
-    {
-      ndb_log_info("Failed to get list of NDB tables in DD");
-      return false;
-    }
-
     // Fetch list of NDB tables in NDB
     std::unordered_set<std::string> ndb_tables_in_NDB;
     if (!get_ndb_table_names_in_schema(schema_name, &ndb_tables_in_NDB))
@@ -1589,23 +1643,6 @@ class Ndb_binlog_setup {
                       schema_name, ndb_table_name.c_str());
         continue;
       }
-
-      // Sucessfully installed the NDB tables metadata into DD
-
-      // Remove the table name from list of NDB tables in DD
-      ndb_tables_in_DD.erase(ndb_table_name.c_str());
-
-    }
-
-    // Iterate over remaining NDB tables found in DD, they
-    // don't exist in NDB anymore as they haven't
-    // been removed from the list
-
-    for (const auto ndb_table_name : ndb_tables_in_DD)
-    {
-      ndb_log_info("Removing table '%s.%s'",
-                   schema_name, ndb_table_name.c_str());
-      remove_table_from_dd(schema_name, ndb_table_name.c_str());
     }
 
     return true;
@@ -1808,6 +1845,12 @@ public:
       */
       Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
       if (global_schema_lock_guard.lock())
+      {
+        break;
+      }
+
+      // Remove deleted NDB tables
+      if (!remove_deleted_ndb_tables_from_dd())
       {
         break;
       }
