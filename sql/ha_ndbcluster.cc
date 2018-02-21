@@ -18484,6 +18484,57 @@ ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
 }
 
 
+/**
+  Set Engine specific data to dd::Table object for upgrade.
+
+  @param[in,out]  thd         thread handle
+  @param[in]      db_name     database name
+  @param[in]      table_name  table name
+  @param[in,out]  dd_table    data dictionary cache object
+
+  @return false on success, true on failure
+*/
+
+bool
+ha_ndbcluster::upgrade_table(THD* thd,
+                             const char*,
+                             const char* table_name,
+                             dd::Table* dd_table)
+{
+
+  Ndb *ndb= check_ndb_in_thd(thd);
+
+  if (!ndb)
+  {
+    // No connection to NDB
+    my_error(HA_ERR_NO_CONNECTION, MYF(0));
+    return true;
+  }
+
+  NdbDictionary::Dictionary* dict= ndb->getDictionary();
+  Ndb_table_guard ndbtab_g(dict, table_name);
+  const NdbDictionary::Table *ndbtab= ndbtab_g.get_table();
+
+  if (ndbtab == nullptr)
+  {
+    return true;
+  }
+
+  // Set object id and version
+  ndb_dd_table_set_object_id_and_version(dd_table,
+                                         ndbtab->getObjectId(),
+                                         ndbtab->getObjectVersion());
+
+  /*
+    Detect and set row format for the table. This is done here
+    since the row format of a table is determined by the
+    'varpart_reference' which isn't available earlier upstream
+  */
+  ndb_dd_table_set_row_format(dd_table, ndbtab->getForceVarPart());
+
+  return false;
+}
+
 static
 int show_ndb_status(THD* thd, SHOW_VAR* var, char*)
 {

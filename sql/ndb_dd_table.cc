@@ -122,3 +122,17 @@ dd::String_type ndb_dd_table_get_name(const dd::Table* table_def)
 {
   return table_def->name();
 }
+
+void
+ndb_dd_table_set_row_format(dd::Table* table_def,
+                            const bool force_var_part)
+{
+  if (force_var_part == false)
+  {
+    table_def->set_row_format(dd::Table::RF_FIXED);
+  }
+  else
+  {
+    table_def->set_row_format(dd::Table::RF_DYNAMIC);
+  }
+}

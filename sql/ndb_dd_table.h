@@ -74,4 +74,10 @@ size_t ndb_dd_table_get_num_columns(const dd::Table* table_def);
 */
 bool ndb_dd_table_is_using_fixed_row_format(const dd::Table* table_def);
 
+/*
+  Set the row format of the table
+*/
+void ndb_dd_table_set_row_format(dd::Table* table_def,
+                                 const bool force_var_part);
+
 #endif

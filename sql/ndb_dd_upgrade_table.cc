@@ -441,15 +441,13 @@ static bool fix_generated_columns_for_upgrade(THD *thd,
 
 
 /**
-  Call handler API to get storate engine specific metadata. Storage Engine
-  should fill tablespace information, Foreign key information, partition
-  information and correct row type.
+  Call handler API to get storage engine specific metadata. Storage Engine
+  should fill table id and version
 
   @param[in]    thd             Thread Handle
   @param[in]    schema_name     Name of schema
   @param[in]    table_name      Name of table
   @param[in]    table           TABLE object
-  @param[in]    skip_error      Skip error in case of innodb stats table.
 
   @retval true   ON SUCCESS
   @retval false  ON FAILURE
@@ -459,8 +457,7 @@ static bool
 set_se_data_for_user_tables(THD *thd,
                             const String_type &schema_name,
                             const String_type &table_name,
-		            TABLE *table,
-                            bool skip_error)
+		            TABLE *table)
 {
   Disable_autocommit_guard autocommit_guard(thd);
   dd::Schema_MDL_locker mdl_locker(thd);
@@ -498,11 +495,7 @@ set_se_data_for_user_tables(THD *thd,
   {
     trans_rollback_stmt(thd);
     trans_rollback(thd);
-    // Ignore error in upgrading stats tables.
-    if (skip_error)
-      return true;
-    else
-      return false;
+    return false;
   }
 
   if(thd->dd_client()->update<dd::Table>(table_def))
@@ -979,17 +972,9 @@ bool migrate_table_to_dd(THD *thd,
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
 
-  // Rename for stats tables before creating entry in dictionary
-  bool is_innodb_stats_table= (schema_name == MYSQL_SCHEMA_NAME.str) &&
-                              (table_name == table_stats ||
-                               table_name == index_stats);
-
-  String_type to_table_name(table_name);
-  if (is_innodb_stats_table)
-    to_table_name.append("_backup57");
-
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *sch_obj= nullptr;
+  String_type to_table_name(table_name);
 
   if (thd->dd_client()->acquire(schema_name, &sch_obj))
   {
@@ -1027,7 +1012,7 @@ bool migrate_table_to_dd(THD *thd,
   }
 
   if (!set_se_data_for_user_tables(thd, schema_name, to_table_name,
-                                   table, is_innodb_stats_table))
+                                   table))
   {
     ndb_log_error("Error in fixing SE data for %s.%s",
                   schema_name.c_str(), table_name.c_str());
