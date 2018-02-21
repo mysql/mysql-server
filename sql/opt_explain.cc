@@ -1179,10 +1179,15 @@ bool Explain_join::shallow_explain() {
     return true; /* purecov: inspected */
   if (begin_sort_context(ESC_DISTINCT, CTX_DISTINCT))
     return true; /* purecov: inspected */
+
+  qep_row *order_by_distinct = fmt->entry();
+  qep_row *windowing = nullptr;
+
   if (join->m_windowing_steps) {
     if (begin_sort_context(ESC_WINDOWING, CTX_WINDOW))
       return true; /* purecov: inspected */
-    fmt->entry()->m_windows = &select_lex->m_windows;
+
+    windowing = fmt->entry();
     if (!fmt->is_hierarchical()) {
       /*
         TRADITIONAL prints nothing for window functions, except the use of a
@@ -1191,17 +1196,57 @@ bool Explain_join::shallow_explain() {
       push_warning(thd, Sql_condition::SL_NOTE, ER_WINDOW_EXPLAIN_JSON,
                    ER_THD(thd, ER_WINDOW_EXPLAIN_JSON));
     }
+    windowing->m_windows = &select_lex->m_windows;
+    if (join->windowing_cost > 0)
+      windowing->col_read_cost.set(join->windowing_cost);
   }
+
   if (begin_sort_context(ESC_GROUP_BY, CTX_GROUP_BY))
     return true; /* purecov: inspected */
 
+  qep_row *order_by_distinct_or_grouping = fmt->entry();
+
   if (join->sort_cost > 0.0) {
     /*
-      Due to begin_sort_context() calls above, fmt->entry() returns another
-      context than stored in join_entry.
+      This sort is for GROUP BY, ORDER BY, DISTINCT so we attach its cost to
+      them, by checking which is in use. When there is no windowing, we ascribe
+      this cost always to the GROUP BY, if there is one, since ORDER
+      BY/DISTINCT sorts in those cases are elided, else to ORDER BY, or
+      DISTINCT.  With windowing, both GROUP BY and ORDER BY/DISTINCT may carry
+      sorting costs.
     */
-    DBUG_ASSERT(fmt->entry() != join_entry || !fmt->is_hierarchical());
-    fmt->entry()->col_read_cost.set(join->sort_cost);
+    if (join->m_windowing_steps) {
+      int atrs = 0;  // attribute sorting costs to pre-window and/or post-window
+      if (order_by_distinct_or_grouping != windowing &&
+          join->explain_flags.get(ESC_GROUP_BY, ESP_USING_FILESORT)) {
+        // We have a group by: assign it cost iff is used sorting
+        order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
+        atrs++;
+      }
+      if (order_by_distinct != join_entry &&
+          (join->explain_flags.get(ESC_ORDER_BY, ESP_USING_FILESORT) ||
+           join->explain_flags.get(ESC_DISTINCT, ESP_USING_FILESORT))) {
+        order_by_distinct->col_read_cost.set(join->sort_cost);
+        atrs++;
+      }
+
+      if (atrs == 2) {
+        /*
+          We do sorting twice because of intervening windowing sorts, so
+          increase total correspondingly. It has already been added to
+          best_read once in the optimizer.
+        */
+        join_entry->col_read_cost.set(join->best_read + join->sort_cost);
+      }
+    } else {
+      /*
+        Due to begin_sort_context() calls above, fmt->entry() returns another
+        context than stored in join_entry.
+      */
+      DBUG_ASSERT(order_by_distinct_or_grouping != join_entry ||
+                  !fmt->is_hierarchical());
+      order_by_distinct_or_grouping->col_read_cost.set(join->sort_cost);
+    }
   }
 
   if (begin_sort_context(ESC_BUFFER_RESULT, CTX_BUFFER_RESULT))
