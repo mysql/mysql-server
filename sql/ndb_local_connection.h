@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,8 +46,7 @@ class Ndb_local_connection {
 public:
   Ndb_local_connection(THD* thd);
 
-  bool truncate_table(const char* db, size_t db_length,
-                      const char* table, size_t table_length,
+  bool truncate_table(const char* db, const char* table,
                       bool ignore_no_such_table);
 
   bool flush_table(const char* db, size_t db_length,

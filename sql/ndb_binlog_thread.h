@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,16 +26,19 @@
 #define NDB_BINLOG_THREAD_H
 
 #include "sql/ndb_component.h"
+#include "sql/ndb_binlog_hooks.h"
 
 class Ndb_binlog_thread : public Ndb_component
 {
+  Ndb_binlog_hooks binlog_hooks;
+  static int do_after_reset_master(void*);
 public:
   Ndb_binlog_thread();
   virtual ~Ndb_binlog_thread();
 private:
-  virtual int do_init() { return 0;}
+  virtual int do_init();
   virtual void do_run();
-  virtual int do_deinit() { return 0;}
+  virtual int do_deinit();
   // Wake up for stop
   virtual void do_wakeup();
 

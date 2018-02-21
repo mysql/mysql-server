@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -173,21 +173,19 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   return result;
 }
 
-
 bool
-Ndb_local_connection::truncate_table(const char* db, size_t db_length,
-                                     const char* table, size_t table_length,
+Ndb_local_connection::truncate_table(const char* db, const char* table,
                                      bool ignore_no_such_table)
 {
   DBUG_ENTER("Ndb_local_connection::truncate_table");
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
 
   // Create the SQL string
-  String sql_text((uint32)(db_length + table_length + 100));
+  String sql_text(100);
   sql_text.append(STRING_WITH_LEN("TRUNCATE TABLE "));
-  sql_text.append(db, (uint32)db_length);
+  sql_text.append(db);
   sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, (uint32)table_length);
+  sql_text.append(table);
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
@@ -226,7 +224,7 @@ Ndb_local_connection::delete_rows(const char* db, size_t db_length,
                                   bool ignore_no_such_table,
                                   ...)
 {
-  DBUG_ENTER("Ndb_local_connection::truncate_table");
+  DBUG_ENTER("Ndb_local_connection::delete_rows");
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
 
   // Create the SQL string
