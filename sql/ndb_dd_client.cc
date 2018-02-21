@@ -38,6 +38,7 @@
 #include "sql/ndb_dd_disk_data.h"
 #include "sql/ndb_dd_sdi.h"
 #include "sql/ndb_dd_table.h"
+#include "sql/ndb_dd_upgrade_table.h"
 #include "sql/ndb_log.h"
 #include "sql/query_options.h"  // OPTION_AUTOCOMMIT
 #include "sql/sql_class.h"      // THD
@@ -555,6 +556,40 @@ Ndb_dd_client::install_table(const char* schema_name, const char* table_name,
   }
 
   return true; // OK
+}
+
+
+bool
+Ndb_dd_client::migrate_table(const char* schema_name, const char* table_name,
+                             const unsigned char* frm_data,
+                             const unsigned int unpacked_len,
+                             bool force_overwrite)
+{
+  if (force_overwrite)
+  {
+    // Remove the old table before migrating
+    DBUG_PRINT("info", ("dropping existing table"));
+    if (!mdl_locks_acquire_exclusive(schema_name, table_name))
+    {
+      return false;
+    }
+
+    if (!remove_table(schema_name, table_name))
+    {
+      return false;
+    }
+
+    commit();
+
+  }
+
+  const bool migrate_result=
+             dd::ndb_upgrade::migrate_table_to_dd(m_thd, schema_name,
+                                                  table_name, frm_data,
+                                                  unpacked_len,
+                                                  false);
+
+  return migrate_result;
 }
 
 bool

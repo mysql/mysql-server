@@ -644,6 +644,8 @@ static bool fix_fk_parent_key_names(THD *thd,
 bool migrate_table_to_dd(THD *thd,
                          const String_type &schema_name,
                          const String_type &table_name,
+                         const unsigned char* frm_data,
+                         const unsigned int unpacked_len,
                          bool is_fix_view_cols_and_deps)
 {
   DBUG_ENTER("migrate_table_to_dd");
@@ -654,20 +656,38 @@ bool migrate_table_to_dd(THD *thd,
   Field **ptr,*field;
   handler *file= nullptr;
 
+  // Write .frm file to data directory
+  File frm_file;
+  char index_file[FN_REFLEN];
   char path[FN_REFLEN + 1];
-  bool was_truncated= false;
   build_table_filename(path, sizeof(path) - 1 - reg_ext_length,
                        schema_name.c_str(),
-                       table_name.c_str(), "", 0,
-                       &was_truncated);
+                       table_name.c_str(), "", 0);
 
-  if (was_truncated)
+  frm_file = mysql_file_create(key_file_frm,
+                               fn_format(index_file, path, "",
+                               reg_ext, MY_UNPACK_FILENAME
+                               | MY_APPEND_EXT), CREATE_MODE,
+                               O_RDWR | O_TRUNC, MYF(MY_WME));
+
+  if (frm_file < 0 )
   {
     ndb_log_error("Could not create frm file, error: %d", frm_file);
     DBUG_RETURN(false);
   }
 
-  // Create table share for tables and views.
+  if (mysql_file_write(frm_file, frm_data, unpacked_len,
+                       MYF(MY_WME | MY_NABP)))
+  {
+    ndb_log_error("Could not write frm file ");
+    // Delete frm file
+    mysql_file_delete(key_file_frm, index_file, MYF(0));
+    DBUG_RETURN(false);
+  }
+
+  (void) mysql_file_close(frm_file, MYF(0));
+
+  // Create table share for tables
   if (create_table_share_for_upgrade(thd,
                                      path,
                                      &share,
@@ -678,8 +698,13 @@ bool migrate_table_to_dd(THD *thd,
   {
     ndb_log_error("Error in creating TABLE_SHARE from %s.frm file",
                   table_name.c_str());
+    // Delete frm file
+    mysql_file_delete(key_file_frm, index_file, MYF(0));
     DBUG_RETURN(false);
   }
+
+  // Delete frm file
+  mysql_file_delete(key_file_frm, index_file, MYF(0));
 
   /*
      Acquire mdl lock before upgrading.

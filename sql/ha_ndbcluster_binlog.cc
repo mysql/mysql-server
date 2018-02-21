@@ -839,6 +839,69 @@ static void ndb_notify_tables_writable()
 }
 
 
+static bool
+migrate_table_with_old_extra_metadata(THD *thd, Ndb *ndb,
+                                      const char *schema_name,
+                                      const char *table_name,
+                                      void* unpacked_data,
+                                      Uint32 unpacked_len,
+                                      bool force_overwrite)
+{
+  // Migrate tables that have old metadata to data dictionary
+  // using on the fly translation
+  ndb_log_info("Table '%s.%s' has obsolete extra metadata. "
+               "The table is installed into the data dictionary "
+               "by translating the old metadata", schema_name,
+               table_name);
+
+  const uchar* frm_data = static_cast<const uchar*>(unpacked_data);
+
+  // Install table in DD
+  Ndb_dd_client dd_client(thd);
+  const bool migrate_result=
+             dd_client.migrate_table(schema_name, table_name, frm_data,
+                                     unpacked_len, force_overwrite);
+
+  if (!migrate_result)
+  {
+    // Failed to create DD entry for table
+    ndb_log_error("Failed to create entry in DD for table '%s.%s'",
+                  schema_name, table_name);
+    return false;
+  }
+
+  // Check if table need to be setup for binlogging or
+  // schema distribution
+  const dd::Table* table_def;
+
+  // Acquire MDL lock on table
+  if (!dd_client.mdl_lock_table(schema_name, table_name))
+  {
+    ndb_log_error("Failed to acquire MDL lock for table '%s.%s'",
+                  schema_name, table_name);
+    return false;
+  }
+
+  if (!dd_client.get_table(schema_name, table_name, &table_def))
+  {
+    ndb_log_error("Failed to open table '%s.%s' from DD",
+                  schema_name, table_name);
+    return false;
+  }
+
+  if (ndbcluster_binlog_setup_table(thd, ndb,
+                                    schema_name, table_name,
+                                    table_def) != 0)
+  {
+    ndb_log_error("Failed to setup binlog for table '%s.%s'",
+                  schema_name, table_name);
+    return false;
+  }
+
+  return true;
+}
+
+
 static int
 ndb_create_table_from_engine(THD *thd,
                              const char *schema_name,
@@ -896,12 +959,26 @@ ndb_create_table_from_engine(THD *thd,
       DBUG_RETURN(10);
     }
 
-    if (version != 2)
+    if (version == 1)
     {
+      const bool migrate_result=
+          migrate_table_with_old_extra_metadata(thd, ndb,
+                                                schema_name,
+                                                table_name,
+                                                unpacked_data,
+                                                unpacked_len,
+                                                force_overwrite);
+
+      if (!migrate_result)
+      {
+        free(unpacked_data);
+        DBUG_PRINT("error", ("Failed to create entry in DD for table '%s.%s' "
+                             , schema_name, table_name));
+        DBUG_RETURN(11);
+      }
+
       free(unpacked_data);
-      DBUG_PRINT("error", ("Found extra metadata with unsupported "
-                           "version: %d", version));
-      DBUG_RETURN(11);
+      DBUG_RETURN(0);
     }
 
     sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
@@ -1239,12 +1316,34 @@ class Ndb_binlog_setup {
         DBUG_RETURN(false);
       }
 
-      if (version != 2)
+      if (version != 1 && version != 2)
       {
+        // Skip install of table which has unsupported extra metadata
+        // versions
+        ndb_log_info("Skipping setup of table '%s.%s', it has "
+                     "unsupported extra metadata version %d.",
+                     schema_name, table_name, version);
+        return true; // Skipped
+      }
+
+      if (version == 1)
+      {
+        const bool migrate_result=
+                   migrate_table_with_old_extra_metadata(thd, ndb,
+                                                         schema_name,
+                                                         table_name,
+                                                         unpacked_data,
+                                                         unpacked_len,
+                                                         force_overwrite);
+
+        if (!migrate_result)
+        {
+          free(unpacked_data);
+          DBUG_RETURN(false);
+        }
+
         free(unpacked_data);
-        DBUG_PRINT("error", ("Found extra metadata with unsupported "
-                             "version: %d", version));
-        DBUG_RETURN(false);
+        DBUG_RETURN(true);
       }
 
       sdi.assign(static_cast<const char*>(unpacked_data), unpacked_len);
@@ -1351,16 +1450,6 @@ class Ndb_binlog_setup {
       }
 
       free(unpacked_data);
-
-      if (version != 2)
-      {
-        // Skip install of table which have unsupported extra metadata
-        // versions
-        ndb_log_info("Skipping setup of table '%s.%s', it has "
-                     "unsupported extra metadata version %d.",
-                     schema_name, table_name, version);
-        return true; // Skipped
-      }
     }
 
     Ndb_dd_client dd_client(m_thd);

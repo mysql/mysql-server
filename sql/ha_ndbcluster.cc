@@ -13139,14 +13139,17 @@ int ndbcluster_discover(handlerton*, THD* thd,
       DBUG_RETURN(1);
     }
 
-    if (version != 2)
+    if (version == 1)
     {
-      // Only version 2 extra metadata supported until
-      // WL#10167 has been implemented, tests hitting this
-      // path need to be disabled
+      // Upgrade of tables with version 1 extra metadata should have
+      // occurred much earlier during startup. Hitting this path
+      // means that something has gone wrong with upgrade of the
+      // table. It's likely the same error will occur if we attempt
+      // to upgrade again so return an error instead
       my_printf_error(ER_NO,
-                      "Table '%s' contains unsupported extra "
-                      "metadata version: %d", MYF(0), name, version);
+                      "Table '%s' with extra metadata version: %d "
+                      "was not upgraded properly during startup",
+                      MYF(0), name, version);
 
       // The error returned from here is effectively ignored in
       // Open_table_context::recover_from_failed_open(), abort to

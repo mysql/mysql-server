@@ -23,9 +23,7 @@
 #ifndef NDB_DD_UPGRADE_TABLE_H_INCLUDED
 #define NDB_DD_UPGRADE_TABLE_H_INCLUDED
 
-#include "my_inttypes.h"
 #include "sql/dd/string_type.h"
-#include "sql/sql_class.h"
 
 class THD;
 
@@ -38,6 +36,8 @@ namespace ndb_upgrade {
   @param[in]  thd                        Thread handle.
   @param[in]  schema_name                Name of the database.
   @param[in]  table_name                 Name of the table.
+  @param[in]  frm_data                   Unpacked frm data.
+  @param[in]  unpacked_len               Unpacked length of frm data.
   @param[in]  is_fix_view_cols_and_deps  Fix view col data, table and
                                          routines dependency.
 
@@ -47,6 +47,8 @@ namespace ndb_upgrade {
 bool migrate_table_to_dd(THD *thd,
                          const String_type &schema_name,
                          const String_type &table_name,
+                         const unsigned char* frm_data,
+                         const unsigned int unpacked_len,
                          bool is_fix_view_cols_and_deps);
 
 
