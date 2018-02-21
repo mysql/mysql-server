@@ -48,7 +48,8 @@
 #include "sql/auth/auth_common.h"    // ACL_internal_schema_access
 #include "sql/auth/auth_internal.h"  // auth_plugin_is_built_in
 #include "sql/auth/dynamic_privilege_table.h"
-#include "sql/auth/sql_authentication.h"  // sha256_password_plugin_name
+#include "sql/auth/role_tables.h"
+#include "sql/auth/sql_authentication.h"  // g_cached_authentication_plugins
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/auth/sql_user_table.h"
 #include "sql/current_thd.h"  // current_thd
@@ -1284,7 +1285,8 @@ static void validate_user_plugin_records() {
                  acl_user->host.get_host());
         }
       }
-      if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+      if (Cached_authentication_plugins::compare_plugin(PLUGIN_SHA256_PASSWORD,
+                                                        acl_user->plugin) &&
           sha256_rsa_auth_status() && !ssl_acceptor_fd) {
 #if !defined(HAVE_WOLFSSL)
         const char *missing = "but neither SSL nor RSA keys are";
@@ -1292,9 +1294,8 @@ static void validate_user_plugin_records() {
         const char *missing = "but no SSL is";
 #endif
 
-        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG,
-               sha256_password_plugin_name.str, acl_user->user,
-               static_cast<int>(acl_user->host.get_host_len()),
+        LogErr(WARNING_LEVEL, ER_AUTHCACHE_PLUGIN_CONFIG, acl_user->plugin.str,
+               acl_user->user, static_cast<int>(acl_user->host.get_host_len()),
                acl_user->host.get_host(), missing);
       }
     }
@@ -1372,12 +1373,11 @@ bool acl_init(bool dont_read_acl_tables) {
   acl_cache_initialized = true;
 
   /*
-    cache built-in native authentication plugins,
+    cache built-in authentication plugins,
     to avoid hash searches and a global mutex lock on every connect
   */
-  native_password_plugin = my_plugin_lock_by_name(
-      0, native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
-  if (!native_password_plugin) DBUG_RETURN(1);
+  g_cached_authentication_plugins = new Cached_authentication_plugins();
+  if (!g_cached_authentication_plugins->is_valid()) DBUG_RETURN(1);
 
   if (dont_read_acl_tables) {
     DBUG_RETURN(0); /* purecov: tested */
@@ -1627,6 +1627,8 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
           /* We may have plugin & auth_String fields */
           const char *tmpstr = get_field(
               &global_acl_memory, table->field[table_schema->plugin_idx()]);
+          user.plugin.str = tmpstr ? tmpstr : "";
+          user.plugin.length = strlen(user.plugin.str);
 
           /* In case we are working with 5.6 db layout we need to make server
              aware of Password field and that the plugin column can be null.
@@ -1634,16 +1636,16 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
              if we can.
           */
           if (is_old_db_layout &&
-              (tmpstr == NULL || strlen(tmpstr) == 0 ||
-               my_strcasecmp(system_charset_info, tmpstr,
-                             native_password_plugin_name.str) == 0)) {
+              (user.plugin.length == 0 ||
+               Cached_authentication_plugins::compare_plugin(
+                   PLUGIN_MYSQL_NATIVE_PASSWORD, user.plugin))) {
             char *password = get_field(
                 &global_acl_memory, table->field[table_schema->password_idx()]);
 
-            // We only support native hash, we do not support pre 4.1 hashes
-            plugin_ref native_plugin = NULL;
-            native_plugin = my_plugin_lock_by_name(
-                0, native_password_plugin_name, MYSQL_AUTHENTICATION_PLUGIN);
+            // We do not support pre 4.1 hashes
+            plugin_ref native_plugin =
+                g_cached_authentication_plugins->get_cached_plugin_ref(
+                    PLUGIN_MYSQL_NATIVE_PASSWORD);
             if (native_plugin) {
               uint password_len = password ? strlen(password) : 0;
               st_mysql_auth *auth =
@@ -1655,22 +1657,23 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
                   user.auth_string.str = password;
                   user.auth_string.length = password_len;
                 }
-                if (tmpstr == NULL || strlen(tmpstr) == 0)
-                  tmpstr = native_password_plugin_name.str;
+                if (user.plugin.length == 0) {
+                  user.plugin.str =
+                      Cached_authentication_plugins::get_plugin_name(
+                          PLUGIN_MYSQL_NATIVE_PASSWORD);
+                  user.plugin.length = strlen(user.plugin.str);
+                }
               } else {
                 if ((user.access & SUPER_ACL) &&
-                    !super_users_with_empty_plugin &&
-                    (tmpstr == NULL || strlen(tmpstr) == 0))
+                    !super_users_with_empty_plugin && (user.plugin.length == 0))
                   super_users_with_empty_plugin = true;
 
                 LogErr(WARNING_LEVEL,
                        ER_AUTHCACHE_USER_IGNORED_DEPRECATED_PASSWORD,
                        user.user ? user.user : "",
                        user.host.get_host() ? user.host.get_host() : "");
-                plugin_unlock(0, native_plugin);
                 continue;
               }
-              plugin_unlock(0, native_plugin);
             }
           }
 
@@ -1678,7 +1681,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
             Check if the plugin string is blank or null.
             If it is, the user will be skipped.
           */
-          if (tmpstr == NULL || strlen(tmpstr) == 0) {
+          if (user.plugin.length == 0) {
             if ((user.access & SUPER_ACL) && !super_users_with_empty_plugin)
               super_users_with_empty_plugin = true;
             LogErr(WARNING_LEVEL, ER_AUTHCACHE_USER_IGNORED_NEEDS_PLUGIN,
@@ -1690,21 +1693,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
             By comparing the plugin with the built in plugins it is possible
             to optimize the string allocation and comparision.
           */
-          if (my_strcasecmp(system_charset_info, tmpstr,
-                            native_password_plugin_name.str) == 0)
-            user.plugin = native_password_plugin_name;
-#if defined(HAVE_OPENSSL)
-          else if (my_strcasecmp(system_charset_info, tmpstr,
-                                 sha256_password_plugin_name.str) == 0)
-            user.plugin = sha256_password_plugin_name;
-#endif
-          else if (my_strcasecmp(system_charset_info, tmpstr,
-                                 caching_sha2_password_plugin_name.str) == 0)
-            user.plugin = caching_sha2_password_plugin_name;
-          else {
-            user.plugin.str = tmpstr;
-            user.plugin.length = strlen(tmpstr);
-          }
+          optimize_plugin_compare_by_pointer(&user.plugin);
         }
 
         /* Validate the hash string. */
@@ -1986,7 +1975,8 @@ void acl_free(bool end /*= false*/) {
     shutdown_acl_cache();
     if (acl_cache_initialized == true) {
       db_cache.clear();
-      plugin_unlock(0, native_password_plugin);
+      delete g_cached_authentication_plugins;
+      g_cached_authentication_plugins = 0;
       acl_cache_initialized = false;
     }
   }
@@ -2824,6 +2814,7 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
   acl_user.user = *user ? strdup_root(&global_acl_memory, user) : 0;
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host)
                                       : 0);
+  DBUG_ASSERT(plugin.str);
   if (plugin.str[0]) {
     acl_user.plugin = plugin;
     optimize_plugin_compare_by_pointer(&acl_user.plugin);
@@ -2836,10 +2827,6 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
     acl_user.auth_string.length = auth.length;
 
     optimize_plugin_compare_by_pointer(&acl_user.plugin);
-  } else {
-    acl_user.plugin = native_password_plugin_name;
-    acl_user.auth_string.str = const_cast<char *>("");
-    acl_user.auth_string.length = 0;
   }
 
   acl_user.access = privileges;
@@ -3433,8 +3420,10 @@ bool Acl_cache_lock_guard::lock(bool raise_error) /* = true */
       !m_thd->mdl_context.acquire_lock(&lock_request, ACL_CACHE_LOCK_TIMEOUT);
   m_thd->pop_internal_handler();
 
-  if (!m_locked && raise_error)
+  if (!m_locked && raise_error) {
     my_error(ER_CANNOT_LOCK_USER_MANAGEMENT_CACHES, MYF(0));
+    DBUG_ASSERT(false);
+  }
   return m_locked;
 }
 
