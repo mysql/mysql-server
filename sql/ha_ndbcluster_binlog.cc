@@ -847,6 +847,18 @@ migrate_table_with_old_extra_metadata(THD *thd, Ndb *ndb,
                                       Uint32 unpacked_len,
                                       bool force_overwrite)
 {
+#ifndef BUG27543602
+  // Skip installation of the ndb_index_stat* tables as a
+  // temporary workaround for Bug 27543602. They can still
+  // be accessed from ndb tools
+  if (strcmp(NDB_REP_DB, schema_name) == 0 &&
+      (strcmp("ndb_index_stat_head", table_name) == 0 ||
+       strcmp("ndb_index_stat_sample", table_name) == 0))
+  {
+    return true;
+  }
+#endif
+
   // Migrate tables that have old metadata to data dictionary
   // using on the fly translation
   ndb_log_info("Table '%s.%s' has obsolete extra metadata. "
