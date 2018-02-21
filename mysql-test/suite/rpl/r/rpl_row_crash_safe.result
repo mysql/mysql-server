@@ -18,7 +18,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -36,7 +36,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 ALTER TABLE mysql.slave_relay_log_info ENGINE= Innodb;
@@ -52,7 +52,7 @@ slave_relay_log_info	CREATE TABLE `slave_relay_log_info` (
   `Sql_delay` int(11) NOT NULL COMMENT 'The number of seconds that the slave must lag behind the master.',
   `Number_of_workers` int(10) unsigned NOT NULL,
   `Id` int(10) unsigned NOT NULL COMMENT 'Internal Id that uniquely identifies this record.',
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Relay Log Information'
 SHOW CREATE TABLE mysql.slave_worker_info;
@@ -70,7 +70,7 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
   `Checkpoint_seqno` int(10) unsigned NOT NULL,
   `Checkpoint_group_size` int(10) unsigned NOT NULL,
   `Checkpoint_group_bitmap` blob NOT NULL,
-  `Channel_name` char(64) NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  `Channel_name` char(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   PRIMARY KEY (`Channel_name`,`Id`)
 ) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 COMMENT='Worker Information'
 include/start_slave.inc
