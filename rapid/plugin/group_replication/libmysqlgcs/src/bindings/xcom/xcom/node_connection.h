@@ -17,6 +17,8 @@
 #ifndef NODE_CONNECTION_H
 #define	NODE_CONNECTION_H
 
+#include <stdlib.h>
+
 #ifdef XCOM_HAVE_OPENSSL
 #include "openssl/ssl.h"
 #endif
