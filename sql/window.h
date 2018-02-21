@@ -1372,7 +1372,7 @@ class Window {
     If the result set is implicitly grouped, we also skip any sorting for
     windows.
 
-    @param thd         session state
+    @param windows     list of windows
     @param first_exec  if true, the as done a part of a first prepare, not a
                        reprepare. On a reprepare the analysis part will be
                        skipped, since the flag m_sort_redundant flag is stable
@@ -1381,7 +1381,7 @@ class Window {
     then Window::m_sort_redundant could be removed, as well as the first_exec
     argument.
   */
-  static void reorder_and_eliminate_sorts(THD *thd, List<Window> &windows,
+  static void reorder_and_eliminate_sorts(List<Window> &windows,
                                           bool first_exec);
 
   /**
