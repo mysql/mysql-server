@@ -1398,7 +1398,12 @@ struct TABLE {
     See TABLE_LIST::process_index_hints().
   */
   bool force_index_group{false};
-  bool distinct{false};
+  /**
+    Whether this is a temporary table that already has a UNIQUE index (removing
+    duplicate rows on insert), so that the optimizer does not need to run
+    DISTINCT itself.
+   */
+  bool is_distinct{false};
   bool const_table{false};
   /// True if writes to this table should not write rows and just write keys.
   bool no_rows{false};

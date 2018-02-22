@@ -559,7 +559,7 @@ bool TABLE_LIST::setup_materialized_derived_tmp_table(THD *thd)
 
   // Detect cases which common_table_expr::clone_tmp_table() couldn't clone:
   DBUG_ASSERT(!table->s->keys && !table->s->key_info && !table->hash_field &&
-              !table->group && !table->distinct);
+              !table->group && !table->is_distinct);
 
   // Make table's name same as the underlying materialized table
   set_name_temporary();

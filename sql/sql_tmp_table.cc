@@ -1295,7 +1295,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
     */
     DBUG_PRINT("info", ("hidden_field_count: %d", param->hidden_field_count));
     share->keys = 1;
-    table->distinct = 1;
+    table->is_distinct = true;
     if (!using_unique_constraint) {
       Field **reg_field;
       keyinfo->user_defined_key_parts = field_count - param->hidden_field_count;
@@ -2358,7 +2358,7 @@ static void trace_tmp_table(Opt_trace_context *trace, const TABLE *table) {
       .add("key_length", table->key_info ? table->key_info->key_length : 0)
       .add("unique_constraint", table->hash_field ? true : false)
       .add("makes_grouped_rows", table->group != nullptr)
-      .add("cannot_insert_duplicates", table->distinct);
+      .add("cannot_insert_duplicates", table->is_distinct);
 
   if (s->db_type() == myisam_hton) {
     trace_tmp.add_alnum("location", "disk (MyISAM)");
@@ -2667,7 +2667,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
     new_table.key_info = table->key_info;
     new_table.hash_field = table->hash_field;
     new_table.group = table->group;
-    new_table.distinct = table->distinct;
+    new_table.is_distinct = table->is_distinct;
     new_table.alias = table->alias;
     new_table.pos_in_table_list = table->pos_in_table_list;
     new_table.reginfo = table->reginfo;

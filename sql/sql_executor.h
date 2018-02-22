@@ -421,7 +421,6 @@ class QEP_TAB : public QEP_shared_owner {
         used_uneven_bit_fields(false),
         keep_current_rowid(false),
         copy_current_rowid(NULL),
-        distinct(false),
         not_used_in_distinct(false),
         cache_idx_cond(NULL),
         having(NULL),
@@ -620,7 +619,7 @@ class QEP_TAB : public QEP_shared_owner {
   CACHE_FIELD *copy_current_rowid;
 
   /** true <=> remove duplicates on this table. */
-  bool distinct;
+  bool needs_duplicate_removal = false;
 
   bool not_used_in_distinct;
 

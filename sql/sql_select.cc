@@ -3782,7 +3782,7 @@ bool JOIN::make_tmp_tables_info() {
       DBUG_RETURN(true);
     exec_tmp_table = qep_tab[curr_tmp_table].table();
 
-    if (exec_tmp_table->distinct) optimize_distinct();
+    if (exec_tmp_table->is_distinct) optimize_distinct();
 
     /*
       If there is no sorting or grouping, 'use_order'
@@ -3827,7 +3827,7 @@ bool JOIN::make_tmp_tables_info() {
       to the client.
     */
     if (having_cond &&
-        (sort_and_group || (exec_tmp_table->distinct && !group_list))) {
+        (sort_and_group || (exec_tmp_table->is_distinct && !group_list))) {
       /*
         If there is no select distinct then move the having to table conds of
         tmp table.
@@ -3896,7 +3896,7 @@ bool JOIN::make_tmp_tables_info() {
           tmp_all_fields[REF_SLICE_TMP1].elements -
           tmp_fields_list[REF_SLICE_TMP1].elements;
       sort_and_group = false;
-      if (!exec_tmp_table->group && !exec_tmp_table->distinct) {
+      if (!exec_tmp_table->group && !exec_tmp_table->is_distinct) {
         // 1st tmp table were materializing join result
         materialize_join = true;
         explain_flags.set(ESC_BUFFER_RESULT, ESP_USING_TMPTABLE);
@@ -3967,7 +3967,7 @@ bool JOIN::make_tmp_tables_info() {
       setup_tmptable_write_func(&qep_tab[curr_tmp_table], &trace_this_tbl);
       last_slice_before_windowing = REF_SLICE_TMP2;
     }
-    if (qep_tab[curr_tmp_table].table()->distinct)
+    if (qep_tab[curr_tmp_table].table()->is_distinct)
       select_distinct = false; /* Each row is unique */
 
     if (select_distinct && !group_list && !m_windowing_steps) {
@@ -3976,7 +3976,7 @@ bool JOIN::make_tmp_tables_info() {
         having_cond->update_used_tables();
         having_cond = NULL;
       }
-      qep_tab[curr_tmp_table].distinct = true;
+      qep_tab[curr_tmp_table].needs_duplicate_removal = true;
       trace_this_tbl.add("reading_from_table_eliminates_duplicates", true);
       explain_flags.set(ESC_DISTINCT, ESP_DUPS_REMOVAL);
       select_distinct = false;
