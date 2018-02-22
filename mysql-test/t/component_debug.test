@@ -20,11 +20,11 @@ connection default;
 --reap
 --echo Since UNINSTALL component failed because of "Query execution
 --echo was interrupted" error. This should display three components.
-SELECT * FROM mysql.component;
+SELECT COUNT(*) FROM mysql.component;
 --echo Below INSTALL component should fail after the fix
 --error ER_COMPONENTS_CANT_LOAD
 INSTALL COMPONENT "file://component_example_component1", "file://component_example_component3", "file://component_example_component2";
 --echo Should display three components
-SELECT * FROM mysql.component;
+SELECT COUNT(*) FROM mysql.component;
 UNINSTALL COMPONENT "file://component_example_component1", "file://component_example_component3", "file://component_example_component2";
 disconnect con1;
