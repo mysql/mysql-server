@@ -13781,7 +13781,13 @@ ER_LDAP_AUTH_INFO_FOR_USER
   eng "User is authenticated as: %s external user: %s"
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_INFO
-  eng "Group search information: %s scope: %d filter: %s"
+  eng "Group search information base DN: %s scope: %d filter: %s attribute: %s"
+
+ER_LDAP_AUTH_GRP_SEARCH_SPECIAL_HDL
+  eng "Special handling for group search, {GA} found"
+
+ER_LDAP_AUTH_GRP_IS_FULL_DN
+  eng "Group search special handling, group full DN found. "
 
 ER_LDAP_AUTH_USER_NOT_FOUND_IN_ANY_GRP
   eng "User %s is not member of any group."
