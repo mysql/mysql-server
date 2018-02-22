@@ -1615,7 +1615,17 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
     if (share->db_create_options & HA_OPTION_DELAY_KEY_WRITE)
       packet->append(STRING_WITH_LEN(" DELAY_KEY_WRITE=1"));
-    if (create_info.row_type != ROW_TYPE_DEFAULT) {
+
+    /*
+      If 'show_create_table_verbosity' is enabled, the row format would
+      be displayed in the output of SHOW CREATE TABLE even if default
+      row format is used. Otherwise only the explicitly mentioned
+      row format would be displayed.
+    */
+    if (thd->variables.show_create_table_verbosity) {
+      packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
+      packet->append(ha_row_type[(uint)share->real_row_type]);
+    } else if (create_info.row_type != ROW_TYPE_DEFAULT) {
       packet->append(STRING_WITH_LEN(" ROW_FORMAT="));
       packet->append(ha_row_type[(uint)create_info.row_type]);
     }
