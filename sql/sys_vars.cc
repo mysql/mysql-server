@@ -6118,3 +6118,10 @@ static Sys_var_struct<CHARSET_INFO, Get_name> Sys_default_collation_for_utf8mb4(
     DEFAULT(&my_charset_utf8mb4_0900_ai_ci), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_default_collation_for_utf8mb4),
     ON_UPDATE(update_deprecated));
+
+static Sys_var_bool Sys_show_create_table_verbosity(
+    "show_create_table_verbosity",
+    "When this option is enabled, it increases the verbosity of "
+    "'SHOW CREATE TABLE'.",
+    SESSION_VAR(show_create_table_verbosity), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0));

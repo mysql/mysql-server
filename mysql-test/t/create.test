@@ -1858,3 +1858,71 @@ CREATE TABLE t (i INT) PARTITION BY HASH(i) PARTITIONS 2;
 CREATE TABLE t_like LIKE t;
 DROP TABLES t, t_like;
 SET GLOBAL innodb_file_per_table= DEFAULT;
+
+
+--echo #
+--echo # BUG 27516741 - MYSQL SERVER DOES NOT WRITE INNODB ROW_TYPE
+--echo #                TO .FRM FILE WHEN DEFAULT USED
+
+--echo # Set up.
+SET @saved_innodb_default_row_format= @@global.innodb_default_row_format;
+SET @saved_show_create_table_verbosity= @@session.show_create_table_verbosity;
+
+--echo # Current InnoDB default row format and 'show_create_table_verbosity'
+--echo # values respectively.
+SELECT @@global.innodb_default_row_format;
+SELECT @@session.show_create_table_verbosity;
+
+CREATE TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= COMPRESSED;
+
+--echo # Test without show_create_table_verbosity enabled.
+--echo # Row format used is not displayed for all tables
+--echo # except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Test with show_create_table_verbosity enabled.
+--echo # Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+SET GLOBAL innodb_default_row_format= 'DYNAMIC';
+SET SESSION show_create_table_verbosity= OFF;
+
+--echo # Test with corresponding temporary tables.
+CREATE TEMPORARY TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TEMPORARY TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= REDUNDANT;
+
+--echo # Test without show_create_table_verbosity enabled.
+--echo # Row format used is not displayed for all tables
+--echo # except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Test with show_create_table_verbosity enabled.
+--echo # Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
+SHOW CREATE TABLE t4;
+
+--echo # Clean up.
+DROP TABLE t1, t2, t3, t4;
+DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
+SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;

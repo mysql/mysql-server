@@ -1109,6 +1109,9 @@ The following options may be given as the first argument:
  to TRUE, the plugin will flag associated authenticated
  accounts to be mapped to proxy users when the server
  option check_proxy_users is enabled.
+ --show-create-table-verbosity 
+ When this option is enabled, it increases the verbosity
+ of 'SHOW CREATE TABLE'.
  --show-old-temporals 
  When this option is enabled, the pre-5.6.4 temporal types
  will be marked in the 'SHOW CREATE TABLE' and
@@ -1613,6 +1616,7 @@ session-track-state-change FALSE
 session-track-system-variables time_zone,autocommit,character_set_client,character_set_results,character_set_connection
 session-track-transaction-info OFF
 sha256-password-proxy-users FALSE
+show-create-table-verbosity FALSE
 show-old-temporals FALSE
 show-slave-auth-info FALSE
 skip-grant-tables TRUE
