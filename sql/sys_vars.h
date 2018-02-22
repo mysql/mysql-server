@@ -128,6 +128,7 @@ class Sys_var_integer;
 // this means that Sys_var_charptr initial value was malloc()ed
 #define PREALLOCATED sys_var::ALLOCATED +
 #define NON_PERSIST sys_var::NOTPERSIST +
+#define PERSIST_AS_READONLY sys_var::PERSIST_AS_READ_ONLY +
 
 /*
   Sys_var_bit meaning is reversed, like in
