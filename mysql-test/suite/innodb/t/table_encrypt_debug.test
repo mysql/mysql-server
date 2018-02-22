@@ -26,6 +26,7 @@ call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table `tde_db
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Database page corruption or a failed file read of page");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .* because the \.ibd file is missing");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
@@ -136,8 +137,37 @@ DROP TABLE tde_db.t1;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
+--echo #
+--echo # Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
+--echo # DURING CRASH RECOVERY
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
+--enable_query_log
+
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
+
+# Crash the server while executing ALTER INSTANCE ROTATE
+SET SESSION debug="+d,keyring_file_backup_fail";
+--error 2013
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+SET SESSION debug="-d,keyring_file_backup_fail";
+#--echo # Restart the server
+#--source include/start_mysqld.inc
+
+SELECT COUNT(*) FROM tde_db.test_tbl;
+
+DROP TABLE tde_db.test_tbl;
+
 # Cleanup
 #DROP DATABASE tde_db;
 eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table;
 --remove_file $MYSQL_TMP_DIR/mysecret_keyring
-
