@@ -814,7 +814,7 @@ ndbd_run(bool foreground, int report_fd,
          unsigned allocated_nodeid, int connect_retries, int connect_delay,
          size_t logbuffer_size)
 {
-  LogBuffer* logBuf = new LogBuffer(logbuffer_size); // 32kB default
+  LogBuffer* logBuf = new LogBuffer(logbuffer_size);
   BufferedOutputStream* ndbouts_bufferedoutputstream = new BufferedOutputStream(logBuf);
 
   // Make ndbout point to the BufferedOutputStream.
