@@ -5837,6 +5837,15 @@ static Sys_var_charptr Sys_disabled_storage_engines(
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
        DEFAULT(""));
 
+static Sys_var_mybool Sys_show_create_table_verbosity(
+       "show_create_table_verbosity",
+       "When this option is enabled, it increases the verbosity of "
+       "'SHOW CREATE TABLE'.",
+        SESSION_VAR(show_create_table_verbosity),
+        CMD_LINE(OPT_ARG),
+        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+        ON_CHECK(0), ON_UPDATE(0));
+
 static bool check_keyring_access(sys_var*, THD* thd, set_var*)
 {
   if (!(thd->security_context()->check_access(SUPER_ACL)))
