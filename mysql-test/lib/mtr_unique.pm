@@ -101,6 +101,14 @@ sub mtr_get_unique_id($$$) {
 
       if ($build_thread == $build_threads_per_thread)
       {
+        open(FH, ">>", $::build_thread_id_file) or
+          die "Can't open file $::build_thread_id_file: $!";
+        for (my $i = 0; $i <= $#mtr_unique_ids; $i++)
+        {
+          # Write the build thread id file path to 'unique_ids.log' file
+          print FH $mtr_unique_ids[$i] . "\n";
+        }
+        close(FH);
         return $id - $build_thread + 1;
       }
     }
@@ -121,13 +129,10 @@ sub mtr_release_unique_id()
 
   for (my $i= 0; $i <= $#mtr_unique_fh; $i++)
   {
-    open (FH, ">>", $::build_thread_id_file);
     if (defined $mtr_unique_fh[$i])
     {
       close $mtr_unique_fh[$i];
-      print FH $mtr_unique_ids[$i] . "\n";
     }
-    close FH;
   }
 
   @mtr_unique_fh= ();
