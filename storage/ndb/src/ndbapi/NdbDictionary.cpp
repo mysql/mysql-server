@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3251,17 +3251,7 @@ pretty_print_string(NdbOut& out,
 {
   const unsigned char* ref = (const unsigned char*)aref;
   int i, len, printable= 1;
-  // trailing zeroes are not printed
-  for (i=sz-1; i >= 0; i--)
-    if (ref[i] == 0) sz--;
-    else break;
-  if (!is_binary)
-  {
-    // trailing spaces are not printed
-    for (i=sz-1; i >= 0; i--)
-      if (ref[i] == 32) sz--;
-      else break;
-  }
+
   if (is_binary && f.hex_format)
   {
     if (sz == 0)
@@ -3273,6 +3263,18 @@ pretty_print_string(NdbOut& out,
     for (len = 0; len < (int)sz; len++)
       out.print("%02X", (int)ref[len]);
     return;
+  }
+
+  // trailing zeroes are not printed
+  for (i=sz-1; i >= 0; i--)
+    if (ref[i] == 0) sz--;
+    else break;
+  if (!is_binary)
+  {
+    // trailing spaces are not printed
+    for (i=sz-1; i >= 0; i--)
+      if (ref[i] == 32) sz--;
+      else break;
   }
   if (sz == 0) return; // empty
 
