@@ -239,12 +239,21 @@ int Sasl_client::sasl_start(char **client_output, int* client_output_length)
      if(rc_sasl == SASL_INTERACT) interact(interactions);
   }
   while(rc_sasl == SASL_INTERACT);
+  if (rc_sasl == SASL_NOMECH)
+  {
+    log_stream << "SASL method '" << m_mechanism << "' sent by server, "
+               << "is not supported by the SASL client. Make sure that "
+               << "cyrus SASL library is installed.";
+    log_error(log_stream.str());
+    goto EXIT;
+  }
   if (client_output != NULL)
   {
     *client_output= sasl_client_output;
     log_stream << "Sasl_client::SaslStart sasl output: " << sasl_client_output;
     log_dbg(log_stream.str());
   }
+EXIT:
   return rc_sasl;
 }
 
@@ -339,7 +348,6 @@ static int sasl_authenticate(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       goto EXIT;
     }
 
-    server_packet_len= strlen((const char*)server_packet);
     rc_sasl= sasl_client.sasl_step((char*)server_packet,
                                    server_packet_len, &sasl_client_output,
                                    &sasl_client_output_len);
