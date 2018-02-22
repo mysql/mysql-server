@@ -33,15 +33,26 @@ SimpleProperties::Writer::first(){
   return reset();
 }
 
-bool 
-SimpleProperties::Writer::add(Uint16 key, Uint32 value){
-  Uint32 head = Uint32Value;  
+bool
+SimpleProperties::Writer::addKey(Uint16 key, ValueType type, Uint32 data) {
+  Uint32 head = type;
   head <<= 16;
   head += key;
   if(!putWord(htonl(head)))
     return false;
-  
-  return putWord(htonl(value));
+
+  m_value_length = data;
+  m_bytes_written = 0;
+
+  return putWord(htonl(data));
+}
+
+bool
+SimpleProperties::Writer::add(Uint16 key, Uint32 value){
+  Uint32 head = Uint32Value;
+  head <<= 16;
+  head += key;
+  return ( putWord(htonl(head)) && putWord(htonl(value)) );
 }
 
 bool
@@ -68,31 +79,28 @@ SimpleProperties::Writer::add(const char * value, int len){
 }
 
 bool
-SimpleProperties::Writer::add(Uint16 key, const char * value){
-  Uint32 head = StringValue;
-  head <<= 16;
-  head += key;
-  if(!putWord(htonl(head)))
-    return false;
-  Uint32 strLen = Uint32(strlen(value) + 1); // Including NULL-byte
-  if(!putWord(htonl(strLen)))
-    return false;
-
-  return add(value, (int)strLen);
-
-}
-
-bool
-SimpleProperties::Writer::add(Uint16 key, const void* value, int len){
-  Uint32 head = BinaryValue;
-  head <<= 16;
-  head += key;
-  if(!putWord(htonl(head)))
-    return false;
-  if(!putWord(htonl(len)))
+SimpleProperties::Writer::add(ValueType type, Uint16 key,
+                              const void * value, int len){
+  if(! addKey(key, type, len))
     return false;
 
   return add((const char*)value, len);
+}
+
+int
+SimpleProperties::Writer::append(const char * buf, Uint32 buf_size) {
+  if(m_bytes_written < m_value_length) {
+    Uint32 bytesToAdd = m_value_length - m_bytes_written;
+    if(bytesToAdd > buf_size) bytesToAdd = buf_size;
+
+    if(add(buf, bytesToAdd)) {
+      m_bytes_written += bytesToAdd;
+      return bytesToAdd;
+    } else {
+      return -1;
+    }
+  }
+  return 0;
 }
 
 SimpleProperties::Reader::Reader(){
@@ -149,6 +157,31 @@ char *
 SimpleProperties::Reader::getString(char * dst) const {
   if(peekWords((Uint32*)dst, m_itemLen))
     return dst;
+  return 0;
+}
+
+int
+SimpleProperties::Reader::getBuffered(char * buf, Uint32 buf_size) {
+  require(buf_size % 4 == 0);
+
+  Uint32 readWords = m_itemLen;
+  if(readWords) {
+    Uint32 bufSizeInWords = buf_size / 4;
+    if(readWords > bufSizeInWords) readWords = bufSizeInWords;
+
+    if(! peekWords((Uint32*) buf, readWords))
+      return -1;
+
+    step(readWords);
+
+    /* decrement m_itemLen and m_strLen towards zero */
+    m_itemLen -= readWords;
+    if(m_itemLen) {
+      m_strLen -= buf_size;
+      return buf_size;
+    }
+    return m_strLen;
+  }
   return 0;
 }
 

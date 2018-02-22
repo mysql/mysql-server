@@ -151,7 +151,13 @@ public:
      *  Note only valid is valid() == true
      */
     ValueType getValueType() const;
-    
+
+    /**
+     * Read value iteratively into buffer.
+       Returns number of bytes read, 0 on EOF, or -1 on error.
+     */
+     int getBuffered(char * buf, Uint32 buf_size);
+
     /**
      * Get value
      *  Note only valid is valid() == true
@@ -193,15 +199,34 @@ public:
 
     bool first();
     bool add(Uint16 key, Uint32 value);
-    bool add(Uint16 key, const char * value);
-    bool add(Uint16 key, const void* value, int len);
+    bool add(Uint16 key, const char * value)  {
+      return add(StringValue, key, value, strlen(value)+1);
+    }
+    bool add(Uint16 key, const void* value, int len) {
+      return add(BinaryValue, key, value, len);
+    }
+
+    /* Two part API: add a key, then iteratively set value from buffer.
+       append() returns
+         the number of bytes written;
+         0 after writing the complete length as specified by value_length;
+         -1 on storage error.
+    */
+    bool addKey(Uint16 key, ValueType type, Uint32 value_length);
+    int append(const char * buf, Uint32 buf_size);
+
   protected:
+    bool add(ValueType type, Uint16 key, const void * value, int len);
     virtual ~Writer() {}
     virtual bool reset() = 0;
     virtual bool putWord(Uint32 val) = 0;
     virtual bool putWords(const Uint32 * src, Uint32 len) = 0;
   private:
     bool add(const char* value, int len);
+
+  private:
+    Uint32 m_value_length;
+    Uint32 m_bytes_written;
   };
 };
 
