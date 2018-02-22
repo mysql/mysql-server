@@ -4251,6 +4251,19 @@ prepare_inplace_alter_table_dict(
 		for create index */
 		if (ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX) {
+                        for (ulint i = 0;
+                             i < ctx->num_to_add_vcol;
+                             i++) {
+                                /* Set mbminmax for newly added column */
+                                ulint   i_mbminlen, i_mbmaxlen;
+                                dtype_get_mblen(ctx->add_vcol[i].m_col.mtype,
+                                                ctx->add_vcol[i].m_col.prtype,
+                                                &i_mbminlen, &i_mbmaxlen);
+
+				dtype_set_mbminmaxlen(
+					(dtype_t*) &ctx->add_vcol[i].m_col,
+					i_mbminlen, i_mbmaxlen);
+                        }
 			add_v = static_cast<dict_add_v_col_t*>(
 				mem_heap_alloc(ctx->heap, sizeof *add_v));
 			add_v->n_v_col = ctx->num_to_add_vcol;
