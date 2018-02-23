@@ -48,6 +48,7 @@ void Dblqh::initData()
   c_outstanding_write_local_sysfile = false;
   c_send_gcp_saveref_needed = false;
   m_first_distributed_lcp_started = false;
+  m_in_send_next_scan = 0;
 
   caddfragrecFileSize = ZADDFRAGREC_FILE_SIZE;
   cgcprecFileSize = ZGCPREC_FILE_SIZE;
@@ -81,7 +82,7 @@ void Dblqh::initData()
   
   // Records with constant sizes
 
-  cLqhTimeOutCount = 0;
+  cLqhTimeOutCount = 1;
   cLqhTimeOutCheckCount = 0;
   cpackedListIndex = 0;
   m_backup_ptr = RNIL;
@@ -437,6 +438,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
   addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
   addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dblqh::execACC_CHECK_SCAN);
   addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
   addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
   addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);
@@ -557,6 +559,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
     void* tmp[] = { 
       &addfragptr,
       &fragptr,
+      &prim_tab_fragptr,
       &gcpPtr,
       &lcpPtr,
       &logPartPtr,
@@ -566,6 +569,7 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
       &pageRefPtr,
       &scanptr,
       &tabptr,
+      &m_tc_connect_ptr,
     }; 
     init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
   }

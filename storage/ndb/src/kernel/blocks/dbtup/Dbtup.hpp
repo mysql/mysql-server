@@ -900,6 +900,7 @@ struct Operationrec {
 typedef Ptr<Operationrec> OperationrecPtr;
 typedef ArrayPool<Operationrec> Operationrec_pool;
 
+  OperationrecPtr prepare_oper_ptr;
   /* ************* TRIGGER DATA ************* */
   /* THIS RECORD FORMS LISTS OF ACTIVE       */
   /* TRIGGERS FOR EACH TABLE.                 */
@@ -2173,6 +2174,9 @@ public:
   void prepareTUPKEYREQ(Uint32 page_id,
                         Uint32 page_idx,
                         Uint32 frag_id);
+  void prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx);
+  void prepare_op_pointer(Uint32 opPtrI);
+  void prepare_tab_pointers(Uint32 fragPtrI);
 private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
   void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
@@ -3034,7 +3038,6 @@ private:
   bool find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId);
   bool setup_read(KeyReqStruct* req_struct,
 		  Operationrec* regOperPtr,
-		  Fragrecord* regFragPtr,
 		  Tablerec* regTabPtr,
 		  bool disk);
   
@@ -3861,7 +3864,6 @@ private:
 
   void setup_lcp_read_copy_tuple( KeyReqStruct *,
                                   Operationrec*,
-                                  Fragrecord*,
                                   Tablerec*);
 
   bool isCopyTuple(Uint32 pageid, Uint32 pageidx) const {
