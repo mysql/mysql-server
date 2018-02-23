@@ -2084,6 +2084,7 @@ static void clean_up(bool print_message) {
   persisted_variables_cache.cleanup();
 
   udf_deinit_globals();
+  charset_uninit();
   /*
     The following lines may never be executed as the main thread may have
     killed us
