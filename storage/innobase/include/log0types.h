@@ -549,6 +549,15 @@ struct alignas(INNOBASE_CACHE_LINE_SIZE) log_t {
   @see @ref subsect_redo_log_available_for_checkpoint_lsn */
   lsn_t available_for_checkpoint_lsn;
 
+  /** A new checkpoint lsn suggested by dict_persist.
+  This will be set by dict_persist_to_dd_table_buffer(), which should
+  be always called before really making a checkpoint.
+  If non-zero, up to this lsn value, dynamic metadata changes have been
+  written back to mysql.innodb_dynamic_metadata under dict_persist->mutex
+  protection. All dynamic metadata changes after this lsn have to
+  be kept in redo logs, but not discarded. If zero, just ignore it. */
+  lsn_t dict_suggest_checkpoint_lsn;
+
   /** When this is larger than the latest checkpoint, the log checkpointer
   thread will be forced to write a new checkpoint (unless the new latest
   checkpoint lsn would still be smaller than this value).

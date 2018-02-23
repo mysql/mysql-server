@@ -2364,7 +2364,6 @@ and return. don't execute actual insert. */
   dberr_t err = DB_SUCCESS;
   big_rec_t *big_rec = NULL;
   mtr_t mtr;
-  AutoIncLogMtr autoinc_mtr(&mtr);
   mem_heap_t *offsets_heap = NULL;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
   ulint *offsets = offsets_;
@@ -2380,7 +2379,7 @@ and return. don't execute actual insert. */
         !thr_get_trx(thr)->in_rollback);
   ut_ad(thr != NULL || !dup_chk_only);
 
-  autoinc_mtr.start();
+  mtr.start();
 
   if (index->table->is_temporary()) {
     /* Disable REDO logging as the lifetime of temp-tables is
@@ -2391,18 +2390,18 @@ and return. don't execute actual insert. */
     ut_ad(flags & BTR_NO_LOCKING_FLAG);
     ut_ad(!index->table->is_intrinsic() || (flags & BTR_NO_UNDO_LOG_FLAG));
 
-    autoinc_mtr.get_mtr()->set_log_mode(MTR_LOG_NO_REDO);
+    mtr.set_log_mode(MTR_LOG_NO_REDO);
   }
 
   if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
     mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-    mtr_s_lock(dict_index_get_lock(index), autoinc_mtr.get_mtr());
+    mtr_s_lock(dict_index_get_lock(index), &mtr);
   }
 
   /* Note that we use PAGE_CUR_LE as the search mode, because then
   the function will return in both low_match and up_match of the
   cursor sensible values */
-  btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, autoinc_mtr.get_mtr());
+  btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
   cursor = btr_pcur_get_btr_cur(&pcur);
   cursor->thr = thr;
 
@@ -2428,11 +2427,9 @@ and return. don't execute actual insert. */
         row_get_autoinc_counter(entry, index->table->autoinc_field_no);
 
     if (counter != 0) {
-      /* We always log the counter before real
-      insertion. So even if there was a failure later,
-      current counter still gets persisted and never
-      re-used, as long as the log gets flushed */
-      autoinc_mtr.log(index->table, counter);
+      /* Always log the counter change first, so it won't
+      be affected by any follow-up failure. */
+      dict_table_autoinc_log(index->table, counter, &mtr);
     }
   }
 
@@ -2467,19 +2464,18 @@ and return. don't execute actual insert. */
       /* Note that the following may return also
       DB_LOCK_WAIT */
 
-      err = row_ins_duplicate_error_in_clust(flags, cursor, entry, thr,
-                                             autoinc_mtr.get_mtr());
+      err = row_ins_duplicate_error_in_clust(flags, cursor, entry, thr, &mtr);
     }
 
     if (err != DB_SUCCESS) {
     err_exit:
-      autoinc_mtr.commit();
+      mtr.commit();
       goto func_exit;
     }
   }
 
   if (dup_chk_only) {
-    autoinc_mtr.commit();
+    mtr.commit();
     goto func_exit;
   }
 
@@ -2503,13 +2499,13 @@ and return. don't execute actual insert. */
     ut_ad(thr != NULL);
     err = row_ins_clust_index_entry_by_modify(&pcur, flags, mode, &offsets,
                                               &offsets_heap, entry_heap, entry,
-                                              thr, autoinc_mtr.get_mtr());
+                                              thr, &mtr);
 
     if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
       row_log_table_insert(btr_cur_get_rec(cursor), entry, index, offsets);
     }
 
-    autoinc_mtr.commit();
+    mtr.commit();
     mem_heap_free(entry_heap);
   } else {
     rec_t *insert_rec;
@@ -2518,7 +2514,7 @@ and return. don't execute actual insert. */
       ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                       entry, &insert_rec, &big_rec, n_ext, thr,
-                                      autoinc_mtr.get_mtr());
+                                      &mtr);
     } else {
       if (buf_LRU_buf_pool_running_out()) {
         err = DB_LOCK_TABLE_FULL;
@@ -2529,12 +2525,12 @@ and return. don't execute actual insert. */
 
       err = btr_cur_optimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                       entry, &insert_rec, &big_rec, n_ext, thr,
-                                      autoinc_mtr.get_mtr());
+                                      &mtr);
 
       if (err == DB_FAIL) {
         err = btr_cur_pessimistic_insert(flags, cursor, &offsets, &offsets_heap,
                                          entry, &insert_rec, &big_rec, n_ext,
-                                         thr, autoinc_mtr.get_mtr());
+                                         thr, &mtr);
 
         if (index->table->is_intrinsic() && err == DB_SUCCESS) {
           row_ins_temp_prebuilt_tree_modified(index->table);
@@ -2543,7 +2539,7 @@ and return. don't execute actual insert. */
     }
 
     if (big_rec != NULL) {
-      autoinc_mtr.commit();
+      mtr.commit();
 
       /* Online table rebuild could read (and
       ignore) the incomplete record at this point.
@@ -2561,7 +2557,7 @@ and return. don't execute actual insert. */
         row_log_table_insert(insert_rec, entry, index, offsets);
       }
 
-      autoinc_mtr.commit();
+      mtr.commit();
     }
   }
 
