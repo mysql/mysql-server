@@ -831,14 +831,14 @@ DROP TABLE t1;
 #
 CREATE DATABASE db1;
 USE db1;
-CREATE TABLE `notes` (
-`id` int(11) NOT NULL AUTO_INCREMENT,
-`body` text COLLATE utf8_unicode_ci,
-PRIMARY KEY (`id`)
+CREATE TABLE notes (
+id int(11) NOT NULL AUTO_INCREMENT,
+body text COLLATE utf8_unicode_ci,
+PRIMARY KEY (id)
 ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8
 COLLATE=utf8_unicode_ci
 ROW_FORMAT=COMPRESSED;
-ALTER TABLE notes ADD FULLTEXT INDEX `index_ft_body` (body(255));
+ALTER TABLE notes ADD FULLTEXT INDEX index_ft_body (body(255));
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 DROP INDEX index_ft_body ON notes;
