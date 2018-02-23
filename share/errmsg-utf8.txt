@@ -8489,9 +8489,6 @@ ER_POLYGON_TOO_LARGE 22023
 #  End of 8.0 error messages.
 #
 
-ER_OOM_SAVE_GTIDS
-  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
-
 
 #
 # Start of 8.0 Server error messages
@@ -17832,6 +17829,9 @@ ER_KEYRING_MIGRATE_FAILED
 
 ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
   eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
+
+ER_OOM_SAVE_GTIDS
+  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
 
 #
 # End of 8.0 Server error messages.
