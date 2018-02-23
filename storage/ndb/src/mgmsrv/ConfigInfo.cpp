@@ -710,9 +710,9 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "6",
+    "16",
     "1",
-    "6" },
+    "16" },
 
   {
     CFG_DB_DISK_DATA_FORMAT,

@@ -574,7 +574,6 @@ public:
     UintR scanTcrec;
     BlockReference scanApiBlockref;
     BlockReference scanBlockref;
-    Uint32 in_send_next_scan;
     ScanState scanState;
     ScanType scanType;
     NodeId scanNodeId;
@@ -603,7 +602,6 @@ public:
 
     Uint8 statScan;
     Uint8 m_stop_batch;
-    Uint8 scan_direct_count;
     Uint8 prioAFlag;
   };
   typedef Ptr<ScanRecord> ScanRecordPtr;
@@ -616,10 +614,9 @@ public:
 
 /**
  * Constants for scan_direct_count
- * Mainly used to avoid overextending the stack and to some
- * extent keeping the scheduling rules.
+ * Mainly used to keep the scheduling rules.
  */
-#define ZMAX_SCAN_DIRECT_COUNT 6
+#define ZMAX_SCAN_DIRECT_COUNT 16
 
   struct Fragrecord {
     Fragrecord() {}
@@ -2396,7 +2393,6 @@ public:
 
 #ifndef DBLQH_STATE_EXTRACT
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
-  TcConnectionrecPtr m_tc_connect_ptr;
 
   struct TcNodeFailRecord {
     enum TcFailStatus {
@@ -3287,8 +3283,6 @@ private:
   Uint32 c_active_add_frag_ptr_i;
 
 // Configurable
-  FragrecordPtr fragptr;
-  FragrecordPtr prim_tab_fragptr;
   Fragrecord_pool c_fragment_pool;
   RSS_AP_SNAPSHOT(c_fragment_pool);
 
@@ -3354,13 +3348,11 @@ private:
 
 // Configurable
   ScanRecord_pool c_scanRecordPool;
-  ScanRecordPtr scanptr;
   Uint32 cscanrecFileSize;
   ScanRecord_list m_reserved_scans; // LCP + NR
 
 // Configurable
   Tablerec *tablerec;
-  TablerecPtr tabptr;
   UintR ctabrecFileSize;
 
 // Configurable
@@ -3376,6 +3368,24 @@ private:
   Uint16 terrorCode;
 
   Uint32 c_firstInNodeGroup;
+
+  /**
+   * The below variables are a set of block variables that
+   * are used heavily in executions of scan and key operations.
+   * Most of them are set up again after each real-time break.
+   */
+  ScanRecordPtr scanptr;
+  TcConnectionrecPtr m_tc_connect_ptr;
+  FragrecordPtr fragptr;
+  FragrecordPtr prim_tab_fragptr;
+  TablerecPtr tabptr;
+  Uint32 m_scan_direct_count;
+  Uint32 m_tot_scan_direct_count;
+  /**
+   * Keep track if we should unwind the stack before calling
+   * send_next_NEXT_SCANREQ.
+   */
+  Uint32 m_in_send_next_scan;
 
 // ------------------------------------------------------------------------
 // These variables are used to store block state which do not need arrays
@@ -3871,11 +3881,6 @@ public:
   /* Counter for starting local LCP ordered by UNDO log overload */
   Uint32 c_current_local_lcp_table_id;
 
-  /**
-   * Keep track if we should unwind the stack before calling
-   * send_next_NEXT_SCANREQ.
-   */
-  Uint32 m_in_send_next_scan;
   /**
    * Set flag that indicates that first distributed LCP is started.
    * This means that we should distribute the signal

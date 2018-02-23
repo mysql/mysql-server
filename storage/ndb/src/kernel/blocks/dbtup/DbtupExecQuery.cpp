@@ -392,7 +392,6 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       return false;
     }
   }
-
   if (unlikely(bits & Tuple_header::FREE))
   {
     /**
@@ -402,7 +401,6 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     terrorCode= ZTUPLE_DELETED_ERROR;
     return false;
   }
-
   if (likely(currOpPtr.i == RNIL))
   {
     if (regTabPtr->need_expand(disk))
