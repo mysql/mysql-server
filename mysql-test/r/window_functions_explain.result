@@ -15435,6 +15435,9 @@ INSERT INTO t VALUES
 (10), (16), (8), (12), (4), (20), (32), (19), (29), (9), (49), (79),
 (39), (59), (19), (99), (159), (39), (59), (19), (99), (159), (79),
 (119), (39), (199), (319);
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
 EXPLAIN FORMAT=JSON SELECT * FROM t;
 EXPLAIN
 {
