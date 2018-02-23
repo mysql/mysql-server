@@ -152,7 +152,6 @@ mysql_pfs_key_t buf_block_debug_latch_key;
 mysql_pfs_key_t undo_spaces_lock_key;
 mysql_pfs_key_t rsegs_lock_key;
 mysql_pfs_key_t dict_operation_lock_key;
-mysql_pfs_key_t dict_persist_checkpoint_key;
 mysql_pfs_key_t dict_table_stats_key;
 mysql_pfs_key_t hash_table_locks_key;
 mysql_pfs_key_t index_tree_rw_lock_key;

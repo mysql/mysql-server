@@ -13,7 +13,6 @@ order by name;
 name
 wait/synch/sxlock/innodb/btr_search_latch
 wait/synch/sxlock/innodb/dict_operation_lock
-wait/synch/sxlock/innodb/dict_persist_checkpoint
 wait/synch/sxlock/innodb/dict_table_stats
 wait/synch/sxlock/innodb/fil_space_latch
 wait/synch/sxlock/innodb/fts_cache_init_rw_lock

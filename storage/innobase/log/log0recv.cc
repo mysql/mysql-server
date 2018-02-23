@@ -343,10 +343,10 @@ void MetadataRecover::apply() {
 
     /* The table should be either CLEAN or applied BUFFERED
     metadata from DDTableBuffer just now */
-    ut_ad(table->dirty_status == METADATA_CLEAN ||
-          table->dirty_status == METADATA_BUFFERED);
+    ut_ad(table->dirty_status.load() == METADATA_CLEAN ||
+          table->dirty_status.load() == METADATA_BUFFERED);
 
-    bool buffered = (table->dirty_status == METADATA_BUFFERED);
+    bool buffered = (table->dirty_status.load() == METADATA_BUFFERED);
 
     mutex_enter(&dict_persist->mutex);
 
@@ -362,7 +362,7 @@ void MetadataRecover::apply() {
         UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
       }
 
-      table->dirty_status = METADATA_DIRTY;
+      table->dirty_status.store(METADATA_DIRTY);
       ut_d(table->in_dirty_dict_tables_list = true);
       ++dict_persist->num_dirty_tables;
     }

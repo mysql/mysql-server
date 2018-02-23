@@ -236,9 +236,8 @@ struct LatchDebug {
       Latches::iterator it =
           std::find(latches->begin(), latches->end(), Latched(latch, level));
 
-      ut_a(latches->empty() || level == SYNC_PERSIST_CHECKPOINT ||
-           level == SYNC_LEVEL_VARYING || level == SYNC_NO_ORDER_CHECK ||
-           latches->back().m_latch->get_level() == SYNC_PERSIST_CHECKPOINT ||
+      ut_a(latches->empty() || level == SYNC_LEVEL_VARYING ||
+           level == SYNC_NO_ORDER_CHECK ||
            latches->back().m_latch->get_level() == SYNC_LEVEL_VARYING ||
            latches->back().m_latch->get_level() == SYNC_NO_ORDER_CHECK ||
            latches->back().get_level() >= level || it != latches->end());
@@ -456,7 +455,6 @@ LatchDebug::LatchDebug() {
   LEVEL_MAP_INSERT(SYNC_INDEX_TREE);
   LEVEL_MAP_INSERT(SYNC_PERSIST_DIRTY_TABLES);
   LEVEL_MAP_INSERT(SYNC_PERSIST_AUTOINC);
-  LEVEL_MAP_INSERT(SYNC_PERSIST_CHECKPOINT);
   LEVEL_MAP_INSERT(SYNC_IBUF_PESS_INSERT_MUTEX);
   LEVEL_MAP_INSERT(SYNC_IBUF_HEADER);
   LEVEL_MAP_INSERT(SYNC_DICT_HEADER);
@@ -899,13 +897,6 @@ Latches *LatchDebug::check_order(const latch_t *latch,
       ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
       break;
 
-    case SYNC_PERSIST_CHECKPOINT:
-
-      basic_check(latches, level, SYNC_IBUF_MUTEX);
-      ut_a(find(latches, SYNC_PERSIST_DIRTY_TABLES) == NULL);
-      ut_a(find(latches, SYNC_PERSIST_AUTOINC) == NULL);
-      break;
-
     case SYNC_MUTEX:
     case SYNC_UNKNOWN:
     case SYNC_LEVEL_VARYING:
@@ -1234,9 +1225,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(PERSIST_AUTOINC, SYNC_PERSIST_AUTOINC,
                   autoinc_persisted_mutex_key);
-
-  LATCH_ADD_RWLOCK(DICT_PERSIST_CHECKPOINT, SYNC_PERSIST_CHECKPOINT,
-                   dict_persist_checkpoint_key);
 
   LATCH_ADD_MUTEX(DICT_SYS, SYNC_DICT, dict_sys_mutex_key);
 
