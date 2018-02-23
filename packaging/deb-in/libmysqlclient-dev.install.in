@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,7 @@ usr/lib/*/libmysqlclient.so
 usr/lib/*/libmysqlservices.a
 usr/lib/*/pkgconfig/mysqlclient.pc
 usr/bin/mysql_config
-@DEB_INSTALL_MAN_LIBMYSQLCLIENTDEV@
+usr/share/man/man1/mysql_config.1
 usr/share/aclocal/mysql.m4
 # legal
 usr/share/mysql/LICENSE usr/share/doc/libmysqlclient-dev/

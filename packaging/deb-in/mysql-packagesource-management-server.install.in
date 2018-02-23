@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,7 +20,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 usr/sbin/ndb_mgmd
-@DEB_INSTALL_MAN_MANAGEMENTSERVER@
+usr/share/man/man8/ndb_mgmd.8*
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-management-server/

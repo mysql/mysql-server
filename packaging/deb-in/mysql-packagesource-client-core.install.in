@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@ usr/bin/mysql
 usr/bin/mysqldump
 usr/bin/mysqlpump
 
-@DEB_INSTALL_MAN_CLIENTCORE@
-
+# man pages
+usr/share/man/man1/mysql.1
+usr/share/man/man1/mysqldump.1
+usr/share/man/man1/mysqlpump.1
 # legal
 usr/share/mysql/LICENSE usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/
 usr/share/mysql/README usr/share/doc/mysql-@DEB_PRODUCTNAME@-client-core/

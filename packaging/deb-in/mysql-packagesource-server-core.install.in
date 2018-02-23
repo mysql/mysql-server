@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,28 @@ usr/bin/resolveip
 usr/bin/resolve_stack_dump
 usr/bin/zlib_decompress
 usr/sbin/mysqld
-@DEB_INSTALL_MAN_SERVERCORE@
+# man pages
+usr/share/man/man1/comp_err.1
+usr/share/man/man1/ibd2sdi.1
+usr/share/man/man1/innochecksum.1
+usr/share/man/man1/lz4_decompress.1
+usr/share/man/man1/my_print_defaults.1
+usr/share/man/man1/myisamchk.1
+usr/share/man/man1/myisamlog.1
+usr/share/man/man1/myisampack.1
+usr/share/man/man1/mysql_secure_installation.1
+usr/share/man/man1/mysql_ssl_rsa_setup.1
+usr/share/man/man1/mysql_tzinfo_to_sql.1
+usr/share/man/man1/mysql_upgrade.1
+usr/share/man/man1/mysql.server.1
+usr/share/man/man1/mysqlbinlog.1
+usr/share/man/man1/mysqld_multi.1
+usr/share/man/man1/mysqld_safe.1
+usr/share/man/man1/perror.1
+usr/share/man/man1/resolveip.1
+usr/share/man/man1/resolve_stack_dump.1
+usr/share/man/man1/zlib_decompress.1
+usr/share/man/man8/mysqld.8
 # plugins
 usr/lib/mysql/plugin/component_log_filter_dragnet.so
 usr/lib/mysql/plugin/component_log_sink_json.so
