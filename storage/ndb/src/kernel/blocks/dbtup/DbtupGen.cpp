@@ -18,6 +18,7 @@
 
 #define DBTUP_C
 #define DBTUP_GEN_CPP
+#include <dblqh/Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -42,8 +43,6 @@
 #define JAM_FILE_ID 420
 
 extern EventLogger * g_eventLogger;
-
-#define DEBUG(x) { ndbout << "TUP::" << x << endl; }
 
 void Dbtup::initData() 
 {
@@ -155,6 +154,17 @@ Dbtup::Dbtup(Block_context& ctx, Uint32 instanceNumber)
 
   initData();
   CLEAR_ERROR_INSERT_VALUE;
+
+#ifdef VM_TRACE
+{
+  void* tmp[] = {
+    &prepare_fragptr,
+    &prepare_tabptr,
+    &prepare_oper_ptr,
+  };
+  init_globals_list(tmp, sizeof(tmp)/sizeof(tmp[0]));
+}
+#endif
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragoprec);
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
@@ -269,6 +279,7 @@ void Dbtup::execCONTINUEB(Signal* signal)
     {
       ScanOpPtr scanPtr;
       c_scanOpPool.getPtr(scanPtr, dataPtr);
+      c_lqh->setup_scan_pointers(scanPtr.p->m_userPtr);
       scanCont(signal, scanPtr);
     }
     return;

@@ -7050,9 +7050,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       releaseScanBucket(gnsPageidptr, conidx, scanPtr.p->scanMask);
     }//if
     scanPtr.p->scan_lastSeen = __LINE__;
-    signal->theData[0] = scanPtr.i;
-    signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-    sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+    BlockReference ref = scanPtr.p->scanUserblockref;
+    signal->theData[0] = scanPtr.p->scanUserptr;
+    signal->theData[1] = GSN_ACC_CHECK_SCAN;
+    signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+    sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
     return;
   }//if
   /* ----------------------------------------------------------------------- */
@@ -7101,9 +7103,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       releaseOpRec();
       scanPtr.p->scanOpsAllocated--;
       scanPtr.p->scan_lastSeen = __LINE__;
-      signal->theData[0] = scanPtr.i;
-      signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-      sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+      BlockReference ref = scanPtr.p->scanUserblockref;
+      signal->theData[0] = scanPtr.p->scanUserptr;
+      signal->theData[1] = GSN_ACC_CHECK_SCAN;
+      signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+      sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
       return;
     }//if
     if (!scanPtr.p->scanReadCommittedFlag) {
@@ -7126,9 +7130,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
                                 getHighResTimer());
         putOpScanLockQue();	/* PUT THE OP IN A QUE IN THE SCAN REC */
         scanPtr.p->scan_lastSeen = __LINE__;
-        signal->theData[0] = scanPtr.i;
-        signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-        sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+        BlockReference ref = scanPtr.p->scanUserblockref;
+        signal->theData[0] = scanPtr.p->scanUserptr;
+        signal->theData[1] = GSN_ACC_CHECK_SCAN;
+        signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+        sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
         return;
       } else if (return_result != ZPARALLEL_QUEUE) {
         jam();
@@ -7141,9 +7147,11 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         releaseOpRec();
 	scanPtr.p->scanOpsAllocated--;
         scanPtr.p->scan_lastSeen = __LINE__;
-        signal->theData[0] = scanPtr.i;
-        signal->theData[1] = AccCheckScan::ZCHECK_LCP_STOP;
-        sendSignal(reference(), GSN_ACC_CHECK_SCAN, signal, 2, JBB);
+        BlockReference ref = scanPtr.p->scanUserblockref;
+        signal->theData[0] = scanPtr.p->scanUserptr;
+        signal->theData[1] = GSN_ACC_CHECK_SCAN;
+        signal->theData[2] = AccCheckScan::ZCHECK_LCP_STOP;
+        sendSignal(ref, GSN_ACC_CHECK_SCAN, signal, 3, JBB);
         return;
       }//if
       ndbassert(return_result == ZPARALLEL_QUEUE);
@@ -7266,19 +7274,15 @@ void Dbacc::releaseScanLab(Signal* signal)
     }//if
   }//for
   // Stops the heartbeat
-  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-
   conf->scanPtr = scanPtr.p->scanUserptr;
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
   fragrecptr.p->activeScanMask &= ~scanPtr.p->scanMask;
   scanPtr.p->activeLocalFrag = RNIL;
   releaseScanRec();
-  EXECUTE_DIRECT(blockNo,
-                 GSN_NEXT_SCANCONF,
-                 signal,
-                 NextScanConf::SignalLengthNoTuple);
+  signal->setLength(NextScanConf::SignalLengthNoTuple);
+  c_lqh->exec_next_scan_conf(signal);
   return;
 }//Dbacc::releaseScanLab()
 
@@ -7434,10 +7438,8 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     conf->scanPtr = scanPtr.p->scanUserptr;
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
-    EXECUTE_DIRECT(refToMain(scanPtr.p->scanUserblockref),
-                   GSN_NEXT_SCANCONF,
-                   signal,
-                   NextScanConf::SignalLengthNoTuple);
+    signal->setLength(NextScanConf::SignalLengthNoTuple);
+    c_lqh->exec_next_scan_conf(signal);
     return;
   }//if
   if (TcheckLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -8075,14 +8077,11 @@ void Dbacc::sendNextScanConf(Signal* signal)
 {
   const Local_key localKey = operationRecPtr.p->localdata;
 
-  c_tup->prepareTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx, fragrecptr.p->tupFragptr);
+  c_tup->prepare_scanTUPKEYREQ(localKey.m_page_no, localKey.m_page_idx);
 
   const Uint32 scanUserPtr = scanPtr.p->scanUserptr;
   const Uint32 opPtrI = operationRecPtr.i;
   const Uint32 fid = operationRecPtr.p->fid;
-  BlockReference blockRef = scanPtr.p->scanUserblockref;
-
-  jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
    * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
@@ -8093,11 +8092,8 @@ void Dbacc::sendNextScanConf(Signal* signal)
   conf->fragId = fid;
   conf->localKey[0] = localKey.m_page_no;
   conf->localKey[1] = localKey.m_page_idx;
-  EXECUTE_DIRECT(refToMain(blockRef),
-                 GSN_NEXT_SCANCONF,
-                 signal,
-                 NextScanConf::SignalLengthNoGCI);
-  return;
+  signal->setLength(NextScanConf::SignalLengthNoGCI);
+  c_lqh->exec_next_scan_conf(signal);
 }//Dbacc::sendNextScanConf()
 
 /** ---------------------------------------------------------------------------

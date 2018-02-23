@@ -263,6 +263,7 @@ class Lgman;
 #endif
 #define ZSTART_LOCAL_LCP 28
 #define ZCHECK_SYSTEM_SCANS 29
+#define ZSTART_QUEUED_SCAN 30
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -570,17 +571,18 @@ public:
     Uint32 scan_check_lcp_stop;
     Uint32 fragPtrI;
     UintR scanStoredProcId;
-    ScanState scanState;
     UintR scanTcrec;
-    ScanType scanType;
     BlockReference scanApiBlockref;
+    BlockReference scanBlockref;
+    Uint32 in_send_next_scan;
+    ScanState scanState;
+    ScanType scanType;
     NodeId scanNodeId;
     Uint16 scanReleaseCounter;
     Uint16 scanNumber;
     Uint16 scan_lastSeen;
 
     // scan source block, block object and function ACC TUX TUP
-    BlockReference scanBlockref;
     SimulatedBlock* scanBlock;
     ExecFunction scanFunction_NEXT_SCANREQ;
  
@@ -2394,6 +2396,7 @@ public:
 
 #ifndef DBLQH_STATE_EXTRACT
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
+  TcConnectionrecPtr m_tc_connect_ptr;
 
   struct TcNodeFailRecord {
     enum TcFailStatus {
@@ -2460,6 +2463,14 @@ public:
   Uint32 rt_break_is_scan_prioritised(Uint32 scan_ptr_i);
   Uint32 getCreateSchemaVersion(Uint32 tableId);
 
+  void execNEXT_SCANCONF(Signal* signal);
+  void setup_scan_pointers(Uint32 scanPtrI);
+  void setup_scan_pointers_from_tc_con(TcConnectionrecPtr);
+  void setup_key_pointers(Uint32 tcIndex);
+  void exec_next_scan_conf(Signal *signal);
+  void continue_next_scan_conf(Signal *signal,
+                               ScanRecord::ScanState scanState,
+                               ScanRecord * const scanPtr);
 private:
 
   BLOCK_DEFINES(Dblqh);
@@ -2560,8 +2571,8 @@ private:
   void execSCAN_FRAGREQ(Signal* signal);
   void execSCAN_NEXTREQ(Signal* signal);
   void execACC_SCANREF(Signal* signal, TcConnectionrecPtr);
-  void execNEXT_SCANCONF(Signal* signal);
   void execNEXT_SCANREF(Signal* signal);
+  void execACC_CHECK_SCAN(Signal* signal);
   void execACC_TO_REF(Signal* signal, TcConnectionrecPtr);
   void execCOPY_FRAGREQ(Signal* signal);
   void execCOPY_FRAGREF(Signal* signal);
@@ -2665,7 +2676,7 @@ private:
   void LQHKEY_error(Signal* signal, int errortype);
   void nextRecordCopy(Signal* signal, TcConnectionrecPtr);
   Uint32 calculateHash(Uint32 tableId, const Uint32* src);
-  void checkLcpStopBlockedLab(Signal* signal);
+  void checkLcpStopBlockedLab(Signal* signal, Uint32);
   void sendCommittedTc(Signal* signal,
                        BlockReference atcBlockref,
                        const TcConnectionrec*);
@@ -2956,7 +2967,7 @@ private:
   void srFourthComp(Signal* signal);
   void timeSup(Signal* signal);
   void closeCopyRequestLab(Signal* signal, TcConnectionrecPtr);
-  void closeScanRequestLab(Signal* signal, TcConnectionrecPtr);
+  void closeScanRequestLab(Signal* signal, TcConnectionrecPtr, bool setup);
   void scanTcConnectLab(Signal* signal, Uint32 startTcCon, Uint32 fragId);
   void initGcpRecLab(Signal* signal);
   void prepareContinueAfterBlockedLab(Signal* signal, TcConnectionrecPtr);
@@ -2979,6 +2990,7 @@ private:
                     Uint32 gci_lo,
                     TcConnectionrecPtr);
   void completeTransLastLab(Signal* signal, TcConnectionrecPtr);
+  void restart_queued_scan(Signal*, Uint32);
   void tupScanCloseConfLab(Signal* signal, TcConnectionrecPtr);
   void tupCopyCloseConfLab(Signal* signal, TcConnectionrecPtr);
   void accScanCloseConfLab(Signal* signal, TcConnectionrecPtr);
@@ -3276,6 +3288,7 @@ private:
 
 // Configurable
   FragrecordPtr fragptr;
+  FragrecordPtr prim_tab_fragptr;
   Fragrecord_pool c_fragment_pool;
   RSS_AP_SNAPSHOT(c_fragment_pool);
 
@@ -3858,6 +3871,11 @@ public:
   /* Counter for starting local LCP ordered by UNDO log overload */
   Uint32 c_current_local_lcp_table_id;
 
+  /**
+   * Keep track if we should unwind the stack before calling
+   * send_next_NEXT_SCANREQ.
+   */
+  Uint32 m_in_send_next_scan;
   /**
    * Set flag that indicates that first distributed LCP is started.
    * This means that we should distribute the signal

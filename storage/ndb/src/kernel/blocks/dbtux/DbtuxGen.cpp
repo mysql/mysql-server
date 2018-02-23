@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
+  c_lqh(0),
   c_descPageList(RNIL),
 #ifdef VM_TRACE
   debugFile(0),
@@ -157,6 +158,8 @@ Dbtux::execSTTOR(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
     ndbrequire(c_tup != 0);
+    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+    ndbrequire(c_lqh != 0);
     c_signal_bug32040 = signal;
     break;
   case 3:

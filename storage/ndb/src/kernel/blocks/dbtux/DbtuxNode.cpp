@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -556,7 +556,8 @@ Dbtux::moveScanList(NodeHandle& node, unsigned pos)
         debugOut << "At pos=" << pos << " " << node << endl;
       }
 #endif
-      scanNext(scanPtr, true);
+      Frag& frag = *c_fragPool.getPtr(scanPtr.p->m_fragPtrI);
+      scanNext(scanPtr, true, frag);
       ndbrequire(! (scanPos.m_loc == node.m_loc && scanPos.m_pos == pos));
     }
     scanPtr.i = nextPtrI;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 
 // big brother
 #include <dbtup/Dbtup.hpp>
+#include <dblqh/Dblqh.hpp>
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -71,8 +72,9 @@ public:
   Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
-  // pointer to TUP instance in this thread
+  // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
+  Dblqh* c_lqh;
   void execTUX_BOUND_INFO(Signal* signal);
   void execREAD_PSEUDO_REQ(Signal* signal);
 
@@ -666,10 +668,11 @@ private:
   void execACCKEYCONF(Signal* signal);
   void execACCKEYREF(Signal* signal);
   void execACC_ABORTCONF(Signal* signal);
-  void scanFirst(ScanOpPtr scanPtr);
-  void scanFind(ScanOpPtr scanPtr);
-  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq);
-  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent);
+  void scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index);
+  void continue_scan(Signal *signal, ScanOpPtr scanPtr, Frag& frag);
+  void scanFind(ScanOpPtr scanPtr, Frag& frag);
+  void scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag);
+  bool scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag);
   bool scanVisible(ScanOpPtr scanPtr, TreeEnt ent);
   void scanClose(Signal* signal, ScanOpPtr scanPtr);
   void abortAccLockOps(Signal* signal, ScanOpPtr scanPtr);

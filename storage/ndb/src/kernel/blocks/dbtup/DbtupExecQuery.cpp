@@ -369,7 +369,6 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
 bool
 Dbtup::setup_read(KeyReqStruct *req_struct,
 		  Operationrec* regOperPtr,
-		  Fragrecord* regFragPtr,
 		  Tablerec* regTabPtr,
 		  bool disk)
 {
@@ -670,14 +669,38 @@ Dbtup::disk_page_load_scan_callback(Signal* signal,
   decrease the time for cache misses later in the process. Tests using
   Sysbench indicates that this prefetch gains about 5% in performance.
 */
+
+void Dbtup::prepare_tab_pointers(Uint32 frag_id)
+{
+  /**
+   * A real-time break occurred in scanning, we setup the
+   * fragment and table pointers in preparation for calls to
+   * execTUPKEYREQ.
+   */
+  jamDebug();
+  FragrecordPtr fragptr;
+  TablerecPtr tabptr;
+
+  fragptr.i = frag_id;
+  const Uint32 RnoOfFragrec= cnoOfFragrec;
+  const Uint32 RnoOfTablerec= cnoOfTablerec;
+  Fragrecord * Rfragrecord = fragrecord;
+  Tablerec * Rtablerec = tablerec;
+  ndbrequire(fragptr.i < RnoOfFragrec);
+  ptrAss(fragptr, Rfragrecord);
+  tabptr.i = fragptr.p->fragTableId;
+  ndbrequire(tabptr.i < RnoOfTablerec);
+  prepare_fragptr = fragptr;
+  ptrAss(tabptr, Rtablerec);
+  prepare_tabptr = tabptr;
+}
+
 void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
                              Uint32 page_idx,
                              Uint32 frag_id)
 {
   FragrecordPtr fragptr;
   TablerecPtr tabptr;
-  PagePtr pagePtr;
-  Local_key key;
 
   fragptr.i = frag_id;
   const Uint32 RnoOfFragrec= cnoOfFragrec;
@@ -689,25 +712,34 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
   ndbrequire(fragptr.i < RnoOfFragrec);
   ptrAss(fragptr, Rfragrecord);
   tabptr.i = fragptr.p->fragTableId;
+  ptrCheckGuard(tabptr, RnoOfTablerec, Rtablerec);
+  prepare_tabptr = tabptr;
+  prepare_fragptr = fragptr;
+  prepare_scanTUPKEYREQ(page_id, page_idx);
+}
+
+void Dbtup::prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx)
+{
+  Local_key key;
+  PagePtr pagePtr;
 #ifdef VM_TRACE
   prepare_orig_local_key.m_page_no = page_id;
   prepare_orig_local_key.m_page_idx = page_idx;
 #endif
   bool is_page_key = (!(Local_key::isInvalid(page_id, page_idx) ||
                         isCopyTuple(page_id, page_idx)));
-  ptrCheckGuard(tabptr, RnoOfTablerec, Rtablerec);
 
   if (is_page_key)
   {
     register Uint32 fixed_part_size_in_words =
-      tabptr.p->m_offsets[MM].m_fix_header_size;
+      prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
     prepare_frag_page_id = page_id;
-    page_id = getRealpid(fragptr.p, page_id);
+    page_id = getRealpid(prepare_fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
     register Uint32 *tuple_ptr = get_ptr(&pagePtr,
                                          &key,
-                                         tabptr.p);
+                                         prepare_tabptr.p);
     jamDebug();
     prepare_pageptr = pagePtr;
     prepare_page_idx = page_idx;
@@ -718,21 +750,26 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
       NDB_PREFETCH_WRITE(tuple_ptr + i);
     }
   }
-  prepare_tabptr = tabptr;
-  prepare_fragptr = fragptr;
+}
+
+void Dbtup::prepare_op_pointer(Uint32 opPtrI)
+{
+  jamDebug();
+  Ptr<Operationrec> operPtr;
+  c_operation_pool.getPtr(operPtr, opPtrI);
+  Uint32 *op_ptr = (Uint32*)operPtr.p;
+  NDB_PREFETCH_WRITE(op_ptr);
+  NDB_PREFETCH_WRITE(op_ptr + 14);
+  prepare_oper_ptr = operPtr;
 }
 
 bool Dbtup::execTUPKEYREQ(Signal* signal) 
 {
    TupKeyReq * tupKeyReq= (TupKeyReq *)signal->getDataPtr();
-   Ptr<Operationrec> operPtr;
+   Ptr<Operationrec> operPtr = prepare_oper_ptr;
    KeyReqStruct req_struct(this);
 
-   Uint32 RoperPtr= tupKeyReq->connectPtr;
-
    jamEntryDebug();
-
-   c_operation_pool.getPtr(operPtr, RoperPtr);
 
 #ifdef VM_TRACE
    {
@@ -752,12 +789,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        ndbout << " keyRef2 = " << key.m_page_idx << endl;
        error_found = true;
      }
-     if (prepare_fragptr.i != tupKeyReq->fragPtr)
-     {
-       ndbout << "fragptr.i = " << prepare_fragptr.i;
-       ndbout << " keyRef1 = " << tupKeyReq->fragPtr << endl;
-       error_found = true;
-     }
      if (error_found)
      {
        ndbout << flush;
@@ -765,10 +796,12 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      ndbassert(prepare_orig_local_key.m_page_no == key.m_page_no);
      ndbassert(prepare_orig_local_key.m_page_idx == key.m_page_idx);
      ndbassert(prepare_fragptr.i == tupKeyReq->fragPtr);
+     FragrecordPtr fragPtr = prepare_fragptr;
+     ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+     ndbassert(prepare_fragptr.p == fragPtr.p);
    }
 #endif
 
-   const Uint32 fragPtrI = prepare_fragptr.i;
    /**
     * DESIGN PATTERN DESCRIPTION
     * --------------------------
@@ -809,14 +842,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    Dbtup::TransState trans_state = get_trans_state(regOperPtr);
 
    req_struct.signal= signal;
+   req_struct.operPtrP = regOperPtr;
+   regOperPtr->fragmentPtr = prepare_fragptr.i;
    req_struct.num_fired_triggers= 0;
    req_struct.no_exec_instructions = 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
    req_struct.changeMask.clear();
    req_struct.m_is_lcp = false;
-   req_struct.operPtrP = regOperPtr;
-   regOperPtr->fragmentPtr= fragPtrI;
 
    if (unlikely(trans_state != TRANS_IDLE))
    {
@@ -857,7 +890,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      req_struct.interpreted_exec= TupKeyReq::getInterpretedFlag(TrequestInfo);
      req_struct.dirty_op= TupKeyReq::getDirtyFlag(TrequestInfo);
    }
-
    {
      /**
       * DESIGN PATTERN DESCRIPTION
@@ -957,11 +989,11 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    const Uint32 transId1 = tupKeyReq->transId1;
    const Uint32 transId2 = tupKeyReq->transId2;
    Tablerec * const regTabPtr = prepare_tabptr.p;
-   Fragrecord * const regFragPtr = prepare_fragptr.p;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
    Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
    const Uint32 Rstoredid= tupKeyReq->storedProcedure;
+   Fragrecord *regFragPtr = prepare_fragptr.p;
    
    req_struct.trans_id1= transId1;
    req_struct.trans_id2= transId2;
@@ -993,6 +1025,58 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
+   /**
+    * Check operation
+    */
+   if (likely(Roptype == ZREAD))
+   {
+     jamDebug();
+     regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 0;
+     ndbassert(!Local_key::isInvalid(pageid, pageidx));
+
+     if (unlikely(isCopyTuple(pageid, pageidx)))
+     {
+       jamDebug();
+       /**
+        * Only LCP reads a copy-tuple "directly"
+        */
+       ndbassert(disk_page == RNIL);
+       setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regTabPtr);
+     }
+     else
+     {
+       /**
+        * Get pointer to tuple
+        */
+       regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
+       setup_fixed_tuple_ref_opt(&req_struct);
+       setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
+       if (unlikely(setup_read(&req_struct, regOperPtr, regTabPtr, 
+		               disk_page != RNIL) == false))
+       {
+         jam();
+         tupkeyErrorLab(&req_struct);
+         return false;
+       }
+     }
+     if (handleReadReq(signal, regOperPtr, regTabPtr, &req_struct) != -1)
+     {
+       req_struct.log_size= 0;
+       /* ---------------------------------------------------------------- */
+       // Read Operations need not to be taken out of any lists. 
+       // We also do not need to wait for commit since there is no changes 
+       // to commit. Thus we
+       // prepare the operation record already now for the next operation.
+       // Write operations set the state to STARTED indicating that they
+       // are waiting for the Commit or Abort decision.
+       /* ---------------------------------------------------------------- */
+       returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_IDLE);
+       return true;
+     }
+     jamDebug();
+     return false;
+   }
+
    if (!Local_key::isInvalid(pageid, pageidx))
    {
      regOperPtr->op_struct.bit_field.m_tuple_existed_at_start = 1;
@@ -1011,55 +1095,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        goto do_refresh;
      }
    }
-
-   if (unlikely(isCopyTuple(pageid, pageidx)))
-   {
-     /**
-      * Only LCP reads a copy-tuple "directly"
-      */
-     ndbassert(Roptype == ZREAD);
-     ndbassert(disk_page == RNIL);
-     setup_lcp_read_copy_tuple(&req_struct, regOperPtr, regFragPtr, regTabPtr);
-     goto do_read;
-   }
-
+   ndbassert(!isCopyTuple(pageid, pageidx));
    /**
     * Get pointer to tuple
     */
    regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
    setup_fixed_tuple_ref_opt(&req_struct);
    setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
-   
-   /**
-    * Check operation
-    */
-   if (Roptype == ZREAD) {
-     jamDebug();
-     
-     if (setup_read(&req_struct, regOperPtr, regFragPtr, regTabPtr, 
-		    disk_page != RNIL))
-     {
-   do_read:
-       if(handleReadReq(signal, regOperPtr, regTabPtr, &req_struct) != -1) 
-       {
-	 req_struct.log_size= 0;
-	 /* ---------------------------------------------------------------- */
-	 // Read Operations need not to be taken out of any lists. 
-	 // We also do not need to wait for commit since there is no changes 
-	 // to commit. Thus we
-	 // prepare the operation record already now for the next operation.
-	 // Write operations set the state to STARTED indicating that they
-	 // are waiting for the Commit or Abort decision.
-	 /* ---------------------------------------------------------------- */
-         returnTUPKEYCONF(signal, &req_struct, regOperPtr, TRANS_IDLE);
-         return true;
-       }
-       return false;
-     }
-     tupkeyErrorLab(&req_struct);
-     return false;
-   }
-   
+
    if(insertActiveOpList(operPtr, &req_struct))
    {
      if(Roptype == ZINSERT)
@@ -1252,7 +1295,6 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 void
 Dbtup::setup_lcp_read_copy_tuple(KeyReqStruct* req_struct,
                                  Operationrec* regOperPtr,
-                                 Fragrecord* regFragPtr,
                                  Tablerec* regTabPtr)
 {
   Local_key tmp;
