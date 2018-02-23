@@ -1,6 +1,6 @@
 DESC sys.io_global_by_wait_by_bytes;
 Field	Type	Null	Key	Default	Extra
-event_name	varchar(128)	NO			
+event_name	varchar(128)	YES		NULL	
 total	bigint(20) unsigned	NO		NULL	
 total_latency	text	YES		NULL	
 min_latency	text	YES		NULL	
@@ -16,7 +16,7 @@ total_requested	text	YES		NULL
 SELECT * FROM sys.io_global_by_wait_by_bytes;
 DESC sys.x$io_global_by_wait_by_bytes;
 Field	Type	Null	Key	Default	Extra
-event_name	varchar(128)	NO			
+event_name	varchar(128)	YES		NULL	
 total	bigint(20) unsigned	NO		NULL	
 total_latency	bigint(20) unsigned	NO		NULL	
 min_latency	bigint(20) unsigned	NO		NULL	
