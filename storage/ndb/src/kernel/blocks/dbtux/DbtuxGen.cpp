@@ -319,7 +319,11 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 // utils
 
 void
-Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count)
+Dbtux::readKeyAttrs(TuxCtx& ctx,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    KeyData& keyData,
+                    Uint32 count)
 {
   const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const DescHead& descHead = getDescHead(index);
@@ -340,7 +344,15 @@ Dbtux::readKeyAttrs(TuxCtx& ctx, const Frag& frag, TreeEnt ent, KeyData& keyData
   const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
 
   int ret;
-  ret = c_tup->tuxReadAttrs(ctx.jamBuffer, tableFragPtrI, pageId, pageOffset, tupVersion, keyAttrs32, count, outputBuffer, false);
+  ret = c_tup->tuxReadAttrs(ctx.jamBuffer,
+                            tableFragPtrI,
+                            pageId,
+                            pageOffset,
+                            tupVersion,
+                            keyAttrs32,
+                            count,
+                            outputBuffer,
+                            false);
   thrjamDebug(ctx.jamBuffer);
   ndbrequire(ret > 0);
   keyData.reset();
