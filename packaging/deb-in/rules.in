@@ -109,4 +109,5 @@ override_dh_install:
 		-Xusr/share/mysql/LICENSE-test \
 		-Xusr/share/mysql/README-test \
 		-Xusr/share/mysql/docs/mysql.info \
+		-Xusr/share/mysql/docs/ChangeLog \
 		-Xusr/share/man/man1/mysqlman.1
