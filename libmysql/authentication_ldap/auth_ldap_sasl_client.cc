@@ -36,18 +36,18 @@ void Sasl_client::interact(sasl_interact_t *ilist)
       the name of the user authenticating
     */
     case SASL_CB_USER:
-      ilist->result= strdup(m_user_name);
+      ilist->result= m_user_name;
       ilist->len= strlen((const char*)ilist->result);
       break;
     /* the name of the user acting for. (for example postman delivering mail for
        Martin might have an AUTHNAME of postman and a USER of Martin)
     */
     case SASL_CB_AUTHNAME:
-      ilist->result= strdup(m_user_name);
+      ilist->result= m_user_name;
       ilist->len= strlen((const char*)ilist->result);
       break;
     case SASL_CB_PASS:
-      ilist->result= strdup(m_user_pwd);
+      ilist->result= m_user_pwd;
       ilist->len= strlen((const char*)ilist->result);
       break;
     default:
