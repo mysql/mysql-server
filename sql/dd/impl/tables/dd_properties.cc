@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,6 +209,11 @@ bool DD_properties::unchecked_get(THD *thd, const String_type &key,
 
   *exists = m_properties->exists(key);
   if (*exists) m_properties->get(key, *value);
+
+  if (*exists == false && key == "DD_VERSION") {
+    *exists = m_properties->exists("DD_version");
+    if (*exists) m_properties->get("DD_version", *value);
+  }
 
   return false;
 }

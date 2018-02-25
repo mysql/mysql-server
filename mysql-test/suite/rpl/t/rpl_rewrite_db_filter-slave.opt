@@ -1,1 +1,2 @@
---replicate-rewrite-db=MYDB->rewrite --lower_case_table_names=1
+--bootstrap --lower_case_table_names=1
+--replicate-rewrite-db=MYDB->rewrite

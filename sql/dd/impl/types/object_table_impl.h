@@ -111,10 +111,10 @@ class Object_table_impl : virtual public Object_table {
   virtual bool set_actual_table_definition(
       const Properties &table_def_properties) const;
 
-  int field_number(int target_field_number,
-                   const String_type &field_label) const;
+  virtual int field_number(int target_field_number,
+                           const String_type &field_label) const;
 
-  int field_number(const String_type &field_label) const;
+  virtual int field_number(const String_type &field_label) const;
 
   virtual bool populate(THD *) const { return false; }
 

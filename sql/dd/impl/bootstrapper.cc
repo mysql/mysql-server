@@ -282,12 +282,14 @@ bool initialize_dd_properties(THD *thd) {
 
   if (!opt_initialize) {
     bool exists = false;
+    // Check 'DD_version' too in order to catch an upgrade from 8.0.3.
     if (dd::tables::DD_properties::instance().get(thd, "DD_VERSION",
                                                   &actual_version, &exists) ||
         !exists) {
       LogErr(ERROR_LEVEL, ER_DD_NO_VERSION_FOUND);
       return true;
     }
+
     /* purecov: begin inspected */
     if (actual_version != dd::DD_VERSION) {
       bootstrap::DD_bootstrap_ctx::instance().set_actual_dd_version(
@@ -320,6 +322,21 @@ bool initialize_dd_properties(THD *thd) {
       }
     }
     /* purecov: end */
+
+    /*
+      Reject restarting with a changed LCTN setting, since the collation
+      for LCTN-dependent columns is decided during server initialization.
+    */
+    uint actual_lctn = 0;
+    exists = false;
+    if (dd::tables::DD_properties::instance().get(thd, "LCTN", &actual_lctn,
+                                                  &exists) ||
+        !exists) {
+      LogErr(WARNING_LEVEL, ER_LCTN_NOT_FOUND, lower_case_table_names);
+    } else if (actual_lctn != lower_case_table_names) {
+      LogErr(ERROR_LEVEL, ER_LCTN_CHANGED, lower_case_table_names, actual_lctn);
+      return true;
+    }
   }
 
   if (bootstrap::DD_bootstrap_ctx::instance().is_initialize())
@@ -872,20 +889,6 @@ bool flush_meta_data(THD *thd) {
   registry in the storage adapter.
 */
 bool sync_meta_data(THD *thd) {
-#ifndef DBUG_OFF
-  // Print information message only in DEBUG mode.
-  bool exists = false;
-  uint stored_lctn = 0;
-  DBUG_ASSERT(!dd::tables::DD_properties::instance().get(
-      thd, "LCTN", &stored_lctn, &exists));
-  DBUG_ASSERT(exists);
-
-  if (stored_lctn != lower_case_table_names) {
-    LogErr(INFORMATION_LEVEL, ER_LCTN_CHANGED, lower_case_table_names,
-           stored_lctn);
-  }
-#endif
-
   // Acquire exclusive meta data locks for the relevant DD objects.
   if (acquire_exclusive_mdl(thd)) return true;
 

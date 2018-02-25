@@ -1,4 +1,8 @@
-# restart: --lower_case_table_names=$
+# Shut server down.
+# Create bootstrap file.
+# First start the server with --initialize.
+# Restart the server against DDIR.
+# Run the single test.
 
 Creating collection in xtest
 ----------------------------
@@ -43,3 +47,10 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+# Shutdown server.
+# Cleanup.
+#   Delete $DDIR.
+#   Delete sql files.
+#   Delete log files.
+#   Delete expect files.
+# Restart server without --lower-case-table-names.
