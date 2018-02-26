@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_SRC_ADMIN_CMD_HANDLER_H_
-#define X_SRC_ADMIN_CMD_HANDLER_H_
+#ifndef PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_
+#define PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_
 
 #include <google/protobuf/repeated_field.h>
+#include <initializer_list>
 #include <map>
 #include <string>
 #include <vector>
@@ -44,26 +45,30 @@ class Admin_command_handler {
    public:
     using Argument_list = std::vector<std::string>;
     using List = ::google::protobuf::RepeatedPtrField<::Mysqlx::Datatypes::Any>;
+    using Argument_name_list = std::initializer_list<const char *const>;
     static const char *const PLACEHOLDER;
 
     virtual ~Command_arguments() {}
-    virtual Command_arguments &string_arg(const char *name,
+    virtual Command_arguments &string_arg(Argument_name_list name,
                                           std::string *ret_value,
                                           const bool optional = false) = 0;
-    virtual Command_arguments &string_list(const char *name,
+    virtual Command_arguments &string_list(Argument_name_list name,
                                            std::vector<std::string> *ret_value,
                                            const bool optional = false) = 0;
-    virtual Command_arguments &sint_arg(const char *name, int64_t *ret_value,
+    virtual Command_arguments &sint_arg(Argument_name_list name,
+                                        int64_t *ret_value,
                                         const bool optional = false) = 0;
-    virtual Command_arguments &uint_arg(const char *name, uint64_t *ret_value,
+    virtual Command_arguments &uint_arg(Argument_name_list name,
+                                        uint64_t *ret_value,
                                         const bool optional = false) = 0;
-    virtual Command_arguments &bool_arg(const char *name, bool *ret_value,
+    virtual Command_arguments &bool_arg(Argument_name_list name,
+                                        bool *ret_value,
                                         const bool optional = false) = 0;
-    virtual Command_arguments &docpath_arg(const char *name,
+    virtual Command_arguments &docpath_arg(Argument_name_list name,
                                            std::string *ret_value,
                                            const bool optional = false) = 0;
     virtual Command_arguments &object_list(
-        const char *name, std::vector<Command_arguments *> *ret_value,
+        Argument_name_list name, std::vector<Command_arguments *> *ret_value,
         const bool optional = false, unsigned expected_members_count = 3) = 0;
 
     virtual bool is_end() const = 0;
@@ -125,9 +130,10 @@ class Admin_command_handler {
   Session *m_session;
 };
 
-#define DOC_MEMBER_REGEX \
-  R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_\\$]*|\\*|\\".*\\")))*)"
+#define DOC_MEMBER_REGEX                                                     \
+  R"(\\$((\\*{2})?(\\[([[:digit:]]+|\\*)\\]|\\.([[:alpha:]_\\$][[:alnum:]_)" \
+  R"(\\$]*|\\*|\\".*\\")))*)"
 
 }  // namespace xpl
 
-#endif  // X_SRC_ADMIN_CMD_HANDLER_H_
+#endif  // PLUGIN_X_SRC_ADMIN_CMD_HANDLER_H_

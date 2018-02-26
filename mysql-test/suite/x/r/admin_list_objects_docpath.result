@@ -352,155 +352,155 @@ json_unquote(json_extract(`doc`,_utf8mb4\'$."pa.th"\'))
 
 Member: $.
 ==========
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: .path
 =============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: path
 ============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.1
 ===========
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.1path
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.**
 ============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.***
 =============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.*path
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.pa*th
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path*
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.*pa*th*
 =================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[-1]
 ==================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[a]
 =================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[]
 ================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path]
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.[path]
 ================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.[1]
 =============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[**]
 ==================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[*1]
 ==================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[1*]
 ==================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path[1*1]
 ===================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.pa th
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.pa\th
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.\"
 ============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.\"path
 ================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path\"
 ================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.#
 ===========
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path#
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.#path
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $**
 ===========
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path**
 ================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $[1]**
 ==============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $***
 ============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.path***
 =================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $[1]***
 ===============
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $.**.path
 =================
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 Member: $*
 ==========
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 Mysqlx.Ok {
   msg: "bye!"
 }
