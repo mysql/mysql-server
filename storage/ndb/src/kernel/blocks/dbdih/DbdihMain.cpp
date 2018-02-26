@@ -12508,6 +12508,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
           case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
           case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
           {
             /**
              * These tables will spread over all LDMs and over all node
@@ -12897,6 +12900,9 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
           }
           case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
           case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+          case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
           {
             jam();
             use_old_variant = false;
@@ -13201,6 +13207,9 @@ bool Dbdih::verify_fragmentation(Uint16* fragments,
     suboptimal = (balance_for_ra_by_node_count == 0);
     break;
   case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_3:
+  case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_4:
     jam();
     suboptimal = (balance_for_ra_by_ldm_count == 0);
     break;
