@@ -17830,6 +17830,9 @@ ER_OOM_SAVE_GTIDS
 ER_LCTN_NOT_FOUND
   eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
 
+ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+  eng "A capture group has an invalid name."
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error
