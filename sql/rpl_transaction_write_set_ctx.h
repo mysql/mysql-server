@@ -54,6 +54,31 @@ public:
   */
   void clear_write_set();
 
+  /*
+    mark transactions that include tables with no pk
+  */
+  void set_has_missing_keys();
+
+  /*
+    check if the transaction was marked as having missing keys.
+
+    @retval true  The transaction accesses tables with no PK.
+    @retval false All tables referenced in transaction have PK.
+   */
+  bool get_has_missing_keys();
+
+  /*
+    mark transactions that include tables referenced by foreign keys
+  */
+  void set_has_related_foreign_keys();
+
+  /*
+    function to check if the transaction was marked as having missing keys.
+
+    @retval true  If the transaction was marked as being referenced by a foreign key
+  */
+  bool get_has_related_foreign_keys();
+
   /**
     Function to add a new SAVEPOINT identifier in the savepoint map in the
     transaction_ctx object.
@@ -93,6 +118,9 @@ public:
 private:
   std::vector<uint64> write_set;
   std::set<uint64> write_set_unique;
+
+  bool m_has_missing_keys;
+  bool m_has_related_foreign_keys;
 
   /**
     Contains information related to SAVEPOINTs. The key on map is the
