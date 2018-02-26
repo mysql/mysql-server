@@ -67,7 +67,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	0	1	1	ABORT_SERVER	ROW	1000	200	NULL	20000000	90.000000		18446744073709551615
+-1	0	1	1	ABORT_SERVER	###	1000	200	NULL	20000000	90.000000		18446744073709551615
 SET PERSIST optimizer_trace_offset = default;
 SET PERSIST activate_all_roles_on_login= ON;
 SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
@@ -85,7 +85,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -100,9 +100,6 @@ innodb_max_dirty_pages_pct	97.300000
 innodb_monitor_disable	latch
 max_join_size	18446744073709551615
 optimizer_trace_offset	-1
-SELECT @@global.optimizer_trace_offset;
-@@global.optimizer_trace_offset
--1
 # Restart server
 # restart
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
@@ -113,7 +110,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
 @@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
+-1	1	4	2	IGNORE_ERROR	###	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
