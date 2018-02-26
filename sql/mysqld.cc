@@ -3080,6 +3080,16 @@ int init_common_variables()
     return 1;
   }
 
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    sql_print_error("The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32"
+                    " when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.");
+    return 1;
+  }
+  else
+    mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
