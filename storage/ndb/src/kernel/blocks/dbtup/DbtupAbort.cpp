@@ -193,6 +193,9 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   regTabPtr.i = regFragPtr.p->fragTableId;
   ptrCheckGuard(regTabPtr, cnoOfTablerec, tablerec);
 
+  prepare_fragptr = regFragPtr;
+  prepare_tabptr = regTabPtr;
+
   PagePtr page;
   Tuple_header *tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
