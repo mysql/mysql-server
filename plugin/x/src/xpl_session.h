@@ -99,7 +99,7 @@ class Session : public ngs::Session {
 
  private:  // reimpl ngs::Session
   virtual void on_kill() override;
-  virtual bool handle_ready_message(ngs::Request &command) override;
+  virtual bool handle_ready_message(ngs::Message_request &command) override;
 
  private:
   Sql_data_context m_sql;

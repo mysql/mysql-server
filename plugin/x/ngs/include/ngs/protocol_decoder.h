@@ -1,4 +1,4 @@
-// Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -20,39 +20,75 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#ifndef _NGS_PROTOCOL_DECODER_H_
-#define _NGS_PROTOCOL_DECODER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_DECODER_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_DECODER_H_
 
-#include <sys/types.h>
+#include "my_inttypes.h"
 
-#include "plugin/x/ngs/include/ngs/error_code.h"
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/message_decoder.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/io/vio_input_stream.h"
 
 namespace ngs {
-/* X Protocol Message decoder
 
-Caches instances of protobuf messages, so that they don't need to be reallocated
-every time.
+/**
+ X Protocol decoder
+
+ Decoder directly operates on VIO, passing the data directly to protobuf.
 */
-class Message_decoder {
+class Protocol_decoder {
  public:
-  Error_code parse(Request &request);
+  class Decode_error {
+   public:
+    Decode_error();
+    Decode_error(const Error_code &error_code);
+    Decode_error(const int sys_error);
+    Decode_error(const bool disconnected);
 
- protected:
-  Message *alloc_message(int8_t type, Error_code &ret_error, bool &ret_shared);
+   public:
+    bool was_peer_disconnected() const;
+    int get_io_error() const;
+    Error_code get_logic_error() const;
 
-  Mysqlx::Sql::StmtExecute m_stmt_execute;
-  Mysqlx::Crud::Find m_crud_find;
-  Mysqlx::Crud::Insert m_crud_insert;
-  Mysqlx::Crud::Update m_crud_update;
-  Mysqlx::Crud::Delete m_crud_delete;
-  Mysqlx::Expect::Open m_expect_open;
-  Mysqlx::Expect::Close m_expect_close;
-  Mysqlx::Crud::CreateView m_crud_create_view;
-  Mysqlx::Crud::ModifyView m_crud_modify_view;
-  Mysqlx::Crud::DropView m_crud_drop_view;
+    bool was_error() const;
+
+   private:
+    bool m_disconnected{false};
+    int m_sys_error{0};
+    Error_code m_error_code;
+  };
+
+ public:
+  Protocol_decoder(std::shared_ptr<Vio_interface> vio,
+                   Protocol_monitor_interface *protocol_monitor,
+                   std::shared_ptr<Protocol_config> config,
+                   const uint32 wait_timeout, const uint32 read_timeout)
+      : m_vio(vio),
+        m_protocol_monitor(protocol_monitor),
+        m_vio_input_stream(m_vio),
+        m_config(config),
+        m_wait_timeout(wait_timeout),
+        m_read_timeout(read_timeout) {}
+
+  Decode_error read_and_decode(Message_request *out_message);
+
+  void set_wait_timeout(const uint32 wait_timeout);
+  void set_read_timeout(const uint32 read_timeout);
+
+ private:
+  std::shared_ptr<Vio_interface> m_vio;
+  Protocol_monitor_interface *m_protocol_monitor;
+  xpl::Vio_input_stream m_vio_input_stream;
+  std::shared_ptr<Protocol_config> m_config;
+  Message_decoder m_message_decoder;
+  uint32 m_wait_timeout;
+  uint32 m_read_timeout;
+
+  Decode_error read_and_decode_impl(Message_request *out_message);
+  bool read_header(uint8 *message_type, uint32 *message_size);
 };
+
 }  // namespace ngs
 
-#endif
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_DECODER_H_

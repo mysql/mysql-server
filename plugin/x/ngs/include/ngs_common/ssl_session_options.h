@@ -22,25 +22,37 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_DISPATCHER_H_
-#define _XPL_DISPATCHER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_
 
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
 
-namespace xpl {
+namespace ngs {
 
-class Session;
-class Crud_command_handler;
-class Sql_data_context;
-class Expectation_stack;
-class Session_options;
+class Ssl_session_options : public Ssl_session_options_interface {
+ public:
+  Ssl_session_options(Vio_interface *vio) : m_vio(vio) {}
 
-namespace dispatcher {
-bool dispatch_command(Session &session, Crud_command_handler &crudh,
-                      Expectation_stack &expect, ngs::Message_request &command);
+  bool active_tls() const override;
+  std::string ssl_cipher() const override;
+  std::string ssl_version() const override;
+  std::vector<std::string> ssl_cipher_list() const override;
 
-}  // namespace dispatcher
-}  // namespace xpl
+  long ssl_verify_depth() const override;
+  long ssl_verify_mode() const override;
 
-#endif
+  long ssl_sessions_reused() const override;
+  long ssl_get_verify_result_and_cert() const override;
+
+  std::string ssl_get_peer_certificate_issuer() const override;
+
+  std::string ssl_get_peer_certificate_subject() const override;
+
+ private:
+  Vio_interface *m_vio;
+};
+
+}  // namespace ngs
+
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_H_

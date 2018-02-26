@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,11 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#include "mutex_lock.h"
+#include "mysql/psi/mysql_socket.h"
+
 #include "plugin/x/ngs/include/ngs/vio_wrapper.h"
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
 
 namespace ngs {
 
@@ -33,6 +37,7 @@ ssize_t Vio_wrapper::read(uchar *buffer, ssize_t bytes_to_send) {
 }
 
 ssize_t Vio_wrapper::write(const uchar *buffer, ssize_t bytes_to_send) {
+  MUTEX_LOCK(lock, m_shutdown_mutex);
   return vio_write(m_vio, buffer, bytes_to_send);
 }
 
@@ -55,7 +60,9 @@ void Vio_wrapper::set_thread_owner() {
 
 my_socket Vio_wrapper::get_fd() { return vio_fd(m_vio); }
 
-enum_vio_type Vio_wrapper::get_type() { return vio_type(m_vio); }
+Connection_type Vio_wrapper::get_type() {
+  return Connection_type_helper::convert_type(vio_type(m_vio));
+}
 
 sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {
   address.resize(256);
@@ -70,7 +77,10 @@ sockaddr_storage *Vio_wrapper::peer_addr(std::string &address, uint16 &port) {
   return &m_vio->remote;
 }
 
-int Vio_wrapper::shutdown() { return vio_shutdown(m_vio); }
+int Vio_wrapper::shutdown() {
+  MUTEX_LOCK(lock, m_shutdown_mutex);
+  return vio_shutdown(m_vio);
+}
 
 Vio_wrapper::~Vio_wrapper() {
   if (m_vio) vio_delete(m_vio);

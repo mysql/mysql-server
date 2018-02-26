@@ -27,7 +27,7 @@
 
 #include "plugin/x/ngs/include/ngs/client.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
-
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/src/global_timeouts.h"
 
 struct SHOW_VAR;
@@ -58,9 +58,9 @@ class Protocol_monitor : public ngs::Protocol_monitor_interface {
 
 class Client : public ngs::Client {
  public:
-  Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
-         Client_id client_id, ngs::Protocol_monitor_interface *pmon,
-         const Global_timeouts &timeouts);
+  Client(std::shared_ptr<ngs::Vio_interface> connection,
+         ngs::Server_interface &server, Client_id client_id,
+         Protocol_monitor *pmon, const Global_timeouts &timeouts);
   virtual ~Client();
 
  public:  // impl ngs::Client_interface
@@ -87,7 +87,7 @@ class Client : public ngs::Client {
  private:
   bool is_localhost(const char *hostname);
 
-  ngs::Protocol_monitor_interface *m_protocol_monitor;
+  Protocol_monitor *m_protocol_monitor;
 };
 
 typedef ngs::shared_ptr<Client> Client_ptr;

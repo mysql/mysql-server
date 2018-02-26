@@ -40,6 +40,7 @@ class Protocol_encoder;
 class Protocol_config;
 class Mutex;
 class Sql_session_interface;
+class Ssl_context_interface;
 
 class Server_interface {
  public:
@@ -58,7 +59,7 @@ class Server_interface {
 
   virtual Mutex &get_client_exit_mutex() = 0;
 
-  virtual Ssl_context *ssl_context() const = 0;
+  virtual Ssl_context_interface *ssl_context() const = 0;
 
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,

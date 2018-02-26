@@ -25,132 +25,161 @@
 #include <stddef.h>
 #include <new>
 
-#include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs/ngs_error.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
-using namespace ngs;
+namespace ngs {
 
-Message *Message_decoder::alloc_message(int8_t type, Error_code &ret_error,
-                                        bool &ret_shared) {
-  try {
-    Message *msg = NULL;
-    ret_shared = true;
-    switch ((Mysqlx::ClientMessages::Type)type) {
-      case Mysqlx::ClientMessages::CON_CAPABILITIES_GET:
-        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesGet>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::CON_CAPABILITIES_SET:
-        msg = ngs::allocate_object<Mysqlx::Connection::CapabilitiesSet>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::CON_CLOSE:
-        msg = ngs::allocate_object<Mysqlx::Connection::Close>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::SESS_CLOSE:
-        msg = ngs::allocate_object<Mysqlx::Session::Close>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::SESS_RESET:
-        msg = ngs::allocate_object<Mysqlx::Session::Reset>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::SESS_AUTHENTICATE_START:
-        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateStart>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::SESS_AUTHENTICATE_CONTINUE:
-        msg = ngs::allocate_object<Mysqlx::Session::AuthenticateContinue>();
-        ret_shared = false;
-        break;
-      case Mysqlx::ClientMessages::SQL_STMT_EXECUTE:
-        msg = &m_stmt_execute;
-        break;
-      case Mysqlx::ClientMessages::CRUD_FIND:
-        msg = &m_crud_find;
-        break;
-      case Mysqlx::ClientMessages::CRUD_INSERT:
-        msg = &m_crud_insert;
-        break;
-      case Mysqlx::ClientMessages::CRUD_UPDATE:
-        msg = &m_crud_update;
-        break;
-      case Mysqlx::ClientMessages::CRUD_DELETE:
-        msg = &m_crud_delete;
-        break;
-      case Mysqlx::ClientMessages::EXPECT_OPEN:
-        msg = &m_expect_open;
-        break;
-      case Mysqlx::ClientMessages::EXPECT_CLOSE:
-        msg = &m_expect_close;
-        break;
-      case Mysqlx::ClientMessages::CRUD_CREATE_VIEW:
-        msg = &m_crud_create_view;
-        break;
-      case Mysqlx::ClientMessages::CRUD_MODIFY_VIEW:
-        msg = &m_crud_modify_view;
-        break;
-      case Mysqlx::ClientMessages::CRUD_DROP_VIEW:
-        msg = &m_crud_drop_view;
-        break;
+Protocol_decoder::Decode_error::Decode_error() {}
 
-      default:
-        log_debug("Cannot decode message of unknown type %i", type);
-        ret_error = Error_code(ER_X_BAD_MESSAGE, "Invalid message type");
-        break;
+Protocol_decoder::Decode_error::Decode_error(const bool disconnected)
+    : m_disconnected(disconnected) {}
+
+Protocol_decoder::Decode_error::Decode_error(const int sys_error)
+    : m_sys_error(sys_error) {}
+
+Protocol_decoder::Decode_error::Decode_error(const Error_code &error_code)
+    : m_error_code(error_code) {}
+
+bool Protocol_decoder::Decode_error::was_peer_disconnected() const {
+  return m_disconnected;
+}
+
+int Protocol_decoder::Decode_error::get_io_error() const { return m_sys_error; }
+
+Error_code Protocol_decoder::Decode_error::get_logic_error() const {
+  return m_error_code;
+}
+
+bool Protocol_decoder::Decode_error::was_error() const {
+  return get_logic_error() || was_peer_disconnected() || get_io_error() != 0;
+}
+
+bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
+  int header_copied = 0;
+  int input_size;
+  const char *input;
+  union {
+    char buffer[4];  // Must be properly aligned
+    longlong dummy;
+  };
+
+  int copy_from_input = 0;
+
+  m_vio->set_timeout(Vio_interface::Direction::k_read, m_wait_timeout);
+
+  m_vio_input_stream.mark_vio_as_idle();
+
+  while (header_copied < 4) {
+    if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
+      return false;
     }
-    return msg;
-  } catch (std::bad_alloc &) {
-    ret_error = Error_code(ER_OUTOFMEMORY, "Out of memory");
+
+    copy_from_input = std::min(input_size, 4 - header_copied);
+    std::copy(input, input + copy_from_input, buffer + header_copied);
+    header_copied += copy_from_input;
   }
-  return NULL;
-}
 
-Error_code Message_decoder::parse(Request &request) {
-  const int max_recursion_limit = 100;
-  bool msg_is_shared;
-  Error_code ret_error;
-  Message *message =
-      alloc_message(request.get_type(), ret_error, msg_is_shared);
-  if (message) {
-    // feed the data to the command (up to the specified boundary)
-    google::protobuf::io::CodedInputStream stream(
-        reinterpret_cast<const uint8_t *>(request.buffer()),
-        static_cast<int>(request.buffer_size()));
-    // variable 'mysqlx_max_allowed_packet' has been checked when buffer was
-    // filling by data
-    stream.SetTotalBytesLimit(static_cast<int>(request.buffer_size()),
-                              -1 /*no warnings*/);
-    // Protobuf limits the number of nested objects when decoding messages
-    // lets set the value in explicit way (to ensure that is set accordingly
-    // with out stack size)
-    //
-    // Protobuf doesn't print a readable error after reaching the limit
-    // thus in case of failure we try to validate the limit by decrementing and
-    // incrementing the value & checking result for failure
-    stream.SetRecursionLimit(max_recursion_limit);
+#ifdef WORDS_BIGENDIAN
+  std::swap(buffer[0], buffer[3]);
+  std::swap(buffer[1], buffer[2]);
+#endif
 
-    if (!message->ParseFromCodedStream(&stream) || !message->IsInitialized()) {
-      log_debug("Error parsing message of type %i: %s", request.get_type(),
-                message->InitializationErrorString().c_str());
+  uint32 *message_size_ptr = (uint32 *)buffer;
+  *message_size = *message_size_ptr;
 
-      if (!msg_is_shared) ngs::free_object(message);
-      message = nullptr;
+  m_vio_input_stream.mark_vio_as_active();
 
-      // Workaraound
-      stream.DecrementRecursionDepth();
-      if (!stream.IncrementRecursionDepth()) {
-        return Error(ER_X_BAD_MESSAGE,
-                     "X Protocol message recursion limit (%i) exceeded",
-                     max_recursion_limit);
+  if (*message_size > 0) {
+    if (input_size == copy_from_input) {
+      copy_from_input = 0;
+      m_vio->set_timeout(Vio_interface::Direction::k_read, m_read_timeout);
+
+      if (!m_vio_input_stream.Next((const void **)&input, &input_size)) {
+        return false;
       }
+    }
 
-      return Error_code(ER_X_BAD_MESSAGE,
-                        "Parse error unserializing protobuf message");
-    } else
-      request.set_parsed_message(message, !msg_is_shared);
+    *message_type = input[copy_from_input];
+
+    ++copy_from_input;
   }
-  return Success();
+
+  m_vio_input_stream.BackUp(input_size - copy_from_input);
+
+  return true;
 }
+
+Protocol_decoder::Decode_error Protocol_decoder::read_and_decode(
+    Message_request *out_message) {
+  const auto result = read_and_decode_impl(out_message);
+  const auto received = static_cast<long>(m_vio_input_stream.ByteCount());
+
+  if (received > 0) m_protocol_monitor->on_receive(received);
+
+  return result;
+}
+
+Protocol_decoder::Decode_error Protocol_decoder::read_and_decode_impl(
+    Message_request *out_message) {
+  uint8 message_type;
+  uint32 message_size;
+  int io_error = 0;
+
+  m_vio_input_stream.reset_byte_count();
+
+  if (!read_header(&message_type, &message_size)) {
+    m_vio_input_stream.was_io_error(&io_error);
+
+    if (0 == io_error) return {true};
+
+    return {io_error};
+  }
+
+  if (0 == message_size) {
+    return {
+        Error(ER_X_BAD_MESSAGE, "Messages without payload are not supported")};
+  }
+
+  if (m_config->max_message_size < message_size) {
+    // Force disconnect
+    return {true};
+  }
+
+  const auto protobuf_payload_size = message_size - 1;
+
+  m_vio_input_stream.lock_data(protobuf_payload_size);
+
+  const auto error_code = m_message_decoder.parse(
+      message_type, protobuf_payload_size, &m_vio_input_stream, out_message);
+
+  m_vio_input_stream.unlock_data();
+
+  if (m_vio_input_stream.was_io_error(&io_error)) {
+    if (0 == io_error) return {true};
+
+    return {io_error};
+  }
+
+  // Skip rest of the data
+  const auto bytes_to_skip =
+      protobuf_payload_size + 5 - m_vio_input_stream.ByteCount();
+
+  m_vio_input_stream.Skip(bytes_to_skip);
+
+  if (error_code) {
+    return {error_code};
+  }
+
+  return {};
+}
+
+void Protocol_decoder::set_wait_timeout(const uint32 wait_timeout) {
+  m_wait_timeout = wait_timeout;
+}
+
+void Protocol_decoder::set_read_timeout(const uint32 read_timeout) {
+  m_read_timeout = read_timeout;
+}
+
+}  // namespace ngs

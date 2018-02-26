@@ -32,7 +32,6 @@
 
 namespace ngs {
 
-class Request;
 class Client_interface;
 
 class Session_interface {
@@ -63,7 +62,7 @@ class Session_interface {
       const Authentication_interface::Response &response) = 0;
 
   // handle a single message, returns true if message was handled false if not
-  virtual bool handle_message(Request &command) = 0;
+  virtual bool handle_message(Message_request &command) = 0;
 
  public:
   virtual State state() const = 0;

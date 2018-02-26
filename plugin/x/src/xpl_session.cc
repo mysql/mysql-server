@@ -53,7 +53,7 @@ xpl::Session::~Session() {
 }
 
 // handle a message while in Ready state
-bool xpl::Session::handle_ready_message(ngs::Request &command) {
+bool xpl::Session::handle_ready_message(ngs::Message_request &command) {
   // check if the session got killed
   if (m_sql.is_killed()) {
     m_encoder->send_result(ngs::Error_code(ER_QUERY_INTERRUPTED,
@@ -86,7 +86,7 @@ bool xpl::Session::handle_ready_message(ngs::Request &command) {
 
 ngs::Error_code xpl::Session::init() {
   const unsigned short port = m_client.client_port();
-  const ngs::Connection_type type = m_client.connection().connection_type();
+  const ngs::Connection_type type = m_client.connection().get_type();
 
   return m_sql.init(port, type);
 }

@@ -29,8 +29,9 @@
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/server_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/sql_data_context.h"
 #include "plugin/x/src/xpl_resultset.h"
@@ -48,7 +49,7 @@ class Mock_vio : public Vio_interface {
   MOCK_METHOD1(set_state, void(PSI_socket_state state));
   MOCK_METHOD0(set_thread_owner, void());
   MOCK_METHOD0(get_fd, my_socket());
-  MOCK_METHOD0(get_type, enum_vio_type());
+  MOCK_METHOD0(get_type, Connection_type());
   MOCK_METHOD2(peer_addr,
                sockaddr_storage *(std::string &address, uint16 &port));
   MOCK_METHOD0(shutdown, int());
@@ -62,34 +63,10 @@ class Mock_ssl_context : public Ssl_context_interface {
                            const char *ssl_ca, const char *ssl_capath,
                            const char *ssl_cert, const char *ssl_cipher,
                            const char *ssl_crl, const char *ssl_crlpath));
-  MOCK_METHOD2(activate_tls, bool(Connection_vio &conn, int handshake_timeout));
-  MOCK_METHOD0(options, IOptions_context_ptr());
+  MOCK_METHOD2(activate_tls, bool(Vio_interface *conn, int handshake_timeout));
+  MOCK_METHOD0(options, Ssl_context_options_interface &());
   MOCK_METHOD0(has_ssl, bool());
   MOCK_METHOD0(reset, void());
-};
-
-class Mock_connection : public ngs::Connection_vio {
- public:
-  Mock_connection()
-      : ngs::Connection_vio(m_context,
-                            std::unique_ptr<Mock_vio>(new Mock_vio())) {}
-
-  Mock_connection(Mock_vio *mock_vio)
-      : ngs::Connection_vio(m_context, std::unique_ptr<Mock_vio>(mock_vio)),
-        m_mock_vio(mock_vio) {}
-
-  MOCK_METHOD0(connection_type, Connection_type());
-  MOCK_METHOD0(options, ngs::IOptions_session_ptr());
-  MOCK_METHOD0(mark_idle, void());
-  MOCK_METHOD0(mark_active, void());
-  MOCK_METHOD0(set_socket_thread_owner, void());
-  MOCK_METHOD2(read, ssize_t(uchar *buffer, ssize_t bytes_to_send));
-  MOCK_METHOD2(write, ssize_t(const uchar *buffer, ssize_t bytes_to_send));
-
-  Mock_vio *m_mock_vio;
-
- private:
-  Mock_ssl_context m_context;
 };
 
 class Mock_scheduler_dynamic : public Scheduler_dynamic {
@@ -117,7 +94,7 @@ class Mock_server : public ngs::Server_interface {
   MOCK_METHOD0(is_running, bool());
   MOCK_CONST_METHOD0(get_worker_scheduler,
                      ngs::shared_ptr<Scheduler_dynamic>());
-  MOCK_CONST_METHOD0(ssl_context, Ssl_context *());
+  MOCK_CONST_METHOD0(ssl_context, Ssl_context_interface *());
   MOCK_METHOD1(on_client_closed, void(const Client_interface &));
   MOCK_METHOD3(create_session,
                ngs::shared_ptr<Session_interface>(Client_interface &,
@@ -225,7 +202,7 @@ class Mock_session : public Session_interface {
                void(const Authentication_interface::Response &));
   MOCK_METHOD1(on_auth_failure,
                void(const Authentication_interface::Response &));
-  MOCK_METHOD1(handle_message, bool(Request &));
+  MOCK_METHOD1(handle_message, bool(ngs::Message_request &));
   MOCK_CONST_METHOD0(state, State());
   MOCK_CONST_METHOD0(state_before_close, State());
   MOCK_METHOD0(get_status_variables, Session_status_variables &());
@@ -279,7 +256,7 @@ class Mock_client : public ngs::Client_interface {
 
   MOCK_CONST_METHOD0(client_address, const char *());
   MOCK_CONST_METHOD0(client_hostname, const char *());
-  MOCK_METHOD0(connection, ngs::Connection_vio &());
+  MOCK_METHOD0(connection, ngs::Vio_interface &());
   MOCK_CONST_METHOD0(server, ngs::Server_interface &());
   MOCK_CONST_METHOD0(protocol, ngs::Protocol_encoder_interface &());
 

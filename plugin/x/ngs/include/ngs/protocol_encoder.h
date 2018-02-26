@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,12 @@
 
 #include <map>
 #include <vector>
+#include "my_inttypes.h"
 
 #include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_monitor_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol/message_builder.h"
@@ -42,20 +44,18 @@
 #include "plugin/x/ngs/include/ngs/protocol_fwd.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
 #include "plugin/x/ngs/include/ngs_common/smart_ptr.h"
-
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
 namespace ngs {
 
-class Connection_vio;
 class Output_buffer;
 
 class Protocol_encoder : public Protocol_encoder_interface {
  public:
   typedef ngs::function<void(int error)> Error_handler;
 
-  Protocol_encoder(const ngs::shared_ptr<Connection_vio> &socket,
+  Protocol_encoder(const ngs::shared_ptr<Vio_interface> &socket,
                    Error_handler ehandler, Protocol_monitor_interface &pmon);
 
   virtual ~Protocol_encoder();
@@ -95,7 +95,8 @@ class Protocol_encoder : public Protocol_encoder_interface {
 
   virtual Protocol_monitor_interface &get_protocol_monitor() override;
 
-  static void log_protobuf(const char *direction_name, Request &request);
+  static void log_protobuf(const char *direction_name, const uint8 type,
+                           const Message *msg);
   static void log_protobuf(const char *direction_name, const Message *request);
   static void log_protobuf(int8_t type);
 
@@ -112,7 +113,7 @@ class Protocol_encoder : public Protocol_encoder_interface {
   // Temporary solution for all io
   static const Pool_config m_default_pool_config;
   ngs::Page_pool m_pool;
-  ngs::shared_ptr<Connection_vio> m_socket;
+  ngs::shared_ptr<Vio_interface> m_socket;
   Error_handler m_error_handler;
   Protocol_monitor_interface *m_protocol_monitor;
 
@@ -137,8 +138,9 @@ class Protocol_encoder : public Protocol_encoder_interface {
 #define log_message_send(MESSAGE) \
   ::ngs::Protocol_encoder::log_protobuf("SEND", MESSAGE);
 #define log_raw_message_send(ID) ::ngs::Protocol_encoder::log_protobuf(ID);
-#define log_message_recv(MESSAGE) \
-  ::ngs::Protocol_encoder::log_protobuf("RECV", MESSAGE);
+#define log_message_recv(REQUEST)                                           \
+  ::ngs::Protocol_encoder::log_protobuf("RECV", REQUEST.get_message_type(), \
+                                        REQUEST.get_message());
 #else
 #define log_message_send(MESSAGE) \
   do {                            \

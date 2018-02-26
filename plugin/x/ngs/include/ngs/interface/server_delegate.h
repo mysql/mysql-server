@@ -43,7 +43,7 @@ class Server_delegate {
   virtual void did_reject_client(Reject_reason reason) = 0;
 
   virtual ngs::shared_ptr<Client_interface> create_client(
-      Connection_ptr sock) = 0;
+      std::shared_ptr<Vio_interface> sock) = 0;
   virtual ngs::shared_ptr<Session_interface> create_session(
       Client_interface &client, Protocol_encoder_interface &proto,
       const int session_id) = 0;

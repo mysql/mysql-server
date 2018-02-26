@@ -151,7 +151,7 @@ static MYSQL_SYSVAR_UINT(
     max_allowed_packet, xpl::Plugin_system_variables::max_allowed_packet,
     PLUGIN_VAR_OPCMDARG,
     "Size of largest message that client is going to handle.", NULL,
-    &xpl::Plugin_system_variables::update_func<unsigned int>, MBYTE(1),
+    &xpl::Plugin_system_variables::update_func<unsigned int>, MBYTE(64),
     BYTE(512), GBYTE(1), 0);
 
 static MYSQL_SYSVAR_UINT(
@@ -450,33 +450,38 @@ static SHOW_VAR xpl_plugin_status[] = {
 
     SESSION_SSL_STATUS_VARIABLE_ENTRY_ARRAY(
         "ssl_cipher_list", xpl::Client::get_status_ssl_cipher_list),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_active", bool,
-                                      ngs::IOptions_session::active_tls),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_cipher", std::string,
-                                      ngs::IOptions_session::ssl_cipher),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_version", std::string,
-                                      ngs::IOptions_session::ssl_version),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_verify_depth", long,
-                                      ngs::IOptions_session::ssl_verify_depth),
-    SESSION_SSL_STATUS_VARIABLE_ENTRY("ssl_verify_mode", long,
-                                      ngs::IOptions_session::ssl_verify_mode),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_active", bool, ngs::Ssl_session_options_interface::active_tls),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_cipher", std::string,
+        ngs::Ssl_session_options_interface::ssl_cipher),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_version", std::string,
+        ngs::Ssl_session_options_interface::ssl_version),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_verify_depth", long,
+        ngs::Ssl_session_options_interface::ssl_verify_depth),
+    SESSION_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_verify_mode", long,
+        ngs::Ssl_session_options_interface::ssl_verify_mode),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_ctx_verify_depth", long,
-        ngs::IOptions_context::ssl_ctx_verify_depth),
+        ngs::Ssl_context_options_interface::ssl_ctx_verify_depth),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_ctx_verify_mode", long,
-        ngs::IOptions_context::ssl_ctx_verify_mode),
+        ngs::Ssl_context_options_interface::ssl_ctx_verify_mode),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_finished_accepts", long,
-        ngs::IOptions_context::ssl_sess_accept_good),
-    GLOBAL_SSL_STATUS_VARIABLE_ENTRY("ssl_accepts", long,
-                                     ngs::IOptions_context::ssl_sess_accept),
+        ngs::Ssl_context_options_interface::ssl_sess_accept_good),
+    GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
+        "ssl_accepts", long,
+        ngs::Ssl_context_options_interface::ssl_sess_accept),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_server_not_after", std::string,
-        ngs::IOptions_context::ssl_server_not_after),
+        ngs::Ssl_context_options_interface::ssl_server_not_after),
     GLOBAL_SSL_STATUS_VARIABLE_ENTRY(
         "ssl_server_not_before", std::string,
-        ngs::IOptions_context::ssl_server_not_before),
+        ngs::Ssl_context_options_interface::ssl_server_not_before),
 
     GLOBAL_CUSTOM_STATUS_VARIABLE_ENTRY("socket", std::string,
                                         xpl::Server::get_socket_file),

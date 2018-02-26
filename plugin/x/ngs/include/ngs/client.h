@@ -32,13 +32,12 @@
 #include "plugin/x/ngs/include/ngs/capabilities/configurator.h"
 #include "plugin/x/ngs/include/ngs/interface/client_interface.h"
 #include "plugin/x/ngs/include/ngs/interface/protocol_encoder_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/ngs/include/ngs/protocol_decoder.h"
 #include "plugin/x/ngs/include/ngs/protocol_encoder.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
-
 #include "plugin/x/src/global_timeouts.h"
 #include "plugin/x/src/xpl_system_variables.h"
 
@@ -51,8 +50,8 @@ class Server_interface;
 
 class Client : public Client_interface {
  public:
-  Client(Connection_ptr connection, Server_interface &server,
-         Client_id client_id, Protocol_monitor_interface &pmon,
+  Client(std::shared_ptr<Vio_interface> connection, Server_interface &server,
+         Client_id client_id, Protocol_monitor_interface *pmon,
          const Global_timeouts &timeouts);
   virtual ~Client();
 
@@ -74,7 +73,7 @@ class Client : public Client_interface {
 
   Server_interface &server() const override { return m_server; }
   Protocol_encoder_interface &protocol() const override { return *m_encoder; }
-  Connection_vio &connection() override { return *m_connection; };
+  Vio_interface &connection() override { return *m_connection; };
 
   void on_session_auth_success(Session_interface &s) override;
   void on_session_close(Session_interface &s) override;
@@ -109,9 +108,9 @@ class Client : public Client_interface {
   char m_id[2 + sizeof(Client_id) * 2 + 1];  // 64bits in hex, plus 0x plus \0
   Client_id m_client_id;
   Server_interface &m_server;
-  Connection_ptr m_connection;
 
-  Message_decoder m_decoder;
+  std::shared_ptr<Vio_interface> m_connection;
+  Protocol_decoder m_decoder;
 
   ngs::chrono::time_point m_accept_time;
 
@@ -124,7 +123,7 @@ class Client : public Client_interface {
 
   ngs::shared_ptr<Session_interface> m_session;
 
-  Protocol_monitor_interface &m_protocol_monitor;
+  Protocol_monitor_interface *m_protocol_monitor;
 
   Mutex m_session_exit_mutex;
 
@@ -144,11 +143,10 @@ class Client : public Client_interface {
   bool m_supports_expired_passwords;
   bool m_is_interactive = false;
 
-  uint32_t m_wait_timeout = Global_timeouts::Default::k_wait_timeout;
   uint32_t m_read_timeout = Global_timeouts::Default::k_read_timeout;
   uint32_t m_write_timeout = Global_timeouts::Default::k_write_timeout;
 
-  Request *read_one_message(Error_code &ret_error);
+  Error_code read_one_message(Message_request *out_message);
 
   virtual ngs::Capabilities_configurator *capabilities_configurator();
   void get_capabilities(const Mysqlx::Connection::CapabilitiesGet &msg);
@@ -156,10 +154,10 @@ class Client : public Client_interface {
 
   void remove_client_from_server();
 
-  void handle_message(Request &message);
+  void handle_message(Message_request &message);
   virtual std::string resolve_hostname() = 0;
   virtual void on_network_error(int error);
-  void on_read_timeout(int error_code, const std::string &message);
+  void on_read_timeout();
 
   Protocol_monitor_interface &get_protocol_monitor();
 

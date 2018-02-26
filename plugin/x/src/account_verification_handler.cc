@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,8 @@
  */
 
 #include "plugin/x/src/account_verification_handler.h"
-
 #include "plugin/x/ngs/include/ngs/interface/sql_session_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_client.h"
@@ -162,13 +162,13 @@ ngs::Error_code Account_verification_handler::verify_account(
 
   if (record.require_secure_transport &&
       !ngs::Connection_type_helper::is_secure_type(
-          m_session->client().connection().connection_type()))
+          m_session->client().connection().get_type()))
     return ngs::Error(ER_SECURE_TRANSPORT_REQUIRED,
                       "Secure transport required. To log in you must use "
                       "TCP+SSL or UNIX socket connection.");
 
   return record.user_required.validate(
-      m_session->client().connection().options());
+      ngs::Ssl_session_options(&m_session->client().connection()));
 }
 
 ngs::Error_code Account_verification_handler::get_account_record(

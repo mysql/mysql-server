@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,17 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_VIO_INTERFACE_H_
-#define _NGS_VIO_INTERFACE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_VIO_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_VIO_INTERFACE_H_
 
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include <string>
+
+#include "my_inttypes.h"
+#include "my_io.h"
+#include "mysql/psi/psi_socket.h"
+#include "violite.h"
+
+#include "plugin/x/ngs/include/ngs_common/connection_type.h"
 
 namespace ngs {
 
@@ -43,7 +50,7 @@ class Vio_interface {
   virtual void set_thread_owner() = 0;
 
   virtual my_socket get_fd() = 0;
-  virtual enum_vio_type get_type() = 0;
+  virtual Connection_type get_type() = 0;
   virtual sockaddr_storage *peer_addr(std::string &address, uint16 &port) = 0;
 
   virtual int shutdown() = 0;
@@ -55,4 +62,4 @@ class Vio_interface {
 
 }  // namespace ngs
 
-#endif  // _NGS_VIO_INTERFACE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_INTERFACE_VIO_INTERFACE_H_

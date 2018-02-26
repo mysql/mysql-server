@@ -22,25 +22,33 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_DISPATCHER_H_
-#define _XPL_DISPATCHER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_INTERFACE_H_
 
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include <string>
+#include <vector>
 
-namespace xpl {
+namespace ngs {
 
-class Session;
-class Crud_command_handler;
-class Sql_data_context;
-class Expectation_stack;
-class Session_options;
+class Ssl_session_options_interface {
+ public:
+  virtual ~Ssl_session_options_interface() = default;
 
-namespace dispatcher {
-bool dispatch_command(Session &session, Crud_command_handler &crudh,
-                      Expectation_stack &expect, ngs::Message_request &command);
+  virtual bool active_tls() const = 0;
 
-}  // namespace dispatcher
-}  // namespace xpl
+  virtual std::string ssl_cipher() const = 0;
+  virtual std::string ssl_version() const = 0;
+  virtual std::vector<std::string> ssl_cipher_list() const = 0;
 
-#endif
+  virtual long ssl_verify_depth() const = 0;
+  virtual long ssl_verify_mode() const = 0;
+  virtual long ssl_sessions_reused() const = 0;
+
+  virtual long ssl_get_verify_result_and_cert() const = 0;
+  virtual std::string ssl_get_peer_certificate_issuer() const = 0;
+  virtual std::string ssl_get_peer_certificate_subject() const = 0;
+};
+
+}  // namespace ngs
+
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_SESSION_OPTIONS_INTERFACE_H_

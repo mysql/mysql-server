@@ -32,7 +32,6 @@
 
 #include "plugin/x/ngs/include/ngs/log.h"
 #include "plugin/x/ngs/include/ngs_common/bind.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 #include "plugin/x/ngs/include/ngs_common/string_formatter.h"
 
 using namespace ngs;
