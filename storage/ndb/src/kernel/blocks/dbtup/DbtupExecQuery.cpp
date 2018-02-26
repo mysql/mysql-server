@@ -403,8 +403,12 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
   }
   if (likely(currOpPtr.i == RNIL))
   {
+    jamDebug();
     if (regTabPtr->need_expand(disk))
+    {
+      jamDebug();
       prepare_read(req_struct, regTabPtr, disk);
+    }
     return true;
   }
 
@@ -470,7 +474,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     }
 
     if (regTabPtr->need_expand(disk))
+    {
       prepare_read(req_struct, regTabPtr, disk);
+    }
     
 #if 0
     ndbout_c("reading copy");
@@ -1093,6 +1099,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
        /**
         * Get pointer to tuple
         */
+       jamDebug();
        regOperPtr->m_tuple_location.m_page_no = loc_prepare_page_id;
        setup_fixed_tuple_ref_opt(&req_struct);
        setup_fixed_part(&req_struct, regOperPtr, regTabPtr);
@@ -3868,13 +3875,20 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	return TdataWritten;
 	
       case Interpreter::EXIT_REFUSE:
-	jam();
+      {
+        /**
+         * This is a very common exit path, particularly
+         * for scans. It simply means that the row didn't
+         * fulfil the search condition.
+         */
+	jamDebug();
 #ifdef TRACE_INTERPRETER
 	ndbout_c(" - exit_nok");
 #endif
-	terrorCode= theInstruction >> 16;
-	return TUPKEY_abort(req_struct, 29);
-
+	terrorCode = theInstruction >> 16;
+        tupkeyErrorLab(req_struct);
+        return -1;
+      }
       case Interpreter::CALL:
 	jamDebug();
 #ifdef TRACE_INTERPRETER
@@ -4252,6 +4266,7 @@ void
 Dbtup::prepare_read(KeyReqStruct* req_struct, 
 		    Tablerec* tabPtrP, bool disk)
 {
+  jamDebug();
   Tuple_header* ptr= req_struct->m_tuple_ptr;
   
   Uint32 bits= ptr->m_header_bits;
@@ -4264,6 +4279,7 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
   const Var_part_ref* var_ref = ptr->get_var_part_ref_ptr(tabPtrP);
   if(mm_vars || mm_dyns)
   {
+    jamDebug();
     const Uint32 *src_data= src_ptr;
     Uint32 src_len;
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];

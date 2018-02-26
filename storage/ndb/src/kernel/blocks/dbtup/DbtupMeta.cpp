@@ -1583,16 +1583,16 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */
-    jam();
-    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM];
+    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] +
+            Tuple_header::HeaderSize;
     pos[MM] += Disk_part_ref::SZ32; // 8 bytes
     regTabPtr->m_bits |= Tablerec::TR_DiskPart;
   }
   else
   {
-    regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM] - Disk_part_ref::SZ32;
+    regTabPtr->m_offsets[MM].m_disk_ref_offset =
+      (pos[MM] + Tuple_header::HeaderSize) - Disk_part_ref::SZ32;
   }
-
   if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
       regTabPtr->m_attributes[MM].m_no_of_dynamic)
   {

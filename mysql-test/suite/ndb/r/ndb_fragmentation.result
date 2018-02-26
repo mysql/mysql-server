@@ -23,7 +23,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -175,7 +175,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -333,7 +333,7 @@ Number of attributes: 1
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -377,7 +377,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -406,7 +406,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -441,7 +441,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -470,7 +470,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -517,7 +517,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -664,7 +664,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -822,7 +822,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -966,7 +966,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1002,7 +1002,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1146,7 +1146,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1182,7 +1182,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1326,7 +1326,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1369,7 +1369,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1521,7 +1521,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1669,7 +1669,7 @@ Number of attributes: 1
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1701,7 +1701,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1730,7 +1730,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1765,7 +1765,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1794,7 +1794,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1829,7 +1829,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1864,7 +1864,7 @@ Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1899,7 +1899,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1931,7 +1931,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -1966,7 +1966,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -1998,7 +1998,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0
@@ -2040,7 +2040,7 @@ Number of attributes: 3
 Number of primary keys: 1
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 1
@@ -2184,7 +2184,7 @@ Number of attributes: 4
 Number of primary keys: 2
 Length of frm data: XXX
 Max Rows: 0
-Row Checksum: 1
+Row Checksum: 0
 Row GCI: 1
 SingleUserMode: 0
 ForceVarPart: 0

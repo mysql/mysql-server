@@ -631,6 +631,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true" },
 
   {
+    CFG_DB_USE_CHECKSUM,
+    "UseChecksum",
+    DB_TOKEN,
+    "If set to 1, then fixed memory part will use checksum",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    "1" },
+
+  {
     CFG_DB_MEMLOCK,
     "LockPagesInMainMemory",
     DB_TOKEN,
