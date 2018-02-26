@@ -1467,6 +1467,7 @@ typedef Ptr<HostBuffer> HostBufferPtr;
        */
       Uint32 m_operation_ptr_i;  // OperationPtrI
       Uint32 m_base_record_page_no;  // For disk tuple, ref to MM tuple
+      Uint32 m_first_words[1];
     };
     union
     {
@@ -1563,11 +1564,11 @@ typedef Ptr<HostBuffer> HostBufferPtr;
     }
     
     Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) {
-      return m_data + tabPtrP->m_offsets[MM].m_disk_ref_offset;
+      return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
     const Uint32* get_disk_ref_ptr(const Tablerec* tabPtrP) const {
-      return m_data + tabPtrP->m_offsets[MM].m_disk_ref_offset;
+      return m_first_words + tabPtrP->m_offsets[MM].m_disk_ref_offset;
     }
 
     Uint32 *get_mm_gci(const Tablerec* tabPtrP){

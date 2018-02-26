@@ -4820,6 +4820,7 @@ private:
   ArenaAllocator c_arenaAllocator;
   Uint32 c_noOfMetaTables;
   Uint32 c_default_hashmap_size;
+  Uint32 m_use_checksum;
 };
 
 inline bool
