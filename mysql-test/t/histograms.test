@@ -1945,3 +1945,25 @@ SELECT JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
 FROM INFORMATION_SCHEMA.column_statistics
 WHERE table_name = "t1" AND column_name = "col1";
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#27574375 ANALYZA TABLE DOESN'T RETURN ERROR IN CASE
+--echo #              LOCK_WAIT_TIMEOUT HAPPENED
+--echo #
+
+CREATE TABLE t1 (a INT);
+--connect (con1, localhost, root,,)
+SET lock_wait_timeout= 1;
+
+--connection default
+LOCK INSTANCE FOR BACKUP;
+
+--connection con1
+--echo # The error ER_LOCK_WAIT_TIMEOUT is expected here, and when using ANALYZE
+--echo # TABLE errors are printed out in the result set from the query.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 5 BUCKETS;
+
+--connection default
+UNLOCK INSTANCE;
+DROP TABLE t1;
+--disconnect con1

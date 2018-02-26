@@ -321,7 +321,7 @@ should_be_0
 #
 ANALYZE TABLE foobar UPDATE HISTOGRAM ON foobar WITH 100 BUCKETS;
 Table	Op	Msg_type	Msg_text
-test.foobar	histogram	Error	Table 'test.foobar' doesn't exist.
+test.foobar	histogram	Error	Table 'test.foobar' doesn't exist
 SELECT COUNT(*) AS should_be_0 FROM information_schema.COLUMN_STATISTICS;
 should_be_0
 0
@@ -3126,4 +3126,18 @@ FROM INFORMATION_SCHEMA.column_statistics
 WHERE table_name = "t1" AND column_name = "col1";
 JSON_EXTRACT(histogram, '$."number-of-buckets-specified"')
 100
+DROP TABLE t1;
+#
+# Bug#27574375 ANALYZA TABLE DOESN'T RETURN ERROR IN CASE
+#              LOCK_WAIT_TIMEOUT HAPPENED
+#
+CREATE TABLE t1 (a INT);
+SET lock_wait_timeout= 1;
+LOCK INSTANCE FOR BACKUP;
+# The error ER_LOCK_WAIT_TIMEOUT is expected here, and when using ANALYZE
+# TABLE errors are printed out in the result set from the query.
+ANALYZE TABLE t1 UPDATE HISTOGRAM ON a WITH 5 BUCKETS;
+Table	Op	Msg_type	Msg_text
+test.t1	histogram	Error	Lock wait timeout exceeded; try restarting transaction
+UNLOCK INSTANCE;
 DROP TABLE t1;

@@ -294,6 +294,42 @@ bool Sql_cmd_analyze_table::drop_histogram(THD *thd, TABLE_LIST *table,
   return histograms::drop_histograms(thd, *table, fields, results);
 }
 
+/**
+  Send any errors from the ANALYZE TABLE statement to the client.
+
+  This function sends any errors stored in the diagnostics area as a result set
+  to the client instead of a "normal" error. It will also clear the diagnostics
+  area before returning.
+
+  @param thd The thread handler.
+  @param operator_name The name of the ANALYZE TABLE operation that will be
+         printed in the column "Op" of the result set. This is usually either
+         "analyze" or "histogram".
+  @param table_name The name of the table that ANALYZE TABLE operated on.
+
+  @retval true An error occured while sending the result set to the client.
+  @retval false The result set was sent to the client.
+*/
+static bool send_analyze_table_errors(THD *thd, const char *operator_name,
+                                      const char *table_name) {
+  Diagnostics_area::Sql_condition_iterator it =
+      thd->get_stmt_da()->sql_conditions();
+  const Sql_condition *err;
+  Protocol *protocol = thd->get_protocol();
+  while ((err = it++)) {
+    protocol->start_row();
+    protocol->store(table_name, system_charset_info);
+    protocol->store(operator_name, system_charset_info);
+    protocol->store(warning_level_names[err->severity()].str,
+                    warning_level_names[err->severity()].length,
+                    system_charset_info);
+    protocol->store(err->message_text(), system_charset_info);
+    if (protocol->end_row()) return true;
+  }
+  thd->get_stmt_da()->reset_condition_info(thd);
+  return false;
+}
+
 bool Sql_cmd_analyze_table::send_histogram_results(
     THD *thd, const histograms::results_map &results, const TABLE_LIST *table) {
   Item *item;
@@ -314,11 +350,15 @@ bool Sql_cmd_analyze_table::send_histogram_results(
     return true; /* purecov: deadcode */
   }
 
+  std::string combined_name(table->db, table->db_length);
+  combined_name.append(".");
+  combined_name.append(table->table_name, table->table_name_length);
+  if (send_analyze_table_errors(thd, "histogram", combined_name.c_str()))
+    return true;
+
   Protocol *protocol = thd->get_protocol();
   for (const auto &pair : results) {
-    std::string combined_name(table->db, table->db_length);
-    combined_name.append(".");
-    combined_name.append(table->table_name, table->table_name_length);
+    const char *table_name = combined_name.c_str();
 
     std::string message;
     std::string message_type;
@@ -363,18 +403,12 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message_type.assign("Error");
         message.assign("Cannot create histogram statistics for a view.");
         break;
-      case histograms::Message::UNABLE_TO_OPEN_TABLE:
-        /* purecov: begin inspected */
-        message_type.assign("Error");
-        message.assign("Unable to open and/or lock table.");
-        break;
-        /* purecov: end */
       case histograms::Message::MULTIPLE_TABLES_SPECIFIED:
         message_type.assign("Error");
         message.assign(
             "Only one table can be specified while modifying histogram "
             "statistics.");
-        combined_name.clear();
+        table_name = "";
         break;
       case histograms::Message::COVERED_BY_SINGLE_PART_UNIQUE_INDEX:
         message_type.assign("Error");
@@ -388,22 +422,15 @@ bool Sql_cmd_analyze_table::send_histogram_results(
         message.append(pair.first);
         message.append("'.");
         break;
-      case histograms::Message::NO_SUCH_TABLE:
-        message_type.assign("Error");
-        message.assign("Table '");
-        message.append(combined_name);
-        message.append("' doesn't exist.");
-        break;
       case histograms::Message::SERVER_READ_ONLY:
         message_type.assign("Error");
         message.assign("The server is in read-only mode.");
-        combined_name.clear();
+        table_name = "";
         break;
     }
 
     protocol->start_row();
-    if (protocol->store(combined_name.c_str(), combined_name.size(),
-                        system_charset_info) ||
+    if (protocol->store(table_name, system_charset_info) ||
         protocol->store(STRING_WITH_LEN("histogram"), system_charset_info) ||
         protocol->store(message_type.c_str(), message_type.length(),
                         system_charset_info) ||
@@ -865,22 +892,7 @@ static bool mysql_admin_table(
 
     lex->cleanup_after_one_table_open();
     thd->clear_error();  // these errors shouldn't get client
-    {
-      Diagnostics_area::Sql_condition_iterator it =
-          thd->get_stmt_da()->sql_conditions();
-      const Sql_condition *err;
-      while ((err = it++)) {
-        protocol->start_row();
-        protocol->store(table_name, system_charset_info);
-        protocol->store((char *)operator_name, system_charset_info);
-        protocol->store(warning_level_names[err->severity()].str,
-                        warning_level_names[err->severity()].length,
-                        system_charset_info);
-        protocol->store(err->message_text(), system_charset_info);
-        if (protocol->end_row()) goto err;
-      }
-      thd->get_stmt_da()->reset_condition_info(thd);
-    }
+    if (send_analyze_table_errors(thd, operator_name, table_name)) goto err;
     protocol->start_row();
     protocol->store(table_name, system_charset_info);
     protocol->store(operator_name, system_charset_info);

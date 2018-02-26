@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -897,12 +897,6 @@ bool update_histogram(THD *thd, TABLE_LIST *table, const columns_set &columns,
 
   table->reinit_before_use(thd);
   if (open_and_lock_tables(thd, table, 0)) {
-    if (thd->is_error() &&
-        thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
-      results.emplace("", Message::NO_SUCH_TABLE);
-    else
-      results.emplace("",
-                      Message::UNABLE_TO_OPEN_TABLE); /* purecov: deadcode */
     return true;
   }
 
