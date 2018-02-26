@@ -2655,10 +2655,13 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
     break;
   }
   case AttributeHeader::ROWID:
-    outBuffer[1] = req_struct->frag_page_id;
+  {
+    Uint32 frag_page_id = req_struct->m_page_ptr.p->frag_page_id;
+    outBuffer[1] = frag_page_id;
     outBuffer[2] = req_struct->operPtrP->m_tuple_location.m_page_idx;
     sz = 2;
     break;
+  }
   case AttributeHeader::ROW_GCI:
     sz = 0;
     if (req_struct->tablePtrP->m_bits & Tablerec::TR_RowGCI)
