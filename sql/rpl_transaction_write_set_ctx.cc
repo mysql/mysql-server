@@ -22,7 +22,8 @@
 #include "debug_sync.h"                              // debug_sync_set_action
 
 
-Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx()
+Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx():
+  m_has_missing_keys(false), m_has_related_foreign_keys(false)
 {
   DBUG_ENTER("Rpl_transaction_write_set_ctx::Rpl_transaction_write_set_ctx");
   /*
@@ -56,7 +57,34 @@ void Rpl_transaction_write_set_ctx::clear_write_set()
   write_set_unique.clear();
   savepoint.clear();
   savepoint_list.clear();
+  m_has_missing_keys= m_has_related_foreign_keys= false;
   DBUG_VOID_RETURN;
+}
+
+void Rpl_transaction_write_set_ctx::set_has_missing_keys()
+{
+  DBUG_ENTER("Transaction_context_log_event::set_has_missing_keys");
+  m_has_missing_keys= true;
+  DBUG_VOID_RETURN;
+}
+
+bool Rpl_transaction_write_set_ctx::get_has_missing_keys()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_has_missing_keys");
+  DBUG_RETURN(m_has_missing_keys);
+}
+
+void Rpl_transaction_write_set_ctx::set_has_related_foreign_keys()
+{
+  DBUG_ENTER("Transaction_context_log_event::set_has_related_foreign_keys");
+  m_has_related_foreign_keys= true;
+  DBUG_VOID_RETURN;
+}
+
+bool Rpl_transaction_write_set_ctx::get_has_related_foreign_keys()
+{
+  DBUG_ENTER("Transaction_context_log_event::get_has_related_foreign_keys");
+  DBUG_RETURN(m_has_related_foreign_keys);
 }
 
 /**

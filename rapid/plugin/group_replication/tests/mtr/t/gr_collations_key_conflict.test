@@ -34,7 +34,6 @@ CREATE TABLE t1 (
 --echo
 --echo ######################################################################
 --echo # Execute in concurrency transaction with equivalent keys under latin1
-
 --let $local_server_connection1=server_1
 --let $local_server_connection2=server1
 --let $remote_server_connection=server2
