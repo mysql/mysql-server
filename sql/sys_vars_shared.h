@@ -1,7 +1,7 @@
 #ifndef SYS_VARS_SHARED_INCLUDED
 #define SYS_VARS_SHARED_INCLUDED
 
-/* Copyright (c) 2002, 2015, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,14 @@ public:
   void rdlock() { mysql_rwlock_rdlock(rwlock); }
   void wrlock() { mysql_rwlock_wrlock(rwlock); }
   void unlock() { mysql_rwlock_unlock(rwlock); }
+};
+
+class PolyLock_lock_log: public PolyLock
+{
+public:
+  void rdlock();
+  void wrlock();
+  void unlock();
 };
 
 class AutoWLock
