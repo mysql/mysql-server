@@ -117,4 +117,17 @@ ERROR HY000: Tablespace has been discarded for table 't1'
 SELECT * FROM tde_db.t1 ORDER BY c1 ;
 ERROR HY000: Tablespace has been discarded for table 't1'
 DROP TABLE tde_db.t1;
+#
+# Bug #27307740 [ERROR] [MY-011066] INNODB: CORRUPT LOG RECORD FOUND
+# DURING CRASH RECOVERY
+#
+CREATE TABLE tde_db.test_tbl(c1 int) ENCRYPTION="Y" ENGINE=InnoDB;
+SET SESSION debug="+d,keyring_file_backup_fail";
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,keyring_file_backup_fail";
+SELECT COUNT(*) FROM tde_db.test_tbl;
+COUNT(*)
+0
+DROP TABLE tde_db.test_tbl;
 SET GLOBAL innodb_file_per_table=1;

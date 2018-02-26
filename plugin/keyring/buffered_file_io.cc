@@ -146,6 +146,12 @@ bool Buffered_file_io::recreate_keyring_from_backup_if_backup_exists() {
     // if backup file was successfully removed then we have one keyring file
     return remove_backup(MYF(MY_WME));
   }
+  // Do not create keyring file from the backup if the backup file is empty
+  if (buffer.size == 0) {
+    logger->log(WARNING_LEVEL, ER_KEYRING_FAILED_TO_RESTORE_FROM_BACKUP_FILE);
+    remove_backup(MYF(MY_WME));
+    return false;
+  }
   File keyring_file =
       file_io.open(keyring_file_data_key, this->keyring_filename.c_str(),
                    O_RDWR | O_CREAT, MYF(MY_WME));
@@ -253,6 +259,9 @@ bool Buffered_file_io::flush_to_backup(ISerialized_object *serialized_object) {
   DBUG_ASSERT(buffer != NULL);
   Digest buffer_digest;
   buffer_digest.compute(buffer->data, buffer->size);
+
+  // Hook to crash the server before wiring the keyring backup file
+  DBUG_EXECUTE_IF("keyring_file_backup_fail", DBUG_SUICIDE(););
   return buffer == NULL ||
          flush_buffer_to_file(buffer, &buffer_digest, backup_file) ||
          file_io.close(backup_file, MYF(MY_WME)) < 0;
