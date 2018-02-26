@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -337,7 +337,7 @@ NdbOperation::insertKEYINFO(const char* aValue,
   NdbApiSignal* tSignal;
   NdbApiSignal* tCurrentKEYINFO;
   //register NdbApiSignal* tTCREQ = theTCREQ;
-  register Uint32 tAttrPos;
+  Uint32 tAttrPos;
   Uint32 tPosition;
   Uint32 tEndPos;
   Uint32 tPos;
@@ -352,11 +352,11 @@ NdbOperation::insertKEYINFO(const char* aValue,
   tEndPos = aStartPosition + anAttrSizeInWords - 1;
 
   if ((tEndPos < 9)) {
-    register Uint32 tkeyData = *(Uint32*)aValue;
+    Uint32 tkeyData = *(Uint32*)aValue;
     //TcKeyReq* tcKeyReq = CAST_PTR(TcKeyReq, tTCREQ->getDataPtrSend());
-    register Uint32* tDataPtr = (Uint32*)aValue;
+    Uint32* tDataPtr = (Uint32*)aValue;
     tAttrPos = 1;
-    register Uint32* tkeyDataPtr = theKEYINFOptr + aStartPosition - 1;
+    Uint32* tkeyDataPtr = theKEYINFOptr + aStartPosition - 1;
     // (Uint32*)&tcKeyReq->keyInfo[aStartPosition - 1];
     do {
       tDataPtr++;

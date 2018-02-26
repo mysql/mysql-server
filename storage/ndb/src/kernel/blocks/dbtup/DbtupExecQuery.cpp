@@ -682,12 +682,12 @@ void Dbtup::prepareTUPKEYREQ(Uint32 page_id,
 
   if (is_page_key)
   {
-    register Uint32 fixed_part_size_in_words =
+    Uint32 fixed_part_size_in_words =
       tabptr.p->m_offsets[MM].m_fix_header_size;
     page_id = getRealpid(fragptr.p, page_id);
     key.m_page_no = page_id;
     key.m_page_idx = page_idx;
-    register Uint32 *tuple_ptr = get_ptr(&pagePtr,
+    Uint32 *tuple_ptr = get_ptr(&pagePtr,
                                          &key,
                                          tabptr.p);
     jamDebug();
@@ -812,7 +812,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
  /* -----------    INITIATE THE OPERATION RECORD       -------------- */
  /* ----------------------------------------------------------------- */
    {
-     register Operationrec::OpStruct op_struct;
+     Operationrec::OpStruct op_struct;
      op_struct.op_bit_fields = regOperPtr->op_struct.op_bit_fields;
      const Uint32 TrequestInfo= tupKeyReq->request;
      const Uint32 disable_fk_checks = tupKeyReq->disable_fk_checks;
@@ -3102,11 +3102,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 			      Uint32 * tmpArea,
 			      Uint32 tmpAreaSz)
 {
-  register Uint32* TcurrentProgram= mainProgram;
-  register Uint32 TcurrentSize= TmainProgLen;
-  register Uint32 TprogramCounter= 0;
-  register Uint32 theInstruction;
-  register Uint32 theRegister;
+  Uint32 theRegister;
+  Uint32 theInstruction;
+  Uint32 TprogramCounter= 0;
+  Uint32* TcurrentProgram= mainProgram;
+  Uint32 TcurrentSize= TmainProgLen;
   Uint32 TdataWritten= 0;
   Uint32 RstackPtr= 0;
   union {

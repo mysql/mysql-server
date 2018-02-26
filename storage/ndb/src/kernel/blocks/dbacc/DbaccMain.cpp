@@ -845,7 +845,7 @@ void Dbacc::execACCSEIZEREQ(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::initOpRec(const AccKeyReq* signal, Uint32 siglen) const
 {
-  register Uint32 Treqinfo;
+  Uint32 Treqinfo;
 
   Treqinfo = signal->requestInfo;
 
@@ -3489,9 +3489,9 @@ Dbacc::getElement(const AccKeyReq* signal,
   Uint32 tgeElemStep;
   Uint32 tgePageindex;
   Uint32 tgeNextptrtype;
-  register Uint32 tgeRemLen;
+  Uint32 tgeRemLen;
   const Uint32 TelemLen = fragrecptr.p->elementLength;
-  register const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
+  const Uint32* Tkeydata = signal->keyInfo; /* or localKey if keyLen == 0 */
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
   Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
   union {
@@ -6543,7 +6543,7 @@ Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
   Uint32 tgeNextptrtype;
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
-  register Uint32 tgeRemLen;
+  Uint32 tgeRemLen;
   const Uint32 TelemLen = fragrecptr.p->elementLength;
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
 

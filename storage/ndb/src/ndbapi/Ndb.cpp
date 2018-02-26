@@ -1978,7 +1978,7 @@ const char *
 Ndb::externalizeTableName(const char * internalTableName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalTableName;
+    const char *ptr = internalTableName;
    
     // Skip database name
     while (*ptr && *ptr++ != table_name_separator)
@@ -2006,7 +2006,7 @@ const char *
 Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNames)
 {
   if (fullyQualifiedNames) {
-    register const char *ptr = internalIndexName;
+    const char *ptr = internalIndexName;
    
     // Scan name from the end
     while (*ptr++)
@@ -2143,7 +2143,7 @@ Ndb::getDatabaseFromInternalName(const char * internalName)
     return BaseString(NULL);
   }
   strcpy(databaseName, internalName);
-  register char *ptr = databaseName;
+  char *ptr = databaseName;
    
   /* Scan name for the first table_name_separator */
   while (*ptr && *ptr != table_name_separator)
@@ -2163,13 +2163,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
     errno = ENOMEM;
     return BaseString(NULL);
   }
-  register const char *ptr1 = internalName;
+  const char *ptr1 = internalName;
    
   /* Scan name for the second table_name_separator */
   while (*ptr1 && *ptr1 != table_name_separator)
     ptr1++;
   strcpy(schemaName, ptr1 + 1);
-  register char *ptr = schemaName;
+  char *ptr = schemaName;
   while (*ptr && *ptr != table_name_separator)
     ptr++;
   *ptr = '\0';
