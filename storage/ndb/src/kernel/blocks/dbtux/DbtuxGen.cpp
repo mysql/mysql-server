@@ -319,6 +319,53 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
 // utils
 
 void
+Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
+                        const Frag& frag,
+                        TreeEnt ent,
+                        KeyData& keyData,
+                        Uint32 count)
+{
+  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
+  const DescHead& descHead = getDescHead(index);
+  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+  Uint32* const outputBuffer = ctx.c_dataBuffer;
+
+#ifdef VM_TRACE
+  ndbrequire(&keyData.get_spec() == &index.m_keySpec);
+  ndbrequire(keyData.get_spec().validate() == 0);
+  ndbrequire(count <= index.m_numAttrs);
+#endif
+
+  const Uint32 tupVersion = ent.m_tupVersion;
+  const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
+
+  int ret;
+  ret = c_tup->tuxReadAttrsCurr(ctx.jamBuffer,
+                                tupVersion,
+                                keyAttrs32,
+                                count,
+                                outputBuffer,
+                                false);
+  thrjamDebug(ctx.jamBuffer);
+  ndbrequire(ret > 0);
+  keyData.reset();
+  Uint32 len;
+  ret = keyData.add_poai(outputBuffer, count, &len);
+  ndbrequire(ret == 0);
+  ret = keyData.finalize();
+  ndbrequire(ret == 0);
+
+#ifdef VM_TRACE
+  if (debugFlags & (DebugMaint | DebugScan)) {
+    debugOut << "readKeyAttrs: ";
+    debugOut << " ent:" << ent << " count:" << count;
+    debugOut << " data:" << keyData.print(ctx.c_debugBuffer, DebugBufferBytes);
+    debugOut << endl;
+  }
+#endif
+}
+
+void
 Dbtux::readKeyAttrs(TuxCtx& ctx,
                     const Frag& frag,
                     TreeEnt ent,

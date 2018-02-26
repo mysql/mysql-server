@@ -1820,8 +1820,26 @@ public:
    * Returns number of words or negative (-terrorCode) on error.
    */
   int tuxReadAttrs(EmulatedJamBuffer*,
-                   Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion,
-                   const Uint32* attrIds, Uint32 numAttrs, Uint32* dataOut, bool xfrmFlag);
+                   Uint32 fragPtrI,
+                   Uint32 pageId,
+                   Uint32 pageOffset,
+                   Uint32 tupVersion,
+                   const Uint32* attrIds,
+                   Uint32 numAttrs,
+                   Uint32* dataOut,
+                   bool xfrmFlag);
+  int tuxReadAttrsCurr(EmulatedJamBuffer*,
+                       Uint32 tupVersion,
+                       const Uint32* attrIds,
+                       Uint32 numAttrs,
+                       Uint32* dataOut,
+                       bool xfrmFlag);
+  int tuxReadAttrsCommon(KeyReqStruct &req_struct,
+                         Uint32 tupVersion,
+                         const Uint32* attrIds,
+                         Uint32 numAttrs,
+                         Uint32* dataOut,
+                         bool xfrmFlag);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used

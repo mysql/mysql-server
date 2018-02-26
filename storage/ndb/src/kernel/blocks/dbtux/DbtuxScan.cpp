@@ -681,10 +681,21 @@ Dbtux::continue_scan(Signal *signal,
     Uint32 lkey2 = tupLoc.getPageOffset();
     conf->localKey[0] = lkey1;
     conf->localKey[1] = lkey2;
+#ifdef VM_TRACE
+    /**
+     * We need another call to make sure that ndbassert's are
+     * correct even if we called prepare_scan_TUPKEYREQ and
+     * set an original page id as row id when performing a
+     * lock request through ACC between here and before
+     * scanCheck.
+     * No need to do this in production code since it is ok
+     * to call prepare methods several times on the same row.
+     */
+    c_tup->prepare_scan_tux_TUPKEYREQ(lkey1, lkey2);
+#endif
     // add key info
     // next time look for next entry
     scan.m_state = ScanOp::Next;
-    c_tup->prepare_scan_tux_TUPKEYREQ(lkey1, lkey2);
     signal->setLength(NextScanConf::SignalLengthNoGCI);
     c_lqh->exec_next_scan_conf(signal);
     return;
@@ -859,9 +870,14 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
     linkScan(node, scanPtr);
     if (treePos.m_dir == 3)
     {
-      jam();
+      jamDebug();
       // check upper bound
       TreeEnt ent = node.getEnt(treePos.m_pos);
+      const TupLoc tupLoc = ent.m_tupLoc;
+      jamDebug();
+      c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
+                                        tupLoc.getPageOffset());
+      jamDebug();
       if (scanCheck(scanPtr, ent, frag))
       {
         jamDebug();
@@ -1114,6 +1130,11 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
         jamDebug();
         pos.m_dir = 3;  // unchanged
         ent = node.getEnt(pos.m_pos);
+        const TupLoc tupLoc = ent.m_tupLoc;
+        jamDebug();
+        c_tup->prepare_scan_tux_TUPKEYREQ(tupLoc.getPageId(),
+                                          tupLoc.getPageOffset());
+        jamDebug();
         if (! scanCheck(scanPtr, ent, frag))
         {
           jamDebug();
@@ -1193,6 +1214,7 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq, Frag& frag)
 bool
 Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
 {
+  jamDebug();
   ScanOp& scan = *scanPtr.p;
   if (unlikely(scan.m_errorCode != 0))
   {
@@ -1214,7 +1236,7 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
     // key data for the entry
     KeyData entryKey(index.m_keySpec, true, 0);
     entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
-    readKeyAttrs(c_ctx, frag, ent, entryKey, index.m_numAttrs);
+    readKeyAttrsCurr(c_ctx, frag, ent, entryKey, index.m_numAttrs);
     // compare bound to key
     const Uint32 boundCount = searchBound.get_data().get_cnt();
     ret = cmpSearchBound(c_ctx, searchBound, entryKey, boundCount);

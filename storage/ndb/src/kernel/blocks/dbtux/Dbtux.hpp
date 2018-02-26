@@ -587,7 +587,16 @@ private:
   void execNODE_STATE_REP(Signal* signal);
 
   // utils
-  void readKeyAttrs(TuxCtx&, const Frag& frag, TreeEnt ent, KeyData& keyData, Uint32 count);
+  void readKeyAttrs(TuxCtx&,
+                    const Frag& frag,
+                    TreeEnt ent,
+                    KeyData& keyData,
+                    Uint32 count);
+  void readKeyAttrsCurr(TuxCtx&,
+                        const Frag& frag,
+                        TreeEnt ent,
+                        KeyData& keyData,
+                        Uint32 count);
   void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
   void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
   void findFrag(EmulatedJamBuffer* jamBuf, const Index& index, 
