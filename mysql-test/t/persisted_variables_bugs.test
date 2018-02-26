@@ -91,8 +91,6 @@ SET PERSIST binlog_error_action= IGNORE_ERROR, binlog_format= ROW;
 SET PERSIST cte_max_recursion_depth= 4294967295, eq_range_index_dive_limit= 4294967295;
 # SHOW_CHAR_PTR
 SET PERSIST innodb_monitor_disable='latch';
-# SHOW_LONGLONG
-SET PERSIST histogram_generation_max_mem_size= 18446744073709551615;
 # SHOW_DOUBLE
 SET PERSIST innodb_max_dirty_pages_pct= 97.3;
 # SHOW_LEX_STRING
@@ -105,7 +103,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
        @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
-       @@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+       @@global.innodb_monitor_disable,
        @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
        @@global.max_join_size;
 
@@ -119,7 +117,7 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
        @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
-       @@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+       @@global.innodb_monitor_disable,
        @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
        @@global.max_join_size;
 
@@ -131,7 +129,7 @@ SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = defau
        auto_increment_increment = default, auto_increment_offset = default,
        binlog_error_action = default, binlog_format = default,
        cte_max_recursion_depth = default, eq_range_index_dive_limit = default,
-       innodb_monitor_disable = default, histogram_generation_max_mem_size = default,
+       innodb_monitor_disable = default,
        innodb_max_dirty_pages_pct = default, init_connect = default,
        max_join_size = default;
 

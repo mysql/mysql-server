@@ -74,7 +74,6 @@ SET PERSIST auto_increment_increment= 4, auto_increment_offset= 2;
 SET PERSIST binlog_error_action= IGNORE_ERROR, binlog_format= ROW;
 SET PERSIST cte_max_recursion_depth= 4294967295, eq_range_index_dive_limit= 4294967295;
 SET PERSIST innodb_monitor_disable='latch';
-SET PERSIST histogram_generation_max_mem_size= 18446744073709551615;
 SET PERSIST innodb_max_dirty_pages_pct= 97.3;
 SET PERSIST init_connect='SET autocommit=0';
 SET PERSIST max_join_size= 18446744073709551615;
@@ -82,11 +81,11 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.auto_increment_increment, @@global.auto_increment_offset,
 @@global.binlog_error_action, @@global.binlog_format,
 @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
-@@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+@@global.innodb_monitor_disable,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
-@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	18446744073709551615	97.300000	SET autocommit=0	18446744073709551615
+@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
+-1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -96,7 +95,6 @@ binlog_error_action	IGNORE_ERROR
 binlog_format	ROW
 cte_max_recursion_depth	4294967295
 eq_range_index_dive_limit	4294967295
-histogram_generation_max_mem_size	18446744073709551615
 init_connect	SET autocommit=0
 innodb_max_dirty_pages_pct	97.300000
 innodb_monitor_disable	latch
@@ -111,11 +109,11 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
 @@global.auto_increment_increment, @@global.auto_increment_offset,
 @@global.binlog_error_action, @@global.binlog_format,
 @@global.cte_max_recursion_depth, @@global.eq_range_index_dive_limit,
-@@global.innodb_monitor_disable, @@global.histogram_generation_max_mem_size,
+@@global.innodb_monitor_disable,
 @@global.innodb_max_dirty_pages_pct, @@global.init_connect,
 @@global.max_join_size;
-@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.histogram_generation_max_mem_size	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
--1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	18446744073709551615	97.300000	SET autocommit=0	18446744073709551615
+@@global.optimizer_trace_offset	@@global.activate_all_roles_on_login	@@global.auto_increment_increment	@@global.auto_increment_offset	@@global.binlog_error_action	@@global.binlog_format	@@global.cte_max_recursion_depth	@@global.eq_range_index_dive_limit	@@global.innodb_monitor_disable	@@global.innodb_max_dirty_pages_pct	@@global.init_connect	@@global.max_join_size
+-1	1	4	2	IGNORE_ERROR	ROW	4294967295	4294967295	latch	97.300000	SET autocommit=0	18446744073709551615
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
 VARIABLE_NAME	VARIABLE_VALUE
 activate_all_roles_on_login	ON
@@ -125,7 +123,6 @@ binlog_error_action	IGNORE_ERROR
 binlog_format	ROW
 cte_max_recursion_depth	4294967295
 eq_range_index_dive_limit	4294967295
-histogram_generation_max_mem_size	18446744073709551615
 init_connect	SET autocommit=0
 innodb_max_dirty_pages_pct	97.300000
 innodb_monitor_disable	latch
@@ -137,7 +134,7 @@ SET GLOBAL optimizer_trace_offset = default, activate_all_roles_on_login = defau
 auto_increment_increment = default, auto_increment_offset = default,
 binlog_error_action = default, binlog_format = default,
 cte_max_recursion_depth = default, eq_range_index_dive_limit = default,
-innodb_monitor_disable = default, histogram_generation_max_mem_size = default,
+innodb_monitor_disable = default,
 innodb_max_dirty_pages_pct = default, init_connect = default,
 max_join_size = default;
 Warnings:
