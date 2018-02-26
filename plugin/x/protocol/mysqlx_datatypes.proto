@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@ message Scalar {
   // a string with a charset/collation
   message String {
     required bytes value = 1;
-    optional uint64 collation = 2;
+    optional uint64 collation = 2 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
   };
 
   // an opaque octet sequence, with an optional content_type
@@ -57,8 +57,8 @@ message Scalar {
 
   required Type type = 1;
 
-  optional sint64 v_signed_int = 2;
-  optional uint64 v_unsigned_int = 3;
+  optional sint64 v_signed_int = 2 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
+  optional uint64 v_unsigned_int = 3 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
   // 4 is unused, was Null which doesn't have a storage anymore
   optional Octets v_octets = 5;
   optional double v_double = 6;

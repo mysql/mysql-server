@@ -69,8 +69,8 @@ message Collection {
 // :param row_count: maximum rows to filter
 // :param offset: maximum rows to skip before applying the row_count
 message Limit {
-  required uint64 row_count = 1;
-  optional uint64 offset = 2;
+  required uint64 row_count = 1 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
+  optional uint64 offset = 2 /* ifdef PROTOBUF3 [jstype = JS_STRING] */;
 }
 
 // sort order
