@@ -6,6 +6,7 @@
 # 2) Test that you cannot join a group if your algorithm is different.
 #
 
+--source include/only_binlog_transaction_dependency_tracking_commit_order.inc
 --source ../inc/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source ../inc/group_replication.inc

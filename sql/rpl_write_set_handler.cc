@@ -21,6 +21,7 @@
 #include "sql_class.h"     // THD
 #include "sql_list.h"      // List
 #include "table.h"         // TABLE
+#include "rpl_handler.h"
 
 #include "my_murmur3.h"    // murmur3_32
 #include "../extra/lz4/my_xxhash.h" // xxHash
@@ -471,6 +472,9 @@ void add_pke(TABLE *table, THD *thd)
     Finally these value are hashed using the murmur hash function to prevent sending more
     for certification algorithm.
   */
+  Rpl_transaction_write_set_ctx* ws_ctx=
+    thd->get_transaction()->get_transaction_write_set_ctx();
+  int writeset_hashes_added= 0;
 
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
@@ -605,6 +609,7 @@ void add_pke(TABLE *table, THD *thd)
         if (i == table->key_info[key_number].user_defined_key_parts)
         {
           generate_hash_pke(pke, collation_conversion_algorithm, thd);
+          writeset_hashes_added++;
 #ifndef DBUG_OFF
           write_sets.push_back(pke);
 #endif
@@ -706,6 +711,7 @@ void add_pke(TABLE *table, THD *thd)
               pke_prefix.append(value_length);
 
               generate_hash_pke(pke_prefix, collation_conversion_algorithm, thd);
+              writeset_hashes_added++;
 #ifndef DBUG_OFF
               write_sets.push_back(pke_prefix);
 #endif
@@ -715,12 +721,18 @@ void add_pke(TABLE *table, THD *thd)
       }
     }
 
+    if (table->file->referenced_by_foreign_key())
+      ws_ctx->set_has_related_foreign_keys();
+
     my_free(pk_value);
 
 #ifndef DBUG_OFF
     debug_check_for_write_sets(write_sets);
 #endif
   }
+
+  if (writeset_hashes_added == 0)
+    ws_ctx->set_has_missing_keys();
 
   DBUG_VOID_RETURN;
 }

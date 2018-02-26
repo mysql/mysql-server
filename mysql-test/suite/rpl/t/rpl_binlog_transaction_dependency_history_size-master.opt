@@ -1,0 +1,3 @@
+--binlog_transaction_dependency_tracking=COMMIT_ORDER
+--transaction_write_set_extraction=XXHASH64
+--binlog_transaction_dependency_history_size=6

@@ -1,0 +1,212 @@
+################################################################################
+# ==== Purpose ====
+# Test referential actions of the foreign keys with different
+# binlog_transaction_dependency_tracking modes.
+# Referential actions:
+#  RESTRICT | NO ACTION | CASCADE | SET NULL | SET DEFAULT
+#  Note* Table definition containing SET DEFAULT gets rejected thus not tested.
+# Modes:
+#  COMMIT_ORDER | WRITESET | WRITESET_SESSION
+#  Note* COMMIT_ORDER is purposefully not tested with this test.
+#
+# ==== Implementation ====
+# 1. FK parent table:
+#    1.1. Marked as conflicting with previous transactions.
+#    1.2. Clears history.
+#    1.3. Marked as conflicting with later transactions.
+#    1.4. Falls back to COMMIT_ORDER, so *not* marked as conflicting with previous transactions
+#         committing in parallel.
+#    1.5. Later transactions fall back to COMMIT_ORDER, so they are *not* marked as conflicting with
+#         this transaction if executing in parallel with it.
+#
+# 2. FK child table:
+#    2.1. Can run in parallel with previous transactions.
+#    2.2. Does not clear history.
+#    2.3. Can run in parallel with subsequent transactions.
+#
+# 3. All the above is tested with INSERT, UPDATE, and DELETEs.
+#
+# 4. All the above is tested with RESTRICT, NO ACTION, CASCADE, SET NULL.
+#
+# 5. All the above is tested with ON UPDATE and ON DELETE.
+#
+# 6. All the above is tested with WRITESET_SESSION and WRITESET.
+#
+# ==== References ====
+# WL#9556: Writeset-based MTS dependency tracking on master
+################################################################################
+--let $rpl_extra_connections_per_server= 8
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+
+--connection master
+SET @save_binlog_transaction_dependency_tracking = @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction = @@GLOBAL.transaction_write_set_extraction;
+
+--let $row_count= 1
+--let $referential_action= 0
+# RESTRICT, NO ACTION, CASCADE, SET NULL
+while ($referential_action < 4)
+{
+  # WRITESET, WRITESET_SESSION
+  --let $dependency_tracking= 0
+  while ($dependency_tracking < 2)
+  {
+    --connection master
+    if ($referential_action == 0)
+    {
+      --let $ref_action= RESTRICT
+      --let $error_success= ER_ROW_IS_REFERENCED_2
+    }
+    if ($referential_action == 1)
+    {
+      --let $ref_action= NO ACTION
+      --let $error_success= ER_ROW_IS_REFERENCED_2
+    }
+    if ($referential_action == 2)
+    {
+      --let $ref_action= CASCADE
+      --let $error_success= 0
+    }
+    if ($referential_action == 3)
+    {
+      --let $ref_action= SET NULL
+      --let $error_success= 0
+    }
+
+    --echo
+    if ($dependency_tracking == 0)
+    {
+      SET GLOBAL binlog_transaction_dependency_tracking = WRITESET;
+      --let $text= $row_count. Test referential action $ref_action with WRITESET.
+    }
+    if ($dependency_tracking == 1)
+    {
+      SET GLOBAL binlog_transaction_dependency_tracking = WRITESET_SESSION;
+      --let $text= $row_count. Test referential action $ref_action with WRITESET_SESSION.
+    }
+
+    # Header according to all the parameters.
+    --echo ######## $text ########
+    SELECT @@local.transaction_write_set_extraction,
+           @@global.transaction_write_set_extraction,
+           @@binlog_transaction_dependency_tracking;
+
+    # In all these 8 cases, behavior should be identical.
+    CREATE TABLE parent1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+    CREATE TABLE parent2 (a INT NOT NULL PRIMARY KEY, b VARCHAR(50));
+    CREATE TABLE t1 (a INT PRIMARY KEY);
+    --eval CREATE TABLE child1 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent1 (a) ON UPDATE $ref_action)
+    --eval CREATE TABLE child2 (a INT PRIMARY KEY, b INT, FOREIGN KEY(b) REFERENCES parent2 (a) ON DELETE $ref_action)
+    INSERT INTO parent1 VALUES (1, 1), (2, 2);
+    INSERT INTO parent2 VALUES (1, 1), (2, 2);
+    FLUSH LOGS;
+
+    --echo # Case 2.1, 2.2, 2.3
+    # [0 1]
+    --connection server_1_1
+    INSERT INTO child1 VALUES (1, 1);
+
+    # [1 2]
+    --connection server_1_2
+    INSERT INTO child2 VALUES (1, 1);
+
+    # [1 3]
+    --connection server_1_1
+    UPDATE child1 SET a = 2;
+
+    # [2 4]
+    --connection server_1_2
+    UPDATE child2 SET a = 2;
+
+    # [3 5]
+    --connection server_1_1
+    DELETE FROM child1;
+
+    # [4 6]
+    --connection server_1_2
+    DELETE FROM child2;
+
+    --echo # Case 1.1, 1.2, 1.3
+    # [1 7]
+    --connection server_1_3
+    INSERT INTO t1 VALUES (1);
+
+    # [7 8]
+    --connection server_1_4
+    INSERT INTO parent1 VALUES (3, 3);
+
+    # [8 9]
+    --connection server_1_5
+    INSERT INTO t1 VALUES (2);
+
+    --echo # Case 1.4, 1.5
+    # [8 10]
+    --connection server_1_6
+    BEGIN;
+    INSERT INTO t1 VALUES (3);
+    INSERT INTO child1 VALUES (1, 1);
+    # [9 11]
+    --connection server_1_7
+    BEGIN;
+    INSERT INTO parent1 VALUEs (4, 4);
+    INSERT INTO child2 VALUES (1, 1);
+    # [9 12]
+    --connection server_1_8
+    BEGIN;
+    INSERT INTO t1 VALUES (4);
+    # Commit the above.
+    --connection server_1_6
+    COMMIT;
+    --connection server_1_7
+    COMMIT;
+    --connection server_1_8
+    COMMIT;
+
+    # [11 13] Verify again that history is cleared
+    --connection server_1_1
+    INSERT INTO t1 VALUES (5);
+
+    # [13 14] With CASCADE and SET NULL
+    --connection server_1_2
+    --error $error_success
+    UPDATE parent1 SET a=5 WHERE a=1;
+
+    # [14 15] With CASCADE and SET NULL
+    --connection server_1_3
+    --error $error_success
+    DELETE FROM parent2 WHERE a=1;
+
+    --echo # Drop table and flush logs to force binlog to rotate
+    --connection master
+    DROP TABLE child2, parent2, child1, parent1, t1;
+
+    --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+    FLUSH LOGS;
+
+    --echo # Processing binlog...
+    # For RESTRICT and NO ACTION
+    --let $logical_timestamps=0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14
+    if ($referential_action >= 2)
+    {
+      # For CASCADE and SET NULL
+      --let $logical_timestamps=0 1;1 2;1 3;2 4;3 5;4 6;1 7;7 8;8 9;8 10;9 11;9 12;11 13;13 14;14 15;15 16
+    }
+    --source include/assert_logical_timestamps.inc
+
+    --echo # Verify that replication is correct
+    --source include/sync_slave_sql_with_master.inc
+
+    --inc $dependency_tracking
+    --inc $row_count
+  }
+  --inc $referential_action
+}
+
+--echo
+--echo # Clean up
+--connection master
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+
+--source include/rpl_end.inc

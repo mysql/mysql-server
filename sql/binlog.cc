@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include "rpl_rli_pdb.h"                    // Slave_worker
 #include "rpl_slave_commit_order_manager.h" // Commit_order_manager
 #include "rpl_trx_boundary_parser.h"        // Transaction_boundary_parser
+#include "rpl_context.h"
 #include "sql_class.h"                      // THD
 #include "sql_parse.h"                      // sqlcom_can_generate_row_events
 #include "sql_show.h"                       // append_identifier
@@ -364,6 +365,9 @@ public:
       {
         flags.with_rbr= it->second.with_rbr;
         flags.with_sbr= it->second.with_sbr;
+        flags.with_start= it->second.with_start;
+        flags.with_end= it->second.with_end;
+        flags.with_content= it->second.with_content;
       }
       else
         DBUG_ASSERT(it == cache_state_map.end());
@@ -373,6 +377,9 @@ public:
     {
       flags.with_rbr= false;
       flags.with_sbr= false;
+      flags.with_start= false;
+      flags.with_end= false;
+      flags.with_content= false;
     }
   }
 
@@ -384,6 +391,9 @@ public:
       cache_state state;
       state.with_rbr= flags.with_rbr;
       state.with_sbr= flags.with_sbr;
+      state.with_start= flags.with_start;
+      state.with_end= flags.with_end;
+      state.with_content= flags.with_content;
       cache_state_map[pos_to_checkpoint]= state;
     }
   }
@@ -419,6 +429,9 @@ public:
     flags.finalized= false;
     flags.with_sbr= false;
     flags.with_rbr= false;
+    flags.with_start= false;
+    flags.with_end= false;
+    flags.with_content= false;
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
       which may increase disk_writes. This breaks the disk_writes use by the
@@ -492,6 +505,52 @@ public:
     return flags.with_sbr || !flags.with_rbr;
   }
 
+  /**
+    Check if the binlog cache contains an empty transaction, which has
+    two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    /*
+      The empty transaction has two events in trx/stmt binlog cache
+      and no changes (no SBR changing content and no RBR events).
+      Other transaction should not have two events. So we can identify
+      if this is an empty transaction by the event counter and the
+      cache flags.
+    */
+    if (flags.with_start &&     // Has transaction start statement
+            flags.with_end &&   // Has transaction end statement
+            !flags.with_sbr &&  // No statements changing content
+            !flags.with_rbr &&  // No rows changing content
+            !flags.immediate && // Not a DDL
+            !flags.with_xid &&  // Not a XID transaction and not an atomic DDL Query
+            !flags.with_content)// Does not have any content
+    {
+      DBUG_ASSERT(!flags.with_sbr); // No statements changing content
+      DBUG_ASSERT(!flags.with_rbr); // No rows changing content
+      DBUG_ASSERT(!flags.immediate);// Not a DDL
+      DBUG_ASSERT(!flags.with_xid); // Not a XID trx and not an atomic DDL Query
+
+      return true;
+    }
+    return false;
+  }
+
+  /**
+    Check if the binlog cache is empty or contains an empty transaction,
+    which has two binlog events "BEGIN" and "COMMIT".
+
+    @return true  The binlog cache is empty or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool is_empty_or_has_empty_transaction()
+  {
+    return is_binlog_empty() || has_empty_transaction();
+  }
+
 protected:
   /*
     This structure should have all cache variables/flags that should be restored
@@ -501,6 +560,9 @@ protected:
   {
     bool with_sbr;
     bool with_rbr;
+    bool with_start;
+    bool with_end;
+    bool with_content;
   };
   /*
     For every SAVEPOINT used, we will store a cache_state for the current
@@ -581,6 +643,21 @@ protected:
       This indicates that the cache contain RBR event changing content.
     */
     bool with_rbr:1;
+
+    /*
+      This indicates that the cache contain s transaction start statement.
+    */
+    bool with_start:1;
+
+    /*
+      This indicates that the cache contain a transaction end event.
+    */
+    bool with_end:1;
+
+    /*
+      This indicates that the cache contain content other than START/END.
+    */
+    bool with_content:1;
   } flags;
 
 private:
@@ -840,6 +917,23 @@ public:
       return error;
     *bytes_written= stmt_bytes + trx_bytes;
     return 0;
+  }
+
+  /**
+    Check if at least one of transacaction and statement binlog caches
+    contains an empty transaction, other one is empty or contains an
+    empty transaction.
+
+    @return true  At least one of transacaction and statement binlog
+                  caches an empty transaction, other one is emptry
+                  or contains an empty transaction.
+    @return false Otherwise.
+  */
+  bool has_empty_transaction()
+  {
+    return (trx_cache.is_empty_or_has_empty_transaction() &&
+            stmt_cache.is_empty_or_has_empty_transaction() &&
+            !is_binlog_empty());
   }
 
   binlog_stmt_cache_data stmt_cache;
@@ -1205,6 +1299,16 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
       flags.with_sbr= true;
     if (ev->is_rbr_logging_format())
       flags.with_rbr= true;
+#ifndef EMBEDDED_LIBRARY
+    /* With respect to empty transactions */
+    if (ev->starts_group())
+      flags.with_start= true;
+    if (ev->ends_group())
+      flags.with_end= true;
+    if ((!ev->starts_group() && !ev->ends_group())
+        ||ev->get_type_code() == binary_log::VIEW_CHANGE_EVENT)
+      flags.with_content= true;
+#endif
   }
   DBUG_RETURN(0);
 }
@@ -1287,29 +1391,10 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
   DBUG_ASSERT(thd->owned_gtid.sidno == THD::OWNED_SIDNO_ANONYMOUS ||
               thd->owned_gtid.sidno > 0);
 
+  int64 sequence_number, last_committed;
   /* Generate logical timestamps for MTS */
+  m_dependency_tracker.get_dependency(thd, sequence_number, last_committed);
 
-  /*
-    Prepare sequence_number and last_committed relative to the current
-    binlog.  This is done by subtracting the binlog's clock offset
-    from the values.
-
-    A transaction that commits after the binlog is rotated, can have a
-    commit parent in the previous binlog. In this case, subtracting
-    the offset from the sequence number results in a negative
-    number. The commit parent dependency gets lost in such
-    case. Therefore, we log the value SEQ_UNINIT in this case.
-  */
-
-  Transaction_ctx *trn_ctx= thd->get_transaction();
-  Logical_clock& clock= mysql_bin_log.max_committed_transaction;
-
-  DBUG_ASSERT(trn_ctx->sequence_number > clock.get_offset());
-
-  int64 relative_sequence_number= trn_ctx->sequence_number - clock.get_offset();
-  int64 relative_last_committed=
-    trn_ctx->last_committed <= clock.get_offset() ?
-    SEQ_UNINIT : trn_ctx->last_committed - clock.get_offset();
   /*
     In case both the transaction cache and the statement cache are
     non-empty, both will be flushed in sequence and logged as
@@ -1321,13 +1406,14 @@ bool MYSQL_BIN_LOG::write_gtid(THD *thd, binlog_cache_data *cache_data,
     condition trn_ctx->last_committed==SEQ_UNINIT to detect this
     situation, hence the need to set it here.
   */
-  trn_ctx->last_committed= SEQ_UNINIT;
+  thd->get_transaction()->last_committed= SEQ_UNINIT;
+
 
   /*
     Generate and write the Gtid_log_event.
   */
   Gtid_log_event gtid_event(thd, cache_data->is_trx_cache(),
-                            relative_last_committed, relative_sequence_number,
+                            last_committed, sequence_number,
                             cache_data->may_have_sbr_stmts());
   uchar buf[Gtid_log_event::MAX_EVENT_LENGTH];
   uint32 buf_len= gtid_event.write_to_memory(buf);
@@ -1518,7 +1604,7 @@ binlog_cache_data::flush(THD *thd, my_off_t *bytes_written, bool *wrote_xid)
 
     DBUG_PRINT("debug", ("bytes_in_cache: %llu", bytes_in_cache));
 
-    trn_ctx->sequence_number= mysql_bin_log.transaction_counter.step();
+    trn_ctx->sequence_number= mysql_bin_log.m_dependency_tracker.step();
     /*
       In case of two caches the transaction is split into two groups.
       The 2nd group is considered to be a successor of the 1st rather
@@ -1684,9 +1770,9 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   DBUG_ENTER("binlog_prepare");
   if (!all)
   {
-    Logical_clock& clock= mysql_bin_log.max_committed_transaction;
-    thd->get_transaction()->
-      store_commit_parent(clock.get_timestamp());
+    thd->get_transaction()->store_commit_parent(mysql_bin_log.
+      m_dependency_tracker.get_max_committed_timestamp());
+
   }
 
   DBUG_RETURN(all && is_loggable_xa_prepare(thd) ?
@@ -2360,7 +2446,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
   if (stuff_logged)
   {
     Transaction_ctx *trn_ctx= thd->get_transaction();
-    trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
+    trn_ctx->store_commit_parent(m_dependency_tracker.get_max_committed_timestamp());
   }
 
   DBUG_PRINT("debug", ("error: %d", error));
@@ -2754,6 +2840,21 @@ err:
   }
   DBUG_RETURN(-1);
 }
+
+
+bool is_empty_transaction_in_binlog_cache(const THD* thd)
+{
+  DBUG_ENTER("is_empty_transaction_in_binlog_cache");
+
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  if (cache_mngr != NULL && cache_mngr->has_empty_transaction())
+  {
+    DBUG_RETURN(true);
+  }
+
+  DBUG_RETURN(false);
+}
+
 
 /** 
   This function checks if a transactional table was updated by the
@@ -5056,8 +5157,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
     At every rotate memorize the last transaction counter state to use it as
     offset at logging the transaction logical timestamps.
   */
-  max_committed_transaction.update_offset(transaction_counter.get_timestamp());
-  transaction_counter.update_offset(transaction_counter.get_timestamp());
+  m_dependency_tracker.rotate();
 #ifdef HAVE_REPLICATION
   close_purge_index_file();
 #endif
@@ -8407,7 +8507,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       Commit parent identification of non-transactional query has
       been deferred until now, except for the mixed transaction case.
     */
-    trn_ctx->store_commit_parent(max_committed_transaction.get_timestamp());
+    trn_ctx->store_commit_parent(m_dependency_tracker.get_max_committed_timestamp());
     if (cache_mngr->stmt_cache.finalize(thd))
       DBUG_RETURN(RESULT_ABORTED);
     stmt_stuff_logged= true;
@@ -8653,30 +8753,6 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
 }
 
 /**
-  The method is to be executed right before committing time.
-  It must be invoked even if the transaction does not commit
-  to engine being merely logged into the binary log.
-  max_committed_transaction is updated with a greater timestamp
-  value.
-  As a side effect, the transaction context's sequence_number
-  is reset.
-
-  @param THD a pointer to THD instance
-*/
-void MYSQL_BIN_LOG::update_max_committed(THD *thd)
-{
-  Transaction_ctx *trn_ctx= thd->get_transaction();
-  max_committed_transaction.set_if_greater(trn_ctx->sequence_number);
-  /*
-    sequence_number timestamp is unneeded anymore, so it's cleared off.
-  */
-  trn_ctx->sequence_number= SEQ_UNINIT;
-
-  DBUG_ASSERT(trn_ctx->last_committed == SEQ_UNINIT ||
-              thd->commit_error == THD::CE_FLUSH_ERROR);
-}
-
-/**
   Commit a sequence of sessions.
 
   This function commit an entire queue of sessions starting with the
@@ -8716,7 +8792,7 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first)
     stage_manager.clear_preempt_status(head);
 #endif
     if (head->get_transaction()->sequence_number != SEQ_UNINIT)
-      update_max_committed(head);
+      m_dependency_tracker.update_max_committed(head);
     /*
       Flush/Sync error should be ignored and continue
       to commit phase. And thd->commit_error cannot be
@@ -8973,7 +9049,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       cache_mngr->reset();
   }
   if (thd->get_transaction()->sequence_number != SEQ_UNINIT)
-    update_max_committed(thd);
+    m_dependency_tracker.update_max_committed(thd);
   if (thd->get_transaction()->m_flags.commit_low)
   {
     const bool all= thd->get_transaction()->m_flags.real_commit;
@@ -11672,83 +11748,6 @@ void THD::issue_unsafe_warnings()
     }
   }
   DBUG_VOID_RETURN;
-}
-
-Logical_clock::Logical_clock()
-  : state(SEQ_UNINIT), offset(0)
-{}
-
-/**
-  Atomically fetch the current state.
-  @parms: None
-  @return  not subtracted "absolute" value.
- */
-inline int64 Logical_clock::get_timestamp()
-{
-  int64 retval= 0;
-  DBUG_ENTER("Logical_clock::get_timestamp");
-  retval= my_atomic_load64(&state);
-  DBUG_RETURN(retval);
-}
-
-/**
-  Steps the absolute value of the clock (state) to return
-  an updated value.
-  The caller must be sure to call the method in no concurrent
-  execution context so either offset and state can't change.
-
-  @return  incremented "absolute" value
- */
-inline int64 Logical_clock::step()
-{
-  compile_time_assert(SEQ_UNINIT == 0);
-  DBUG_EXECUTE_IF("logical_clock_step_2", ++state;);
-  return ++state;
-}
-
-/**
-  To try setting the clock *forward*.
-  The clock does not change when the new value is in the past
-  which is reflected by the new value and by offset.
-  In other words the function main effects is described as
-    state= max(state, new_value).
-  Offset that exceeds the new value indicates the binary log rotation
-  to render such new value useless.
-
-  @param  new_val  a new value (offset included)
-  @return a (new) value of state member regardless whether it's changed or not.
- */
-inline int64 Logical_clock::set_if_greater(int64 new_val)
-{
-  longlong old_val= new_val - 1;
-  bool cas_rc;
-
-  DBUG_ENTER("Logical_clock::set_if_greater");
-
-  DBUG_ASSERT(new_val > 0);
-
-  if (new_val <= offset)
-  {
-    /*
-      This function's invocation can be separated from the
-      transaction's flushing by few rotations. A late to log
-      transaction does not change the clock, similarly to how
-      its timestamps are handled at flushing.
-    */
-    DBUG_RETURN(SEQ_UNINIT);
-  }
-
-  DBUG_ASSERT(new_val > 0);
-
-  while (!(cas_rc= my_atomic_cas64(&state, &old_val, new_val)) &&
-         old_val < new_val)
-  {}
-
-  DBUG_ASSERT(state >= new_val); // setting can't be done to past
-
-  DBUG_ASSERT(cas_rc || old_val >= new_val);
-
-  DBUG_RETURN(cas_rc ? new_val : old_val);
 }
 
 /**

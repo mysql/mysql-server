@@ -1,0 +1,38 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+RESET MASTER;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= (test.t1);
+SET @save_binlog_transaction_dependency_tracking= @@GLOBAL.binlog_transaction_dependency_tracking;
+SET @save_transaction_write_set_extraction= @@GLOBAL.transaction_write_set_extraction;
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET GLOBAL transaction_write_set_extraction= XXHASH64;
+SET LOCAL transaction_write_set_extraction= XXHASH64;
+SET GLOBAL binlog_transaction_dependency_tracking= WRITESET;
+include/start_slave.inc
+[connection master]
+CREATE TABLE t1 (c1 INT);
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+include/sync_slave_sql_with_master.inc
+#
+# Verify that the value of last_committed is not increased,
+# since writeset history is not cleared when applying
+# these empty transactions on slave.
+#
+Processing binlog slave-bin.000001
+include/include/assert_logical_timestamps.inc [0 1;0 2;0 3;0 4]
+[connection master]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
+include/stop_slave_sql.inc
+SET GLOBAL binlog_transaction_dependency_tracking= COMMIT_ORDER;
+SET @@GLOBAL.transaction_write_set_extraction= @save_transaction_write_set_extraction;
+SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
+CHANGE REPLICATION FILTER REPLICATE_IGNORE_TABLE= ();
+include/start_slave_sql.inc
+include/rpl_end.inc
