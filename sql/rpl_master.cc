@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -525,11 +525,12 @@ void kill_zombie_dump_threads(THD *thd) {
 
   @param thd Pointer to THD object of the client thread executing the
   statement.
-
+  @param unlock_global_read_lock Unlock the global read lock aquired
+  by RESET MASTER.
   @retval false success
   @retval true error
 */
-bool reset_master(THD *thd) {
+bool reset_master(THD *thd, bool unlock_global_read_lock) {
   bool ret = false;
 
   /*
@@ -563,6 +564,16 @@ bool reset_master(THD *thd) {
     global_sid_lock->wrlock();
     ret = (gtid_state->clear(thd) != 0);
     global_sid_lock->unlock();
+  }
+
+  /*
+    Unlock the global read lock (which was aquired by this
+    session as part of RESET MASTER) before running the hook
+    which informs plugins.
+  */
+  if (unlock_global_read_lock) {
+    DBUG_ASSERT(thd->global_read_lock.is_acquired());
+    thd->global_read_lock.unlock_global_read_lock(thd);
   }
 
   /*
