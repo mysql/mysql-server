@@ -1873,6 +1873,18 @@ static bool transaction_write_set_check(sys_var *self, THD *thd, set_var *var)
              var->var->name.str);
     return true;
   }
+  /*
+    Disallow changing variable 'transaction_write_set_extraction' while
+    binlog_transaction_dependency_tracking is different from COMMIT_ORDER.
+  */
+  if (mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode
+      != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "transaction_write_set_extraction (changed)",
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)");
+    return true;
+  }
   return false;
 }
 
@@ -3546,6 +3558,68 @@ static Sys_var_enum Mts_parallel_type(
        mts_parallel_type_names,
        DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
+       ON_UPDATE(NULL));
+
+static bool check_binlog_transaction_dependency_tracking(sys_var *self, THD *thd, set_var *var)
+{
+  if (global_system_variables.transaction_write_set_extraction == HASH_ALGORITHM_OFF
+      && var->save_result.ulonglong_value != DEPENDENCY_TRACKING_COMMIT_ORDER)
+  {
+    my_error(ER_WRONG_USAGE, MYF(0),
+             "binlog_transaction_dependency_tracking (!= COMMIT_ORDER)",
+             "transaction_write_set_extraction (= OFF)");
+
+    return true;
+  }
+  return false;
+}
+
+static bool update_binlog_transaction_dependency_tracking(sys_var* var, THD* thd, enum_var_type v)
+{
+  /*
+    the writeset_history_start needs to be set to 0 whenever there is a
+    change in the transaction dependency source so that WS and COMMIT
+    transition smoothly.
+  */
+  mysql_bin_log.m_dependency_tracker.tracking_mode_changed();
+  return false;
+}
+
+void PolyLock_lock_log::rdlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::wrlock()
+{
+  mysql_mutex_lock(mysql_bin_log.get_log_lock());
+}
+
+void PolyLock_lock_log::unlock()
+{
+  mysql_mutex_unlock(mysql_bin_log.get_log_lock());
+}
+
+static PolyLock_lock_log PLock_log;
+static const char *opt_binlog_transaction_dependency_tracking_names[]=
+       {"COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
+static Sys_var_enum Binlog_transaction_dependency_tracking(
+       "binlog_transaction_dependency_tracking",
+       "Selects the source of dependency information from which to "
+       "assess which transactions can be executed in parallel by the "
+       "slave's multi-threaded applier. "
+       "Possible values are COMMIT_ORDER, WRITESET and WRITESET_SESSION.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.m_opt_tracking_mode),
+       CMD_LINE(REQUIRED_ARG), opt_binlog_transaction_dependency_tracking_names,
+       DEFAULT(DEPENDENCY_TRACKING_COMMIT_ORDER), &PLock_log,
+       NOT_IN_BINLOG, ON_CHECK(check_binlog_transaction_dependency_tracking),
+       ON_UPDATE(update_binlog_transaction_dependency_tracking));
+static Sys_var_ulong Binlog_transaction_dependency_history_size(
+       "binlog_transaction_dependency_history_size",
+       "Maximum number of rows to keep in the writeset history.",
+       GLOBAL_VAR(mysql_bin_log.m_dependency_tracker.get_writeset()->m_opt_max_history_size),
+       CMD_LINE(REQUIRED_ARG, 0), VALID_RANGE(1, 1000000), DEFAULT(25000),
+       BLOCK_SIZE(1), &PLock_log, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(NULL));
 
 static Sys_var_mybool Sys_slave_preserve_commit_order(

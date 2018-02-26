@@ -688,7 +688,7 @@ Mysqlx_sessions_rejected	1
 RUN SET @@session.session_track_system_variables='mysqlx_port,mysqlx_idle_worker_thread_timeout,mysqlx_max_allowed_packet,mysqlx_max_connections,mysqlx_min_worker_threads'
 
 0 rows affected
-RUN show variables like '%track%'
+RUN show variables like '%session_track%'
 Variable_name	Value
 session_track_gtids	OFF
 session_track_schema	ON
