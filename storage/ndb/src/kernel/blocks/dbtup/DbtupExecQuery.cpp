@@ -596,7 +596,7 @@ Dbtup::disk_page_load_callback(Signal* signal, Uint32 opRec, Uint32 page_id)
 int
 Dbtup::load_diskpage_scan(Signal* signal,
 			  Uint32 opRec, Uint32 fragPtrI,
-			  Uint32 lkey1, Uint32 lkey2, Uint32 flags)
+			  Uint32 lkey1, Uint32 lkey2, Uint32 tux_flag)
 {
   Ptr<Operationrec> operPtr;
 
@@ -608,9 +608,18 @@ Dbtup::load_diskpage_scan(Signal* signal,
 
   jam();
   Uint32 page_idx= lkey2;
-  Uint32 frag_page_id= lkey1;
-  regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
+  if (likely(tux_flag))
+  {
+    jamDebug();
+    regOperPtr->m_tuple_location.m_page_no = lkey1;
+  }
+  else
+  {
+    jamDebug();
+    Uint32 frag_page_id= lkey1;
+    regOperPtr->m_tuple_location.m_page_no= getRealpid(regFragPtr,
 						     frag_page_id);
+  }
   regOperPtr->m_tuple_location.m_page_idx= page_idx;
   regOperPtr->op_struct.bit_field.m_load_diskpage_on_commit= 0;
   
@@ -631,7 +640,7 @@ Dbtup::load_diskpage_scan(Signal* signal,
       safe_cast(&Dbtup::disk_page_load_scan_callback);
     
     Page_cache_client pgman(this, c_pgman);
-    res= pgman.get_page(signal, req, flags);
+    res= pgman.get_page(signal, req, 0);
   }
   return res;
 }
@@ -741,6 +750,37 @@ void Dbtup::prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx)
     jamDebug();
     prepare_pageptr = pagePtr;
     prepare_page_idx = page_idx;
+    prepare_tuple_ptr = tuple_ptr;
+    prepare_page_no = page_id;
+    for (Uint32 i = 0; i < fixed_part_size_in_words; i+= 16)
+    {
+      NDB_PREFETCH_WRITE(tuple_ptr + i);
+    }
+  }
+}
+
+void Dbtup::prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx)
+{
+  Local_key key;
+  PagePtr pagePtr;
+#ifdef VM_TRACE
+  prepare_orig_local_key.m_page_no = page_id;
+  prepare_orig_local_key.m_page_idx = page_idx;
+#endif
+  bool is_page_key = (!(Local_key::isInvalid(page_id, page_idx) ||
+                        isCopyTuple(page_id, page_idx)));
+
+  ndbrequire(is_page_key);
+  {
+    register Uint32 fixed_part_size_in_words =
+      prepare_tabptr.p->m_offsets[MM].m_fix_header_size;
+    key.m_page_no = page_id;
+    key.m_page_idx = page_idx;
+    register Uint32 *tuple_ptr = get_ptr(&pagePtr,
+                                         &key,
+                                         prepare_tabptr.p);
+    jamDebug();
+    prepare_pageptr = pagePtr;
     prepare_tuple_ptr = tuple_ptr;
     prepare_page_no = page_id;
     for (Uint32 i = 0; i < fixed_part_size_in_words; i+= 16)
@@ -981,6 +1021,13 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.m_row_id.m_page_no = row_id_page_no;
    req_struct.m_row_id.m_page_idx = row_id_page_idx;
    req_struct.m_deferred_constraints = deferred_constraints;
+   /**
+    * The pageid here is a page id of a row id except when we are
+    * reading from an ordered index scan, in this case it is a
+    * physical page id. We will only use this variable for LCP
+    * scan reads and for inserts and refreshs. So it is not used
+    * for TUX scans.
+    */
    Uint32 pageid = req_struct.frag_page_id= keyRef1;
    Uint32 pageidx = regOperPtr->m_tuple_location.m_page_idx= keyRef2;
 

@@ -11479,6 +11479,12 @@ void Dblqh::exec_next_scan_conf(Signal *signal)
   ScanRecord * const scanPtr = scanptr.p;
   const Uint32 pageNo = nextScanConf->localKey[0];
   const Uint32 pageIdx = nextScanConf->localKey[1];
+  /**
+   * The local key is a row id when scanning ACC and TUP. In TUX we store
+   * the physical row id and we don't need the row id for anything in an
+   * ordered index scan. So in the case of a TUX scan we will return a
+   * physical row id and not the logical row id.
+   */
   scanPtr->m_row_id.m_page_idx = pageIdx;
   scanPtr->m_row_id.m_page_no = pageNo;
   continue_next_scan_conf(signal,
@@ -13258,6 +13264,10 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       NextScanConf * const nextScanConf = (NextScanConf *)&signal->theData[0];
       Uint32 gci = nextScanConf->gci;
       Uint32 readLength;
+      /**
+       * Coming here only happens for LCP scans and these always returns
+       * row ids, both in TRANSID_AIs and in return NEXT_SCANCONF.
+       */
       if (scanPtr->m_row_id.m_page_idx == ZNIL)
       {
         jam();
@@ -13426,6 +13436,12 @@ Dblqh::next_scanconf_tupkeyreq(Signal* signal,
   tupKeyReq->request = reqinfo;
   /* No AttrInfo sent to TUP, it uses a stored procedure */
   {
+    /**
+     * The row id here depends on if we are scanning in TUX
+     * or in TUP or ACC. TUX returns phyiscal row ids and
+     * TUP and ACC returns logical row ids. This is handled
+     * by TUP.
+     */
     const Uint32 keyRef1 = scanPtr->m_row_id.m_page_no;
     const Uint32 keyRef2 = scanPtr->m_row_id.m_page_idx;
     const Uint32 opRef = scanPtr->scanApiOpPtr; 
@@ -13486,12 +13502,12 @@ Dblqh::next_scanconf_load_diskpage(Signal* signal,
 
   int res;
 
-  if((res= c_tup->load_diskpage_scan(signal,
-				     regTcPtr.p->tupConnectrec,
-				     fragPtrP->tupFragptr,
-				     scanPtr->m_row_id.m_page_no,
-				     scanPtr->m_row_id.m_page_idx,
-				     0)) > 0)
+  if ((res = c_tup->load_diskpage_scan(signal,
+                                       regTcPtr.p->tupConnectrec,
+                                       fragPtrP->tupFragptr,
+                                       scanPtr->m_row_id.m_page_no,
+                                       scanPtr->m_row_id.m_page_idx,
+                                       scanPtr->rangeScan)) > 0)
   {
     next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr.p, fragPtrP, res);
     return;
@@ -13522,14 +13538,23 @@ Dblqh::next_scanconf_load_diskpage_callback(Signal* signal,
    */
   setup_scan_pointers_from_tc_con(regTcPtr);
  
-  ScanRecordPtr scanPtr = scanptr;
-  FragrecordPtr fragPtr = prim_tab_fragptr;
+  ScanRecord *scanPtr = scanptr.p;
+  Fragrecord *fragPtrP = prim_tab_fragptr.p;
   if (disk_page > 0)
   {
-    jam();
-    c_tup->prepare_scanTUPKEYREQ(scanPtr.p->m_row_id.m_page_no,
-                                 scanPtr.p->m_row_id.m_page_idx);
-    next_scanconf_tupkeyreq(signal, scanPtr.p, regTcPtr.p, fragPtr.p, disk_page);
+    if (scanPtr->rangeScan)
+    {
+      jam();
+      c_tup->prepare_scan_tux_TUPKEYREQ(scanPtr->m_row_id.m_page_no,
+                                        scanPtr->m_row_id.m_page_idx);
+    }
+    else
+    {
+      jam();
+      c_tup->prepare_scanTUPKEYREQ(scanPtr->m_row_id.m_page_no,
+                                   scanPtr->m_row_id.m_page_idx);
+    }
+    next_scanconf_tupkeyreq(signal, scanPtr, regTcPtr.p, fragPtrP, disk_page);
     return;
   }
   else
@@ -13572,6 +13597,11 @@ Dblqh::readPrimaryKeys(ScanRecord *scanP, TcConnectionrec *tcConP, Uint32 *dst)
   Uint32 fragPageId = scanP->m_row_id.m_page_no;
   Uint32 pageIndex = scanP->m_row_id.m_page_idx;
 
+  if (likely(scanP->rangeScan))
+  {
+    jamDebug();
+    fragPageId = c_tup->get_current_frag_page_id();
+  }
   int ret = c_tup->accReadPk(tableId, fragId, fragPageId, pageIndex, dst, false);
   jamEntry();
   if(0)
@@ -15521,6 +15551,11 @@ void Dblqh::nextScanConfCopyLab(Signal* signal,
   TcConnectionrec * tcConP = tcConnectptr.p;
   
   tcConP->m_use_rowid = true;
+  /**
+   * For copy fragment scans we are scanning from TUP, TUP returns
+   * row ids in its scan, so we can safely pass it on here to an
+   * operation record knowing that it is a row id we are passing.
+   */
   tcConP->m_row_id = scanptr.p->m_row_id;
 
   scanptr.p->m_curr_batch_size_rows++;

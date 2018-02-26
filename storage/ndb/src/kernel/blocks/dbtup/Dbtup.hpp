@@ -2175,8 +2175,10 @@ public:
                         Uint32 page_idx,
                         Uint32 frag_id);
   void prepare_scanTUPKEYREQ(Uint32 page_id, Uint32 page_idx);
+  void prepare_scan_tux_TUPKEYREQ(Uint32 page_id, Uint32 page_idx);
   void prepare_op_pointer(Uint32 opPtrI);
   void prepare_tab_pointers(Uint32 fragPtrI);
+  Uint32 get_current_frag_page_id();
 private:
   void disk_page_load_callback(Signal*, Uint32 op, Uint32 page);
   void disk_page_load_scan_callback(Signal*, Uint32 op, Uint32 page);
@@ -2711,7 +2713,6 @@ private:
   void set_trans_state(Operationrec * const, TransState);
   TupleState get_tuple_state(Operationrec * const);
   void set_tuple_state(Operationrec * const, TupleState);
-  Uint32 get_frag_page_id(Uint32 real_page_id);
   Uint32 get_fix_page_offset(Uint32 page_index, Uint32 tuple_size);
 
   Uint32 decr_tup_version(Uint32 tuple_version);
@@ -3883,17 +3884,12 @@ private:
   }
 };
 
-#if 0
 inline
 Uint32
-Dbtup::get_frag_page_id(Uint32 real_page_id)
+Dbtup::get_current_frag_page_id()
 {
-  PagePtr real_page_ptr;
-  real_page_ptr.i= real_page_id;
-  ptrCheckGuard(real_page_ptr, cnoOfPage, cpage);
-  return real_page_ptr.p->frag_page_id;
+  return prepare_pageptr.p->frag_page_id;
 }
-#endif
 
 inline
 void

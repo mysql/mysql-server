@@ -676,15 +676,15 @@ Dbtux::continue_scan(Signal *signal,
     }
     conf->accOperationPtr = accLockOp;
     conf->fragId = frag.m_fragId;
-    Uint32 lkey1, lkey2;
-    getTupAddr(frag, ent, lkey1, lkey2);
+    const TupLoc tupLoc = ent.m_tupLoc;
+    Uint32 lkey1 = tupLoc.getPageId();
+    Uint32 lkey2 = tupLoc.getPageOffset();
     conf->localKey[0] = lkey1;
     conf->localKey[1] = lkey2;
     // add key info
     // next time look for next entry
     scan.m_state = ScanOp::Next;
-    /* We need primary table fragment id here, not index fragment id */
-    c_tup->prepare_scanTUPKEYREQ(lkey1, lkey2);
+    c_tup->prepare_scan_tux_TUPKEYREQ(lkey1, lkey2);
     signal->setLength(NextScanConf::SignalLengthNoGCI);
     c_lqh->exec_next_scan_conf(signal);
     return;
