@@ -71,6 +71,7 @@ SET GLOBAL max_binlog_cache_size= DEFAULT;
 --echo #
 
 # default value
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
@@ -99,6 +100,7 @@ SET PERSIST init_connect='SET autocommit=0';
 SET PERSIST max_join_size= 18446744073709551615;
 
 # persisted value
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
@@ -108,11 +110,11 @@ SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.max_join_size;
 
 SELECT * FROM performance_schema.persisted_variables ORDER BY 1;
-SELECT @@global.optimizer_trace_offset;
 --echo # Restart server
 --source include/restart_mysqld.inc
 
 # persisted value after restart
+--replace_column 6 ###
 SELECT @@global.optimizer_trace_offset, @@global.activate_all_roles_on_login,
        @@global.auto_increment_increment, @@global.auto_increment_offset,
        @@global.binlog_error_action, @@global.binlog_format,
