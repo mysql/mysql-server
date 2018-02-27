@@ -2265,6 +2265,7 @@ void Item_func_make_set::print(String *str, enum_query_type query_type) {
 
 String *Item_func_char::val_str(String *str) {
   DBUG_ASSERT(fixed == 1);
+  null_value = false;
   str->length(0);
   str->set_charset(collation.collation);
   for (uint i = 0; i < arg_count; i++) {
@@ -2287,9 +2288,12 @@ String *Item_func_char::val_str(String *str) {
     }
   }
   str->mem_realloc(str->length());  // Add end 0 (for Purify)
-  return check_well_formed_result(str,
-                                  false,  // send warning
-                                  true);  // truncate
+  String *res = check_well_formed_result(str,
+                                         false,  // send warning
+                                         true);  // truncate
+  if (!res) null_value = true;
+
+  return res;
 }
 
 inline String *alloc_buffer(String *res, String *str, String *tmp_value,
