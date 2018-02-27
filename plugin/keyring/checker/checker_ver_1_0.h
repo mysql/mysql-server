@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,10 @@ class CheckerVer_1_0 : public Checker {
   CheckerVer_1_0() : Checker(keyring_file_version_1_0) {}
 
  protected:
-  bool is_file_size_correct(size_t file_size);
-  bool file_seek_to_tag(File file);
-  bool is_dgst_correct(File file, Digest *digest);
+  bool is_file_size_correct(size_t file_size) override;
+  bool file_seek_to_tag(File file) override;
+  bool is_dgst_correct(File file, Digest *digest) override;
+  size_t eof_size() override;
 };
 
 }  // namespace keyring
