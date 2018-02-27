@@ -27,8 +27,11 @@
 
 #define JAM_FILE_ID 330
 
-
+#ifdef TEST_ROPE
+#define DEBUG_ROPE 1
+#else
 #define DEBUG_ROPE 0
+#endif
 
 void
 ConstRope::copy(char* buf) const {
@@ -237,3 +240,83 @@ ConstRope::equal(const ConstRope& r2) const
   }
   return true;
 }
+
+/* Unit test
+*/
+
+#ifdef TEST_ROPE
+
+int main(int argc, char ** argv) {
+  ndb_init();
+  RopePool c_rope_pool;
+  c_rope_pool.setSize(10000);
+
+//  char buffer_sml[32];
+  const char * a_string = "One Two Three Four Five Six Seven Eight Nine Ten";
+  RopeHandle h1, h2, h3, h4;
+  bool ok;
+
+  /* Create a scope for the LocalRope */
+  {
+    LocalRope lr1(c_rope_pool, h1);
+    assert(lr1.size() == 0);
+    assert(lr1.empty());
+    ok = lr1.assign(a_string);
+    assert(ok);
+    assert(lr1.size() == strlen(a_string) + 1);
+    assert(! lr1.empty());
+    assert(! lr1.compare(a_string));
+    printf("LocalRope lr1 size: %d\n", lr1.size());
+  }
+  /* When the LocalRope goes out of scope, its head is copied back into the
+     RopeHandle, which can then be used to construct a ConstRope.
+  */
+  ConstRope cr1(c_rope_pool, h1);
+  printf("ConstRope cr1 size: %d\n", cr1.size());
+//  printf("SegmentSizeInBytes %d\n", h1.m_head.getSegmentSizeInBytes());
+
+//  /* Test buffered-style reading from ConstRope
+//  */
+//  Uint32 offset = 0;
+//  int nread = 0;
+//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+//  nread = cr1.readBuffered(buffer_sml, 32, offset);
+//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+//  nread = cr1.readBuffered(buffer_sml, 32, offset);
+//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+//  /* All done: */
+//  assert(offset = cr1.size());
+//  /* Read once more; should return 0: */
+//  nread = cr1.readBuffered(buffer_sml, 32, offset);
+//  assert(nread == 0);
+//
+//  /* Test buffered-style writing to LocalRope
+//  */
+//  LocalRope lr2(c_rope_pool, h2);
+//  lr2.appendBuffer(a_string, 40);
+//  printf("lr2 size: %d \n", lr2.size());
+//  assert(lr2.size() == 40);
+//  lr2.appendBuffer(a_string, 40);
+//  printf("lr2 size: %d \n", lr2.size());
+//  assert(lr2.size() == 80);
+//
+//  /* Identical strings should have the same hash code whether they were stored
+//     in one part or in two.  Here is a scope for two local ropes that should
+//     end up with the same hash.
+//  */
+//  {
+//    LocalRope lr3(c_rope_pool, h3);
+//    lr3.assign(a_string, 16);
+//    lr3.appendBuffer(a_string + 16, 16);
+//
+//    LocalRope lr4(c_rope_pool, h4);
+//    lr4.assign(a_string, 32);
+//  }
+//  printf("Hashes:  h3=%u, h4=%u \n", h3.m_hash, h4.m_hash);
+//  assert(h3.m_hash == h4.m_hash);
+
+  ndb_end(0);
+  return 0;
+}
+
+#endif
