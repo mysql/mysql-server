@@ -414,3 +414,38 @@ DROP FUNCTION f4//
 #
 DROP DATABASE db4_latin1;
 DROP DATABASE db5_utf8mb4_general_ci;
+#
+# Bug#27607720: WRONG UPDATION OF COLLATION AFTER ALTER TABLE COMMAND
+#
+SET SESSION default_collation_for_utf8mb4 = utf8mb4_general_ci;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+SHOW GLOBAL VARIABLES LIKE '%default_collation_for_utf8mb4%';
+Variable_name	Value
+default_collation_for_utf8mb4	utf8mb4_0900_ai_ci
+SHOW SESSION VARIABLES LIKE '%default_collation_for_utf8mb4%';
+Variable_name	Value
+default_collation_for_utf8mb4	utf8mb4_general_ci
+CREATE DATABASE db1;
+USE db1;
+CREATE TABLE st1 (c1 INT ,c3 varchar(10) UNIQUE KEY);
+SHOW CREATE TABLE st1;
+Table	Create Table
+st1	CREATE TABLE `st1` (
+  `c1` int(11) DEFAULT NULL,
+  `c3` varchar(10) DEFAULT NULL,
+  UNIQUE KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+ALTER TABLE st1 DROP COLUMN c1;
+SHOW CREATE TABLE st1;
+Table	Create Table
+st1	CREATE TABLE `st1` (
+  `c3` varchar(10) DEFAULT NULL,
+  UNIQUE KEY `c3` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE db1;
+USE test;
+SET @@default_collation_for_utf8mb4 = DEFAULT;
+Warnings:
+Warning	1681	Updating 'default_collation_for_utf8mb4' is deprecated. It will be made read-only in a future release.
+#

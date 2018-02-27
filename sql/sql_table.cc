@@ -5696,7 +5696,8 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
                 create_info->default_table_charset ==
                     create_info->table_charset);
 
-    if (!(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
+    if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+        !(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
         create_info->default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       create_info->default_table_charset =
           thd->variables.default_collation_for_utf8mb4;
