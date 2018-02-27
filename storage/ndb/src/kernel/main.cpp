@@ -51,7 +51,7 @@ static unsigned opt_allocated_nodeid;
 static int opt_angel_pid;
 static int opt_retries;
 static int opt_delay;
-static int opt_logbuffer_size;
+static unsigned long opt_logbuffer_size;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
