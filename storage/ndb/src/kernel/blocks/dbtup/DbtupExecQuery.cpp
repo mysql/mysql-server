@@ -1433,9 +1433,9 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if (((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+  if (unlikely(((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
        (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
-      ERROR_INSERTED(4036)) {
+      ERROR_INSERTED(4036))) {
     jam();
     return corruptedTupleDetected(req_struct, regTabPtr);
   }
@@ -1452,7 +1452,8 @@ int Dbtup::handleReadReq(Signal* signal,
   }
   dst= &signal->theData[start_index];
   dstLen= (MAX_READ / 4) - start_index;
-  if (!req_struct->interpreted_exec) {
+  if (!req_struct->interpreted_exec)
+  {
     jamDebug();
     int ret = readAttributes(req_struct,
 			     &cinBuffer[0],
@@ -1473,7 +1474,9 @@ int Dbtup::handleReadReq(Signal* signal,
     {
       terrorCode = Uint32(-ret);
     }
-  } else {
+  }
+  else
+  {
     return interpreterStartLab(signal, req_struct);
   }
 
@@ -1609,7 +1612,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
 
   req_struct->optimize_options = 0;
   
-  if (!req_struct->interpreted_exec) {
+  if (!req_struct->interpreted_exec)
+  {
     jamDebug();
 
     if (regTabPtr->m_bits & Tablerec::TR_ExtraRowAuthorBits)
@@ -1628,7 +1632,9 @@ int Dbtup::handleUpdateReq(Signal* signal,
       terrorCode = Uint32(-retValue);
       goto error;
     }
-  } else {
+  }
+  else
+  {
     if (unlikely(interpreterStartLab(signal, req_struct) == -1))
       return -1;
   }
@@ -2936,7 +2942,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
   if(node != 0 && node != getOwnNodeId()) {
     start_index= 25;
   } else {
-    jam();
+    jamDebug();
     /**
      * execute direct
      */
@@ -2969,7 +2975,7 @@ int Dbtup::interpreterStartLab(Signal* signal,
     /* ---------------------------------------------------------------- */
 
     if (RinitReadLen > 0) {
-      jam();
+      jamDebug();
       /* ---------------------------------------------------------------- */
       // The first step that can be taken in the interpreter is to read
       // data of the tuple before any updates have been applied.
@@ -3011,8 +3017,10 @@ int Dbtup::interpreterStartLab(Signal* signal,
       if (TnoDataRW != -1) {
 	RinstructionCounter += RexecRegionLen;
 	RlogSize= TnoDataRW;
-      } else {
-	jam();
+      }
+      else
+      {
+	jamDebug();
 	/**
 	 * TUPKEY REF is sent from within interpreter
 	 */
@@ -3157,14 +3165,17 @@ Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
   Uint32 TbranchDirection= TheInstruction >> 31;
   Uint32 TbranchLength= (TheInstruction >> 16) & 0x7fff;
   TprogramCounter--;
-  if (TbranchDirection == 1) {
-    jam();
+  if (TbranchDirection == 1)
+  {
+    jamDebug();
     /* ---------------------------------------------------------------- */
     /*       WE JUMP BACKWARDS.                                         */
     /* ---------------------------------------------------------------- */
     return (TprogramCounter - TbranchLength);
-  } else {
-    jam();
+  }
+  else
+  {
+    jamDebug();
     /* ---------------------------------------------------------------- */
     /*       WE JUMP FORWARD.                                           */
     /* ---------------------------------------------------------------- */
@@ -3258,7 +3269,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
     ndbout_c("Interpreter : RnoOfInstructions : %u.  TprogramCounter : %u.  Opcode : %u",
              RnoOfInstructions, TprogramCounter, Interpreter::getOpCode(theInstruction));
 #endif
-    if (TprogramCounter < TcurrentSize) {
+    if (TprogramCounter < TcurrentSize)
+    {
       TprogramCounter++;
       switch (Interpreter::getOpCode(theInstruction)) {
       case Interpreter::READ_ATTR_INTO_REG:
@@ -3276,7 +3288,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 				     &TregMemBuffer[theRegister],
 				     (Uint32)3,
                                      false);
-	  if (TnoDataRW == 2) {
+	  if (TnoDataRW == 2)
+          {
 	    /* ------------------------------------------------------------- */
 	    // Two words read means that we get the instruction plus one 32 
 	    // word read. Thus we set the register to be a 32 bit register.
@@ -3284,7 +3297,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0x50;
             // arithmetic conversion if big-endian
             * (Int64*)(TregMemBuffer+theRegister+2)= TregMemBuffer[theRegister+1];
-	  } else if (TnoDataRW == 3) {
+	  }
+          else if (TnoDataRW == 3)
+          {
 	    /* ------------------------------------------------------------- */
 	    // Three words read means that we get the instruction plus two 
 	    // 32 words read. Thus we set the register to be a 64 bit register.
@@ -3292,7 +3307,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0x60;
             TregMemBuffer[theRegister+3]= TregMemBuffer[theRegister+2];
             TregMemBuffer[theRegister+2]= TregMemBuffer[theRegister+1];
-	  } else if (TnoDataRW == 1) {
+	  }
+          else if (TnoDataRW == 1)
+          {
 	    /* ------------------------------------------------------------- */
 	    // One word read means that we must have read a NULL value. We set
 	    // the register to indicate a NULL value.
@@ -3300,12 +3317,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    TregMemBuffer[theRegister]= 0;
 	    TregMemBuffer[theRegister + 2]= 0;
 	    TregMemBuffer[theRegister + 3]= 0;
-	  } else if (TnoDataRW < 0) {
+	  }
+          else if (TnoDataRW < 0)
+          {
 	    jamDebug();
             terrorCode = Uint32(-TnoDataRW);
 	    tupkeyErrorLab(req_struct);
 	    return -1;
-	  } else {
+	  }
+          else
+          {
 	    /* ------------------------------------------------------------- */
 	    // Any other return value from the read attribute here is not 
 	    // allowed and will lead to a system crash.
@@ -3316,8 +3337,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::WRITE_ATTR_FROM_REG:
-	jamDebug();
 	{
+	  jamDebug();
 	  Uint32 TattrId= theInstruction >> 16;
 	  Uint32 TattrDescrIndex= req_struct->tablePtrP->tabDescriptor +
 	    (TattrId << ZAD_LOG_SIZE);
@@ -3339,15 +3360,19 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  TdataForUpdate[1]= TregMemBuffer[theRegister + 2];
 	  TdataForUpdate[2]= TregMemBuffer[theRegister + 3];
 	  Tlen= TattrNoOfWords + 1;
-	  if (Toptype == ZUPDATE) {
-	    if (TattrNoOfWords <= 2) {
-              if (TattrNoOfWords == 1) {
+	  if (Toptype == ZUPDATE)
+          {
+	    if (TattrNoOfWords <= 2)
+            {
+              if (TattrNoOfWords == 1)
+              {
                 // arithmetic conversion if big-endian
                 Int64 * tmp = new (&TregMemBuffer[theRegister + 2]) Int64;
                 TdataForUpdate[1] = Uint32(* tmp);
                 TdataForUpdate[2] = 0;
               }
-	      if (TregType == 0) {
+	      if (TregType == 0)
+              {
 		/* --------------------------------------------------------- */
 		// Write a NULL value into the attribute
 		/* --------------------------------------------------------- */
@@ -3358,7 +3383,8 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	      int TnoDataRW= updateAttributes(req_struct,
 					   &TdataForUpdate[0],
 					   Tlen);
-	      if (TnoDataRW >= 0) {
+	      if (TnoDataRW >= 0)
+              {
 		/* --------------------------------------------------------- */
 		// Write the written data also into the log buffer so that it 
 		// will be logged.
@@ -3367,15 +3393,21 @@ int Dbtup::interpreterNextLab(Signal* signal,
 		logMemory[TdataWritten + 1]= TdataForUpdate[1];
 		logMemory[TdataWritten + 2]= TdataForUpdate[2];
 		TdataWritten += Tlen;
-	      } else {
+	      }
+              else
+              {
                 terrorCode = Uint32(-TnoDataRW);
 		tupkeyErrorLab(req_struct);
 		return -1;
 	      }
-	    } else {
+	    }
+            else
+            {
 	      return TUPKEY_abort(req_struct, 15);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 16);
 	  }
 	  break;
@@ -3410,7 +3442,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::ADD_REG_REG:
-	jam();
+	jamDebug();
 	{
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 	  Uint32 TdestRegister= Interpreter::getReg3(theInstruction) << 2;
@@ -3422,18 +3454,21 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TleftType= TregMemBuffer[theRegister];
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
-	  if ((TleftType | TrightType) != 0) {
+	  if ((TleftType | TrightType) != 0)
+          {
 	    Uint64 Tdest0= Tleft0 + Tright0;
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
 	}
 
       case Interpreter::SUB_REG_REG:
-	jam();
+	jamDebug();
 	{
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 	  Uint32 TdestRegister= Interpreter::getReg3(theInstruction) << 2;
@@ -3444,11 +3479,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TleftType= TregMemBuffer[theRegister];
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
-	  if ((TleftType | TrightType) != 0) {
+	  if ((TleftType | TrightType) != 0)
+          {
 	    Int64 Tdest0= Tleft0 - Tright0;
 	    * (Int64*)(TregMemBuffer+TdestRegister+2)= Tdest0;
 	    TregMemBuffer[TdestRegister]= 0x60;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 20);
 	  }
 	  break;
@@ -3459,20 +3497,26 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	break;
 
       case Interpreter::BRANCH_REG_EQ_NULL:
-	if (TregMemBuffer[theRegister] != 0) {
+	if (TregMemBuffer[theRegister] != 0)
+        {
 	  jamDebug();
 	  continue;
-	} else {
+	}
+        else
+        {
 	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
 
       case Interpreter::BRANCH_REG_NE_NULL:
-	if (TregMemBuffer[theRegister] == 0) {
+	if (TregMemBuffer[theRegister] == 0)
+        {
 	  jamDebug();
 	  continue;
-	} else {
+	}
+        else
+        {
 	  jamDebug();
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
@@ -3481,6 +3525,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::BRANCH_EQ_REG_REG:
 	{
+	  jamDebug();
 	  Uint32 TrightRegister= Interpreter::getReg2(theInstruction) << 2;
 
 	  Uint32 TleftType= TregMemBuffer[theRegister];
@@ -3490,12 +3535,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightType= TregMemBuffer[TrightRegister];
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1)) {
+	    if ((Tleft0 == Tright0) && (Tleft1 == Tright1))
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 23);
 	  }
 	  break;
@@ -3512,12 +3561,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Uint32 TrightType= TregMemBuffer[TrightRegister];
 	  Uint32 Tright0= TregMemBuffer[TrightRegister + 2];
 	  Uint32 Tright1= TregMemBuffer[TrightRegister + 3];
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1)) {
+	    if ((Tleft0 != Tright0) || (Tleft1 != Tright1))
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
@@ -3534,12 +3587,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
          
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 < Tright0) {
+	    if (Tleft0 < Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 24);
 	  }
 	  break;
@@ -3556,12 +3613,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 <= Tright0) {
+	    if (Tleft0 <= Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 26);
 	  }
 	  break;
@@ -3578,12 +3639,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 > Tright0){
+	    if (Tleft0 > Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 27);
 	  }
 	  break;
@@ -3600,12 +3665,16 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	  Int64 Tleft0= * (Int64*)(TregMemBuffer + theRegister + 2);
 	  
 
-	  if ((TrightType | TleftType) != 0) {
+	  if ((TrightType | TleftType) != 0)
+          {
 	    jamDebug();
-	    if (Tleft0 >= Tright0){
+	    if (Tleft0 >= Tright0)
+            {
 	      TprogramCounter= brancher(theInstruction, TprogramCounter);
 	    }
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 28);
 	  }
 	  break;
@@ -3620,13 +3689,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 argLen = Interpreter::getBranchCol_Len(ins2);
         Uint32 step = argLen;
 
-	if(tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR = readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3643,7 +3714,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 TattrDesc2 = tableDescriptor[TattrDescrIndex+1].tabDescr;
 	Uint32 typeId = AttributeDescriptor::getType(TattrDesc1);
 	void * cs = 0;
-	if(AttributeOffset::getCharsetFlag(TattrDesc2))
+	if (AttributeOffset::getCharsetFlag(TattrDesc2))
 	{
 	  Uint32 pos = AttributeOffset::getCharsetPos(TattrDesc2);
 	  cs = req_struct->tablePtrP->charsetArray[pos];
@@ -3694,10 +3765,13 @@ int Dbtup::interpreterNextLab(Signal* signal,
         if (cond <= Interpreter::GE)
         {
           /* Inequality - EQ, NE, LT, LE, GT, GE */
-          if (r1_null || r2_null) {
+          if (r1_null || r2_null)
+          {
             // NULL==NULL and NULL<not-NULL
             res1 = r1_null && r2_null ? 0 : r1_null ? -1 : 1;
-          } else {
+          }
+          else
+          {
 	    jamDebug();
 	    if (unlikely(sqlType.m_cmp == 0))
 	    {
@@ -3705,14 +3779,19 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	    }
             res1 = (*sqlType.m_cmp)(cs, s1, attrLen, s2, argLen);
           }
-	} else {
+	}
+        else
+        {
           if ((cond == Interpreter::LIKE) ||
               (cond == Interpreter::NOT_LIKE))
           {
-            if (r1_null || r2_null) {
+            if (r1_null || r2_null)
+            {
               // NULL like NULL is true (has no practical use)
               res1 =  r1_null && r2_null ? 0 : -1;
-            } else {
+            }
+            else
+            {
               jam();
               if (unlikely(sqlType.m_like == 0))
               {
@@ -3732,9 +3811,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
             /* If either arg is NULL, we say COL AND MASK
              * NE_ZERO and NE_MASK.
              */
-            if (r1_null || r2_null) {
+            if (r1_null || r2_null)
+            {
               res1= 1;
-            } else {
+            }
+            else
+            {
               
               bool cmpZero= 
                 (cond == Interpreter::AND_EQ_ZERO) ||
@@ -3806,13 +3888,15 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
-	if (tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3822,26 +3906,32 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 	
 	AttributeHeader ah(tmpArea[0]);
-	if (ah.isNULL()){
+	if (ah.isNULL())
+        {
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
-	} else {
+	}
+        else
+        {
 	  TprogramCounter ++;
 	}
 	break;
       }
 
-      case Interpreter::BRANCH_ATTR_NE_NULL:{
+      case Interpreter::BRANCH_ATTR_NE_NULL:
+      {
 	jamDebug();
 	Uint32 ins2= TcurrentProgram[TprogramCounter];
 	Uint32 attrId= Interpreter::getBranchCol_AttrId(ins2) << 16;
 	
-	if (tmpHabitant != attrId){
+	if (tmpHabitant != attrId)
+        {
 	  Int32 TnoDataR= readAttributes(req_struct,
 					  &attrId, 1,
 					  tmpArea, tmpAreaSz,
                                           false);
 	  
-	  if (TnoDataR < 0) {
+	  if (unlikely(TnoDataR < 0))
+          {
 	    jam();
             terrorCode = Uint32(-TnoDataR);
 	    tupkeyErrorLab(req_struct);
@@ -3851,9 +3941,12 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 	
 	AttributeHeader ah(tmpArea[0]);
-	if (ah.isNULL()){
+	if (ah.isNULL())
+        {
 	  TprogramCounter ++;
-	} else {
+	}
+        else
+        {
 	  TprogramCounter= brancher(theInstruction, TprogramCounter);
 	}
 	break;
@@ -3896,16 +3989,22 @@ int Dbtup::interpreterNextLab(Signal* signal,
                  theInstruction >> 16, TsubroutineLen, TprogramCounter);
 #endif
 	RstackPtr++;
-	if (RstackPtr < 32) {
+	if (RstackPtr < 32)
+        {
           TstackMemBuffer[RstackPtr]= TprogramCounter;
           TprogramCounter= theInstruction >> 16;
-	  if (TprogramCounter < TsubroutineLen) {
+	  if (TprogramCounter < TsubroutineLen)
+          {
 	    TcurrentProgram= subroutineProg;
 	    TcurrentSize= TsubroutineLen;
-	  } else {
+	  }
+          else
+          {
 	    return TUPKEY_abort(req_struct, 30);
 	  }
-	} else {
+	}
+        else
+        {
 	  return TUPKEY_abort(req_struct, 31);
 	}
 	break;
@@ -3917,18 +4016,22 @@ int Dbtup::interpreterNextLab(Signal* signal,
                  TstackMemBuffer[RstackPtr],
                  RstackPtr);
 #endif
-	if (RstackPtr > 0) {
+	if (RstackPtr > 0)
+        {
 	  TprogramCounter= TstackMemBuffer[RstackPtr];
 	  RstackPtr--;
-	  if (RstackPtr == 0) {
-	    jam();
+	  if (RstackPtr == 0)
+          {
+	    jamDebug();
 	    /* ------------------------------------------------------------- */
 	    // We are back to the main program.
 	    /* ------------------------------------------------------------- */
 	    TcurrentProgram= mainProgram;
 	    TcurrentSize= TmainProgLen;
 	  }
-	} else {
+	}
+        else
+        {
 	  return TUPKEY_abort(req_struct, 32);
 	}
 	break;
@@ -3936,7 +4039,9 @@ int Dbtup::interpreterNextLab(Signal* signal,
       default:
 	return TUPKEY_abort(req_struct, 33);
       }
-    } else {
+    }
+    else
+    {
       return TUPKEY_abort(req_struct, 34);
     }
   }
@@ -4266,7 +4371,6 @@ void
 Dbtup::prepare_read(KeyReqStruct* req_struct, 
 		    Tablerec* tabPtrP, bool disk)
 {
-  jamDebug();
   Tuple_header* ptr= req_struct->m_tuple_ptr;
   
   Uint32 bits= ptr->m_header_bits;
@@ -4279,7 +4383,6 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
   const Var_part_ref* var_ref = ptr->get_var_part_ref_ptr(tabPtrP);
   if(mm_vars || mm_dyns)
   {
-    jamDebug();
     const Uint32 *src_data= src_ptr;
     Uint32 src_len;
     KeyReqStruct::Var_data* dst= &req_struct->m_var_data[MM];
