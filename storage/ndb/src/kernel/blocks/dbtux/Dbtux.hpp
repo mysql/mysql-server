@@ -72,6 +72,8 @@ public:
   Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   virtual ~Dbtux();
 
+  void prepare_scan_ctx(Uint32 scanPtrI);
+  void prepare_scan_bounds();
   // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
   Dblqh* c_lqh;
@@ -791,6 +793,23 @@ private:
   struct TuxCtx
   {
     EmulatedJamBuffer * jamBuffer;
+
+
+    ScanOpPtr scanPtr;
+    FragPtr fragPtr;
+    IndexPtr indexPtr;
+
+    char searchBoundData_c[sizeof(KeyDataC)];
+    char searchBound_c[sizeof(KeyBoundC)];
+    char entryKey_c[sizeof(KeyData)];
+
+    KeyDataC *searchBoundData;
+    KeyBoundC *searchBound;
+    KeyData *entryKey;
+    Uint32 *keyAttrs;
+
+    Uint32 numAttrs;
+    Uint32 boundCnt;
 
     // buffer for scan bound and search key data
     Uint32* c_searchKey;

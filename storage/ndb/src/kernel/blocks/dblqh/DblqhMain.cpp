@@ -11324,7 +11324,8 @@ void Dblqh::setup_key_pointers(Uint32 tcIndex)
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
 }
 
-void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
+void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr,
+                                            bool early)
 {
   /**
    * We come here after a real-time break, we need to setup
@@ -11342,6 +11343,7 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
   c_fragment_pool.getPtr(loc_fragptr);
   m_scan_direct_count = 1;
   m_tot_scan_direct_count = 0;
+  SimulatedBlock *block = loc_scanptr.p->scanBlock;
   scanptr = loc_scanptr;
   fragptr = loc_fragptr;
   c_fragment_pool.getPtr(loc_prim_tab_fragptr);
@@ -11349,9 +11351,11 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr)
   prim_tab_fragptr = loc_prim_tab_fragptr;
   c_tup->prepare_op_pointer(tcConnectptr.p->tupConnectrec);
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
+  if (!early)
+    block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
 }
 
-void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
+void Dblqh::setup_scan_pointers(Uint32 scanPtrI, bool early)
 {
   /**
    * We come here after a real-time break, we need to setup
@@ -11375,10 +11379,13 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI)
   m_tot_scan_direct_count = 0;
   prim_tab_fragptr = loc_prim_tab_fragptr;
   scanptr = loc_scanptr;
+  SimulatedBlock *block = loc_scanptr.p->scanBlock;
   fragptr = loc_fragptr;
   m_tc_connect_ptr = loc_tcConnectptr;
   c_tup->prepare_op_pointer(loc_tcConnectptr.p->tupConnectrec);
   c_tup->prepare_tab_pointers(loc_prim_tab_fragptr.p->tupFragptr);
+  if (!early)
+    block->prepare_scan_ctx(loc_scanptr.p->scanAccPtr);
 }
 
 void Dblqh::checkLcpStopBlockedLab(Signal* signal, Uint32 scanPtrI)
@@ -14009,7 +14016,7 @@ void Dblqh::tupScanCloseConfLab(Signal* signal,
 
 void Dblqh::restart_queued_scan(Signal* signal, Uint32 scanPtrI)
 {
-  setup_scan_pointers(scanPtrI);
+  setup_scan_pointers(scanPtrI, true);
   m_scan_direct_count = ZMAX_SCAN_DIRECT_COUNT - 8;
   // Hiding read only version in outer scope
   ndbrequire(scanptr.p->copyPtr == RNIL);

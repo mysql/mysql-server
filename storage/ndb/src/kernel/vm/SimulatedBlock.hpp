@@ -489,6 +489,7 @@ public:
   }
   void addInstance(SimulatedBlock* b, Uint32 theInstanceNo);
   virtual void loadWorkers() {}
+  virtual void prepare_scan_ctx(Uint32 scanPtrI) {}
 
   struct ThreadContext
   {

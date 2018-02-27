@@ -258,6 +258,7 @@ typedef bool (Dbtup::* ReadFunction)(Uint8*,
 typedef bool (Dbtup::* UpdateFunction)(Uint32*,
                                        KeyReqStruct*,
                                        Uint32);
+  void prepare_scan_ctx(Uint32 scanPtrI);
 private:
   
   typedef Tup_fixsize_page Fix_page;

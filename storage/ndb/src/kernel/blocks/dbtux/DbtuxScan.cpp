@@ -22,6 +22,51 @@
 #define JAM_FILE_ID 371
 
 void
+Dbtux::prepare_scan_ctx(Uint32 scanPtrI)
+{
+  FragPtr fragPtr;
+  ScanOpPtr scanPtr;
+  IndexPtr indexPtr;
+  scanPtr.i = scanPtrI;
+  c_scanOpPool.getPtr(scanPtr);
+  c_ctx.scanPtr = scanPtr;
+  fragPtr.i = scanPtr.p->m_fragPtrI;
+  c_fragPool.getPtr(fragPtr);
+  indexPtr.i = fragPtr.p->m_indexId;
+  c_ctx.fragPtr = fragPtr;
+  c_indexPool.getPtr(indexPtr);
+  c_ctx.indexPtr = indexPtr;
+  prepare_scan_bounds();
+}
+
+void
+Dbtux::prepare_scan_bounds()
+{
+  ScanOp& scan = *c_ctx.scanPtr.p;
+  const Index& index = *c_ctx.indexPtr.p;
+  
+  const unsigned idir = scan.m_descending;
+  const ScanBound& scanBound = scan.m_scanBound[1 - idir];
+  if (scanBound.m_cnt != 0)
+  {
+    jamDebug();
+    c_ctx.searchBoundData = new (c_ctx.searchBoundData)
+                            KeyDataC(index.m_keySpec, true);
+    c_ctx.searchBound = new (c_ctx.searchBound)
+                        KeyBoundC(*c_ctx.searchBoundData);
+    c_ctx.entryKey = new (c_ctx.entryKey)
+                        KeyData(index.m_keySpec, true, 0);
+    unpackBound(c_ctx, scanBound, *c_ctx.searchBound);
+    c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+    c_ctx.numAttrs = index.m_numAttrs;
+    c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
+    const DescHead& descHead = getDescHead(index);
+    const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
+    c_ctx.keyAttrs = (Uint32*)keyAttrs;
+  }
+}
+
+void
 Dbtux::execACC_CHECK_SCAN(Signal* signal)
 {
   jamEntryDebug();
@@ -79,6 +124,8 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     ndbrequire(fragPtr.i != RNIL);
     Frag& frag = *fragPtr.p;
     // check for index not Online (i.e. Dropping)
+    c_ctx.indexPtr = indexPtr;
+    c_ctx.fragPtr = fragPtr;
     if (unlikely(indexPtr.p->m_state != Index::Online)) {
       jam();
 #ifdef VM_TRACE
@@ -125,6 +172,7 @@ Dbtux::execACC_SCANREQ(Signal* signal)
     scanPtr.p->m_readCommitted = AccScanReq::getReadCommittedFlag(req->requestInfo);
     scanPtr.p->m_lockMode = AccScanReq::getLockMode(req->requestInfo);
     scanPtr.p->m_descending = AccScanReq::getDescendingFlag(req->requestInfo);
+    c_ctx.scanPtr = scanPtr;
     /*
      * readCommitted lockMode keyInfo
      * 1 0 0 - read committed (no lock)
@@ -363,6 +411,7 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
     req->errorCode = scan.m_errorCode;
     return;
   }
+  prepare_scan_bounds();
   // no error
   req->errorCode = 0;
 }
@@ -370,20 +419,17 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
 void
 Dbtux::execNEXT_SCANREQ(Signal* signal)
 {
-  const NextScanReq reqCopy = *(const NextScanReq*)signal->getDataPtr();
-  const NextScanReq* const req = &reqCopy;
-  ScanOpPtr scanPtr;
-  scanPtr.i = req->accPtr;
-  c_scanOpPool.getPtr(scanPtr);
-  ScanOp& scan = *scanPtr.p;
-  Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const NextScanReq *req = (const NextScanReq*)signal->getDataPtr();
+  ScanOp& scan = *c_ctx.scanPtr.p;
+  Frag& frag = *c_ctx.fragPtr.p;
+  Uint32 scanFlag = req->scanFlag;
 #ifdef VM_TRACE
   if (debugFlags & DebugScan) {
-    debugOut << "NEXT_SCANREQ scan " << scanPtr.i << " " << scan << endl;
+    debugOut << "NEXT_SCANREQ scan " << c_ctx.scanPtr.i << " " << scan << endl;
   }
 #endif
   // handle unlock previous and close scan
-  switch (req->scanFlag) {
+  switch (scanFlag) {
   case NextScanReq::ZSCAN_NEXT:
     jamDebug();
     break;
@@ -394,16 +440,17 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     if (! scan.m_readCommitted)
     {
       jam();
+      Uint32 accOperationPtr = req->accOperationPtr;
       AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
       lockReq->returnCode = RNIL;
       lockReq->requestInfo = AccLockReq::Unlock;
-      lockReq->accOpPtr = req->accOperationPtr;
+      lockReq->accOpPtr = accOperationPtr;
       EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
       jamEntryDebug();
       ndbrequire(lockReq->returnCode == AccLockReq::Success);
-      removeAccLockOp(scanPtr, req->accOperationPtr);
+      removeAccLockOp(c_ctx.scanPtr, accOperationPtr);
     }
-    if (req->scanFlag == NextScanReq::ZSCAN_COMMIT)
+    if (scanFlag == NextScanReq::ZSCAN_COMMIT)
     {
       jamDebug();
       signal->theData[0] = 0; /* Success */
@@ -423,7 +470,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       const TupLoc loc = scan.m_scanPos.m_loc;
       NodeHandle node(frag);
       selectNode(node, loc);
-      unlinkScan(node, scanPtr);
+      unlinkScan(node, c_ctx.scanPtr);
       scan.m_scanPos.m_loc = NullTupLoc;
     }
     if (unlikely(scan.m_lockwait))
@@ -457,7 +504,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
       scan.m_accLockOp = RNIL;
     }
     scan.m_state = ScanOp::Aborting;
-    scanClose(signal, scanPtr);
+    scanClose(signal, c_ctx.scanPtr);
     return;
   case NextScanReq::ZSCAN_NEXT_ABORT:
     jam();
@@ -466,7 +513,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     ndbrequire(false);
     break;
   }
-  continue_scan(signal, scanPtr, frag);
+  continue_scan(signal, c_ctx.scanPtr, frag);
 }
 
 void
@@ -480,6 +527,7 @@ Dbtux::continue_scan(Signal *signal,
     debugOut << "ACC_CHECK_SCAN scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
+  const Index& index = *c_ctx.indexPtr.p;
   if (unlikely(scan.m_lockwait))
   {
     jam();
@@ -497,7 +545,6 @@ Dbtux::continue_scan(Signal *signal,
     return;     // stop
   }
   // check index online
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   if (unlikely(index.m_state != Index::Online) &&
       scan.m_errorCode == 0)
   {
@@ -1221,25 +1268,28 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
     jam();
     return false;
   }
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
   const unsigned idir = scan.m_descending;
-  const int jdir = 1 - 2 * (int)idir;
   const ScanBound& scanBound = scan.m_scanBound[1 - idir];
+  const int jdir = 1 - 2 * (int)idir;
   int ret = 0;
   if (scanBound.m_cnt != 0)
   {
     jamDebug();
-    // set up bound from segmented memory
-    KeyDataC searchBoundData(index.m_keySpec, true);
+    KeyDataC searchBoundData(c_ctx.indexPtr.p->m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
     unpackBound(c_ctx, scanBound, searchBound);
-    // key data for the entry
-    KeyData entryKey(index.m_keySpec, true, 0);
-    entryKey.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
-    readKeyAttrsCurr(c_ctx, frag, ent, entryKey, index.m_numAttrs);
+    KeyData keyData(c_ctx.indexPtr.p->m_keySpec, true, 0);
+    keyData.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+    readKeyAttrsCurr(c_ctx,
+                     frag,
+                     ent,
+                     keyData,
+                     c_ctx.numAttrs);
     // compare bound to key
-    const Uint32 boundCount = searchBound.get_data().get_cnt();
-    ret = cmpSearchBound(c_ctx, searchBound, entryKey, boundCount);
+    ret = cmpSearchBound(c_ctx,
+                         searchBound,
+                         keyData,
+                         c_ctx.boundCnt);
     ndbrequire(ret != 0);
     ret = (-1) * ret; // reverse for key vs bound
     ret = jdir * ret; // reverse for descending scan
@@ -1273,7 +1323,7 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
     jam();
     return false;
   }
-  const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
+  const Frag& frag = *c_ctx.fragPtr.p;
   Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
   Uint32 pageId = ent.m_tupLoc.getPageId();
   Uint32 pageOffset = ent.m_tupLoc.getPageOffset();
@@ -1288,7 +1338,14 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
   Uint32 transId2 = scan.m_transId2;
   bool dirty = scan.m_readCommitted;
   Uint32 savePointId = scan.m_savePointId;
-  bool ret = c_tup->tuxQueryTh(tableFragPtrI, pageId, pageOffset, tupVersion, transId1, transId2, dirty, savePointId);
+  bool ret = c_tup->tuxQueryTh(tableFragPtrI,
+                               pageId,
+                               pageOffset,
+                               tupVersion,
+                               transId1,
+                               transId2,
+                               dirty,
+                               savePointId);
   jamEntryDebug();
   return ret;
 }

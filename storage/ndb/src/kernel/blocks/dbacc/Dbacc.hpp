@@ -230,6 +230,8 @@ class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
 
 public:
+  void prepare_scan_ctx(Uint32 scanPtrI);
+
 // State values
 enum State {
   FREEFRAG = 0,
