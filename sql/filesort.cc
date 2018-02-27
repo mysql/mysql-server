@@ -352,8 +352,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   Bounded_queue<uchar *, uchar *, Sort_param, Mem_compare_queue_key> pq(
       (Malloc_allocator<uchar *>(key_memory_Filesort_info_record_pointers)));
   Opt_trace_context *const trace = &thd->opt_trace;
-  QEP_TAB *const tab = filesort->tab;
-  TABLE *const table = tab->table();
+  QEP_TAB *const qep_tab = filesort->qep_tab;
+  TABLE *const table = qep_tab->table();
   ha_rows max_rows = filesort->limit;
   uint s_length = 0;
 
@@ -367,14 +367,14 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
     "join_execution".
   */
   Opt_trace_object trace_wrapper(trace);
-  if (tab->join())
-    trace_wrapper.add("sorting_table_in_plan_at_position", tab->idx());
+  if (qep_tab->join())
+    trace_wrapper.add("sorting_table_in_plan_at_position", qep_tab->idx());
   trace_filesort_information(trace, filesort->sortorder, s_length);
 
   DBUG_ASSERT(!table->reginfo.join_tab);
-  DBUG_ASSERT(tab == table->reginfo.qep_tab);
+  DBUG_ASSERT(qep_tab == table->reginfo.qep_tab);
   Item_subselect *const subselect =
-      tab->join() ? tab->join()->select_lex->master_unit()->item : NULL;
+      qep_tab->join() ? qep_tab->join()->select_lex->master_unit()->item : NULL;
 
   DEBUG_SYNC(thd, "filesort_start");
 
@@ -393,7 +393,7 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
 
   table->sort.addon_fields = param.addon_fields;
 
-  if (tab->quick())
+  if (qep_tab->quick())
     thd->inc_status_sort_range();
   else
     thd->inc_status_sort_scan();
@@ -487,8 +487,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
   {
     Opt_trace_array ota(trace, "filesort_execution");
     num_rows_found =
-        read_all_rows(thd, &param, tab, &table->sort, &chunk_file, &tempfile,
-                      param.using_pq ? &pq : NULL, found_rows);
+        read_all_rows(thd, &param, qep_tab, &table->sort, &chunk_file,
+                      &tempfile, param.using_pq ? &pq : NULL, found_rows);
     if (num_rows_found == HA_POS_ERROR) goto err;
   }
 
@@ -2158,11 +2158,11 @@ Addon_fields *Filesort::get_addon_fields(
   uint packable_length = 0;
   uint num_fields = 0;
   uint null_fields = 0;
-  TABLE *const table = tab->table();
+  TABLE *const table = qep_tab->table();
   MY_BITMAP *read_set = table->read_set;
 
   // Locate the effective index for the table to be sorted (if any)
-  const uint index = tab->effective_index();
+  const uint index = qep_tab->effective_index();
   /*
     filter_covering is true if access is via an index that is covering,
     regardless of whether the access is by the covering index or by

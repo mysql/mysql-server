@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ enum class Addon_fields_status;
 class Filesort {
  public:
   /// The QEP entry for the table to be sorted
-  QEP_TAB *const tab;
+  QEP_TAB *const qep_tab;
   /// List of expressions to order the table by
   ORDER *order;
   /// Maximum number of rows to return
@@ -65,7 +65,7 @@ class Filesort {
 
   Filesort(QEP_TAB *tab_arg, ORDER *order_arg, ha_rows limit_arg,
            bool force_stable_sort)
-      : tab(tab_arg),
+      : qep_tab(tab_arg),
         order(order_arg),
         limit(limit_arg),
         sortorder(NULL),

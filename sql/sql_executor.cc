@@ -5327,51 +5327,48 @@ enum_nested_loop_state end_write_group(JOIN *join, QEP_TAB *const qep_tab,
     1		No records
 */
 
-static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *tab) {
-  ha_rows examined_rows, found_rows, returned_rows;
-  TABLE *table;
-  bool status;
-  Filesort *fsort = tab->filesort;
+static int create_sort_index(THD *thd, JOIN *join, QEP_TAB *qep_tab) {
   DBUG_ENTER("create_sort_index");
 
   // One row, no need to sort. make_tmp_tables_info should already handle this.
+  Filesort *fsort = qep_tab->filesort;
   DBUG_ASSERT(!join->plan_is_const() && fsort);
-  table = tab->table();
 
+  TABLE *table = qep_tab->table();
   table->sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
   // If table has a range, move it to select
-  if (tab->quick() && tab->ref().key >= 0) {
-    if (tab->type() != JT_REF_OR_NULL && tab->type() != JT_FT) {
-      DBUG_ASSERT(tab->type() == JT_REF || tab->type() == JT_EQ_REF);
+  if (qep_tab->quick() && qep_tab->ref().key >= 0) {
+    if (qep_tab->type() != JT_REF_OR_NULL && qep_tab->type() != JT_FT) {
+      DBUG_ASSERT(qep_tab->type() == JT_REF || qep_tab->type() == JT_EQ_REF);
       // Update ref value
-      if ((cp_buffer_from_ref(thd, table, &tab->ref()) && thd->is_fatal_error))
-        goto err;  // out of memory
+      if ((cp_buffer_from_ref(thd, table, &qep_tab->ref()) &&
+           thd->is_fatal_error))
+        DBUG_RETURN(-1);  // out of memory
     }
   }
 
   /* Fill schema tables with data before filesort if it's necessary */
   if ((join->select_lex->active_options() & OPTION_SCHEMA_TABLE) &&
       get_schema_tables_result(join, PROCESSED_BY_CREATE_SORT_INDEX))
-    goto err;
+    DBUG_RETURN(-1);
 
   if (table->s->tmp_table)
     table->file->info(HA_STATUS_VARIABLE);  // Get record count
-  status = filesort(thd, fsort, tab->keep_current_rowid, &examined_rows,
-                    &found_rows, &returned_rows);
+  ha_rows examined_rows, found_rows, returned_rows;
+  bool error = filesort(thd, fsort, qep_tab->keep_current_rowid, &examined_rows,
+                        &found_rows, &returned_rows);
   table->sort_result.found_records = returned_rows;
-  tab->set_records(found_rows);  // For SQL_CALC_ROWS
-  tab->join()->examined_rows += examined_rows;
+  qep_tab->set_records(found_rows);  // For SQL_CALC_ROWS
+  qep_tab->join()->examined_rows += examined_rows;
   table->set_keyread(false);  // Restore if we used indexes
-  if (tab->type() == JT_FT)
+  if (qep_tab->type() == JT_FT)
     table->file->ft_end();
   else
     table->file->ha_index_or_rnd_end();
-  DBUG_RETURN(status);
-err:
-  DBUG_RETURN(-1);
+  DBUG_RETURN(error);
 }
 
 /*****************************************************************************
