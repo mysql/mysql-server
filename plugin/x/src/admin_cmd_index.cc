@@ -470,14 +470,19 @@ void Admin_command_index::Index_field::add_column(
   qb->put(" GENERATED ALWAYS AS (");
   add_path(qb);
   qb->put(") ");
-  qb->put(m_is_virtual_allowed ? "VIRTUAL" : "STORED");
-  if (m_is_required) qb->put(" NOT NULL");
+  add_options(qb);
 }
 
 void Admin_command_index::Index_field::add_field(
     Query_string_builder *qb) const {
   qb->quote_identifier(m_name);
   add_length(qb);
+}
+
+void Admin_command_index::Index_field::add_options(
+    Query_string_builder *qb) const {
+  qb->put(m_is_virtual_allowed ? "VIRTUAL" : "STORED");
+  if (m_is_required) qb->put(" NOT NULL");
 }
 
 Admin_command_index::Index_field::Field_type_id
@@ -603,6 +608,11 @@ class Index_geojson_field : public Admin_command_index::Index_field {
         .put(",")
         .put(m_srid)
         .put(")");
+  }
+
+  void add_options(Query_string_builder *qb) const override {
+    Index_field::add_options(qb);
+    qb->put(" SRID ").put(m_srid);
   }
 
   const int64_t m_options, m_srid;

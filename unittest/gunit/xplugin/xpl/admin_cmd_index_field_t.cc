@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,10 @@
 namespace xpl {
 namespace test {
 
-using namespace ::testing;
+using ::testing::DoAll;
+using ::testing::Eq;
+using ::testing::Return;
+using ::testing::_;
 
 namespace {
 const char *const PATH = "$.path";
@@ -60,8 +63,8 @@ struct Param_index_field_create {
 };
 
 class Index_field_create_test
-    : public Test,
-      public WithParamInterface<Param_index_field_create> {};
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<Param_index_field_create> {};
 
 TEST_P(Index_field_create_test, fail_on_create) {
   const Param_index_field_create &param = GetParam();
@@ -189,7 +192,7 @@ Param_index_field_create fail_on_create_param[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(fail_on_create_field, Index_field_create_test,
-                        ValuesIn(fail_on_create_param));
+                        ::testing::ValuesIn(fail_on_create_param));
 
 struct Param_index_field_add_field {
   std::string expect;
@@ -197,8 +200,8 @@ struct Param_index_field_add_field {
 };
 
 class Index_field_add_field_test
-    : public Test,
-      public WithParamInterface<Param_index_field_add_field> {};
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<Param_index_field_add_field> {};
 
 TEST_P(Index_field_add_field_test, add_field) {
   const Param_index_field_add_field &param = GetParam();
@@ -253,7 +256,7 @@ Param_index_field_add_field add_field_param[] = {
     {"$ix_t_", {MEMBER, /*default type*/ NOT_REQUIRED}}};
 
 INSTANTIATE_TEST_CASE_P(get_index_field_name, Index_field_add_field_test,
-                        ValuesIn(add_field_param));
+                        ::testing::ValuesIn(add_field_param));
 
 struct Param_index_field_add_column {
   std::string expect;
@@ -262,8 +265,8 @@ struct Param_index_field_add_column {
 };
 
 class Index_field_add_column_test
-    : public Test,
-      public WithParamInterface<Param_index_field_add_column> {};
+    : public ::testing::Test,
+      public ::testing::WithParamInterface<Param_index_field_add_column> {};
 
 TEST_P(Index_field_add_column_test, add_column) {
   const Param_index_field_add_column &param = GetParam();
@@ -301,17 +304,17 @@ Param_index_field_add_column add_column_param[] = {
      {MEMBER, {"type", "TEXT(32)"}, REQUIRED}},
     {" ADD COLUMN `$ix_gj_r_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON"
-     "(JSON_EXTRACT(doc, '$.path'),1,4326)) STORED NOT NULL",
+     "(JSON_EXTRACT(doc, '$.path'),1,4326)) STORED NOT NULL SRID 4326",
      true,
      {MEMBER, {"type", "GEOJSON"}, REQUIRED}},
     {" ADD COLUMN `$ix_gj_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON("
-     "JSON_EXTRACT(doc, '$.path'),42,4326)) STORED",
+     "JSON_EXTRACT(doc, '$.path'),42,4326)) STORED SRID 4326",
      true,
      {MEMBER, {"type", "GEOJSON"}, OPTIONS, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_gj_" PATH_HASH
      "` GEOMETRY GENERATED ALWAYS AS (ST_GEOMFROMGEOJSON("
-     "JSON_EXTRACT(doc, '$.path'),1,666)) STORED",
+     "JSON_EXTRACT(doc, '$.path'),1,666)) STORED SRID 666",
      false,
      {MEMBER, {"type", "GEOJSON"}, SRID, NOT_REQUIRED}},
     {" ADD COLUMN `$ix_ft_" PATH_HASH
@@ -321,9 +324,9 @@ Param_index_field_add_column add_column_param[] = {
      {MEMBER, {"type", "FULLTEXT"}, NOT_REQUIRED}}};
 
 INSTANTIATE_TEST_CASE_P(add_column, Index_field_add_column_test,
-                        ValuesIn(add_column_param));
+                        ::testing::ValuesIn(add_column_param));
 
-class Index_field_is_column_exists_test : public Test {
+class Index_field_is_column_exists_test : public ::testing::Test {
  public:
   void SetUp() {
     ngs::Error_code error;
@@ -336,7 +339,7 @@ class Index_field_is_column_exists_test : public Test {
   using Fld = Any::Object::Fld;
   Any::Object constraint{MEMBER, Fld{"type", "int"}, REQUIRED};
   Admin_command_arguments_object args{constraint};
-  StrictMock<ngs::test::Mock_sql_data_context> data_context;
+  ::testing::StrictMock<ngs::test::Mock_sql_data_context> data_context;
   std::unique_ptr<const Index_field> field;
 };
 

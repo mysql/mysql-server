@@ -6,6 +6,7 @@
 ## Test starts here
 --let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_spatial.tmp
 --write_file $xtest_file
+-->import use_of_index.macro
 -->quiet
 
 ## Test data
@@ -103,6 +104,9 @@ SHOW STATUS LIKE 'Mysqlx_stmt_execute_mysqlx';
 -->callmacro Insert	spatial1	'{"_id": "seven", "first":{"type": "GeometryCollection", "geometries": [{"type": "GeometryCollection", "geometries": [{"type": "Point", "coordinates": [10, 20]}]}]}}'	ER_SUCCESS
 -->stmtsql SELECT doc,_id,ST_ASGEOJSON($ix_gj_r_9BDE81F857CBD7E27CAED548ED36F57CE4307F0B) FROM xtest.spatial1;
 -->recvresult
+-->echo Using of index give an unexpected result and it caused by another bug
+-->callmacro Show_use_of_index	spatial1	MBRContains(st_geomfromgeojson(doc->'$.first',1,4326),st_geomfromtext('point(10 11)',4326))
+
 -->stmtadmin drop_collection_index	{"schema":"xtest", "collection":"spatial1", "name":"one"}
 -->recvresult
 -->stmtsql DELETE FROM xtest.spatial1;
