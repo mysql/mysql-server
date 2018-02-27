@@ -57,6 +57,7 @@ Handler::Handler(handlerton *hton, TABLE_SHARE *table_share)
       m_rnd_iterator(),
       m_rnd_iterator_is_positioned(),
       m_index_cursor(),
+      m_index_read_number_of_cells(),
       m_deleted_rows() {
   handler::ref_length = sizeof(Storage::Element *);
 
@@ -188,7 +189,7 @@ int Handler::open(const char *table_name, int, uint, const dd::Table *) {
       ret = Result::NO_SUCH_TABLE;
     } else {
       m_opened_table = &iter->second;
-      assign_table();
+      opened_table_validate();
       ret = Result::OK;
     }
   } catch (std::bad_alloc &) {
@@ -207,7 +208,6 @@ int Handler::close() {
   DBUG_ASSERT(current_thread_is_creator());
   DBUG_ASSERT(m_opened_table != nullptr);
 
-  m_opened_table->mysql_table(nullptr);
   m_opened_table = nullptr;
 
   handler::active_index = MAX_KEY;
@@ -244,7 +244,7 @@ int Handler::rnd_next(uchar *mysql_row) {
 
   handler::ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
-  assign_table();
+  opened_table_validate();
 
   const Storage &rows = m_opened_table->rows();
 
@@ -314,7 +314,7 @@ int Handler::rnd_pos(uchar *mysql_row, uchar *position) {
 
   m_rnd_iterator_is_positioned = true;
 
-  assign_table();
+  opened_table_validate();
 
   m_opened_table->row(m_rnd_iterator, mysql_row);
 
@@ -373,7 +373,7 @@ int Handler::index_read(uchar *mysql_row, const uchar *mysql_search_cells,
 
   handler::ha_statistic_increment(&System_status_var::ha_read_key_count);
 
-  assign_table();
+  opened_table_validate();
 
   DBUG_ASSERT(handler::active_index < m_opened_table->number_of_indexes());
 
@@ -535,7 +535,7 @@ Result Handler::index_next_conditional(uchar *mysql_row,
   Result ret;
 
   try {
-    assign_table();
+    opened_table_validate();
 
     const Index &index = m_opened_table->index(handler::active_index);
 
@@ -638,7 +638,7 @@ int Handler::index_prev(uchar *mysql_row) {
   Result ret;
 
   try {
-    assign_table();
+    opened_table_validate();
 
     const Cursor &begin = m_opened_table->index(handler::active_index).begin();
 
@@ -715,7 +715,7 @@ int Handler::write_row(uchar *mysql_row) {
 
   handler::ha_statistic_increment(&System_status_var::ha_write_count);
 
-  assign_table();
+  opened_table_validate();
 
   const Result ret = m_opened_table->insert(mysql_row);
 
@@ -743,7 +743,7 @@ int Handler::update_row(const uchar *mysql_row_old, uchar *mysql_row_new) {
     target_row = m_index_cursor.row();
   }
 
-  assign_table();
+  opened_table_validate();
 
   const Result ret =
       m_opened_table->update(mysql_row_old, mysql_row_new, target_row);
@@ -775,7 +775,7 @@ int Handler::delete_row(const uchar *mysql_row) {
     --m_rnd_iterator;
   }
 
-  assign_table();
+  opened_table_validate();
 
   const Result ret = m_opened_table->remove(mysql_row, victim_position);
 
@@ -795,7 +795,7 @@ int Handler::truncate(dd::Table *) {
 
   DBUG_ASSERT(current_thread_is_creator());
 
-  assign_table();
+  opened_table_validate();
 
   m_opened_table->truncate();
 
@@ -879,18 +879,19 @@ ulong Handler::index_flags(uint index_no, uint, bool) const {
     case HA_KEY_ALG_BTREE:
       // clang-format off
       flags =
-          HA_KEY_SCAN_NOT_ROR |
           HA_READ_NEXT |
-          HA_READ_ORDER |
           HA_READ_PREV |
-          HA_READ_RANGE;
+          HA_READ_ORDER |
+          HA_READ_RANGE |
+          HA_KEY_SCAN_NOT_ROR;
       // clang-format on
       break;
     case HA_KEY_ALG_HASH:
       // clang-format off
       flags =
-          HA_KEY_SCAN_NOT_ROR |
-          HA_ONLY_WHOLE_INDEX;
+          HA_READ_NEXT |
+          HA_ONLY_WHOLE_INDEX |
+          HA_KEY_SCAN_NOT_ROR;
       // clang-format on
       break;
     case HA_KEY_ALG_SE_SPECIFIC:

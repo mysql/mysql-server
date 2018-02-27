@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -54,7 +54,7 @@ Table::Table(TABLE *mysql_table, bool all_columns_are_fixed_size)
       m_index_entries(m_allocator),
       m_insert_undo(m_allocator),
       m_columns(m_allocator),
-      m_mysql_table(mysql_table) {
+      m_mysql_table_share(mysql_table->s) {
   const size_t number_of_indexes = mysql_table->s->keys;
   const size_t number_of_columns = mysql_table->s->fields;
 
@@ -97,7 +97,7 @@ Result Table::insert(const unsigned char *mysql_row) {
   Result ret;
 
   if (m_all_columns_are_fixed_size) {
-    DBUG_ASSERT(m_rows.element_size() == m_mysql_table->s->rec_buff_length);
+    DBUG_ASSERT(m_rows.element_size() == m_mysql_table_share->rec_buff_length);
     DBUG_ASSERT(m_rows.element_size() == m_mysql_row_length);
 
     memcpy(row, mysql_row, m_mysql_row_length);
@@ -175,8 +175,8 @@ Result Table::update(const unsigned char *mysql_row_old,
     DBUG_ASSERT(m_rows.element_size() == sizeof(Row));
     Row *row_in_m_rows = reinterpret_cast<Row *>(target_row);
     const Row row_old(mysql_row_old, nullptr);
-    DBUG_ASSERT(
-        row_in_m_rows->compare(m_columns, m_mysql_table->field, row_old) == 0);
+    DBUG_ASSERT(Row::compare(*row_in_m_rows, row_old, m_columns,
+                             m_mysql_table_share->field) == 0);
   }
 #endif /* DBUG_OFF */
 
@@ -313,7 +313,8 @@ Result Table::remove(const unsigned char *mysql_row_must_be,
   } else {
     /* *victim_position is a pointer to an `temptable::Row` object. */
     Row *row_our = reinterpret_cast<Row *>(*victim_position);
-    DBUG_ASSERT(row_our->compare(m_columns, m_mysql_table->field, row) == 0);
+    DBUG_ASSERT(Row::compare(*row_our, row, m_columns,
+                             m_mysql_table_share->field) == 0);
   }
 #endif /* DBUG_OFF */
 
@@ -361,12 +362,12 @@ Result Table::remove(const unsigned char *mysql_row_must_be,
 void Table::indexes_create() {
   DBUG_ASSERT(m_index_entries.empty());
 
-  const size_t number_of_indexes = m_mysql_table->s->keys;
+  const size_t number_of_indexes = m_mysql_table_share->keys;
 
   m_index_entries.reserve(number_of_indexes);
 
   for (size_t i = 0; i < number_of_indexes; ++i) {
-    const KEY &mysql_index = m_mysql_table->key_info[i];
+    const KEY &mysql_index = m_mysql_table_share->key_info[i];
 
     switch (mysql_index.algorithm) {
       case HA_KEY_ALG_BTREE:
