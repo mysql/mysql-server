@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,11 @@ typedef DataBuffer<7,ArrayPool<DataBufferSegment<7> > > RopeBase;
 typedef RopeBase::DataBufferPool RopePool;
 
 struct RopeHandle {
-  RopeHandle() { m_hash = 0; }
+  RopeHandle() { m_hash = m_length = 0; }
 
   Uint32 m_hash;
-  RopeBase::Head m_head; 
+  Uint32 m_length;
+  RopeBase::Head m_head;
 
   Uint32 hashValue() const { return m_hash; }
 };
@@ -49,6 +50,7 @@ public:
     : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
+    m_length = src.m_length;
   }
   
   ~ConstRope(){
@@ -65,6 +67,7 @@ public:
   bool equal(const ConstRope& r2) const;
 private:
   const RopeHandle & src;
+  Uint32 m_length;
 };
 
 class LocalRope : private RopeBase {
@@ -73,11 +76,13 @@ public:
     : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
+    m_length = src.m_length;
     m_hash = src.m_hash;
   }
   
   ~LocalRope(){
     src.m_head = this->head;
+    src.m_length = m_length;
     src.m_hash = m_hash;
   }
 
@@ -100,31 +105,32 @@ public:
   static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
 private:
   Uint32 m_hash;
+  Uint32 m_length;
   RopeHandle & src;
 };
 
 inline
 Uint32
 LocalRope::size() const {
-  return head.used;
+  return m_length;
 }
 
 inline
 bool
 LocalRope::empty() const {
-  return head.used == 0;
+  return m_length == 0;
 }
 
 inline
 Uint32
 ConstRope::size() const {
-  return head.used;
+  return m_length;
 }
 
 inline
 bool
 ConstRope::empty() const {
-  return head.used == 0;
+  return m_length == 0;
 }
 
 

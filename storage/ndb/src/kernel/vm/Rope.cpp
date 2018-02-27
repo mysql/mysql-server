@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@ ConstRope::copy(char* buf) const {
   if(DEBUG_ROPE)
     ndbout_c("ConstRope::copy() head = [ %d 0x%x 0x%x ]",
 	     head.used, head.firstItem, head.lastItem);
-  Uint32 left = head.used;
+  Uint32 left = m_length;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
   while(left > 4 * getSegmentSize()){
@@ -60,7 +60,7 @@ ConstRope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
     ndbout_c("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)", 
 	     head.used, head.firstItem, head.lastItem, str, (int) len);
-  Uint32 left = head.used > len ? len : head.used;
+  Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
   while(left > 4 * getSegmentSize()){
@@ -88,8 +88,8 @@ ConstRope::compare(const char * str, Uint32 len) const {
     }
   }
   if(DEBUG_ROPE)
-    ndbout_c("ConstRope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
-  return head.used > len;
+    ndbout_c("ConstRope::compare(%s, %d) -> %d", str, (int) len, m_length > len);
+  return m_length > len;
 }
 
 void
@@ -98,7 +98,7 @@ LocalRope::copy(char* buf) const {
   if(DEBUG_ROPE)
     ndbout_c("LocalRope::copy() head = [ %d 0x%x 0x%x ]",
 	     head.used, head.firstItem, head.lastItem);
-  Uint32 left = head.used;
+  Uint32 left = m_length;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
   while(left > 4 * getSegmentSize()){
@@ -120,7 +120,7 @@ int
 LocalRope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
     ndbout_c("LocalRope::compare(%s, %d)", str, (int) len);
-  Uint32 left = head.used > len ? len : head.used;
+  Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> curr;
   curr.i = head.firstItem;
   while(left > 4 * getSegmentSize()){
@@ -148,8 +148,8 @@ LocalRope::compare(const char * str, Uint32 len) const {
     }
   }
   if(DEBUG_ROPE)
-    ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, head.used > len);
-  return head.used > len;
+    ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, m_length > len);
+  return m_length > len;
 }
 
 bool
@@ -157,8 +157,7 @@ LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
   if(DEBUG_ROPE)
     ndbout_c("LocalRope::assign(%s, %d, 0x%x)", s, (int) len, hash);
   m_hash = hash;
-  head.used = (head.used + 3) / 4;
-  release();
+  erase();
   if(append((const Uint32*)s, len >> 2)){
     if(len & 3){
       Uint32 buf = 0;
@@ -172,7 +171,7 @@ LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
       if(!append(&buf, 1))
 	return false;
     }
-    head.used = len;
+    m_length = len;
     if(DEBUG_ROPE)
       ndbout_c("LocalRope::assign(...) head = [ %d 0x%x 0x%x ]",
 	       head.used, head.firstItem, head.lastItem);
@@ -183,7 +182,7 @@ LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
 
 void
 LocalRope::erase(){
-  head.used = (head.used + 3) / 4;
+  m_length = 0;
   release();
 }
 
@@ -202,13 +201,13 @@ LocalRope::hash(const char * p, Uint32 len){
 bool
 ConstRope::equal(const ConstRope& r2) const
 {
-  if (head.used != r2.head.used)
+  if (m_length != r2.m_length)
     return false;
 
   if (src.m_hash != r2.src.m_hash)
     return false;
 
-  Uint32 left = head.used;
+  Uint32 left = m_length;
   Ptr<Segment> s1, s2;
   s1.i = head.firstItem;
   s2.i = r2.head.firstItem;
