@@ -2460,8 +2460,8 @@ public:
   Uint32 getCreateSchemaVersion(Uint32 tableId);
 
   void execNEXT_SCANCONF(Signal* signal);
-  void setup_scan_pointers(Uint32 scanPtrI);
-  void setup_scan_pointers_from_tc_con(TcConnectionrecPtr);
+  void setup_scan_pointers(Uint32 scanPtrI, bool early = false);
+  void setup_scan_pointers_from_tc_con(TcConnectionrecPtr, bool early = false);
   void setup_key_pointers(Uint32 tcIndex);
   void exec_next_scan_conf(Signal *signal);
   void continue_next_scan_conf(Signal *signal,

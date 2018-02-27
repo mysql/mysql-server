@@ -22,7 +22,6 @@
 
 #define JAM_FILE_ID 365
 
-
 Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
   SimulatedBlock(DBTUX, ctx, instanceNumber),
   c_tup(0),
@@ -50,6 +49,9 @@ Dbtux::Dbtux(Block_context& ctx, Uint32 instanceNumber) :
       (sizeof(DescHead) & 0x3) == 0 &&
       (sizeof(KeyType) & 0x3) == 0
   );
+  c_ctx.searchBoundData = (KeyDataC*)&c_ctx.searchBoundData_c[0];
+  c_ctx.searchBound = (KeyBoundC*)&c_ctx.searchBound_c[0];
+  c_ctx.entryKey = (KeyData*)&c_ctx.entryKey_c[0];
   /*
    * DbtuxGen.cpp
    */

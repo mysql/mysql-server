@@ -1062,8 +1062,8 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
-ndbinfo/def/t1	NULL	User table	2000	292	1.0	1	2000	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	32	1.0	1	1400	1
+ndbinfo/def/t1	NULL	User table	2000	288	1.0	1	2000	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	2000	28	1.0	1	0	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
@@ -1094,8 +1094,8 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
-ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	32	1.0	1	1400	1
+ndbinfo/def/t1	NULL	User table	1800	288	1.0	1	1800	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
@@ -1126,8 +1126,8 @@ l2pmap_ratio
 
 select * from sum_per_tab;
 fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
-ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1568	36	1.0	1	1568	1
-ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1568	32	1.0	1	1568	1
+ndbinfo/def/t1	NULL	User table	1800	288	1.0	1	1800	1
 sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
 sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
 sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1

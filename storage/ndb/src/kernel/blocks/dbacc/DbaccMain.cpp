@@ -192,6 +192,12 @@
 // Index pages used by ACC instances, used by CMVMI to report index memory usage
 extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
 
+void
+Dbacc::prepare_scan_ctx(Uint32 scanPtrI)
+{
+  (void)scanPtrI;
+}
+
 // Signal entries and statement blocks
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */

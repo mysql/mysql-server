@@ -125,6 +125,12 @@
 #endif
 
 void
+Dbtup::prepare_scan_ctx(Uint32 scanPtrI)
+{
+  (void)scanPtrI;
+}
+
+void
 Dbtup::execACC_SCANREQ(Signal* signal)
 {
   jamEntry();
