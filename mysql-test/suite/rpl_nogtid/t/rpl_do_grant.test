@@ -161,6 +161,8 @@ SELECT upgrade_del_func();
 sync_slave_with_master;
 FLUSH PRIVILEGES;
 FLUSH TABLES;
+--let $wait_condition= SELECT COUNT(*)=1 FROM mysql.procs_priv WHERE host='localhost';
+--source include/wait_condition.inc
 --replace_column 8 #
 SELECT * FROM mysql.procs_priv;
 SHOW GRANTS FOR 'create_rout_db'@'localhost';
