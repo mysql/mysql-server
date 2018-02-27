@@ -266,11 +266,11 @@ Got expected error: BLOB/TEXT column '$ix_gj_9BDE81F857CBD7E27CAED548ED36F57CE43
 
 Try to create spatial index with negative options
 =================================================
-Got expected error: Invalid type of value for argument 'options' (code 5016)
+Got expected error: Invalid value for argument 'fields.options' (code 5017)
 
 Try to create spatial index with negative srid
 ==============================================
-Got expected error: Invalid type of value for argument 'srid' (code 5016)
+Got expected error: Invalid value for argument 'fields.srid' (code 5017)
 
 Try to insert invalid value to collection with spatial index
 ============================================================

@@ -27,13 +27,13 @@ Got expected error (code 0)
 
 command ok
 Got expected error (code 0)
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 Got expected error: Argument value '' for index name is invalid (code 5017)
 Got expected error: Invalid or unsupported type specification 'text(20);drop table' (code 5017)
 Got expected error: Invalid or unsupported type specification 'varchar(20)' (code 5017)
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
-Got expected error: Invalid value for argument 'member', expected path to document member (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
+Got expected error: Invalid value for argument 'fields.field' (code 5017)
 
 command ok
 
