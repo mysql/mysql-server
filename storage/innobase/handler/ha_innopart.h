@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -950,7 +950,10 @@ class ha_innopart : public ha_innobase,
                              thr_lock_type lock_type);
 
   int write_row(uchar *record) {
-    return (Partition_helper::ph_write_row(record));
+    srv_concurrency_enter();
+    auto err = Partition_helper::ph_write_row(record);
+    srv_concurrency_exit();
+    return (err);
   }
 
   int update_row(const uchar *old_record, uchar *new_record) {

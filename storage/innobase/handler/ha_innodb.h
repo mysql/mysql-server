@@ -504,6 +504,12 @@ class ha_innobase : public handler {
   virtual bool is_record_buffer_wanted(ha_rows *const max_rows) const;
 
  protected:
+  /** Enter InnoDB engine after checking max allowed threads */
+  void srv_concurrency_enter();
+
+  /** Leave Innodb, if no more tickets are left */
+  void srv_concurrency_exit();
+
   void update_thd(THD *thd);
 
   int general_fetch(uchar *buf, uint direction, uint match_mode);
