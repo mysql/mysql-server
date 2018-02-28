@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
 #ifndef _NGS_MESSAGE_BUILDER_H_
 #define _NGS_MESSAGE_BUILDER_H_
 
+#include <memory>
 #include "m_ctype.h"
 #include "my_inttypes.h"
+
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
 
@@ -43,15 +45,19 @@ class Message_builder {
 
  protected:
   using CodedOutputStream = ::google::protobuf::io::CodedOutputStream;
-  using CodedOutputStream_ptr =
-      ngs::Memory_instrumented<CodedOutputStream>::Unique_ptr;
+  using Stream_allocator = std::allocator<CodedOutputStream>;
 
  protected:
   void start_message(Output_buffer *out_buffer, const uint8 type);
   void end_message();
 
+  void construct_stream();
+  void reset_stream();
+
   Output_buffer *m_out_buffer;
-  CodedOutputStream_ptr m_out_stream;
+  CodedOutputStream *m_out_stream;
+  bool m_valid_out_stream{false};
+
   int m_size_addr2_size;
   int m_field_number;
 

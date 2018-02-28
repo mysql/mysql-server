@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,12 @@
 
 namespace ngs {
 
-Message_builder::Message_builder() : m_out_buffer(NULL) {}
+Message_builder::Message_builder()
+    : m_out_buffer(nullptr), m_out_stream(Stream_allocator().allocate(1)) {}
 
-Message_builder::~Message_builder() {}
+Message_builder::~Message_builder() {
+  Stream_allocator().deallocate(m_out_stream, 1);
+}
 
 void Message_builder::encode_uint32(const uint32 value, const bool write) {
   ++m_field_number;
@@ -41,7 +44,7 @@ void Message_builder::encode_uint32(const uint32 value, const bool write) {
     google::protobuf::internal::WireFormatLite::WriteTag(
         m_field_number,
         google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT,
-        m_out_stream.get());
+        m_out_stream);
     m_out_stream->WriteVarint32(value);
   }
 }
@@ -53,7 +56,7 @@ void Message_builder::encode_uint64(const uint64 value, const bool write) {
     google::protobuf::internal::WireFormatLite::WriteTag(
         m_field_number,
         google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT,
-        m_out_stream.get());
+        m_out_stream);
     m_out_stream->WriteVarint64(value);
   }
 }
@@ -64,7 +67,7 @@ void Message_builder::encode_int32(const int32 value, const bool write) {
     google::protobuf::internal::WireFormatLite::WriteTag(
         m_field_number,
         google::protobuf::internal::WireFormatLite::WIRETYPE_VARINT,
-        m_out_stream.get());
+        m_out_stream);
     m_out_stream->WriteVarint32SignExtended(value);
   }
 }
@@ -77,7 +80,7 @@ void Message_builder::encode_string(const char *value, const size_t len,
     google::protobuf::internal::WireFormatLite::WriteTag(
         m_field_number,
         google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED,
-        m_out_stream.get());
+        m_out_stream);
     m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(len));
     m_out_stream->WriteRaw(value, static_cast<int>(len));
   }
@@ -85,6 +88,18 @@ void Message_builder::encode_string(const char *value, const size_t len,
 
 void Message_builder::encode_string(const char *value, const bool write) {
   encode_string(value, write ? strlen(value) : 0, write);
+}
+
+void Message_builder::construct_stream() {
+  if (m_valid_out_stream) reset_stream();
+
+  Stream_allocator().construct(m_out_stream, m_out_buffer);
+  m_valid_out_stream = true;
+}
+
+void Message_builder::reset_stream() {
+  Stream_allocator().destroy(m_out_stream);
+  m_valid_out_stream = false;
 }
 
 void Message_builder::start_message(Output_buffer *out_buffer,
@@ -95,7 +110,8 @@ void Message_builder::start_message(Output_buffer *out_buffer,
   m_out_buffer->save_state();
   m_out_buffer->reserve(5);
   m_start_from = static_cast<uint32>(m_out_buffer->ByteCount());
-  m_out_stream.reset(ngs::allocate_object<CodedOutputStream>(m_out_buffer));
+
+  construct_stream();
 
   // at this point we don't know the size but we need to reserve the space for
   // it it is possible that the size which is stored on 4-bytes will be split
@@ -128,7 +144,7 @@ void Message_builder::end_message() {
   // here we already know the buffer size, so write it at the beginning of the
   // buffer the order is important here as the stream's destructor calls
   // buffer's BackUp() validating ByteCount
-  m_out_stream.reset();
+  reset_stream();
 
   uint32 msg_size = static_cast<uint32>(m_out_buffer->ByteCount()) -
                     m_start_from - sizeof(google::protobuf::uint32);
