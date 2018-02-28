@@ -1022,8 +1022,11 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
   const auto data_len = last_lsn % OS_FILE_LOG_BLOCK_SIZE;
 
+  ut_ad(data_len >= LOG_BLOCK_HDR_SIZE);
+
   if (data_len <= LOG_BLOCK_HDR_SIZE) {
     block_len = 0;
+    log_buffer_x_lock_exit(log);
     return;
   }
 
