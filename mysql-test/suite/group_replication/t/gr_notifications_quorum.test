@@ -353,6 +353,14 @@ RESET MASTER;
 --let $group_replication_member_id= $member2_uuid
 --source include/gr_wait_for_member_state.inc
 
+# wait for 4 group change broadcast.
+# 1. View_id change(member2 join).
+# 2. Recovery state change.
+# 3. Unreachable state change.
+# 4. Quorum lost.
+--let $wait_condition= SELECT COUNT(*)=4 FROM test.gms_listener_example WHERE log_message LIKE 'QUORUM LOST: %:2' OR log_message LIKE 'STATE CHANGED: %:2';
+--source include/wait_condition.inc
+
 --disable_query_log
 SET SQL_LOG_BIN=0;
 TRUNCATE gms_listener_example;
