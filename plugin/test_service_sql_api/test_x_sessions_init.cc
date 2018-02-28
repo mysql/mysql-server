@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,10 +20,16 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "test_x_sessions_init"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -95,6 +101,10 @@ const struct st_command_service_cbs sql_cbs = {
     NULL   // sql_shutdown,
 };
 
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
+
 static File outfile;
 
 static void test_session(void *p) {
@@ -108,8 +118,8 @@ static void test_session(void *p) {
     WRITE_VAL("srv_session_open %d\n", i);
     sessions[i] = srv_session_open(NULL, NULL);
     if (!sessions[i])
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open_%d failed.",
-                            i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_open_%d failed.", i);
   }
 
   unsigned int thread_count = srv_session_info_thread_count((const void *)p);
@@ -122,14 +132,14 @@ static void test_session(void *p) {
     WRITE_VAL("srv_session_close %d\n", nb_sessions - 1 - i);
     bool session_ret = srv_session_close(sessions[nb_sessions - 1 - i]);
     if (session_ret)
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_close_%d failed.",
-                            nb_sessions - 1 - i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_close_%d failed.", nb_sessions - 1 - i);
   }
 
   DBUG_VOID_RETURN;
 }
 
-static void test_session_non_reverse(void *p) {
+static void test_session_non_reverse(void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_non_reverse");
 
@@ -141,8 +151,8 @@ static void test_session_non_reverse(void *p) {
     WRITE_VAL("srv_session_open %d\n", i);
     sessions[i] = srv_session_open(NULL, NULL);
     if (!sessions[i])
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open_%d failed.",
-                            i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_open_%d failed.", i);
   }
 
   int session_count = srv_session_info_session_count();
@@ -153,8 +163,8 @@ static void test_session_non_reverse(void *p) {
     WRITE_VAL("srv_session_close %d\n", i);
     bool session_ret = srv_session_close(sessions[i]);
     if (session_ret)
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_close_%d failed.",
-                            i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_close_%d failed.", i);
   }
 
   session_count = srv_session_info_session_count();
@@ -163,7 +173,7 @@ static void test_session_non_reverse(void *p) {
   DBUG_VOID_RETURN;
 }
 
-static void test_session_only_open(void *p) {
+static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_only_open");
 
@@ -177,8 +187,8 @@ static void test_session_only_open(void *p) {
     WRITE_VAL("srv_session_open %d\n", i);
     sessions[i] = srv_session_open(NULL, NULL);
     if (!sessions[i])
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open_%d failed.",
-                            i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_open_%d failed.", i);
   }
   struct st_plugin_ctx *ctx = new st_plugin_ctx();
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
@@ -207,8 +217,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -242,8 +252,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /* now create the thread and call test_session within the thread. */
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper,
                        &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
@@ -251,7 +261,9 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
 static int test_session_service_plugin_init(void *p) {
   char buffer[STRING_BUFFER_SIZE];
   DBUG_ENTER("test_session_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file(log_filename);
 
@@ -272,9 +284,10 @@ static int test_session_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_session_service_plugin_deinit(void *p) {
+static int test_session_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_session_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

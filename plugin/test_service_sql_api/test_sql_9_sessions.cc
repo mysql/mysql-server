@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -19,6 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
+#define LOG_SUBSYSTEM_TAG "test_sql_9_sessions"
 
 #include <mysql/plugin.h>
 #include <stdlib.h>
@@ -447,8 +449,8 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
   fail = command_service_run_command(session, select_prot, COM_QUERY, &cmd,
                                      &my_charset_utf8_general_ci);
   if (fail)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "test_sql_2_sessions: ret code: %d", fail);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "test_sql_9_sessions - ret code : %d", fail);
   else {
     if (ctx->num_cols) get_data_str();
     handle_error();
@@ -500,7 +502,7 @@ int test_sql(void *p) {
   WRITE_STR("close session_1.\n");
   session_ret = srv_session_close(session_1);
   if (session_ret) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "close session_1 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_1 failed.");
   }
   /* 4. statement */
   WRITE_STR(
@@ -524,7 +526,7 @@ int test_sql(void *p) {
   WRITE_STR("close session_2.\n");
   session_ret = srv_session_close(session_2);
   if (session_ret) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "close session_2 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_2 failed.");
   }
   DBUG_RETURN(session_ret);
 }
@@ -540,7 +542,9 @@ static void create_log_file(const char *log_name) {
 
 static int test_sql_service_plugin_init(void *p) {
   DBUG_ENTER("test_sql_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   create_log_file("test_sql_2_sessions");
 
@@ -551,9 +555,10 @@ static int test_sql_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_sql_service_plugin_deinit(void *p) {
+static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_sql_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

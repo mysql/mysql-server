@@ -1709,7 +1709,7 @@ mysql_service_status_t log_filter_init() {
       rr--;
       if (var_value[rr] == '\0') rr = 0;
 
-      LogErr(ERROR_LEVEL, ER_WRONG_VALUE_FOR_VAR,
+      LogErr(ERROR_LEVEL, ER_COMPONENT_FILTER_WRONG_VALUE,
              LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME,
              (var_value == nullptr) ? "<NULL>" : (const char *)var_value);
 
@@ -1734,7 +1734,7 @@ mysql_service_status_t log_filter_init() {
         log_error_filter_rules = old;
       }
 
-      LogErr(ERROR_LEVEL, ER_WRONG_VALUE_FOR_VAR,
+      LogErr(ERROR_LEVEL, ER_COMPONENT_FILTER_WRONG_VALUE,
              LOG_FILTER_LANGUAGE_NAME "." LOG_FILTER_VARIABLE_NAME, "DEFAULT");
     }
 
