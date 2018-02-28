@@ -33,7 +33,7 @@ include/rpl_reconnect.inc
 ## 4A. Test GR does not start on boot when lower_case_table_names
 ##     does not match.
 
-# restart:--datadir=DATADIR --group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2
+# restart:--secure-file-priv= --datadir=DATADIR --group_replication_start_on_boot=1 --group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME --lower_case_table_names=2
 include/rpl_reconnect.inc
 include/rpl_gr_wait_for_number_of_members.inc
 
