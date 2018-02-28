@@ -3,7 +3,17 @@
 
 --echo # manual ndb_import tests
 
---let $is_windows= `select convert(@@version_compile_os using latin1) in ('Win32', 'Win64', 'Windows')`
+--let IS_WINDOWS= `select convert(@@version_compile_os using latin1) in ('Win32', 'Win64', 'Windows')`
+
+# LOAD DATA line terminators
+--let $lt_unix='\n'
+--let $lt_windows='\r\n'
+if (!$IS_WINDOWS) {
+  --let $lt_default=$lt_unix
+}
+if ($IS_WINDOWS) {
+  --let $lt_default=$lt_windows
+}
 
 --echo # database argument is required
 --error 1
@@ -30,9 +40,13 @@ create table t1 (
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
      test '/foo/data/t1.csv' >> $NDB_TOOLS_OUTPUT 2>&1;
 
+# Most CSV files are written in perl.  On windows perl automatically
+# pushes :crlf layer.  We prefer :raw and set line terminator explicitly.
+
 perl;
 use strict;
 use Symbol;
+my $lt = !$ENV{IS_WINDOWS} ? "\n" : "\r\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t1.csv";
@@ -40,7 +54,7 @@ my $fh = gensym();
 open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (0..999) {
-  print $fh $i, "\t", $i*10, "\n";
+  print $fh $i, "\t", $i*10, $lt;
 }
 close($fh)
   or die "$file: close after write failed: $!";
@@ -84,7 +98,8 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
 
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t1.csv'
-into table t1ver;
+into table t1ver
+lines terminated by $lt_default;
 --enable_query_log
 
 select count(*) from t1 x, t1ver y
@@ -95,6 +110,7 @@ where x.a = y.a and x.b = y.b;
 perl;
 use strict;
 use Symbol;
+my $lt = !$ENV{IS_WINDOWS} ? "\n" : "\r\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t2.csv";
@@ -104,10 +120,10 @@ open($fh, ">:raw:utf8", $file)
 my $c1 = chr(0x00e4);
 my $c2 = chr(0x263a);
 my $c3 = chr(0x2665);
-print $fh 0, "\t", '\N', "\n";
-print $fh 1, "\t", $c1, "\n";
-print $fh 2, "\t", $c1, $c2, "\n";
-print $fh 3, "\t", $c1, $c2, $c3, "\n";
+print $fh 0, "\t", '\N', $lt;
+print $fh 1, "\t", $c1, $lt;
+print $fh 2, "\t", $c1, $c2, $lt;
+print $fh 3, "\t", $c1, $c2, $c3, $lt;
 close($fh)
   or die "$file: close after write failed: $!";
 exit(0);
@@ -116,13 +132,13 @@ EOF
 create table t2 (
   a int primary key,
   b char(3)
-) charset utf8
+) charset utf8mb4
   engine=ndb;
 
 create table t2ver (
   a int primary key,
   b char(3)
-) charset utf8
+) charset utf8mb4
   engine=ndb;
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
@@ -131,28 +147,20 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t2.csv'
 into table t2ver
-character set utf8;
+character set utf8mb4
+lines terminated by $lt_default;
 --enable_query_log
 
 select count(*) from t2 x, t2ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null));
 
-# to check result diff
---disable_query_log
-eval select * from t2 order by a
-  into outfile '$MYSQLTEST_VARDIR/tmp/t2.out'
-  charset utf8;
-eval select * from t2ver order by a
-  into outfile '$MYSQLTEST_VARDIR/tmp/t2ver.out'
-  charset utf8;
---enable_query_log
-
 --echo # simple hidden-pk test
 
 perl;
 use strict;
 use Symbol;
+my $lt = !$ENV{IS_WINDOWS} ? "\n" : "\r\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t3.csv";
@@ -160,7 +168,7 @@ my $fh = gensym();
 open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (1..1000) {
-  print $fh 10*$i, "\n";
+  print $fh 10*$i, $lt;
 }
 close($fh)
   or die "$file: close after write failed: $!";
@@ -180,7 +188,8 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --keep-state --log-level=1
 
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t3.csv'
-into table t3ver;
+into table t3ver
+lines terminated by $lt_default;
 --enable_query_log
 
 select count(*) from t3;
@@ -194,6 +203,7 @@ where x.b = y.b;
 perl;
 use strict;
 use Symbol;
+my $lt = !$ENV{IS_WINDOWS} ? "\n" : "\r\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t4.csv";
@@ -202,13 +212,13 @@ open($fh, ">:raw", $file)
   or die "$file: open for write failed: $!";
 for my $i (0..999) {
   if ($i == 333) {
-    print $fh $i, "\t", $i*10, "\t", 333, "\n";
+    print $fh $i, "\t", $i*10, "\t", 333, $lt;
   } elsif ($i == 666) {
-    print $fh 111, "\t", $i*10, "\n";
+    print $fh 111, "\t", $i*10, $lt;
   } elsif ($i == 999) {
-    print $fh $i, "\t", "abcde", "\n";
+    print $fh $i, "\t", "abcde", $lt;
   } else {
-    print $fh $i, "\t", $i*10, "\n";
+    print $fh $i, "\t", $i*10, $lt;
   }
 }
 close($fh)
@@ -273,9 +283,11 @@ write_file $MYSQLTEST_VARDIR/tmp/t5c.csv;
 222
 EOF
 
+# files have '\n' terminator so add --csvopt=n
+
 --error 1
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
-     --continue
+     --continue --csvopt=n
      test
      $MYSQLTEST_VARDIR/tmp/t5a.csv
      $MYSQLTEST_VARDIR/tmp/t5b.csv
@@ -291,7 +303,7 @@ create table t5b like t5a;
 
 --error 1
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
-     --continue
+     --continue --csvopt=n
      test
      $MYSQLTEST_VARDIR/tmp/t5a.csv
      $MYSQLTEST_VARDIR/tmp/t5b.csv
@@ -321,14 +333,14 @@ EOF
 
 --error 0
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
-     --csvopt=cq
+     --csvopt=cqn
      test $MYSQLTEST_VARDIR/tmp/t6.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 --disable_query_log
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t6.csv'
 into table t6ver
 fields terminated by ',' enclosed by '"' escaped by '\\\\'
-lines terminated by '\n';
+lines terminated by $lt_unix;
 --enable_query_log
 
 select count(*) from t6 x, t6ver y
@@ -343,6 +355,7 @@ order by a;
 perl;
 use strict;
 use Symbol;
+my $lt = "\r\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t7.csv";
@@ -380,7 +393,7 @@ for my $i (1..1000) {
       $prevk = $k;
     }
   }
-  print $fh $i, "\t", $s, "\r", "\n";
+  print $fh $i, "\t", $s, $lt;
 }
 close($fh)
   or die "$file: close after write failed: $!";
@@ -402,7 +415,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t7.csv'
 into table t7ver
 character set binary
-lines terminated by '\r\n';
+lines terminated by $lt_windows;
 --enable_query_log
 
 select count(*) from t7 x, t7ver y
@@ -419,14 +432,14 @@ and (x.b = y.b or (x.b is null and y.b is null));
 
 delete from t7;
 
-if (!$is_windows)
+if (!$IS_WINDOWS)
 {
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp/imp0 --log-level=1
      --csvopt=r --keep-state
      test $MYSQLTEST_VARDIR/tmp/imp0/t7.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 }
 
-if ($is_windows)
+if ($IS_WINDOWS)
 {
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR\tmp\imp0 --log-level=1
      --csvopt=r --keep-state
@@ -442,6 +455,7 @@ select count(*) from t7;
 perl;
 use strict;
 use Symbol;
+my $lt = "\n";
 my $vardir = $ENV{MYSQLTEST_VARDIR}
   or die "need MYSQLTEST_VARDIR";
 my $file = "$vardir/tmp/t8.csv";
@@ -474,7 +488,7 @@ for my $i (1..1000) {
       $s .= $c;
     }
   }
-  print $fh $i, "\t", $s, "\n";
+  print $fh $i, "\t", $s, $lt;
 }
 close($fh)
   or die "$file: close after write failed: $!";
@@ -492,11 +506,11 @@ create table t8ver like t8;
 eval load data infile '$MYSQLTEST_VARDIR/tmp/t8.csv'
 into table t8ver
 character set binary
-lines terminated by '\n';
+lines terminated by $lt_unix;
 --enable_query_log
 
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
-     --csvopt=d --keep-state
+     --csvopt=n --keep-state
      test $MYSQLTEST_VARDIR/tmp/t8.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 
 select count(*) from t8 x, t8ver y
@@ -542,7 +556,7 @@ lines terminated by '===_';
 --enable_query_log
 select * from t9ver order by a;
 
-if (!$is_windows)
+if (!$IS_WINDOWS)
 {
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --keep-state
@@ -552,7 +566,7 @@ exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      test $MYSQLTEST_VARDIR/tmp/t9.csv >> $NDB_TOOLS_OUTPUT 2>&1;
 }
 
-if ($is_windows)
+if ($IS_WINDOWS)
 {
 exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --log-level=1
      --keep-state
@@ -566,6 +580,41 @@ select count(*) from t9 x, t9ver y
 where x.a = y.a
 and (x.b = y.b or (x.b is null and y.b is null))
 and (x.c = y.c or (x.c is null and y.c is null));
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+let $backup_data_dir=`
+  select distinct(v.config_value)
+  from ndbinfo.config_values v, ndbinfo.config_params p
+  where v.config_param = p.param_number
+  and p.param_name = 'BackupDataDir'`;
+
+let BACKUP_SRC=$backup_data_dir/BACKUP/BACKUP-$the_backup_id;
+let BACKUP_DST=$MYSQLTEST_VARDIR/tmp/BACKUP-$the_backup_id;
+
+perl;
+use strict;
+use Symbol;
+use File::Copy;
+my $src = $ENV{BACKUP_SRC};
+my $dst = $ENV{BACKUP_DST};
+mkdir $dst
+  or die "mkdir $dst failed: $!\n";
+my $dh = gensym();
+opendir($dh, $src)
+  or die "opendir $src failed: $!\n";
+my $ent;
+while (defined($ent = readdir($dh))) {
+  my $file = "$src/$ent";
+  if (-f $file) {
+    copy($file, $dst)
+      or die "copy $file to $dst failed: $!\n";
+  }
+}
+closedir($dh)
+  or "close dir $src failed: $!\n";
+EOF
 
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
            t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
