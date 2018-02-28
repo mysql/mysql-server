@@ -15127,7 +15127,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   dict_index_t *index;
   ulint n_rows;
   ulint n_rows_in_table = ULINT_UNDEFINED;
-  ulint n_dups;
+  ulint n_dups = 0;
   bool is_ok = true;
   ulint old_isolation_level;
   dberr_t ret;
