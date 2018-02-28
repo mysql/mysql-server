@@ -91,6 +91,8 @@ static void map_coll_name_to_number(const char *name, int num) {
   memcpy(lower_case_name, name, len);
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
+
+  DBUG_ASSERT(coll_name_num_map != nullptr);
   (*coll_name_num_map)[lower_case_name] = num;
 }
 
@@ -101,6 +103,7 @@ static void map_cs_name_to_number(const char *name, int num, int state) {
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
 
+  DBUG_ASSERT(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
   if ((state & MY_CS_PRIMARY)) (*cs_name_pri_num_map)[lower_case_name] = num;
   if ((state & MY_CS_BINSORT)) (*cs_name_bin_num_map)[lower_case_name] = num;
 }
@@ -111,6 +114,8 @@ static uint get_collation_number_internal(const char *name) {
   memcpy(lower_case_name, name, len);
   lower_case_name[len] = '\0';
   my_casedn_str(&my_charset_latin1, lower_case_name);
+
+  DBUG_ASSERT(coll_name_num_map != nullptr);
   return (*coll_name_num_map)[lower_case_name];
 }
 
@@ -412,6 +417,9 @@ static void init_available_charsets(void) {
   MY_CHARSET_LOADER loader;
 
   memset(&all_charsets, 0, sizeof(all_charsets));
+
+  DBUG_ASSERT(coll_name_num_map == nullptr && cs_name_pri_num_map == nullptr &&
+              cs_name_bin_num_map == nullptr);
   coll_name_num_map = new std::unordered_map<std::string, int>(0);
   cs_name_pri_num_map = new std::unordered_map<std::string, int>(0);
   cs_name_bin_num_map = new std::unordered_map<std::string, int>(0);
@@ -458,11 +466,27 @@ static uint get_charset_number_internal(const char *charset_name,
   /*
     So far, all our calls to get the collation number by its charset name
     and flags is to get the PRIMARY / BIN collation of this charset.
+
+    This function might be called concurrently. C++ guarantees this read-only
+    access to STL container is thread-safe.
   */
-  if ((cs_flags & MY_CS_PRIMARY))
-    return (*cs_name_pri_num_map)[lower_case_name];
-  if ((cs_flags & MY_CS_BINSORT))
-    return (*cs_name_bin_num_map)[lower_case_name];
+  DBUG_ASSERT(cs_name_pri_num_map != nullptr && cs_name_bin_num_map != nullptr);
+  if ((cs_flags & MY_CS_PRIMARY)) {
+    auto name_num_map_it = cs_name_pri_num_map->find(lower_case_name);
+    if (name_num_map_it != cs_name_pri_num_map->end()) {
+      return name_num_map_it->second;
+    } else {
+      return 0;
+    }
+  }
+  if ((cs_flags & MY_CS_BINSORT)) {
+    auto name_num_map_it = cs_name_bin_num_map->find(lower_case_name);
+    if (name_num_map_it != cs_name_bin_num_map->end()) {
+      return name_num_map_it->second;
+    } else {
+      return 0;
+    }
+  }
 
   DBUG_ASSERT(false);
   return 0;
@@ -887,7 +911,11 @@ void charset_uninit() {
       cs->coll->uninit(cs);
     }
   }
+
   delete coll_name_num_map;
+  coll_name_num_map = nullptr;
   delete cs_name_pri_num_map;
+  cs_name_pri_num_map = nullptr;
   delete cs_name_bin_num_map;
+  cs_name_bin_num_map = nullptr;
 }
