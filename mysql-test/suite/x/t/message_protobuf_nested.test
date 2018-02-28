@@ -4,7 +4,7 @@
 
 ## TEST STARTS HERE
 --write_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
--->stmtadmin create_collection	 {"schema":"test", "name":"coll"}
+-->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
 -->recvresult
 
 ## It tests the limits of protobuf, we do not need any data in the collection
@@ -82,7 +82,65 @@ Mysqlx.Crud.Find {
 
 -->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
 -->callmacro Send_crud_find_with_repeated_nested_objects	51
--->expecterror 5000
+-->expecterror ER_X_BAD_MESSAGE
+-->recvresult
+#
+# After error 5000, connection is disconnected by the X Plugin, abort the client connection
+# it is in invalid state
+-->closesession abort
+
+EOF
+
+
+--write_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
+-->stmtadmin ensure_collection	 {"schema":"test", "name":"coll"}
+-->recvresult
+
+## It tests the limits of protobuf, we do not need any data in the collection
+
+#
+# Number of protobuf object should be calculated from following equation
+#   NUMBER_OF_OBJECTS = 2 * NUMBER_OF_OBJECTS_TO_NEST
+#
+
+-->macro Send_capabilities_set_with_repeated_nested_objects	%OBJECTS_TO_NEST%
+-->varlet %NESTED_OBJECTS%
+-->varlet %OBJECTS_TO_REPEAT% %OBJECTS_TO_NEST%
+-->varinc %OBJECTS_TO_REPEAT% -3
+
+-->repeat %OBJECTS_TO_REPEAT%	%ITERATION%
+-->varlet %OBJECT_NUMBER% %ITERATION%
+-->varinc %OBJECT_NUMBER% 4
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  value { type: ARRAY array { value { type: SCALAR scalar { type: V_SINT v_signed_int: %OBJECT_NUMBER% } }
+-->endrepeat
+
+-->repeat %OBJECTS_TO_REPEAT%
+-->varlet %NESTED_OBJECTS% %NESTED_OBJECTS%  } }
+-->endrepeat
+
+-->quiet
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: ARRAY
+        array {
+          %NESTED_OBJECTS%
+        }
+      }
+    }
+  }
+}
+-->noquiet
+-->endmacro
+
+## Current recursion limit is set to 100
+## each repeated message in bellow macro contains two messages
+
+-->echo Try to send number of object more than the X Protocol limit 101 (2 * 51)
+-->callmacro Send_capabilities_set_with_repeated_nested_objects	51
+-->expecterror ER_X_BAD_MESSAGE
 -->recvresult
 #
 # After error 5000, connection is disconnected by the X Plugin, abort the client connection
@@ -93,7 +151,10 @@ EOF
 
 --exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp 2>&1
 
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl 2>&1
+
 ## Cleanup
 DROP TABLE IF EXISTS coll;
 --remove_file $MYSQL_TMP_DIR/mysqlx-update_itemremove.tmp
+--remove_file $MYSQL_TMP_DIR/capabilities_set_with_repeated_nested_objects.xpl
 --source include/xplugin_drop_user.inc
