@@ -69,32 +69,35 @@ static void dump_server_state_calls() {
   if (before_handle_connection_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:before_handle_connection");
+        "\nreplication_observers_example_plugin:before_handle_connection");
   }
 
   if (before_recovery_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:before_recovery");
+                 "\nreplication_observers_example_plugin:before_recovery");
   }
 
   if (after_engine_recovery_call) {
-    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:after_engine_recovery");
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+        "\nreplication_observers_example_plugin:after_engine_recovery");
   }
 
   if (after_recovery_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:after_recovery");
+                 "\nreplication_observers_example_plugin:after_recovery");
   }
 
   if (before_server_shutdown_call) {
-    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:before_server_shutdown");
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+        "\nreplication_observers_example_plugin:before_server_shutdown");
   }
 
   if (after_server_shutdown_call) {
-    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:after_server_shutdown");
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+        "\nreplication_observers_example_plugin:after_server_shutdown");
   }
 }
 
@@ -157,27 +160,28 @@ static int trans_after_rollback_call = 0;
 static void dump_transaction_calls() {
   if (trans_before_dml_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:trans_before_dml");
+                 "\nreplication_observers_example_plugin:trans_before_dml");
   }
 
   if (trans_before_commit_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:trans_before_commit");
+                 "\nreplication_observers_example_plugin:trans_before_commit");
   }
 
   if (trans_before_rollback_call) {
-    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:trans_before_rollback");
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+        "\nreplication_observers_example_plugin:trans_before_rollback");
   }
 
   if (trans_after_commit_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:trans_after_commit");
+                 "\nreplication_observers_example_plugin:trans_after_commit");
   }
 
   if (trans_after_rollback_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:trans_after_rollback");
+                 "\nreplication_observers_example_plugin:trans_after_rollback");
   }
 }
 
@@ -342,48 +346,48 @@ static void dump_binlog_relay_calls() {
   if (binlog_relay_thread_start_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:binlog_relay_thread_start");
+        "\nreplication_observers_example_plugin:binlog_relay_thread_start");
   }
 
   if (binlog_relay_thread_stop_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:binlog_relay_thread_stop");
+        "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
   }
 
   if (binlog_relay_applier_start_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:binlog_relay_applier_start");
+        "\nreplication_observers_example_plugin:binlog_relay_applier_start");
   }
 
   if (binlog_relay_applier_stop_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:binlog_relay_applier_stop");
+        "\nreplication_observers_example_plugin:binlog_relay_applier_stop");
   }
 
   if (binlog_relay_before_request_transmit_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:binlog_relay_"
+                 "\nreplication_observers_example_plugin:binlog_relay_"
                  "before_request_transmit");
   }
 
   if (binlog_relay_after_read_event_call) {
     LogPluginErr(
         INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-        "replication_observers_example_plugin:binlog_relay_after_read_event");
+        "\nreplication_observers_example_plugin:binlog_relay_after_read_event");
   }
 
   if (binlog_relay_after_queue_event_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:binlog_relay_"
+                 "\nreplication_observers_example_plugin:binlog_relay_"
                  "after_queue_event");
   }
 
   if (binlog_relay_after_reset_slave_call) {
     LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                 "replication_observers_example_plugin:binlog_relay_"
+                 "\nreplication_observers_example_plugin:binlog_relay_"
                  "after_reset_slave");
   }
 }
@@ -595,7 +599,7 @@ int validate_plugin_server_requirements(Trans_param *param) {
     Log number of successful validations.
   */
   LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
-                  "replication_observers_example_plugin:validate_"
+                  "\nreplication_observers_example_plugin:validate_"
                   "plugin_server_requirements=%d",
                   success);
 

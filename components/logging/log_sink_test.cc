@@ -580,36 +580,35 @@ static void banner() {
     Use this if for some bizarre reason you really can't or won't use C++
   */
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO,
-                  (longlong)INFORMATION_LEVEL, LOG_ITEM_SQL_ERRCODE,
-                  ER_PARSER_TRACE, LOG_ITEM_LOG_MESSAGE,
+                  (longlong)INFORMATION_LEVEL, LOG_ITEM_SQL_ERRSYMBOL,
+                  "ER_PARSER_TRACE", LOG_ITEM_LOG_MESSAGE,
                   "using log_message() in external service");
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_SQL_ERRCODE, ER_PARSER_TRACE, LOG_ITEM_SRC_LINE,
+                  LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE", LOG_ITEM_SRC_LINE,
                   (longlong)1234, LOG_ITEM_SRC_LINE, (longlong)9876,
                   LOG_ITEM_LOG_MESSAGE,
                   "using log_message() with duplicate source-line k/v pair");
 
   log_bi->message(
       LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-      LOG_ITEM_SQL_ERRCODE, ER_PARSER_TRACE, LOG_ITEM_GEN_CSTRING, "key", "val",
-      LOG_ITEM_GEN_CSTRING, "key", "val", LOG_ITEM_LOG_MESSAGE,
+      LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE", LOG_ITEM_GEN_CSTRING, "key",
+      "val", LOG_ITEM_GEN_CSTRING, "key", "val", LOG_ITEM_LOG_MESSAGE,
       "using log_message() with duplicate generic C-string k/v pair");
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_SQL_ERRCODE, ER_PARSER_TRACE, LOG_ITEM_GEN_CSTRING,
-                  "key", "val", LOG_ITEM_GEN_INTEGER, "key", (longlong)4711,
-                  LOG_ITEM_LOG_VERBATIM,
+                  LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE",
+                  LOG_ITEM_GEN_CSTRING, "key", "val", LOG_ITEM_GEN_INTEGER,
+                  "key", (longlong)4711, LOG_ITEM_LOG_VERBATIM,
                   "using log_message() with duplicate generic mixed k/v pair");
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_SQL_ERRCODE, ER_PARSER_TRACE, LOG_ITEM_SYS_ERRNO,
+                  LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE", LOG_ITEM_SYS_ERRNO,
                   (longlong)0, LOG_ITEM_LOG_VERBATIM,
                   "using log_message() with errno 0");
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_SQL_ERRCODE, ER_PARSER_TRACE, LOG_ITEM_LOG_LOOKUP,
-                  (longlong)ER_SYSTEM_SCHEMA_NOT_FOUND);
+                  LOG_ITEM_LOG_LOOKUP, (longlong)ER_SYSTEM_SCHEMA_NOT_FOUND);
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
                   LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE",

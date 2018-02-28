@@ -360,11 +360,12 @@ bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *error_message_buffer) {
 */
 static int test_sql_service_plugin_init(void *p) {
   DBUG_ENTER("test_sql_service_plugin_init");
-  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
-  plugin_context = new Plugin_context(p);
 
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
     DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
+
+  plugin_context = new Plugin_context(p);
 
   DBUG_RETURN(0);
 }
