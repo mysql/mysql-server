@@ -123,7 +123,7 @@ sub get_csvfmt1 {
     fields_enclosed_by => undef,
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
-    csvopt => 'd',      # must match above
+    csvopt => 'n',      # must match above
   };
   return $csvfmt;
 }
@@ -134,7 +134,7 @@ sub get_csvfmt2 {
     fields_enclosed_by => '"',
     fields_escaped_by => '\\',
     lines_terminated_by => '\n',
-    csvopt => 'cq',     # must match above
+    csvopt => 'cqn',    # must match above
   };
   return $csvfmt;
 }
@@ -305,6 +305,8 @@ sub run_import {
   push(@cmd, "--input-type=csv");
   push(@cmd, "--output-type=ndb");
   push(@cmd, "--temperrors=100");
+  # using line terminator "\n"
+  push(@cmd, "--csvopt=n");
   if (defined($test->{csvfmt}{csvopt})) {
     push(@cmd, "--csvopt=$test->{csvfmt}{csvopt}");
   } else {
@@ -377,6 +379,7 @@ sub load_table {
   if (defined($fenc)) {
     push(@txt, "optionally enclosed by '$fenc'");
   }
+  push(@txt, "lines terminated by '\\n'");
   push(@txt, ";\n");
   return "@txt";
 }
