@@ -47,9 +47,10 @@ Dbtux::prepare_scan_bounds()
   
   const unsigned idir = scan.m_descending;
   const ScanBound& scanBound = scan.m_scanBound[1 - idir];
-  if (scanBound.m_cnt != 0)
+  if (likely(scanBound.m_cnt != 0))
   {
     jamDebug();
+/*
     c_ctx.searchBoundData = new (c_ctx.searchBoundData)
                             KeyDataC(index.m_keySpec, true);
     c_ctx.searchBound = new (c_ctx.searchBound)
@@ -58,6 +59,7 @@ Dbtux::prepare_scan_bounds()
                         KeyData(index.m_keySpec, true, 0);
     unpackBound(c_ctx, scanBound, *c_ctx.searchBound);
     c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
+*/
     c_ctx.numAttrs = index.m_numAttrs;
     c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
     const DescHead& descHead = getDescHead(index);
@@ -972,14 +974,24 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
     {
       scanNext(scanPtr, false, frag);
     }
-    if (scan.m_state == ScanOp::Current)
+    if (likely(scan.m_state == ScanOp::Current))
     {
       jamDebug();
       const TreePos pos = scan.m_scanPos;
       NodeHandle node(frag);
       selectNode(node, pos.m_loc);
       const TreeEnt ent = node.getEnt(pos.m_pos);
-      if (unlikely(scan.m_statOpPtrI != RNIL))
+      if (likely(scan.m_statOpPtrI == RNIL))
+      {
+        if (likely(scanVisible(scanPtr, ent)))
+        {
+          jamDebug();
+          scan.m_state = ScanOp::Found;
+          scan.m_scanEnt = ent;
+          break;
+        }
+      }
+      else
       {
         StatOpPtr statPtr;
         statPtr.i = scan.m_statOpPtrI;
@@ -1002,13 +1014,6 @@ Dbtux::scanFind(ScanOpPtr scanPtr, Frag& frag)
           scan.m_scanEnt = ent;
           break;
         }
-      }
-      else if (scanVisible(scanPtr, ent))
-      {
-        jamDebug();
-        scan.m_state = ScanOp::Found;
-        scan.m_scanEnt = ent;
-        break;
       }
     }
     else
@@ -1272,7 +1277,7 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
   const ScanBound& scanBound = scan.m_scanBound[1 - idir];
   const int jdir = 1 - 2 * (int)idir;
   int ret = 0;
-  if (scanBound.m_cnt != 0)
+  if (likely(scanBound.m_cnt != 0))
   {
     jamDebug();
     KeyDataC searchBoundData(c_ctx.indexPtr.p->m_keySpec, true);

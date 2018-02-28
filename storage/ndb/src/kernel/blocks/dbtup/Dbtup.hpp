@@ -2759,9 +2759,9 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  int getStoredProcAttrInfo(Uint32 storedId,
-                            KeyReqStruct* req_struct,
-                            Uint32& attrInfoIVal);
+  void getStoredProcAttrInfo(Uint32 storedId,
+                             KeyReqStruct* req_struct,
+                             Uint32& attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

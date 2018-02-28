@@ -11763,8 +11763,56 @@ void Dblqh::continueScanNextReqLab(Signal* signal,
   regTcPtr->tcTimer = cLqhTimeOutCount;
   init_acc_ptr_list(scanPtr);
   scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
+  scanNextLoopLab(signal, regTcPtr->clientConnectrec, RNIL);
 }//Dblqh::continueScanNextReqLab()
+
+void Dblqh::scanNextLoopLab(Signal* signal,
+                            Uint32 clientPtrI,
+                            Uint32 accOpPtr)
+{
+  ScanRecord * const scanPtr = scanptr.p;
+  Uint32 scanFlag = scanPtr->scanFlag;
+
+  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
+  const Uint32 sig0 = scanPtr->scanAccPtr;
+  SimulatedBlock *block = scanPtr->scanBlock;
+  ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
+
+  signal->theData[0] = sig0;
+  signal->theData[1] = accOpPtr;
+  signal->theData[2] = scanFlag;
+
+  ndbrequire(is_scan_ok(scanPtr, fragstatus));
+  scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
+  scanPtr->scan_lastSeen = __LINE__;
+  if (unlikely(m_in_send_next_scan == 0))
+  {
+    send_next_NEXT_SCANREQ(signal,
+                           block,
+                           f,
+                           scanPtr,
+                           clientPtrI);
+    return;
+  }
+  /**
+   * At this point we don't call send_next_NEXT_SCANREQ since we
+   * want to unwind the call stack before entering this function.
+   * scanPtr->in_send_next_scan equal to 1 indicates that we are
+   * executing this function already and that we will check the
+   * result of this function when we return to send_next_NEXT_SCANREQ
+   * after unwinding the stack.
+   *
+   * It is imperative that we return immediately in all the call
+   * stack until we return to send_next_NEXT_SCANREQ again. This
+   * secures the signal object that is setup already to send the
+   * NEXT_SCANREQ signal.
+   *
+   * We indicate that we have another signal to process by setting
+   * m_in_send_next_scan to 2.
+   */
+  ndbassert(m_in_send_next_scan == 1);
+  m_in_send_next_scan = 2;
+}//Dblqh::scanNextLoopLab()
 
 void Dblqh::scanLockReleasedLab(Signal* signal,
                                 TcConnectionrec* const regTcPtr)
@@ -13300,7 +13348,7 @@ void Dblqh::nextScanConfScanLab(Signal* signal,
       if (!scanPtr->check_scan_batch_completed())
       {
         jam();
-        scanNextLoopLab(signal, regTcPtr->clientConnectrec);
+        scanNextLoopLab(signal, regTcPtr->clientConnectrec, RNIL);
         return;
       }
       else
@@ -13719,83 +13767,24 @@ void Dblqh::scanTupkeyConfLab(Signal* signal,
       return;
     }
   }
-  else
+  if (unlikely(scanPtr->scanLockHold == ZTRUE))
   {
-    if (unlikely(scanPtr->scanLockHold == ZTRUE))
-    {
-      jamDebug();
-      scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
-    }
-    else
-    {
-      jamDebug();
-      scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
-    }
-  }
-  scanNextLoopLab(signal, regTcPtr->clientConnectrec);
-}//Dblqh::scanTupkeyConfLab()
-
-void Dblqh::scanNextLoopLab(Signal* signal, Uint32 clientPtrI) 
-{
-  Uint32 accOpPtr;
-  ScanRecord * const scanPtr = scanptr.p;
-  Uint32 scanFlag = scanPtr->scanFlag;
-  if (likely(scanFlag == NextScanReq::ZSCAN_NEXT_COMMIT))
-  {
-    accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
-					   scanPtr->m_curr_batch_size_rows-1,
-					   false);
-  }
-  else if (scanPtr->scanFlag == NextScanReq::ZSCAN_NEXT_ABORT)
-  {
-    jam();
-    scanFlag = scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
-    accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
-					   scanPtr->m_curr_batch_size_rows,
-					   false);
-    scanPtr->scan_acc_index--;
-  }
-  else
-  {
-    jam();
-    accOpPtr = RNIL; // The value is not used in ACC
-  }//if
-  Fragrecord::FragStatus fragstatus = fragptr.p->fragStatus;
-  const Uint32 sig0 = scanPtr->scanAccPtr;
-  SimulatedBlock *block = scanPtr->scanBlock;
-  ExecFunction f = scanPtr->scanFunction_NEXT_SCANREQ;
-
-  signal->theData[0] = sig0;
-  signal->theData[1] = accOpPtr;
-  signal->theData[2] = scanFlag;
-
-  ndbrequire(is_scan_ok(scanPtr, fragstatus));
-  scanPtr->scanState = ScanRecord::WAIT_NEXT_SCAN;
-  scanPtr->scan_lastSeen = __LINE__;
-  if (m_in_send_next_scan == 0)
-  {
-    send_next_NEXT_SCANREQ(signal, block, f, scanPtr, clientPtrI);
+    jamDebug();
+    scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT;
+    scanNextLoopLab(signal, regTcPtr->clientConnectrec, RNIL);
     return;
   }
-  /**
-   * At this point we don't call send_next_NEXT_SCANREQ since we
-   * want to unwind the call stack before entering this function.
-   * scanPtr->in_send_next_scan equal to 1 indicates that we are
-   * executing this function already and that we will check the
-   * result of this function when we return to send_next_NEXT_SCANREQ
-   * after unwinding the stack.
-   *
-   * It is imperative that we return immediately in all the call
-   * stack until we return to send_next_NEXT_SCANREQ again. This
-   * secures the signal object that is setup already to send the
-   * NEXT_SCANREQ signal.
-   *
-   * We indicate that we have another signal to process by setting
-   * m_in_send_next_scan to 2.
-   */
-  ndbassert(m_in_send_next_scan == 1);
-  m_in_send_next_scan = 2;
-}//Dblqh::scanNextLoopLab()
+  else
+  {
+    jamDebug();
+    scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
+    Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanPtr,
+					   scanPtr->m_curr_batch_size_rows-1,
+					   false);
+    scanNextLoopLab(signal, regTcPtr->clientConnectrec, accOpPtr);
+    return;
+  }
+}//Dblqh::scanTupkeyConfLab()
 
 /* -------------------------------------------------------------------------
  *         ENTER TUPKEYREF WITH
@@ -13835,7 +13824,6 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     ndbassert(refToBlock(scanPtr->scanBlockref) != DBACC);
     jamDebug();
   }
-
   if (unlikely(scanPtr->scanCompletedStatus == ZTRUE))
   {
     /* ---------------------------------------------------------------------
@@ -13893,8 +13881,9 @@ void Dblqh::scanTupkeyRefLab(Signal* signal,
     scanReleaseLocksLab(signal, tcConnectptr.p);
     return;
   }
-  scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_ABORT;
-  scanNextLoopLab(signal, tcConnectptr.p->clientConnectrec);
+  scanPtr->scanFlag = NextScanReq::ZSCAN_NEXT_COMMIT;
+  scanPtr->scan_acc_index--;
+  scanNextLoopLab(signal, tcConnectptr.p->clientConnectrec, accOpPtr);
 }//Dblqh::scanTupkeyRefLab()
 
 /* -------------------------------------------------------------------------

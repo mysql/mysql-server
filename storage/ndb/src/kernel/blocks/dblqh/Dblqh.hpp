@@ -2980,7 +2980,7 @@ private:
   void moreconnectionsLab(Signal* signal, TcConnectionrecPtr);
   void scanReleaseLocksLab(Signal* signal, TcConnectionrec*);
   void closeScanLab(Signal* signal, TcConnectionrec*);
-  void scanNextLoopLab(Signal* signal, Uint32 clientPtrI);
+  void scanNextLoopLab(Signal* signal, Uint32 clientPtrI, Uint32 accOpPtr);
   void commitReqLab(Signal* signal,
                     Uint32 gci_hi,
                     Uint32 gci_lo,
@@ -4135,10 +4135,15 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 inline
 bool Dblqh::is_scan_ok(ScanRecord* scanPtrP, Fragrecord::FragStatus fragstatus)
 {
-  if (fragstatus == Fragrecord::FSACTIVE ||
-      (fragstatus == Fragrecord::ACTIVE_CREATION &&
-       scanPtrP->lcpScan))
+  if (likely(fragstatus == Fragrecord::FSACTIVE))
+  {
     return true;
+  }
+  else if (likely(fragstatus == Fragrecord::ACTIVE_CREATION &&
+                  scanPtrP->lcpScan))
+  {
+    return true;
+  }
   return false;
 }
 #endif
