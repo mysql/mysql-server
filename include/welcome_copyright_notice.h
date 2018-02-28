@@ -71,6 +71,14 @@
   "   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  " \
   "USA */\n"
 
+#define ORACLE_COPYRIGHT_NOTICE(first_year)                                \
+  (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                       \
+       ? "/* Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR \
+         ", Oracle and/or its affiliates. All rights reserved. */\n"       \
+         "\n"                                                              \
+       : "/* Copyright (c) " first_year                                    \
+         ", Oracle and/or its affiliates. All rights reserved. */\n")
+
 #define ORACLE_GPL_COPYRIGHT_NOTICE(first_year)                            \
   (strcmp(first_year, COPYRIGHT_NOTICE_CURRENT_YEAR)                       \
        ? "/* Copyright (c) " first_year ", " COPYRIGHT_NOTICE_CURRENT_YEAR \
