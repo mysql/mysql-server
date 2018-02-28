@@ -14927,6 +14927,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   dict_index_t *index;
   ulint n_rows;
   ulint n_rows_in_table = ULINT_UNDEFINED;
+  ulint n_dups;
   bool is_ok = true;
   ulint old_isolation_level;
   dberr_t ret;
@@ -15048,7 +15049,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
-      ret = row_count_rtree_recs(m_prebuilt, &n_rows);
+      ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
     } else {
       ret = row_scan_index_for_mysql(m_prebuilt, index, true, &n_rows);
     }
@@ -15076,7 +15077,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table)) {
+    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
+               (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
+                (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
                           "InnoDB: Index '%-.200s' contains %lu"
                           " entries, should be %lu.",
