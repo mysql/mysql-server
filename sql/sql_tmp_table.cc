@@ -2737,9 +2737,6 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable,
           new_table.no_rows = 1;
         }
 
-        /* HA_EXTRA_WRITE_CACHE can stay until close, no need to disable it */
-        new_table.file->extra(HA_EXTRA_WRITE_CACHE);
-
         /*
           copy all old rows from heap table to on-disk table
           This is the only code that uses record[1] to read/write but this

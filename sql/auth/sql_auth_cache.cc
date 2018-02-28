@@ -1474,7 +1474,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     Prepare reading from the mysql.user table
   */
   if (init_read_record(&read_record_info, thd, table = tables[0].table, NULL, 1,
-                       1, false))
+                       false))
     goto end;
   table->use_all_columns();
   acl_users->clear();
@@ -1855,7 +1855,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
     Prepare reading from the mysql.db table
   */
   if (init_read_record(&read_record_info, thd, table = tables[1].table, NULL, 1,
-                       1, false))
+                       false))
     goto end;
   table->use_all_columns();
   acl_dbs->clear();
@@ -1911,7 +1911,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
 
   if (tables[2].table) {
     if (init_read_record(&read_record_info, thd, table = tables[2].table, NULL,
-                         1, 1, false))
+                         1, false))
       goto end;
     table->use_all_columns();
     while (

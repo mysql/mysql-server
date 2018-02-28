@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -255,7 +255,7 @@ static void read_server_cost_constants(THD *thd, TABLE *table,
 
   // Prepare to read from the table
   const bool ret =
-      init_read_record(&read_record_info, thd, table, NULL, true, true, false);
+      init_read_record(&read_record_info, thd, table, NULL, true, false);
   if (!ret) {
     table->use_all_columns();
 
@@ -325,7 +325,7 @@ static void read_engine_cost_constants(THD *thd, TABLE *table,
 
   // Prepare to read from the table
   const bool ret =
-      init_read_record(&read_record_info, thd, table, NULL, true, true, false);
+      init_read_record(&read_record_info, thd, table, NULL, true, false);
   if (!ret) {
     table->use_all_columns();
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,9 +44,7 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function);
     info	open table
     function	operation
     extra_arg	Pointer to extra argument (normally pointer to ulong)
-                Used when function is one of:
-                HA_EXTRA_WRITE_CACHE
-                HA_EXTRA_CACHE
+                Not used.
   RETURN VALUES
     0  ok
     #  error
@@ -54,7 +52,6 @@ static void mi_extra_keyflag(MI_INFO *info, enum ha_extra_function function);
 
 int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
   int error = 0;
-  ulong cache_size;
   MYISAM_SHARE *share = info->s;
   DBUG_ENTER("mi_extra");
   DBUG_PRINT("enter", ("function: %d", (int)function));
@@ -73,104 +70,10 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       info->update = ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
                       HA_STATE_PREV_FOUND);
       break;
-    case HA_EXTRA_CACHE:
-      if (info->lock_type == F_UNLCK &&
-          (share->options & HA_OPTION_PACK_RECORD)) {
-        error = 1; /* Not possibly if not locked */
-        set_my_errno(EACCES);
-        break;
-      }
-      if (info->s->file_map) /* Don't use cache if mmap */
-        break;
-#if defined(HAVE_MADVISE)
-      if ((share->options & HA_OPTION_COMPRESS_RECORD)) {
-        mysql_mutex_lock(&share->intern_lock);
-        if (_mi_memmap_file(info)) {
-          /* We don't nead MADV_SEQUENTIAL if small file */
-          madvise((char *)share->file_map, share->state.state.data_file_length,
-                  share->state.state.data_file_length <= RECORD_CACHE_SIZE * 16
-                      ? MADV_RANDOM
-                      : MADV_SEQUENTIAL);
-          mysql_mutex_unlock(&share->intern_lock);
-          break;
-        }
-        mysql_mutex_unlock(&share->intern_lock);
-      }
-#endif
-      if (info->opt_flag & WRITE_CACHE_USED) {
-        info->opt_flag &= ~WRITE_CACHE_USED;
-        if ((error = end_io_cache(&info->rec_cache))) break;
-      }
-      if (!(info->opt_flag &
-            (READ_CACHE_USED | WRITE_CACHE_USED | MEMMAP_USED))) {
-        cache_size =
-            (extra_arg ? *(ulong *)extra_arg : my_default_record_cache_size);
-        if (!(init_io_cache(
-                &info->rec_cache, info->dfile,
-                (uint)MY_MIN(info->state->data_file_length + 1, cache_size),
-                READ_CACHE, 0L, (bool)(info->lock_type != F_UNLCK),
-                MYF(share->write_flag & MY_WAIT_IF_FULL)))) {
-          info->opt_flag |= READ_CACHE_USED;
-          info->update &= ~HA_STATE_ROW_CHANGED;
-        }
-        if (share->concurrent_insert)
-          info->rec_cache.end_of_file = info->state->data_file_length;
-      }
-      break;
-    case HA_EXTRA_REINIT_CACHE:
-      if (info->opt_flag & READ_CACHE_USED) {
-        reinit_io_cache(&info->rec_cache, READ_CACHE, info->nextpos,
-                        (bool)(info->lock_type != F_UNLCK),
-                        (bool)(info->update & HA_STATE_ROW_CHANGED));
-        info->update &= ~HA_STATE_ROW_CHANGED;
-        if (share->concurrent_insert)
-          info->rec_cache.end_of_file = info->state->data_file_length;
-      }
-      break;
-    case HA_EXTRA_WRITE_CACHE:
-      if (info->lock_type == F_UNLCK) {
-        error = 1; /* Not possibly if not locked */
-        break;
-      }
-
-      cache_size =
-          (extra_arg ? *(ulong *)extra_arg : my_default_record_cache_size);
-      if (!(info->opt_flag &
-            (READ_CACHE_USED | WRITE_CACHE_USED | OPT_NO_ROWS)) &&
-          !share->state.header.uniques)
-        if (!(init_io_cache(&info->rec_cache, info->dfile, cache_size,
-                            WRITE_CACHE, info->state->data_file_length,
-                            (bool)(info->lock_type != F_UNLCK),
-                            MYF(share->write_flag & MY_WAIT_IF_FULL)))) {
-          info->opt_flag |= WRITE_CACHE_USED;
-          info->update &= ~(HA_STATE_ROW_CHANGED | HA_STATE_WRITE_AT_END |
-                            HA_STATE_EXTEND_BLOCK);
-        }
-      break;
     case HA_EXTRA_PREPARE_FOR_UPDATE:
       if (info->s->data_file_type != DYNAMIC_RECORD) break;
       /* Remove read/write cache if dynamic rows */
       // Fall through.
-    case HA_EXTRA_NO_CACHE:
-      if (info->opt_flag & (READ_CACHE_USED | WRITE_CACHE_USED)) {
-        info->opt_flag &= ~(READ_CACHE_USED | WRITE_CACHE_USED);
-        error = end_io_cache(&info->rec_cache);
-        /* Sergei will insert full text index caching here */
-      }
-#if defined(HAVE_MADVISE)
-      if (info->opt_flag & MEMMAP_USED)
-        madvise((char *)share->file_map, share->state.state.data_file_length,
-                MADV_RANDOM);
-#endif
-      break;
-    case HA_EXTRA_FLUSH_CACHE:
-      if (info->opt_flag & WRITE_CACHE_USED) {
-        if ((error = flush_io_cache(&info->rec_cache))) {
-          mi_print_error(info->s, HA_ERR_CRASHED);
-          mi_mark_crashed(info); /* Fatal error found */
-        }
-      }
-      break;
     case HA_EXTRA_NO_READCHECK:
       info->opt_flag &= ~READ_CHECK_USED; /* No readcheck */
       break;
@@ -311,8 +214,6 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg) {
       share->is_log_table = true;
       mysql_mutex_unlock(&share->intern_lock);
       break;
-    case HA_EXTRA_KEY_CACHE:
-    case HA_EXTRA_NO_KEY_CACHE:
     default:
       break;
   }

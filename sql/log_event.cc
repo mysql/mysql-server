@@ -11803,12 +11803,6 @@ int Write_rows_log_event::write_row(const Relay_log_info *const rli,
     } else {
       DBUG_PRINT("info", ("Locating offending record using index_read_idx()"));
 
-      if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) {
-        DBUG_PRINT("info", ("Error when setting HA_EXTRA_FLUSH_CACHE"));
-        error = my_errno();
-        goto error;
-      }
-
       if (key == NULL) {
         key = static_cast<char *>(my_alloca(table->s->max_unique_length));
         if (key == NULL) {

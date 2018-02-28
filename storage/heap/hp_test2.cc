@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -393,10 +393,6 @@ int main(int argc, char *argv[]) {
   }
 
   printf("- Read through all records with scan\n");
-  if (heap_reset(file) || heap_extra(file, HA_EXTRA_CACHE)) {
-    puts("got error from heap_extra");
-    goto end;
-  }
   ant = check2 = 0;
   heap_scan_init(file);
   while ((error = heap_scan(file, record)) != HA_ERR_END_OF_FILE &&
@@ -409,11 +405,6 @@ int main(int argc, char *argv[]) {
   if (ant != write_count - opt_delete) {
     printf("scan: I can only find: %d records of %d\n", ant,
            write_count - opt_delete);
-    goto end;
-  }
-
-  if (heap_extra(file, HA_EXTRA_NO_CACHE)) {
-    puts("got error from heap_extra(HA_EXTRA_NO_CACHE)");
     goto end;
   }
 

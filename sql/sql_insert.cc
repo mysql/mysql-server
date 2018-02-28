@@ -1599,13 +1599,6 @@ bool write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update) {
         and we shouldn't try to locate key info.
       */
       else if (key_nr < MAX_KEY) {
-        if (table->file->extra(
-                HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
-        {
-          error = my_errno();
-          goto err;
-        }
-
         if (!key) {
           if (!(key = (char *)my_safe_alloca(table->s->max_unique_length,
                                              MAX_KEY_LENGTH))) {
@@ -2626,7 +2619,6 @@ bool Query_result_create::start_execution() {
   thd->check_for_truncated_fields = save_check_for_truncated_fields;
 
   table->mark_columns_needed_for_insert(thd);
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(false);
 }
 

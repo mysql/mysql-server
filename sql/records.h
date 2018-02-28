@@ -1,6 +1,6 @@
 #ifndef SQL_RECORDS_H
 #define SQL_RECORDS_H
-/* Copyright (c) 2008, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,7 +87,7 @@ struct READ_RECORD {
 };
 
 bool init_read_record(READ_RECORD *info, THD *thd, TABLE *table,
-                      QEP_TAB *qep_tab, int use_record_cache, bool print_errors,
+                      QEP_TAB *qep_tab, bool print_errors,
                       bool disable_rr_cache);
 bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
                           bool print_error, uint idx, bool reverse);

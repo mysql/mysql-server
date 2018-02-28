@@ -773,16 +773,6 @@ bool TABLE_LIST::create_materialized_table(THD *thd) {
                             options, thd->variables.big_tables))
     DBUG_RETURN(true); /* purecov: inspected */
 
-  /*
-    HA_EXTRA_WRITE_CACHE has the theoretical effect that written rows may be
-    cached for a while before reaching the output table, which would break the
-    with-recursive algorithm.
-    Note that MEMORY and InnoDB engines ignore HA_EXTRA_WRITE_CACHE and
-    HA_EXTRA_IGNORE_DUP_KEY.
-
-  */
-  if (is_table_function() || !unit->is_recursive())
-    table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
 
   DBUG_RETURN(false);

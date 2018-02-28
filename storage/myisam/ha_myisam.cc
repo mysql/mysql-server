@@ -1446,14 +1446,6 @@ int ha_myisam::indexes_are_disabled(void) {
 void ha_myisam::start_bulk_insert(ha_rows rows) {
   DBUG_ENTER("ha_myisam::start_bulk_insert");
   THD *thd = current_thd;
-  ulong size = min(thd->variables.read_buff_size,
-                   (ulong)(table->s->avg_row_length * rows));
-  DBUG_PRINT("info",
-             ("start_bulk_insert: rows %lu size %lu", (ulong)rows, size));
-
-  /* don't enable row cache if too few rows */
-  if (!rows || (rows > MI_MIN_ROWS_TO_USE_WRITE_CACHE))
-    mi_extra(file, HA_EXTRA_WRITE_CACHE, (void *)&size);
 
   can_enable_indexes =
       mi_is_all_keys_active(file->s->state.key_map, file->s->base.keys);
@@ -1490,22 +1482,20 @@ void ha_myisam::start_bulk_insert(ha_rows rows) {
 
 int ha_myisam::end_bulk_insert() {
   mi_end_bulk_insert(file);
-  int err = mi_extra(file, HA_EXTRA_NO_CACHE, 0);
-  if (!err) {
-    if (can_enable_indexes) {
-      /*
-        Truncate the table when enable index operation is killed.
-        After truncating the table we don't need to enable the
-        indexes, because the last repair operation is aborted after
-        setting the indexes as active and  trying to recreate them.
-     */
+  int err = 0;
+  if (can_enable_indexes) {
+    /*
+      Truncate the table when enable index operation is killed.
+      After truncating the table we don't need to enable the
+      indexes, because the last repair operation is aborted after
+      setting the indexes as active and  trying to recreate them.
+   */
 
-      if (((err = enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) &&
-          current_thd->killed) {
-        delete_all_rows();
-        /* not crashed, despite being killed during repair */
-        file->s->state.changed &= ~(STATE_CRASHED | STATE_CRASHED_ON_REPAIR);
-      }
+    if (((err = enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE)) != 0) &&
+        current_thd->killed) {
+      delete_all_rows();
+      /* not crashed, despite being killed during repair */
+      file->s->state.changed &= ~(STATE_CRASHED | STATE_CRASHED_ON_REPAIR);
     }
   }
   return err;

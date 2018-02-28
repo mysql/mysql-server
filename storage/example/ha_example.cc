@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,7 +63,6 @@
   ha_example::info
   ha_example::rnd_init
   ha_example::extra
-  ENUM HA_EXTRA_CACHE        Cache record in HA_rrnd()
   ha_example::rnd_next
   ha_example::rnd_next
   ha_example::rnd_next
@@ -74,7 +73,6 @@
   ha_example::rnd_next
   ha_example::rnd_next
   ha_example::extra
-  ENUM HA_EXTRA_NO_CACHE     End caching of records (def)
   ha_example::external_lock
   ha_example::extra
   ENUM HA_EXTRA_RESET        Reset database to after open

@@ -2602,7 +2602,7 @@ int join_init_read_record(QEP_TAB *tab) {
     (void)report_handler_error(tab->table(), error);
     return 1;
   }
-  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, 1, 1,
+  if (init_read_record(&tab->read_record, tab->join()->thd, NULL, tab, 1,
                        false))
     return 1;
 
@@ -5556,10 +5556,8 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     error = file->ha_rnd_pos(record, file->ref);
   }
 
-  file->extra(HA_EXTRA_NO_CACHE);
   DBUG_RETURN(false);
 err:
-  file->extra(HA_EXTRA_NO_CACHE);
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
   DBUG_RETURN(true);
@@ -5626,12 +5624,10 @@ static bool remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
   }
 
-  file->extra(HA_EXTRA_NO_CACHE);
   (void)file->ha_rnd_end();
   DBUG_RETURN(false);
 
 err:
-  file->extra(HA_EXTRA_NO_CACHE);
   if (file->inited) (void)file->ha_rnd_end();
   if (error) file->print_error(error, MYF(0));
   DBUG_RETURN(true);
@@ -6178,7 +6174,6 @@ bool QEP_tmp_table::prepare_tmp_table() {
                               join->select_lex->active_options(),
                               join->thd->variables.big_tables))
       DBUG_RETURN(true);
-    (void)table->file->extra(HA_EXTRA_WRITE_CACHE);
     empty_record(table);
   }
   /* If it wasn't already, start index scan for grouping using table index. */
@@ -6231,11 +6226,6 @@ enum_nested_loop_state QEP_tmp_table::end_send() {
 
   if ((rc = put_record(true)) < NESTED_LOOP_OK) return rc;
 
-  if (qep_tab->table()->file->inited &&
-      (tmp = table->file->extra(HA_EXTRA_NO_CACHE))) {
-    DBUG_PRINT("error", ("extra(HA_EXTRA_NO_CACHE) failed"));
-    new_errno = tmp;
-  }
   if ((tmp = table->file->ha_index_or_rnd_end())) {
     DBUG_PRINT("error", ("ha_index_or_rnd_end() failed"));
     new_errno = tmp;

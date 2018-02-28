@@ -1082,11 +1082,9 @@ void Aggregator_distinct::clear() {
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC ||
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC) {
     if (!tree && table) {
-      table->file->extra(HA_EXTRA_NO_CACHE);
       table->file->ha_index_or_rnd_end();
       table->file->ha_delete_all_rows();
       if (table->hash_field) table->file->ha_index_init(0, 0);
-      table->file->extra(HA_EXTRA_WRITE_CACHE);
     }
   } else {
     item_sum->null_value = 1;

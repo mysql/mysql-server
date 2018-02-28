@@ -4693,7 +4693,6 @@ bool get_schema_tables_result(JOIN *join,
         'executed_place' value then we should refresh the table.
       */
       if (table_list->schema_table_state && is_subselect) {
-        table_list->table->file->extra(HA_EXTRA_NO_CACHE);
         table_list->table->file->extra(HA_EXTRA_RESET_STATE);
         table_list->table->file->ha_delete_all_rows();
         free_io_cache(table_list->table);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -76,7 +76,6 @@ struct MYRG_INFO {
   ulong cache_size;
   uint merge_insert_method;
   uint tables, options, reclength, keys;
-  bool cache_in_use;
   /* If MERGE children attached to parent. See top comment in ha_myisammrg.cc */
   bool children_attached;
   LIST open_list;

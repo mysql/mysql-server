@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3005,8 +3005,6 @@ bool subselect_indexsubquery_engine::scan_table() {
     DBUG_RETURN(true);
   }
 
-  table->file->extra_opt(HA_EXTRA_CACHE,
-                         item->unit->thd->variables.read_buff_size);
   for (;;) {
     error = table->file->ha_rnd_next(table->record[0]);
     if (error && error != HA_ERR_END_OF_FILE) {

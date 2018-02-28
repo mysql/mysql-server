@@ -2269,7 +2269,6 @@ bool JOIN::setup_semijoin_materialized_table(JOIN_TAB *tab, uint tableno,
     DBUG_RETURN(true); /* purecov: inspected */
   sjm_exec->table = table;
   map2table[tableno] = tab;
-  table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   sj_tmp_tables.push_back(table);
   sjm_exec_list.push_back(sjm_exec);
@@ -2878,25 +2877,17 @@ void JOIN::cleanup() {
     for (uint i = 0; i < tables; i++) {
       QEP_TAB *qtab;
       TABLE *table;
-      QEP_operation *op;
       if (qep_tab) {
         DBUG_ASSERT(!join_tab);
         qtab = &qep_tab[i];
-        op = qtab->op;
         table = qtab->table();
       } else {
         qtab = NULL;
-        op = NULL;
         table = (join_tab ? &join_tab[i] : best_ref[i])->table();
       }
       if (!table) continue;
       if (table->is_created()) {
         table->file->ha_index_or_rnd_end();
-        if (op && op->type() == QEP_operation::OT_TMP_TABLE) {
-          int tmp;
-          if ((tmp = table->file->extra(HA_EXTRA_NO_CACHE)))
-            table->file->print_error(tmp, MYF(0));
-        }
       }
       free_io_cache(table);
       filesort_free_buffers(table, false);

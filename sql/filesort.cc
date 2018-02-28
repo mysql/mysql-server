@@ -930,7 +930,6 @@ static ha_rows read_all_rows(
       file->print_error(error, MYF(0));
       DBUG_RETURN(HA_POS_ERROR);
     }
-    file->extra_opt(HA_EXTRA_CACHE, thd->variables.read_buff_size);
   }
 
   /* Remember original bitmaps */
@@ -982,7 +981,6 @@ static ha_rows read_all_rows(
     if (thd->killed) {
       DBUG_PRINT("info", ("Sort killed by user"));
       if (!is_range_scan) {
-        (void)file->extra(HA_EXTRA_NO_CACHE);
         file->ha_rnd_end();
       }
       num_total_records = HA_POS_ERROR;
@@ -1028,7 +1026,6 @@ static ha_rows read_all_rows(
     if (thd->is_error()) break;
   }
   if (!is_range_scan) {
-    (void)file->extra(HA_EXTRA_NO_CACHE); /* End cacheing of records */
     file->ha_rnd_end();
   }
 

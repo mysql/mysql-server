@@ -600,7 +600,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         if (used_index == MAX_KEY || qep_tab.quick()
-                ? init_read_record(&info, thd, NULL, &qep_tab, 0, true, false)
+                ? init_read_record(&info, thd, NULL, &qep_tab, true, false)
                 : init_read_record_idx(&info, thd, table, true, used_index,
                                        reverse))
           DBUG_RETURN(true); /* purecov: inspected */
@@ -685,7 +685,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
 
     table->file->try_semi_consistent_read(1);
-    if (init_read_record(&info, thd, NULL, &qep_tab, 0, true, false))
+    if (init_read_record(&info, thd, NULL, &qep_tab, true, false))
       DBUG_RETURN(true); /* purecov: inspected */
 
     /*
@@ -1956,7 +1956,6 @@ bool Query_result_update::optimize() {
       calling fill_record() to assign values to the temporary table's fields.
     */
     tmp_tables[cnt]->triggers = table->triggers;
-    tmp_tables[cnt]->file->extra(HA_EXTRA_WRITE_CACHE);
   }
   DBUG_RETURN(0);
 }
@@ -2228,7 +2227,6 @@ bool Query_result_update::do_updates() {
     if (table == table_to_update) continue;  // Already updated
     org_updated = updated_rows;
     tmp_table = tmp_tables[cur_table->shared];
-    tmp_table->file->extra(HA_EXTRA_CACHE);  // Change to read cache
     if ((local_error = table->file->ha_rnd_init(0))) {
       if (table->file->is_fatal_error(local_error))
         error_flags |= ME_FATALERROR;
@@ -2237,14 +2235,11 @@ bool Query_result_update::do_updates() {
       goto err;
     }
 
-    table->file->extra(HA_EXTRA_NO_CACHE);
-
     check_opt_it.rewind();
     while (TABLE *tbl = check_opt_it++) {
       if (tbl->file->ha_rnd_init(1))
         // No known handler error code present, print_error makes no sense
         goto err;
-      tbl->file->extra(HA_EXTRA_CACHE);
     }
 
     /*
