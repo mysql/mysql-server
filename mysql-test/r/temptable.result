@@ -20,8 +20,6 @@ def	mysql	PRIMARY	mysql	help_category	PRIMARY KEY
 def	mysql	PRIMARY	mysql	help_keyword	PRIMARY KEY
 def	mysql	PRIMARY	mysql	help_relation	PRIMARY KEY
 def	mysql	PRIMARY	mysql	help_topic	PRIMARY KEY
-def	mysql	PRIMARY	mysql	innodb_ddl_log	PRIMARY KEY
-def	mysql	PRIMARY	mysql	innodb_dynamic_metadata	PRIMARY KEY
 def	mysql	PRIMARY	mysql	innodb_index_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	innodb_table_stats	PRIMARY KEY
 def	mysql	PRIMARY	mysql	password_history	PRIMARY KEY

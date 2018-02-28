@@ -193,11 +193,11 @@ let $assert_cond= "[SELECT id FROM mysql.indexes
 --echo # PART 2
 
 --echo ########################################################################
---echo # The number of DD tables must be as expected.
+--echo # The number of hidden DD/DDSE tables must be as expected.
 --echo ########################################################################
 let $assert_cond= "[SELECT COUNT(*) from mysql.tables
-                      WHERE schema_id = 1 AND hidden = \'System\']" = 29;
---let $assert_text= There are 29 DD tables.
+                      WHERE schema_id = 1 AND hidden = \'System\']" = 31;
+--let $assert_text= There are 31 hidden DD/DDSE tables.
 --source include/assert.inc
 
 # Fill two help tables with the names of the DDSE and DD tables.
@@ -250,7 +250,8 @@ INSERT INTO dd_table_names (name) VALUES
 let $assert_cond= "[SELECT COUNT(*) FROM mysql.tables
                       WHERE schema_id = 1
                       AND hidden = \'System\'
-                      AND name NOT IN (SELECT name FROM dd_table_names)]"
+                      AND name NOT IN (SELECT name FROM dd_table_names)
+                      AND name NOT IN (SELECT name FROM ddse_table_names)]"
                   = 0;
 --let $assert_text= No unexpected DD tables are present.
 --source include/assert.inc
@@ -546,10 +547,10 @@ INSERT INTO dd_published_schema
     'f607ab08b2d2b2d93d8867ad75116655d9c942647245d7846be440ec916c440f');
 INSERT INTO dd_published_schema
   VALUES ('80005', 0,
-    '1c90f65130dcd023dfc8f6b27ba13358ef1ae463c7f08469c034a624178f227a');
+    'e109ab22beeabbcd1ad10ceb0d18064fc779faf90cfb5ca1884e28eb3e3a6cc3');
 INSERT INTO dd_published_schema
   VALUES ('80005', 1,
-    '4ccf8e9517eefbea7e34cafb8739495d89da1ce97a5a3918bb49371c9bb7a919');
+    'be2b87e3dc1d4b2c2670d40de4e18222fd4d08eedbe4feecb044d5438b57f0b6');
 
 SELECT IFNULL(CONCAT('The schema checksum corresponds to DD version ',
                      version, '.'),

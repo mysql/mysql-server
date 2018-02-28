@@ -345,7 +345,15 @@ class System_tables {
     - The PFS tables are not needed by the data dictionary, but the
       server manages these based on requests from the performance schema.
   */
-  enum class Types { INERT, CORE, SECOND, DDSE, PFS, SYSTEM };
+  enum class Types {
+    INERT,
+    CORE,
+    SECOND,
+    DDSE_PRIVATE,
+    DDSE_PROTECTED,
+    PFS,
+    SYSTEM
+  };
 
   // Map from system table type to string description, e.g. for debugging.
   static const char *type_name(Types type) {
@@ -356,8 +364,10 @@ class System_tables {
         return "CORE";
       case Types::SECOND:
         return "SECOND";
-      case Types::DDSE:
-        return "DDSE";
+      case Types::DDSE_PRIVATE:
+        return "DDSE_PRIVATE";
+      case Types::DDSE_PROTECTED:
+        return "DDSE_PROTECTED";
       case Types::PFS:
         return "PFS";
       case Types::SYSTEM:
@@ -372,7 +382,8 @@ class System_tables {
     if (type == Types::INERT || type == Types::CORE || type == Types::SECOND)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_DICTIONARY_TABLE;
 
-    if (type == Types::DDSE || type == Types::PFS || type == Types::SYSTEM)
+    if (type == Types::DDSE_PRIVATE || type == Types::DDSE_PROTECTED ||
+        type == Types::PFS || type == Types::SYSTEM)
       return ER_NO_SYSTEM_TABLE_ACCESS_FOR_SYSTEM_TABLE;
 
     DBUG_ASSERT(false);

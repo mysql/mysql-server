@@ -380,7 +380,6 @@ show tables where Tables_in_mysql like '%log%' and Tables_in_mysql != 'ndb_binlo
 Tables_in_mysql
 general_log
 general_log_new
-innodb_ddl_log
 slave_relay_log_info
 slow_log
 slow_log_new

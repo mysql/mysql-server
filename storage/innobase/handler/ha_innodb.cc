@@ -10824,7 +10824,7 @@ static bool innobase_ddse_dict_init(
   /* Instantiate table defs only if we are successful so far. */
   dd::Object_table *innodb_dynamic_metadata =
       dd::Object_table::create_object_table();
-  innodb_dynamic_metadata->set_hidden(false);
+  innodb_dynamic_metadata->set_hidden(true);
   dd::Object_table_definition *def =
       innodb_dynamic_metadata->target_table_definition();
   def->set_table_name("innodb_dynamic_metadata");
@@ -10885,7 +10885,7 @@ static bool innobase_ddse_dict_init(
   /* Options and tablespace are set at the SQL layer. */
 
   dd::Object_table *innodb_ddl_log = dd::Object_table::create_object_table();
-  innodb_ddl_log->set_hidden(false);
+  innodb_ddl_log->set_hidden(true);
   def = innodb_ddl_log->target_table_definition();
   def->set_table_name("innodb_ddl_log");
   def->add_field(0, "id", "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
