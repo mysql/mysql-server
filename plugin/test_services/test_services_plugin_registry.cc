@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "test_services_plugin_registry"
+
+#include <mysql/components/my_service.h>
 #include <mysql/components/service_implementation.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+#include <mysqld_error.h>
 #include <stddef.h>
 
 #include "my_dbug.h"
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 /**
   @file test_services_plugin_registry.cc
@@ -79,7 +88,7 @@ static my_h_service h_my_svc = (my_h_service)&svc_def;
   @retval false  success
   @retval true   failure
 */
-static bool test_plugin_registry(MYSQL_PLUGIN p) {
+static bool test_plugin_registry(MYSQL_PLUGIN p MY_ATTRIBUTE((unused))) {
   bool result = false;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   my_h_service h_reg = NULL;
@@ -91,20 +100,21 @@ static bool test_plugin_registry(MYSQL_PLUGIN p) {
   enum { IDLE, REG_ACQUIRED, MY_SVC_REGISTERED, MY_SVC_ACQUIRED } state = IDLE;
 
   if (!r) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "mysql_plugin_registry_acquire() returns empty");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "mysql_plugin_registry_acquire() returns empty");
     return true;
   }
 
   if (r->acquire("registry_registration", &h_reg)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "finding registry_register failed");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "finding registry_register failed");
     result = true;
     goto done;
   }
 
   if (!h_reg) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "empty registry_query returned");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "empty registry_query returned");
     result = true;
     goto done;
   }
@@ -115,7 +125,8 @@ static bool test_plugin_registry(MYSQL_PLUGIN p) {
 
   if (reg->register_service(
           "test_services_plugin_registry_service.mysql_server", h_my_svc)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't register my new service");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't register my new service");
     result = true;
     goto done;
   }
@@ -123,15 +134,15 @@ static bool test_plugin_registry(MYSQL_PLUGIN p) {
   /* Register an already restistered service: Fail */
   if (reg->register_service(
           "test_services_plugin_registry_service.mysql_server", h_my_svc)) {
-    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                          "new service already registered");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "new service already registered");
   }
 
   state = MY_SVC_REGISTERED;
 
   if (r->acquire("test_services_plugin_registry_service", &h_ret_svc)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "can't find the newly registered service");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't find the newly registered service");
     result = true;
     goto done;
   }
@@ -140,15 +151,15 @@ static bool test_plugin_registry(MYSQL_PLUGIN p) {
 
   /* Aquire an already aquired service: Succeed (ignored) */
   if (r->acquire("test_services_plugin_registry_service", &h_ret_svc)) {
-    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                          "newly registered service already aquired");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "newly registered service already aquired");
   }
 
   state = MY_SVC_ACQUIRED;
 
   if (h_ret_svc != h_my_svc) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Different service handle returned");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Different service handle returned");
     result = true;
     goto done;
   }
@@ -157,51 +168,51 @@ static bool test_plugin_registry(MYSQL_PLUGIN p) {
       h_ret_svc);
 
   if (ret->test1(1, 2, &int_result)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "results don't match: received %d", int_result);
+    LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                    "results don't match: received %d", int_result);
     result = true;
     goto done;
   }
 
   if (r->release(h_ret_svc)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't release my service");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "can't release my service");
     result = true;
     goto done;
   }
 
   /* Release an already released service: Succeed (ignored) */
   if (r->release(h_ret_svc)) {
-    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                          "my service already released");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "my service already released");
   }
 
   state = MY_SVC_REGISTERED;
 
   if (reg->unregister("test_services_plugin_registry_service.mysql_server")) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "can't unregister my service");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "can't unregister my service");
     result = true;
     goto done;
   }
 
   /* Unregister an already unregistered service: Fail */
   if (reg->unregister("test_services_plugin_registry_service.mysql_server")) {
-    my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                          "my service aleady unregistered");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "my service aleady unregistered");
   }
 
   state = REG_ACQUIRED;
 
   if (r->release(h_reg)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "can't release registry_registration");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "can't release registry_registration");
     result = true;
     goto done;
   }
 
   state = IDLE;
 
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                        "test_plugin_registry succeeded");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+               "test_plugin_registry succeeded");
 
 done:
   switch (state) {
@@ -233,6 +244,8 @@ done:
 static int test_services_plugin_init(void *p) {
   DBUG_ENTER("test_services_plugin_init");
   int rc;
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
 
   rc = test_plugin_registry(reinterpret_cast<MYSQL_PLUGIN>(p)) ? 1 : 0;
 
@@ -249,6 +262,7 @@ static int test_services_plugin_init(void *p) {
 */
 
 static int test_services_plugin_deinit(void *) {
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);
 }

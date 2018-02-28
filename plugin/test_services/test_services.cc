@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,9 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "test_services"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <mysql_version.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "m_string.h"  // strlen
 #include "my_dbug.h"
@@ -32,6 +38,10 @@
 //#include "sql_plugin.h"                         // st_plugin_int
 
 #define STRING_BUFFER 100
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 File outfile;
 
@@ -63,24 +73,24 @@ static SYS_VAR *test_services_sysvars[] = {
     MYSQL_SYSVAR(with_log_message), MYSQL_SYSVAR(non_default_variable), NULL};
 
 /* The test cases for the log_message service. */
-static int test_my_plugin_log_message(void *p) {
-  DBUG_ENTER("my_plugin_log_message");
+static int test_log_plugin_error(void *p MY_ATTRIBUTE((unused))) {
+  DBUG_ENTER("test_log_plugin_error");
   /* Writes to mysqld.1.err: Plugin test_services reports an info text */
-  int ret = my_plugin_log_message(
-      &p, MY_INFORMATION_LEVEL,
+  LogPluginErr(
+      INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
       "This is the test plugin for services testing info report output");
 
   /* Writes to mysqld.1.err: Plugin test_services reports a warning. */
-  ret = my_plugin_log_message(&p, MY_WARNING_LEVEL,
-                              "This is a warning from test plugin for services "
-                              "testing warning report output");
+  LogPluginErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG,
+               "This is a warning from test plugin for services "
+               "testing warning report output");
 
   /* Writes to mysqld.1.err: Plugin test_services reports an error. */
-  ret = my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                              "This is an error from test plugin for services "
-                              "testing error report output");
+  LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+               "This is an error from test plugin for services "
+               "testing error report output");
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(0);
 }
 
 /* the tests of snprintf ans log_message run when INSTALL PLUGIN is called. */
@@ -89,16 +99,20 @@ static int test_services_plugin_init(void *p) {
 
   int ret = 0;
   test_status = BUSY;
-  /* Test of service: my_plugin_log_message */
+  /* Test of service: LogPluginErr/LogPluginErrMsg */
   /* Log the value of the switch in mysqld.err. */
-  ret = my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                              "Test_services with_log_message_val: %d",
-                              with_log_message_val);
+
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                  "Test_services with_log_message_val: %d",
+                  with_log_message_val);
   if (with_log_message_val == 1) {
-    ret = test_my_plugin_log_message(p);
+    ret = test_log_plugin_error(p);
   } else {
-    ret = my_plugin_log_message(&p, MY_INFORMATION_LEVEL,
-                                "Test of log_message switched off");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Test of log_message switched off");
+    ret = 0;
   }
 
   test_status = READY;
@@ -108,6 +122,7 @@ static int test_services_plugin_init(void *p) {
 
 /* There is nothing to clean up when UNINSTALL PLUGIN. */
 static int test_services_plugin_deinit(void *) {
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_ENTER("test_services_plugin_deinit");
   DBUG_RETURN(0);
 }

@@ -17839,6 +17839,12 @@ ER_LCTN_NOT_FOUND
 ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
   eng "A capture group has an invalid name."
 
+ER_COMPONENT_FILTER_WRONG_VALUE
+  eng "Variable '%-.64s' can't be set to the value of '%-.200s'"
+
+ER_XPLUGIN_FAILED_TO_STOP_SERVICES
+  eng "Stopping services failed with error \"%s\""
+
 #
 # End of 8.0 Server error messages.
 # (Please read comments from the header of this section before adding error

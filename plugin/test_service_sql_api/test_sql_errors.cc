@@ -20,11 +20,17 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "test_sql_errors"
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
 
 #include "m_string.h"
 #include "my_dbug.h"
@@ -45,6 +51,10 @@ static const char *sep =
     "\n";
 
 #define WRITE_SEP() my_write(outfile, (uchar *)sep, strlen(sep), MYF(0))
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 static File outfile;
 
@@ -638,8 +648,8 @@ static void handle_error(struct st_plugin_ctx *pctx) {
   }
 }
 
-static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd, void *p,
-                          void *ctx) {
+static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd,
+                          void *p MY_ATTRIBUTE((unused)), void *ctx) {
   WRITE_VAL("%s\n", test_cmd);
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   COM_DATA cmd;
@@ -651,8 +661,8 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *test_cmd, void *p,
                                          CS_TEXT_REPRESENTATION, ctx);
   if (fail) {
     if (!srv_session_close(session))
-      my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                            "test_sql_2_sessions - ret code : %d", fail);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "test_sql_2_sessions - ret code : %d", fail);
   } else {
     if (pctx->num_cols) get_data_str(pctx);
     handle_error(pctx);
@@ -678,7 +688,7 @@ static void test_sql(void *p) {
   WRITE_STR("Opening Session 1\n");
   session_1 = srv_session_open(NULL, plugin_ctx);
   if (!session_1)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Open session_1 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open session_1 failed.");
   else
     switch_user(session_1, user_privileged);
 
@@ -693,13 +703,13 @@ static void test_sql(void *p) {
   session_1= srv_session_open(NULL,plugin_ctx);
   switch_user(session_1, user_privileged);
   if (!session_1)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Open session_1 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,  "Open session_1 failed.");
 */
   /* Opening session 2 */
   WRITE_STR("\nOpening Session 2\n");
   session_2 = srv_session_open(NULL, plugin_ctx);
   if (!session_2)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Open session_2 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Open session_2 failed.");
   else
     switch_user(session_2, user_privileged);
 
@@ -718,7 +728,7 @@ static void test_sql(void *p) {
   /* Close session 1 */
   WRITE_STR("\nClose Session 1\n");
   if (srv_session_close(session_1))
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Close session_1 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_1 failed.");
 
   /* Statement 4 */
   WRITE_SEP();
@@ -735,7 +745,7 @@ static void test_sql(void *p) {
   /* Close session 2 */
   WRITE_STR("\nClose Session 2\n");
   if (srv_session_close(session_2))
-    my_plugin_log_message(&p, MY_ERROR_LEVEL, "Close session_2 failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, "Close session_2 failed.");
 
   /* Close session 2 */
   WRITE_STR("\nClose Session 2 again\n");
@@ -745,7 +755,7 @@ static void test_sql(void *p) {
   DBUG_VOID_RETURN;
 }
 
-static void test_session_only_open(void *p) {
+static void test_session_only_open(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_session_only_open");
 
   MYSQL_SESSION sessions[MAX_SESSIONS];
@@ -757,10 +767,11 @@ static void test_session_only_open(void *p) {
     WRITE_VAL("srv_session_open %d\n", i);
     sessions[i] = srv_session_open(NULL, NULL);
     if (!sessions[i]) {
-      my_plugin_log_message(&p, MY_ERROR_LEVEL, "srv_session_open_%d failed.",
-                            i);
+      LogPluginErrMsg(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                      "srv_session_open_%d failed.", i);
     } else {
-      my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Opened session %d .", i);
+      LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                      "Opened session %d .", i);
     }
   }
 
@@ -789,8 +800,8 @@ static void *test_sql_threaded_wrapper(void *param) {
   WRITE_SEP();
   WRITE_STR("init thread\n");
   if (srv_session_init_thread(context->p))
-    my_plugin_log_message(&context->p, MY_ERROR_LEVEL,
-                          "srv_session_init_thread failed.");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "srv_session_init_thread failed.");
 
   context->test_function(context->p);
 
@@ -814,8 +825,8 @@ static void test_in_spawned_thread(void *p, void (*test_function)(void *)) {
   /*   now create the thread and call test_session within the thread. */
   if (my_thread_create(&(context.thread), &attr, test_sql_threaded_wrapper,
                        &context) != 0)
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Could not create test session thread");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Could not create test session thread");
   else
     my_thread_join(&context.thread, NULL);
 }
@@ -825,7 +836,9 @@ static int test_session_service_plugin_init(void *p) {
 
   create_log_file(log_filename);
 
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
 
   WRITE_SEP();
   WRITE_STR("Test in a server thread\n");
@@ -842,9 +855,10 @@ static int test_session_service_plugin_init(void *p) {
   DBUG_RETURN(0);
 }
 
-static int test_session_service_plugin_deinit(void *p) {
+static int test_session_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_session_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   my_close(outfile, MYF(0));
   DBUG_RETURN(0);
 }
