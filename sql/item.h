@@ -3341,7 +3341,7 @@ class Item_field : public Item_ident {
   void set_orig_field(Field *orig_field_arg) override {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
-  void set_can_use_prefix_key() { can_use_prefix_key = true; }
+  void set_can_use_prefix_key() override { can_use_prefix_key = true; }
 };
 
 class Item_null : public Item_basic_constant {
