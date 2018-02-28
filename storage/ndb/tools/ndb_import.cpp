@@ -276,7 +276,8 @@ my_long_options[] =
     &g_opt.m_optcsv.m_fields_escaped_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "lines-terminated-by", NDB_OPT_NOSHORT,
-    "See MySQL LOAD DATA",
+    "See MySQL LOAD DATA but note that default is"
+    " \\n for unix and \\r\\n for windows",
     &g_opt.m_optcsv.m_lines_terminated_by,
     &g_opt.m_optcsv.m_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -284,9 +285,10 @@ my_long_options[] =
     "Set some typical CSV options."
     " Useful for environments where command line quoting and escaping is hard."
     " Argument is a string of letters:"
-    " d-LOAD DATA defaults"
+    " d-defaults for the OS type"
     " c-fields terminated by real comma (,)"
     " q-fields optionally enclosed by double quotes (\")"
+    " n-lines terminated by \\n"
     " r-lines terminated by \\r\\n",
     &g_opt.m_csvopt, &g_opt.m_csvopt, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
@@ -331,7 +333,8 @@ short_usage_sub(void)
     "See options --state-dir and --keep-state.\n"
     "\n"
     "Windows notes: File paths are shown with forward slash (/).\n"
-    "To load windows format files currently requires --csvopt=r.\n"
+    "Default line-terminator is \\r\\n.\n"
+    "Keyboard interrupt is not implemented.\n"
     "\n",
     my_progname);
 }
@@ -460,6 +463,9 @@ checkcsvopt()
       break;
     case 'q':
       g_opt.m_optcsv.m_fields_optionally_enclosed_by = "\"";
+      break;
+    case 'n':
+      g_opt.m_optcsv.m_lines_terminated_by = "\\n";
       break;
     case 'r':
       g_opt.m_optcsv.m_lines_terminated_by = "\\r\\n";

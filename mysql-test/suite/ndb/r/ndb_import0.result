@@ -26,14 +26,14 @@ count(*)
 create table t2 (
 a int primary key,
 b char(3)
-) charset utf8
+) charset utf8mb4
 engine=ndb;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2ver (
 a int primary key,
 b char(3)
-) charset utf8
+) charset utf8mb4
 engine=ndb;
 Warnings:
 Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -169,5 +169,6 @@ and (x.b = y.b or (x.b is null and y.b is null))
 and (x.c = y.c or (x.c is null and y.c is null));
 count(*)
 6
+# run backup
 drop table t1, t1ver, t2, t2ver, t3, t3ver, t4, t5a, t5b, t5c,
 t6, t6ver, t7, t7ver, t8, t8ver, t9, t9ver;
