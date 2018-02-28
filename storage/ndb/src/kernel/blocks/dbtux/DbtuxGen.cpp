@@ -327,19 +327,17 @@ Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
                         KeyData& keyData,
                         Uint32 count)
 {
-  const Index& index = *c_indexPool.getPtr(frag.m_indexId);
-  const DescHead& descHead = getDescHead(index);
-  const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
   Uint32* const outputBuffer = ctx.c_dataBuffer;
 
 #ifdef VM_TRACE
+  const Index& index = *c_ctx.indexPtr.p;
   ndbrequire(&keyData.get_spec() == &index.m_keySpec);
   ndbrequire(keyData.get_spec().validate() == 0);
   ndbrequire(count <= index.m_numAttrs);
 #endif
 
   const Uint32 tupVersion = ent.m_tupVersion;
-  const Uint32* keyAttrs32 = (const Uint32*)&keyAttrs[0];
+  const Uint32* keyAttrs32 = (const Uint32*)&c_ctx.keyAttrs[0];
 
   int ret;
   ret = c_tup->tuxReadAttrsCurr(ctx.jamBuffer,

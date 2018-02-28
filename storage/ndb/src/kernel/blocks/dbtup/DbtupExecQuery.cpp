@@ -109,29 +109,25 @@ dump_hex(const Uint32 *p, Uint32 len)
  * AttrInfo section
  * Initialise the AttrInfo length in the request
  */
-int Dbtup::getStoredProcAttrInfo(Uint32 storedId,
+void Dbtup::getStoredProcAttrInfo(Uint32 storedId,
                                  KeyReqStruct* req_struct,
                                  Uint32& attrInfoIVal) 
 {
   jamDebug();
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, storedId);
-  if (storedPtr.i != RNIL) {
-    if ((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
-        (storedPtr.p->storedCode == ZCOPY_PROCEDURE)) {
-      /* Setup OperationRec with stored procedure AttrInfo section */
-      SegmentedSectionPtr sectionPtr;
-      getSection(sectionPtr, storedPtr.p->storedProcIVal);
-      Uint32 storedProcLen= sectionPtr.sz;
+  ndbrequire(storedPtr.i != RNIL);
+  ndbrequire(((storedPtr.p->storedCode == ZSCAN_PROCEDURE) ||
+               (storedPtr.p->storedCode == ZCOPY_PROCEDURE)));
+  /* Setup OperationRec with stored procedure AttrInfo section */
+  SegmentedSectionPtr sectionPtr;
+  getSection(sectionPtr, storedPtr.p->storedProcIVal);
+  Uint32 storedProcLen= sectionPtr.sz;
 
-      ndbassert( attrInfoIVal == RNIL );
-      attrInfoIVal= storedPtr.p->storedProcIVal;
-      req_struct->attrinfo_len= storedProcLen;
-      return ZOK;
-    }
-  }
-  terrorCode= ZSTORED_PROC_ID_ERROR;
-  return terrorCode;
+  ndbassert( attrInfoIVal == RNIL );
+  attrInfoIVal= storedPtr.p->storedProcIVal;
+  req_struct->attrinfo_len= storedProcLen;
+  return;
 }
 
 void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
@@ -1059,13 +1055,14 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    
    const Uint32 Roptype = regOperPtr->op_type;
 
-   if (Rstoredid != ZNIL) {
+   if (Rstoredid != ZNIL)
+   {
      /* This is part of a scan, get attrInfoIVal for 
       * given stored procedure
       */
-     ndbrequire(getStoredProcAttrInfo(Rstoredid,
-                                      &req_struct,
-                                      attrInfoIVal) == ZOK);
+     getStoredProcAttrInfo(Rstoredid,
+                           &req_struct,
+                           attrInfoIVal);
    }
 
    /* Copy AttrInfo from section into linear in-buffer */
