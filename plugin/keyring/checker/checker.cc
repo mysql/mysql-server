@@ -108,7 +108,7 @@ Converter::Arch Checker::detect_architecture(File file, size_t file_size) {
   // empty file should use default integer format
   auto native_arch = Converter::get_native_arch();
   if (file_size == 0 || file_size == file_version.length() + eof_size())
-    return Converter::Arch::LE_64;
+    return native_arch;
 
   // determine detection order for candidates
   Converter::Arch detection_order[] = {
