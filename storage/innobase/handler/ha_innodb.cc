@@ -2564,6 +2564,14 @@ void innobase_copy_frm_flags_from_table_share(
   innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
+void ha_innobase::srv_concurrency_enter() {
+  innobase_srv_conc_enter_innodb(m_prebuilt);
+}
+
+void ha_innobase::srv_concurrency_exit() {
+  innobase_srv_conc_exit_innodb(m_prebuilt);
+}
+
 /** Construct ha_innobase handler. */
 
 ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
