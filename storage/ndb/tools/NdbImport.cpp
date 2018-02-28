@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,11 @@ NdbImport::OptCsv::OptCsv()
   m_fields_enclosed_by = 0;
   m_fields_optionally_enclosed_by = 0;
   m_fields_escaped_by = "\\\\";
+#ifndef _WIN32
   m_lines_terminated_by = "\\n";
+#else
+  m_lines_terminated_by = "\\r\\n";
+#endif
 }
 
 // opt
