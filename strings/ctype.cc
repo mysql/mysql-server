@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -993,4 +993,69 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e) {
   }
 
   return len;
+}
+
+/**
+   Identify whether given like pattern looks like a prefix pattern, which can
+   become candidate for index only scan on prefix indexes.
+   @param cs           Character set and collation pointer
+   @param wildstr      Pointer to LIKE pattern.
+   @param wildend      Pointer to end of LIKE pattern.
+   @param escape       Escape character pattern,  typically '\'.
+   @param w_many       'Many characters' pattern, typically '%'.
+
+   @param[out] prefix  Length of LIKE pattern.
+
+   @return Optimization status.
+   @retval TRUE if LIKE pattern can be used for prefix index only scan.
+   @retval FALSE else.
+*/
+
+bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
+                          const char *wildend, int escape, int w_many,
+                          size_t *prefix_len) {
+  my_wc_t wc;
+  *prefix_len = 0;
+
+  /* Find first occurrence of w_many pattern. */
+  while (wildstr < wildend) {
+    int res;
+    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr, (uchar *)wildend)) <=
+        0) {
+      if (res == MY_CS_ILSEQ) /* Bad sequence */
+        return false;
+      return true; /* End of the string */
+    }
+    wildstr += res;
+
+    if (wc == (my_wc_t)w_many) break;
+
+    if (wc == (my_wc_t)escape) {
+      if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr,
+                                 (uchar *)wildend)) <= 0) {
+        if (res == MY_CS_ILSEQ) /* Bad sequence */
+          return false;
+        (*prefix_len)++;
+        return true; /* End of the string, last character is escape */
+      }
+      wildstr += res;
+    }
+    (*prefix_len)++;
+  }
+
+  /* If further char is not w_many then not a candidate prefix sequence. */
+  while (wildstr < wildend) {
+    int res;
+    if ((res = cs->cset->mb_wc(cs, &wc, (uchar *)wildstr, (uchar *)wildend)) <=
+        0) {
+      if (res == MY_CS_ILSEQ) /* Bad sequence */
+        return false;
+      return true; /* End of the string */
+    }
+
+    if (wc != (my_wc_t)w_many) return false;
+    wildstr += res;
+  }
+
+  return true;
 }

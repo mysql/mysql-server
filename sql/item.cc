@@ -2489,6 +2489,9 @@ void Item_field::set_field(Field *field_par) {
 
   if (field->table->s->tmp_table == SYSTEM_TMP_TABLE) any_privileges = false;
   if (!orig_field) orig_field = field_par;
+  if (!can_use_prefix_key)
+    field->table->covering_keys.subtract(field->part_of_prefixkey);
+
   fixed = true;
 }
 
