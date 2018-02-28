@@ -290,7 +290,7 @@ rm -r $(readlink var) var
 
 %files -n mysql%{?cluster:-cluster}-%{product_suffix}-server-minimal
 %defattr(-, root, root, -)
-%doc %{?license_files_server} %{src_dir}/Docs/ChangeLog
+%doc %{?license_files_server}
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
 %config(noreplace) %{_sysconfdir}/my.cnf
