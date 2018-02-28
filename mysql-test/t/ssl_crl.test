@@ -10,11 +10,11 @@ if (!$crllen)
 }
 
 --echo # test --crl for the client : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test --ssl-crl=$MYSQL_TEST_DIR/std_data/crl-client-revoked.crl -e "SHOW VARIABLES like '%ssl%';"
 
 --echo # test --crlpath for the client : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --ssl-mode=VERIFY_CA --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem --ssl-crlpath=$MYSQL_TEST_DIR/std_data/crldir test -e "SHOW VARIABLES like '%ssl%';"
 
 --echo # try logging in with a certificate in the server's --ssl-crl : should fail
@@ -31,10 +31,10 @@ if (!$crllen)
 
 --echo # try to connect with '--ssl-crl' option using tilde home directoy
 --echo # path substitution : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem test --ssl-crl=$mysql_test_dir_path/std_data/crl-client-revoked.crl -e "SHOW STATUS LIKE 'Ssl_cipher'"
 
 --echo # try to connect with '--ssl-crlpath' option using tilde home directoy
 --echo # path substitution : should connect
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR ECDHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES128-GCM-SHA256 SSL_CIPHER DHE-RSA-AES256-SHA SSL_CIPHER
 --exec $MYSQL --ssl-ca=$MYSQL_TEST_DIR/std_data/crl-ca-cert.pem --ssl-key=$MYSQL_TEST_DIR/std_data/crl-client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/crl-client-cert.pem --ssl-crlpath=$mysql_test_dir_path/std_data/crldir test -e "SHOW STATUS LIKE 'Ssl_cipher'"

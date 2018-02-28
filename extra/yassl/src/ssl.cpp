@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1615,7 +1615,7 @@ int SSLeay_add_ssl_algorithms()  // compatibility only
 }
 
 
-void ERR_remove_state(unsigned long)
+void ERR_remove_thread_state(const void *)
 {
     GetErrors().Remove();
 }
