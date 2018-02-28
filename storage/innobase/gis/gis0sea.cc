@@ -844,6 +844,7 @@ rtr_info_t *rtr_create_rtr_info(
   rtr_info->allocated = true;
   rtr_info->cursor = cursor;
   rtr_info->index = index;
+  rtr_info->is_dup = nullptr;
 
   if (init_matches) {
     rtr_info->heap = mem_heap_create(sizeof(*(rtr_info->matches)));
@@ -929,6 +930,7 @@ void rtr_init_rtr_info(
   rtr_info->need_prdt_lock = need_prdt;
   rtr_info->cursor = cursor;
   rtr_info->index = index;
+  rtr_info->is_dup = nullptr;
 
   mutex_enter(&index->rtr_track->rtr_active_mutex);
   index->rtr_track->rtr_active->push_back(rtr_info);

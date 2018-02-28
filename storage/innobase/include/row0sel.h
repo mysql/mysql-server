@@ -191,7 +191,9 @@ dberr_t row_count_rtree_recs(
                               position the cursor at the start or
                               the end of the index, depending on
                               'mode' */
-    ulint *n_rows);           /*!< out: number of entries
+    ulint *n_rows,            /*!< out: number of entries
+                              seen in the consistent read */
+    ulint *n_dups);           /*!< out: number of dup entries
                               seen in the consistent read */
 
 /** Read the max AUTOINC value from an index.
