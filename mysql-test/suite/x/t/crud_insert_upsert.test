@@ -263,6 +263,26 @@ EOF
 
 EOF
 
+--write_file $MYSQL_TMP_DIR/crud_insert_upsert_numerical_id.xpl
+## Test data
+-->quiet
+-->import crud_insert.macro
+-->import crud_find.macro
+
+-->stmtadmin create_collection	{"schema":"xtest","name":"num"}
+-->recvresult
+
+-->varlet %DOC123_A_A% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":"123", "first":"A", "second":"A"}' content_type:2}}
+-->varlet %DOC123_B_B% type: LITERAL literal{type: V_OCTETS v_octets{value:'{"_id":123, "first":"B", "second":"B"}' content_type:2}}
+
+-->title -Numerical _id
+-->callmacro Insert_one	DOCUMENT	num	%DOC123_A_A%	ER_SUCCESS
+-->callmacro Show	num
+-->callmacro Upsert_one	DOCUMENT	num	%DOC123_B_B%	ER_SUCCESS
+-->callmacro Show	num
+
+EOF
+
 CREATE SCHEMA xtest;
 
 exec $MYSQLXTEST
@@ -276,6 +296,10 @@ exec $MYSQLXTEST
 exec $MYSQLXTEST
   -ux_root --password=''
   --file=$MYSQL_TMP_DIR/crud_insert_upsert_multi_index.xpl 2>&1;
+
+exec $MYSQLXTEST
+  -ux_root --password=''
+  --file=$MYSQL_TMP_DIR/crud_insert_upsert_numerical_id.xpl 2>&1;
 
 ## Cleanup
 --remove_files_wildcard $MYSQL_TMP_DIR *.xpl
