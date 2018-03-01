@@ -129,6 +129,12 @@ public:
    */
   static Uint32 getSegmentSize();
 
+  /** 
+   * Get segment size in bytes (derived from template argument)
+   */
+  static Uint32 getSegmentSizeInBytes();
+
+
   void print(FILE*) const;
 
   /* ----------------------------------------------------------------------- */
@@ -482,6 +488,14 @@ Uint32
 DataBuffer<sz, Pool>::getSegmentSize(){
   return sz;
 }
+
+template<Uint32 sz, typename Pool>
+inline
+Uint32
+DataBuffer<sz, Pool>::getSegmentSizeInBytes(){
+  return 4 * sz;
+}
+
 
 template<Uint32 sz, typename Pool>
 inline

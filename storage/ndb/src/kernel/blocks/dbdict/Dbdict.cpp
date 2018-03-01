@@ -3140,7 +3140,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     sb = sm;
   }
 
-  sb /= (LocalRope::getSegmentSize() * sizeof(Uint32));
+  sb /= LocalRope::getSegmentSizeInBytes();
   sb += 100; // more safty
   ndbrequire(sb < (Uint64(1) << 32));
   c_rope_pool.setSize(Uint32(sb));

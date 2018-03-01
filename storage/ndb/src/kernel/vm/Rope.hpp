@@ -107,7 +107,7 @@ public:
   
   static Uint32 hash(const char * str, Uint32 len, Uint32 starter = 0);
 
-  static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
+  static Uint32 getSegmentSizeInBytes() { return RopeBase::getSegmentSizeInBytes();}
 
 private:
   char * firstSegment(Ptr<Segment> &) const;

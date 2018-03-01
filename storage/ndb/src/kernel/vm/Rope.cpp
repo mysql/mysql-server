@@ -58,11 +58,11 @@ ConstRope::copy(char* buf) const {
   Uint32 left = m_length;
   Ptr<Segment> it;
   const char * data = firstSegment(it);
-  while(left > 4 * getSegmentSize()){
-    memcpy(buf, data, 4 * getSegmentSize());
+  while(left > getSegmentSizeInBytes()){
+    memcpy(buf, data, getSegmentSizeInBytes());
     data = nextSegment(it);
-    left -= 4 * getSegmentSize();
-    buf += 4 * getSegmentSize();
+    left -= getSegmentSizeInBytes();
+    buf += getSegmentSizeInBytes();
   }
   if(left > 0){
     memcpy(buf, data, left);
@@ -80,16 +80,16 @@ ConstRope::compare(const char * str, Uint32 len) const {
   Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> it;
   const char * data = firstSegment(it);
-  while(left > 4 * getSegmentSize()){
-    int res = memcmp(str, data, 4 * getSegmentSize());
+  while(left > getSegmentSizeInBytes()){
+    int res = memcmp(str, data, getSegmentSizeInBytes());
     if(res != 0){
       if(DEBUG_ROPE)
 	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, data, res);
       return res;
     }
     data = nextSegment(it);
-    left -= 4 * getSegmentSize();
-    str += 4 * getSegmentSize();
+    left -= getSegmentSizeInBytes();
+    str += getSegmentSizeInBytes();
   }
   
   if(left > 0){
@@ -132,11 +132,11 @@ LocalRope::copy(char* buf) const {
   const char * data = firstSegment(it);
   Ptr<Segment> curr;
   curr.i = head.firstItem;
-  while(left > 4 * getSegmentSize()){
-    memcpy(buf, data, 4 * getSegmentSize());
+  while(left > getSegmentSizeInBytes()){
+    memcpy(buf, data, getSegmentSizeInBytes());
     data = nextSegment(it);
-    left -= 4 * getSegmentSize();
-    buf += 4 * getSegmentSize();
+    left -= getSegmentSizeInBytes();
+    buf += getSegmentSizeInBytes();
   }
   if(left > 0){
     memcpy(buf, data, left);
@@ -152,8 +152,8 @@ LocalRope::compare(const char * str, Uint32 len) const {
   Uint32 left = m_length > len ? len : m_length;
   Ptr<Segment> it;
   const char * data = firstSegment(it);
-  while(left > 4 * getSegmentSize()){
-    int res = memcmp(str, data, 4 * getSegmentSize());
+  while(left > getSegmentSizeInBytes()){
+    int res = memcmp(str, data, getSegmentSizeInBytes());
     if(res != 0){
       if(DEBUG_ROPE)
 	ndbout_c("LocalRope::compare(%s, %u, %s) -> %d", str, len, data, res);
@@ -161,8 +161,8 @@ LocalRope::compare(const char * str, Uint32 len) const {
     }
     
    data = nextSegment(it);
-   left -= 4 * getSegmentSize();
-    str += 4 * getSegmentSize();
+   left -= getSegmentSizeInBytes();
+    str += getSegmentSizeInBytes();
   }
   
   if(left > 0){
@@ -235,16 +235,16 @@ ConstRope::equal(const ConstRope& r2) const
   Ptr<Segment> s1, s2;
   const char * s1_data = firstSegment(s1);
   const char * s2_data = firstSegment(s2);
-  while(left > 4 * getSegmentSize())
+  while(left > getSegmentSizeInBytes())
   {
-    int res = memcmp(s1_data, s2_data, 4 * getSegmentSize());
+    int res = memcmp(s1_data, s2_data, getSegmentSizeInBytes());
     if(res != 0)
     {
       return false;
     }
     s1_data = nextSegment(s1);
     s2_data = nextSegment(s2);
-    left -= 4 * getSegmentSize();
+    left -= getSegmentSizeInBytes();
   }
   
   if(left > 0)
