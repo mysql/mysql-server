@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,25 +39,24 @@
 
 namespace keyring {
 
-/**
-  implementation of I/O Keyring interface on top of a (buffered) file
-*/
 class Buffered_file_io : public IKeyring_io {
  public:
   Buffered_file_io(ILogger *logger,
-                   std::vector<std::string> const *versions = nullptr);
+                   std::vector<std::string> *allowedFileVersionsToInit = NULL);
 
-  // ================= IKeyring_io implementation ================= //
+  ~Buffered_file_io();
 
-  bool init(std::string *keyring_filename) override;
-  bool flush_to_backup(ISerialized_object *serialized_object) override;
-  bool flush_to_storage(ISerialized_object *serialized_object) override;
-  ISerializer *get_serializer() override;
-  bool get_serialized_object(ISerialized_object **serialized_object) override;
-  bool has_next_serialized_object() override;
+  bool init(std::string *keyring_filename);
+
+  bool flush_to_backup(ISerialized_object *serialized_object);
+  bool flush_to_storage(ISerialized_object *serialized_object);
+
+  ISerializer *get_serializer();
+  bool get_serialized_object(ISerialized_object **serialized_object);
+  bool has_next_serialized_object();
 
  protected:
-  virtual bool remove_backup(myf my_flags);
+  virtual bool remove_backup(myf myFlags);
   Buffer buffer;
   Digest digest;
   size_t memory_needed_for_buffer;
@@ -79,12 +78,10 @@ class Buffered_file_io : public IKeyring_io {
   const std::string file_version;
   ILogger *logger;
   Hash_to_buffer_serializer hash_to_buffer_serializer;
-  std::vector<std::unique_ptr<Checker>> checkers;
+  std::vector<Checker *> checkers;
   CheckerFactory checker_factory;
   File_io file_io;
   File keyring_file;
-  Converter::Arch file_arch;
-  const Converter::Arch native_arch;
 };
 
 }  // namespace keyring
