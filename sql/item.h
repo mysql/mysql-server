@@ -872,6 +872,7 @@ class Item : public Parse_tree_node {
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed = 1; }
+  virtual void set_can_use_prefix_key() {}
 
  protected:
   /**
@@ -3169,6 +3170,12 @@ class Item_field : public Item_ident {
   uint have_privileges;
   /* field need any privileges (for VIEW creation) */
   bool any_privileges;
+  /*
+    if this field is used in a context where covering prefix keys
+    are supported.
+  */
+  bool can_use_prefix_key{false};
+
   Item_field(Name_resolution_context *context_arg, const char *db_arg,
              const char *table_name_arg, const char *field_name_arg);
   Item_field(const POS &pos, const char *db_arg, const char *table_name_arg,
@@ -3334,6 +3341,7 @@ class Item_field : public Item_ident {
   void set_orig_field(Field *orig_field_arg) override {
     if (orig_field_arg) orig_field = orig_field_arg;
   }
+  void set_can_use_prefix_key() { can_use_prefix_key = true; }
 };
 
 class Item_null : public Item_basic_constant {

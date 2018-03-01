@@ -83,14 +83,15 @@ UNLOCK TABLES;
 --echo
 --echo Add data on the non-donor member
 --connection server$non_donor_id
-CREATE TABLE test.t2 (a int primary key);
 USE test;
 --disable_query_log
 --let $i=100
+--let $j=200
 while($i)
 {
-    --EVAL INSERT INTO t2 VALUES ($i)
+    --EVAL INSERT INTO t1 VALUES ($j)
     --dec $i
+    --dec $j
 }
 --enable_query_log
 
@@ -103,15 +104,13 @@ let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_
 --echo #Validating the records in server3#
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
---let $wait_condition= SELECT COUNT(*)=100 FROM test.t1;
---source include/wait_condition.inc
---let $wait_condition= SELECT COUNT(*)=100 FROM test.t2;
+--let $wait_timeout= 300
+--let $wait_condition= SELECT COUNT(*)=200 FROM test.t1;
 --source include/wait_condition.inc
 --source include/rpl_sync.inc
 
 # Drop the tables
 --echo
 DROP TABLE test.t1;
-DROP TABLE test.t2;
 
 --source include/group_replication_end.inc

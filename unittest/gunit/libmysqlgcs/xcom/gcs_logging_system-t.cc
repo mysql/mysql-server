@@ -70,22 +70,37 @@ class LoggingDebuggingSystemTest : public GcsBaseTestNoLogging {
 };
 
 TEST_F(LoggingDebuggingSystemTest, DefaultLifecycle) {
-  int times = 4;
   Mock_gcs_log_sink *mock_sink = static_cast<Mock_gcs_log_sink *>(
       static_cast<Gcs_async_buffer *>(common_sink)->get_sink());
 
   ON_CALL(*mock_sink, initialize()).WillByDefault(Return(GCS_OK));
-  EXPECT_CALL(*mock_sink, log_event(_, _)).Times(times);
   ON_CALL(*mock_sink, finalize()).WillByDefault(Return(GCS_OK));
 
   // on some machines an info message will be displayed stating
   // that a network interface was not successfully probed
   // we cannot predict how many network interfaces are in the
   // machine that cannot be probed
-  EXPECT_CALL(*mock_sink,
-              log_event(ContainsRegex(
-                  "\\[GCS\\] Unable to probe network interface .*")))
+  EXPECT_CALL(
+      *mock_sink,
+      log_event(ContainsRegex("\\[GCS\\] Unable to probe network interface .*"),
+                _))
       .Times(AnyNumber());
+
+  /*
+    The following message is expected.
+  */
+  EXPECT_CALL(*mock_sink,
+              log_event(ContainsRegex("\\[GCS\\] SSL was not enabled.*"), _))
+      .Times(1);
+
+  /*
+    3 messages of this form, corresponding to the 3 logging levels, are
+    expected.
+  */
+  EXPECT_CALL(
+      *mock_sink,
+      log_event(ContainsRegex("This message belongs to logging level .*"), _))
+      .Times(3);
 
   ASSERT_EQ(true, Gcs_log_manager::get_logger() == NULL);
   ASSERT_EQ(true, Gcs_debug_manager::get_debugger() == NULL);

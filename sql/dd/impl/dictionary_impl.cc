@@ -261,7 +261,8 @@ bool Dictionary_impl::is_dd_table_name(const String_type &schema_name,
           (*table_type == System_tables::Types::CORE ||
            *table_type == System_tables::Types::INERT ||
            *table_type == System_tables::Types::SECOND ||
-           *table_type == System_tables::Types::DDSE));
+           *table_type == System_tables::Types::DDSE_PRIVATE ||
+           *table_type == System_tables::Types::DDSE_PROTECTED));
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -307,7 +308,8 @@ bool Dictionary_impl::is_dd_table_access_allowed(bool is_dd_internal_thread,
     Inert    |  X          X       |
     Core     |  X          X       |
     Second   |  X          X       |
-    Support  |  X          X    X  |
+    DDSE_priv|  X          X       |
+    DDSE_prot|  X          X    X  |
     SYSTEM   |  X    X     X    X  |
     ---------+---------------------+
 
@@ -331,11 +333,12 @@ bool Dictionary_impl::is_dd_table_access_allowed(bool is_dd_internal_thread,
       System_tables::instance()->find_type(schema_str, table_str);
 
   /*
-    Access allowed for external DD tables, for DML on DDSE tables,
+    Access allowed for external DD tables, for DML on protected DDSE tables,
     and for any operation on SYSTEM tables.
   */
   return (table_type == nullptr ||
-          (*table_type == System_tables::Types::DDSE && !is_ddl_statement) ||
+          (*table_type == System_tables::Types::DDSE_PROTECTED &&
+           !is_ddl_statement) ||
           *table_type == System_tables::Types::SYSTEM);
 }
 

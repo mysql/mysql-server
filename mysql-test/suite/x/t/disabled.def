@@ -3,4 +3,3 @@
 #   <testname> : <......>
 # Do not use any TAB characters for whitespace.
 # If the test is disabled due to a bug, start the comment with BUG#<bugnumber>
-connection_skip_grant_table_ssl : Bug #27359244	MYSQLX.CONNECTION.CAPABILITIESGET NOT RETURNS ALL AUTHENTICATION.MECHANISMS

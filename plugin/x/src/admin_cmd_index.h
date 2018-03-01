@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef X_SRC_ADMIN_CMD_INDEX_H_
-#define X_SRC_ADMIN_CMD_INDEX_H_
+#ifndef PLUGIN_X_SRC_ADMIN_CMD_INDEX_H_
+#define PLUGIN_X_SRC_ADMIN_CMD_INDEX_H_
 
 #include <list>
 #include <string>
@@ -99,6 +99,7 @@ class Admin_command_index {
     virtual void add_type(Query_string_builder *qb) const = 0;
     virtual void add_path(Query_string_builder *qb) const = 0;
     virtual void add_length(Query_string_builder * /*qb*/) const {}
+    virtual void add_options(Query_string_builder *qb) const;
 
     static Field_type_id get_type_id(const std::string &type_name);
 
@@ -128,4 +129,4 @@ class Admin_command_index {
 
 }  // namespace xpl
 
-#endif  // X_SRC_ADMIN_CMD_INDEX_H_
+#endif  // PLUGIN_X_SRC_ADMIN_CMD_INDEX_H_

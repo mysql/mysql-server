@@ -117,7 +117,8 @@
 #include "sql/rpl_rli.h"  // rli_slave etc
 #include "sql/session_tracker.h"
 #include "sql/sql_alter.h"
-#include "sql/sql_base.h"  // lock_table_names
+#include "sql/sql_backup_lock.h"  // acquire_shared_backup_lock
+#include "sql/sql_base.h"         // lock_table_names
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
@@ -1359,6 +1360,8 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
           lock_trigger_names(thd, tables))
         DBUG_RETURN(true);
 
+      DEBUG_SYNC(thd, "mysql_rm_table_after_lock_table_names");
+
       for (table = tables; table; table = table->next_local) {
         if (is_temporary_table(table)) continue;
 
@@ -1366,6 +1369,8 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
         have_non_tmp_table = 1;
       }
     } else {
+      bool acquire_backup_lock = false;
+
       for (table = tables; table; table = table->next_local)
         if (is_temporary_table(table)) {
           /*
@@ -1401,7 +1406,13 @@ bool mysql_rm_table(THD *thd, TABLE_LIST *tables, bool if_exists,
 
           /* Here we are sure that a non-tmp table exists */
           have_non_tmp_table = 1;
+
+          if (!acquire_backup_lock) acquire_backup_lock = true;
         }
+
+      if (acquire_backup_lock &&
+          acquire_shared_backup_lock(thd, thd->variables.lock_wait_timeout))
+        DBUG_RETURN(true);
     }
 
     if (rm_table_do_discovery_and_lock_fk_tables(thd, tables))
@@ -5685,7 +5696,8 @@ static bool set_table_default_charset(THD *thd, HA_CREATE_INFO *create_info,
                 create_info->default_table_charset ==
                     create_info->table_charset);
 
-    if (!(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
+    if ((create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET) &&
+        !(create_info->used_fields & HA_CREATE_USED_DEFAULT_COLLATE) &&
         create_info->default_table_charset == &my_charset_utf8mb4_0900_ai_ci) {
       create_info->default_table_charset =
           thd->variables.default_collation_for_utf8mb4;

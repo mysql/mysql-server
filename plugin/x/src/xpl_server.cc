@@ -769,9 +769,7 @@ void xpl::Server::unregister_services() const {
     Service_registrator r;
     r.unregister_service(SERVICE_ID(mysql_server, mysqlx_maintenance));
   } catch (const std::exception &e) {
-    my_plugin_log_message(&xpl::plugin_handle, MY_ERROR_LEVEL,
-                          "Stopping services failed with error \"%s\"",
-                          e.what());
+    LogPluginErr(ERROR_LEVEL, ER_XPLUGIN_FAILED_TO_STOP_SERVICES, e.what());
   }
 }
 

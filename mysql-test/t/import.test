@@ -519,6 +519,7 @@ IMPORT TABLE FROM 't_case.sdi';
 SELECT i FROM t_case ORDER BY i;
 DROP TABLE t_case;
 
+
 --echo #
 --echo # Start new server with --lower_case_table_names and import t_case there
 --echo #
@@ -543,7 +544,7 @@ EOF
 --exec $MYSQLD $extra_args --secure-file-priv="" --initialize-insecure --datadir=$DDIR --init-file=$BOOTSTRAP_SQL
 
 --echo # 3. Restart the server against DDIR - should succeed.
---exec echo "restart:" --datadir=$DDIR --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart:" --datadir=$DDIR --lower_case_table_names=1 --secure-file-priv="" --no-console --log-error=$MYSQLD_LOG > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 

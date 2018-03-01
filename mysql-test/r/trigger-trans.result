@@ -169,7 +169,7 @@ CREATE TRIGGER t1_ad AFTER DELETE ON t1 FOR EACH ROW SET @b = 1;
 SET @a = 0;
 SET @b = 0;
 TRUNCATE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `test`.`t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 SELECT @a, @b;
 @a	@b
 0	0

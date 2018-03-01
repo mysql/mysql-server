@@ -294,9 +294,8 @@
 #include "sql/protocol_classic.h"
 
 #include <openssl/ssl.h>
+
 #include <string.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <algorithm>
 #include <limits>
 
@@ -2969,14 +2968,6 @@ bool Protocol_classic::store_string_aux(const char *from, size_t length,
   }
   /* Store without conversion */
   return net_store_data((uchar *)from, length);
-}
-
-SSL_handle Protocol_classic::get_ssl() {
-  return
-#ifdef HAVE_OPENSSL
-      m_thd->net.vio ? (SSL *)m_thd->net.vio->ssl_arg :
-#endif
-                     NULL;
 }
 
 int Protocol_classic::shutdown(bool) {

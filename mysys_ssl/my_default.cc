@@ -897,7 +897,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   } else {
     my_stpcpy(name, config_file);
   }
-  fn_format(name, name, "", "", 4);
+  fn_format(name, name, "", "", MY_UNPACK_FILENAME);
 
   if ((rc = check_file_permissions(name, is_login_file)) < 2) return (int)rc;
 
@@ -957,8 +957,21 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
             fn_format(tmp, search_file->name, ptr, "",
                       MY_UNPACK_FILENAME | MY_SAFE_PATH);
 
-            search_default_file_with_ext(opt_handler, handler_ctx, "", "", tmp,
-                                         recursion_level + 1, is_login_file);
+            /* add the include file to the paths list with the class of the
+             * including file */
+            std::map<string, enum_variable_source>::iterator it =
+                default_paths.find(name);
+            /*
+              The current file should always be a part of the paths.
+              But that applies only for the server.
+              For direct load_defaults() use all bets are off.
+              Hence keeping it as a dynamic condition.
+            */
+            if (it != default_paths.end()) default_paths[tmp] = it->second;
+
+            search_default_file_with_ext(opt_handler, handler_ctx, NULL, NULL,
+                                         tmp, recursion_level + 1,
+                                         is_login_file);
           }
         }
 
@@ -971,7 +984,21 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
                                  name, line)))
           goto err;
 
-        search_default_file_with_ext(opt_handler, handler_ctx, "", "", ptr,
+        /* add the include file to the paths list with the class of the
+         * including file */
+        std::map<string, enum_variable_source>::iterator it =
+            default_paths.find(name);
+        /*
+          The current file should always be a part of the paths.
+          But that applies only for the server.
+          For direct load_defaults() use all bets are off.
+          Hence keeping it as a dynamic condition.
+        */
+        if (it != default_paths.end() &&
+            fn_format(tmp, ptr, "", "", MY_UNPACK_FILENAME | MY_SAFE_PATH))
+          default_paths[tmp] = it->second;
+
+        search_default_file_with_ext(opt_handler, handler_ctx, NULL, NULL, ptr,
                                      recursion_level + 1, is_login_file);
       }
 
@@ -1410,18 +1437,6 @@ void update_variable_source(const char *opt_name, const char *value) {
      as value.
     */
     if (ret.second == false) variables_hash[var_name] = source;
-  } else if (!no_defaults) {
-    /* if path is not present add it to the defaults path hash */
-    if (my_defaults_file) {
-      default_paths[path] = enum_variable_source::EXPLICIT;
-      update_variable_source(opt_name, value);
-    } else if (my_defaults_extra_file) {
-      default_paths[path] = enum_variable_source::EXTRA;
-      update_variable_source(opt_name, value);
-    } else if (my_login_path) {
-      default_paths[path] = enum_variable_source::LOGIN;
-      update_variable_source(opt_name, value);
-    }
   }
 }
 

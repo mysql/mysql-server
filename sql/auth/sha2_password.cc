@@ -72,8 +72,6 @@ class THD;
 struct SYS_VAR;
 
 #include <openssl/ssl.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 
 char *caching_sha2_rsa_private_key_path;
 char *caching_sha2_rsa_public_key_path;
@@ -710,10 +708,6 @@ const int CACHING_SHA2_PASSWORD_ITERATIONS =
 /** Caching_sha2_password handle */
 sha2_password::Caching_sha2_password *g_caching_sha2_password = 0;
 
-/** caching_sha2_password name */
-LEX_CSTRING caching_sha2_password_plugin_name = {
-    C_STRING_WITH_LEN("caching_sha2_password")};
-
 /** caching_sha2_password plugin handle - Mostly used for logging */
 static MYSQL_PLUGIN caching_sha2_auth_plugin_ref;
 
@@ -816,7 +810,7 @@ static char perform_full_authentication = '\4';
   Plugin caching_sha2_password works in two phases.
   1. Fast authentication
   2. Complete authentication
-  
+
   If server has cached hash entry for given user in memory, it uses scramble
   sent by client to perform fast authentication. If it is a success,
   authentication is done and connection will move to command phase. If there
@@ -1289,7 +1283,9 @@ static int show_caching_sha2_password_rsa_public_key(
 
 /** st_mysql_auth for caching_sha2_password plugin */
 static struct st_mysql_auth caching_sha2_auth_handler {
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION, caching_sha2_password_plugin_name.str,
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+      Cached_authentication_plugins::get_plugin_name(
+          PLUGIN_CACHING_SHA2_PASSWORD),
       caching_sha2_password_authenticate, caching_sha2_password_generate,
       caching_sha2_password_validate, caching_sha2_password_salt,
       AUTH_FLAG_USES_INTERNAL_STORAGE, compare_caching_sha2_password_with_hash
@@ -1415,9 +1411,10 @@ static int caching_sha2_cache_cleaner_deinit(void *arg MY_ATTRIBUTE((unused))) {
 */
 
 mysql_declare_plugin(caching_sha2_password){
-    MYSQL_AUTHENTICATION_PLUGIN,            /* plugin type                   */
-    &caching_sha2_auth_handler,             /* type specific descriptor      */
-    caching_sha2_password_plugin_name.str,  /* plugin name                   */
+    MYSQL_AUTHENTICATION_PLUGIN, /* plugin type                   */
+    &caching_sha2_auth_handler,  /* type specific descriptor      */
+    Cached_authentication_plugins::get_plugin_name(
+        PLUGIN_CACHING_SHA2_PASSWORD),      /* plugin name          */
     "Oracle",                               /* author                        */
     "Caching sha2 authentication",          /* description                   */
     PLUGIN_LICENSE_GPL,                     /* license                       */

@@ -810,3 +810,16 @@ NULL
 Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
 Warning	1292	Truncated incorrect INTEGER value: 'abc'
+#
+# Bug#27597980: ADD ERROR MESSAGE FOR INVALID CAPTURE GROUP NAME
+#
+SELECT regexp_replace((' F' ) ,'^ ','[,$' );
+ERROR HY000: A capture group has an invalid name.
+SELECT regexp_replace(24031 ,''*' ','$>$' );
+ERROR HY000: A capture group has an invalid name.
+SELECT regexp_replace('e C' ,'. ','$ ' );
+ERROR HY000: A capture group has an invalid name.
+SELECT regexp_replace('%* ' ,'. ',' A*#$?$@^-' );
+ERROR HY000: A capture group has an invalid name.
+SELECT regexp_replace(' 0(' ,'^ ','3$!' );
+ERROR HY000: A capture group has an invalid name.

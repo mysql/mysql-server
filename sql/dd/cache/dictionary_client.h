@@ -464,6 +464,25 @@ class Dictionary_client {
   template <typename T>
   void remove_uncommitted_objects(bool commit_to_shared_cache);
 
+  /**
+    Fetch objects from DD tables that match the supplied key.
+
+    @tparam Object_type Type of object to fetch.
+    @param coll         Vector to fill with objects.
+    @param object_key   The search key. If key is not supplied, then
+                        we do full index scan.
+
+    @return false       Success.
+    @return true        Failure (error is reported).
+  */
+
+  template <typename T>
+  using Const_ptr_vec = std::vector<const T *>;
+
+  template <typename Object_type>
+  bool fetch(Const_ptr_vec<Object_type> *coll, const Object_key *object_key)
+      MY_ATTRIBUTE((warn_unused_result));
+
  public:
   // Initialize an instance with a default auto releaser.
   explicit Dictionary_client(THD *thd);
@@ -848,8 +867,7 @@ class Dictionary_client {
   */
 
   template <typename T>
-  bool fetch_schema_components(const Schema *schema,
-                               std::vector<const T *> *coll) const
+  bool fetch_schema_components(const Schema *schema, Const_ptr_vec<T> *coll)
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
@@ -863,7 +881,7 @@ class Dictionary_client {
   */
 
   template <typename T>
-  bool fetch_global_components(std::vector<const T *> *coll) const
+  bool fetch_global_components(Const_ptr_vec<T> *coll)
       MY_ATTRIBUTE((warn_unused_result));
 
   /**

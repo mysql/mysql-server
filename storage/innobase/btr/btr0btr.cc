@@ -4123,7 +4123,7 @@ static bool btr_validate_level(
   page = buf_block_get_frame(block);
   seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 
-#ifdef UNIV_DEBUG
+#ifdef UNIV_RTR_DEBUG
   if (dict_index_is_spatial(index)) {
     fprintf(stderr, "Root page no: %lu\n", (ulong)page_get_page_no(page));
   }

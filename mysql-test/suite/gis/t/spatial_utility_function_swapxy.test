@@ -293,7 +293,7 @@ SELECT ST_ASTEXT(ST_SWAPXY(NULL));
 ###############################################################################
 
 --error ER_WRONG_PARAMCOUNT_TO_NATIVE_FCT
-SELECT ST_ASTEXT(ST_SWAPXY()));
+SELECT ST_ASTEXT(ST_SWAPXY());
 
 --error ER_GIS_INVALID_DATA
 SELECT ST_SWAPXY('foobar');

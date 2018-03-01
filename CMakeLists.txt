@@ -153,17 +153,17 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         IF (MY_GCC_COMPILER)
           MESSAGE(STATUS "gcc is ${MY_GCC_COMPILER}")
           MESSAGE(STATUS
-            "We probably need /opt/rh/devtoolset-6/root/usr/bin/gcc")
+            "We probably need /opt/rh/devtoolset-7/root/usr/bin/gcc")
           EXECUTE_PROCESS(COMMAND ${MY_GCC_COMPILER} -dumpversion
             OUTPUT_VARIABLE MY_GCC_VERSION)
           IF(MY_GCC_VERSION VERSION_LESS 5.0)
             MESSAGE(STATUS "${MY_GCC_COMPILER} is version ${MY_GCC_VERSION}")
             FIND_PROGRAM(ALTERNATIVE_GCC gcc
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
             FIND_PROGRAM(ALTERNATIVE_GPP g++
               NO_DEFAULT_PATH
-              PATHS "/opt/rh/devtoolset-6/root/usr/bin")
+              PATHS "/opt/rh/devtoolset-7/root/usr/bin")
             IF(ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
               SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
               SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
@@ -852,15 +852,6 @@ IF(NOT WITHOUT_SERVER)
 ENDIF()
 
 IF(WITH_UNIT_TESTS)
-  # Visual Studio 11 needs this extra flag in order to compile gmock.
-  IF(WIN32)
-    ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
-  ENDIF()
-  # libc++ doesn't have tuple in tr1
-  IF(HAVE_LLVM_LIBCPP)
-    ADD_DEFINITIONS(-DGTEST_USE_OWN_TR1_TUPLE=1)
-  ENDIF()
-
   ADD_SUBDIRECTORY(unittest)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
@@ -943,6 +934,31 @@ ADD_CUSTOM_TARGET(INFO_BIN ALL
 )
 
 # Packaging
+IF(WIN32)
+  OPTION(BUNDLE_RUNTIME_LIBRARIES "INSTALL runtime libraries" OFF)
+  IF(BUNDLE_RUNTIME_LIBRARIES)
+    SET(RUNTIME_LIBRARIES
+      msvcp140
+      ucrtbase
+      vcruntime140
+      )
+    FOREACH(LIB ${RUNTIME_LIBRARIES})
+      SET(LIB_PATH "C:/Windows/System32/${LIB}.dll")
+      SET(LIB_D_PATH "C:/Windows/System32/${LIB}d.dll")
+      FOREACH(LIBRARY_PATH ${LIB_PATH} ${LIB_D_PATH})
+        IF(EXISTS "${LIBRARY_PATH}")
+          MESSAGE(STATUS "INSTALL ${LIBRARY_PATH} to ${INSTALL_BINDIR}")
+          INSTALL(FILES
+            "${LIBRARY_PATH}" DESTINATION "${INSTALL_BINDIR}"
+            COMPONENT SharedLibraries)
+        ELSE()
+          MESSAGE(STATUS "Could not find ${LIBRARY_PATH}")
+        ENDIF()
+      ENDFOREACH()
+    ENDFOREACH()
+  ENDIF()
+ENDIF()
+
 IF(WIN32)
   SET(CPACK_GENERATOR "ZIP")
 ELSE()

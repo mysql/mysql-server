@@ -26,12 +26,15 @@
   - Transaction progress
   - Server state
  */
+#define LOG_SUBSYSTEM_TAG "replication_observers_example"
 
 #include <assert.h>
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
 #include <mysql/group_replication_priv.h>
 #include <mysql/plugin.h>
-#include <mysql/service_my_plugin_log.h>
 #include <mysql/service_rpl_transaction_ctx.h>
+#include <mysqld_error.h>
 #include <sys/types.h>
 
 #include "my_dbug.h"
@@ -39,6 +42,9 @@
 #include "sql/current_thd.h"
 
 static MYSQL_PLUGIN plugin_info_ptr;
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 int validate_plugin_server_requirements(Trans_param *param);
 int test_channel_service_interface_initialization();
@@ -61,38 +67,36 @@ static bool thread_aborted = false;
 
 static void dump_server_state_calls() {
   if (before_handle_connection_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:before_handle_connection");
   }
 
   if (before_recovery_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:before_recovery");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:before_recovery");
   }
 
   if (after_engine_recovery_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:after_engine_recovery");
   }
 
   if (after_recovery_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:after_recovery");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:after_recovery");
   }
 
   if (before_server_shutdown_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:before_server_shutdown");
   }
 
   if (after_server_shutdown_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:after_server_shutdown");
   }
 }
@@ -155,33 +159,29 @@ static int trans_after_rollback_call = 0;
 
 static void dump_transaction_calls() {
   if (trans_before_dml_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:trans_before_dml");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:trans_before_dml");
   }
 
   if (trans_before_commit_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:trans_before_commit");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:trans_before_commit");
   }
 
   if (trans_before_rollback_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:trans_before_rollback");
   }
 
   if (trans_after_commit_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:trans_after_commit");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:trans_after_commit");
   }
 
   if (trans_after_rollback_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "\nreplication_observers_example_plugin:trans_after_rollback");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:trans_after_rollback");
   }
 }
 
@@ -268,8 +268,8 @@ static int before_commit_tests(Trans_param *param,
   }
 
   if (set_transaction_ctx(transaction_termination_ctx)) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_ERROR_LEVEL,
+    LogPluginErrMsg(
+        ERROR_LEVEL, ER_LOG_PRINTF_MSG,
         "Unable to update transaction context service on server, thread_id: %u",
         param->thread_id);
     return 1;
@@ -344,51 +344,51 @@ static int binlog_relay_after_reset_slave_call = 0;
 
 static void dump_binlog_relay_calls() {
   if (binlog_relay_thread_start_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:binlog_relay_thread_start");
   }
 
   if (binlog_relay_thread_stop_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:binlog_relay_thread_stop");
   }
 
   if (binlog_relay_applier_start_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:binlog_relay_applier_start");
   }
 
   if (binlog_relay_applier_stop_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:binlog_relay_applier_stop");
   }
 
   if (binlog_relay_before_request_transmit_call) {
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "\nreplication_observers_example_plugin:binlog_relay_"
-                          "before_request_transmit");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:binlog_relay_"
+                 "before_request_transmit");
   }
 
   if (binlog_relay_after_read_event_call) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "\nreplication_observers_example_plugin:binlog_relay_after_read_event");
   }
 
   if (binlog_relay_after_queue_event_call) {
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "\nreplication_observers_example_plugin:binlog_relay_"
-                          "after_queue_event");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:binlog_relay_"
+                 "after_queue_event");
   }
 
   if (binlog_relay_after_reset_slave_call) {
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "\nreplication_observers_example_plugin:binlog_relay_"
-                          "after_reset_slave");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "\nreplication_observers_example_plugin:binlog_relay_"
+                 "after_reset_slave");
   }
 }
 
@@ -486,10 +486,10 @@ int validate_plugin_server_requirements(Trans_param *param) {
   if (gle->is_valid())
     success++;
   else
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "replication_observers_example_plugin:validate_"
-                          "plugin_server_requirements:"
-                          " failed to instantiate a Gtid_log_event");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "replication_observers_example_plugin:validate_"
+                 "plugin_server_requirements:"
+                 " failed to instantiate a Gtid_log_event");
   delete gle;
 
   /*
@@ -502,10 +502,10 @@ int validate_plugin_server_requirements(Trans_param *param) {
   if (gle->is_valid())
     success++;
   else
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "replication_observers_example_plugin:validate_"
-                          "plugin_server_requirements:"
-                          " failed to instantiate a anonymous Gtid_log_event");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "replication_observers_example_plugin:validate_"
+                 "plugin_server_requirements:"
+                 " failed to instantiate a anonymous Gtid_log_event");
   delete gle;
 
   /*
@@ -520,16 +520,15 @@ int validate_plugin_server_requirements(Trans_param *param) {
     uchar *snapshot_version_buf =
         (uchar *)my_malloc(PSI_NOT_INSTRUMENTED, snapshot_version_len, MYF(0));
     snapshot_version->encode(snapshot_version_buf);
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "snapshot version is '%s'", snapshot_version_buf);
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "snapshot version is '%s'", snapshot_version_buf);
     my_free(snapshot_version_buf);
     success++;
   } else
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
-        "replication_observers_example_plugin:validate_plugin_server_"
-        "requirements:"
-        " failed to instantiate a Transaction_context_log_event");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "replication_observers_example_plugin:validate_plugin_server_"
+                 "requirements:"
+                 " failed to instantiate a Transaction_context_log_event");
   delete tcle;
 
   /*
@@ -541,10 +540,10 @@ int validate_plugin_server_requirements(Trans_param *param) {
   if (vcle->is_valid()) {
     success++;
   } else
-    my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                          "replication_observers_example_plugin:validate_"
-                          "plugin_server_requirements:"
-                          " failed to instantiate a View_change_log_event");
+    LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                 "replication_observers_example_plugin:validate_"
+                 "plugin_server_requirements:"
+                 " failed to instantiate a View_change_log_event");
   delete vcle;
 
   /*
@@ -585,8 +584,8 @@ int validate_plugin_server_requirements(Trans_param *param) {
   )
     success++;
   else
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_INFORMATION_LEVEL,
+    LogPluginErr(
+        INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
         "replication_observers_example_plugin:validate_plugin_server_"
         "requirements:"
         " failed to invoke group_replication_priv.h exported functions");
@@ -599,10 +598,10 @@ int validate_plugin_server_requirements(Trans_param *param) {
   /*
     Log number of successful validations.
   */
-  my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                        "\nreplication_observers_example_plugin:validate_"
-                        "plugin_server_requirements=%d",
-                        success);
+  LogPluginErrMsg(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+                  "\nreplication_observers_example_plugin:validate_"
+                  "plugin_server_requirements=%d",
+                  success);
 
   return 0;
 }
@@ -1003,29 +1002,34 @@ static int replication_observers_example_plugin_init(MYSQL_PLUGIN plugin_info) {
 
   DBUG_ENTER("replication_observers_example_plugin_init");
 
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+
   if (register_server_state_observer(&server_state_observer,
                                      (void *)plugin_info_ptr)) {
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Failure in registering the server state observers");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in registering the server state observers");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
   if (register_trans_observer(&trans_observer, (void *)plugin_info_ptr)) {
-    my_plugin_log_message(
-        &plugin_info_ptr, MY_ERROR_LEVEL,
-        "Failure in registering the transactions state observers");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in registering the transactions state observers");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
   if (register_binlog_relay_io_observer(&relay_io_observer,
                                         (void *)plugin_info_ptr)) {
-    my_plugin_log_message(&plugin_info_ptr, MY_ERROR_LEVEL,
-                          "Failure in registering the relay io observer");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in registering the relay io observer");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
-  my_plugin_log_message(&plugin_info_ptr, MY_INFORMATION_LEVEL,
-                        "replication_observers_example_plugin: init finished");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+               "replication_observers_example_plugin: init finished");
 
   DBUG_RETURN(0);
 }
@@ -1054,28 +1058,29 @@ static int replication_observers_example_plugin_deinit(void *p) {
   dump_binlog_relay_calls();
 
   if (unregister_server_state_observer(&server_state_observer, p)) {
-    my_plugin_log_message(
-        &p, MY_ERROR_LEVEL,
-        "Failure in unregistering the server state observers");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in unregistering the server state observers");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
   if (unregister_trans_observer(&trans_observer, p)) {
-    my_plugin_log_message(
-        &p, MY_ERROR_LEVEL,
-        "Failure in unregistering the transactions state observers");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in unregistering the transactions state observers");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
   if (unregister_binlog_relay_io_observer(&relay_io_observer, p)) {
-    my_plugin_log_message(&p, MY_ERROR_LEVEL,
-                          "Failure in unregistering the relay io observer");
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG,
+                 "Failure in unregistering the relay io observer");
+    deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
     DBUG_RETURN(1);
   }
 
-  my_plugin_log_message(
-      &p, MY_INFORMATION_LEVEL,
-      "replication_observers_example_plugin: deinit finished");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG,
+               "replication_observers_example_plugin: deinit finished");
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
 
   DBUG_RETURN(0);
 }

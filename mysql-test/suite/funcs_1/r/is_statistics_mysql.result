@@ -38,9 +38,6 @@ def	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BT
 def	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	innodb_ddl_log	0	mysql	PRIMARY	1	id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	innodb_ddl_log	1	mysql	thread_id	1	thread_id	A	#CARD#	NULL	NULL		BTREE			YES
-def	mysql	innodb_dynamic_metadata	0	mysql	PRIMARY	1	table_id	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	innodb_index_stats	0	mysql	PRIMARY	1	database_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	innodb_index_stats	0	mysql	PRIMARY	2	table_name	A	#CARD#	NULL	NULL		BTREE			YES
 def	mysql	innodb_index_stats	0	mysql	PRIMARY	3	index_name	A	#CARD#	NULL	NULL		BTREE			YES

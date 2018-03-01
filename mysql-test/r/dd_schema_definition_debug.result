@@ -136,9 +136,9 @@ include/assert.inc [The SE private id of 'mysql.innodb_dynamic_metadata' is 2.]
 include/assert.inc [The index id of 'mysql.innodb_dynamic_metadata' is 2.]
 # PART 2
 ########################################################################
-# The number of DD tables must be as expected.
+# The number of hidden DD/DDSE tables must be as expected.
 ########################################################################
-include/assert.inc [There are 29 DD tables.]
+include/assert.inc [There are 31 hidden DD/DDSE tables.]
 ########################################################################
 # No unexpected DD tables must be present.
 ########################################################################

@@ -670,11 +670,14 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     switch (sysvar->show_type()) {
       case SHOW_INT:
       case SHOW_LONG:
-      case SHOW_SIGNED_LONG:
       case SHOW_LONGLONG:
       case SHOW_HA_ROWS:
         res = new (thd->mem_root)
             Item_uint(iter->value.c_str(), (uint)iter->value.length());
+        break;
+      case SHOW_SIGNED_LONG:
+        res = new (thd->mem_root)
+            Item_int(iter->value.c_str(), (uint)iter->value.length());
         break;
       case SHOW_CHAR:
       case SHOW_CHAR_PTR:

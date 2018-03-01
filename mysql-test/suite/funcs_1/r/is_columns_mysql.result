@@ -79,18 +79,6 @@ def	mysql	help_topic	help_category_id	3	NULL	NO	smallint	NULL	NULL	5	0	NULL	NULL
 def	mysql	help_topic	description	4	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references			NULL
 def	mysql	help_topic	example	5	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references			NULL
 def	mysql	help_topic	url	6	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI	auto_increment	select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	thread_id	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	MUL		select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	type	3	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	space_id	4	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	page_no	5	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	index_id	6	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	table_id	7	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	old_file_path	8	NULL	YES	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_bin	varchar(512)			select,insert,update,references			NULL
-def	mysql	innodb_ddl_log	new_file_path	9	NULL	YES	varchar	512	1536	NULL	NULL	NULL	utf8	utf8_bin	varchar(512)			select,insert,update,references			NULL
-def	mysql	innodb_dynamic_metadata	table_id	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI		select,insert,update,references			NULL
-def	mysql	innodb_dynamic_metadata	version	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references			NULL
-def	mysql	innodb_dynamic_metadata	metadata	3	NULL	NO	blob	65535	65535	NULL	NULL	NULL	NULL	NULL	blob			select,insert,update,references			NULL
 def	mysql	innodb_index_stats	database_name	1	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references			NULL
 def	mysql	innodb_index_stats	table_name	2	NULL	NO	varchar	199	597	NULL	NULL	NULL	utf8	utf8_bin	varchar(199)	PRI		select,insert,update,references			NULL
 def	mysql	innodb_index_stats	index_name	3	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_bin	varchar(64)	PRI		select,insert,update,references			NULL
@@ -420,18 +408,6 @@ NULL	mysql	help_topic	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) 
 1.0000	mysql	help_topic	description	text	65535	65535	utf8	utf8_general_ci	text
 1.0000	mysql	help_topic	example	text	65535	65535	utf8	utf8_general_ci	text
 1.0000	mysql	help_topic	url	text	65535	65535	utf8	utf8_general_ci	text
-NULL	mysql	innodb_ddl_log	id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	innodb_ddl_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	innodb_ddl_log	type	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	innodb_ddl_log	space_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	innodb_ddl_log	page_no	int	NULL	NULL	NULL	NULL	int(10) unsigned
-NULL	mysql	innodb_ddl_log	index_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	innodb_ddl_log	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-3.0000	mysql	innodb_ddl_log	old_file_path	varchar	512	1536	utf8	utf8_bin	varchar(512)
-3.0000	mysql	innodb_ddl_log	new_file_path	varchar	512	1536	utf8	utf8_bin	varchar(512)
-NULL	mysql	innodb_dynamic_metadata	table_id	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-NULL	mysql	innodb_dynamic_metadata	version	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
-1.0000	mysql	innodb_dynamic_metadata	metadata	blob	65535	65535	NULL	NULL	blob
 3.0000	mysql	innodb_index_stats	database_name	varchar	64	192	utf8	utf8_bin	varchar(64)
 3.0000	mysql	innodb_index_stats	table_name	varchar	199	597	utf8	utf8_bin	varchar(199)
 3.0000	mysql	innodb_index_stats	index_name	varchar	64	192	utf8	utf8_bin	varchar(64)

@@ -139,6 +139,10 @@ typedef struct rtr_info {
   /*!< search tuple being used */
   page_cur_mode_t search_mode;
   /*!< current search mode */
+
+  /* TODO: This is for a temporary fix, will be removed later */
+  bool *is_dup;
+  /*!< whether the current rec is a duplicate record. */
 } rtr_info_t;
 
 typedef std::list<rtr_info_t *, ut_allocator<rtr_info_t *>> rtr_info_active;

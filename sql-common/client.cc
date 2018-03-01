@@ -3791,6 +3791,10 @@ static int client_mpvio_read_packet(MYSQL_PLUGIN_VIO *mpv, uchar **buf) {
 
   /* otherwise read the data */
   pkt_len = (*mysql->methods->read_change_user_result)(mysql);
+
+  /* error while reading the change user request */
+  if (pkt_len == packet_error) return (int)packet_error;
+
   mpvio->last_read_packet_len = pkt_len;
   *buf = mysql->net.read_pos;
 
@@ -3993,9 +3997,15 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   /*
     The connection may be closed. If so: do not try to read from the buffer.
+    If server sends OK packet without sending auth-switch first, client side
+    auth plugin may not be able to process it correctly.
+    However, if server sends OK, it means server side authentication plugin
+    already performed required checks. Further, server side plugin did not
+    really care about plugin used by client in this case.
   */
   if (res > CR_OK &&
-      (!my_net_is_inited(&mysql->net) || mysql->net.read_pos[0] != 254)) {
+      (!my_net_is_inited(&mysql->net) ||
+       (mysql->net.read_pos[0] != 0 && mysql->net.read_pos[0] != 254))) {
     /*
       the plugin returned an error. write it down in mysql,
       unless the error code is CR_ERROR and mysql->net.last_errno

@@ -758,7 +758,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -779,6 +779,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",
@@ -809,7 +812,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "1.15"
+      "query_cost": "10.15"
     },
     "windowing": {
       "windows": [
@@ -830,6 +833,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "9.00"
+      },
       "table": {
         "table_name": "t1",
         "access_type": "ALL",

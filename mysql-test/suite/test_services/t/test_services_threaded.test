@@ -28,7 +28,7 @@ SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
 --disable_warnings
 
---echo ------ Service: my_plugin_log_service ----------------------------
+--echo ------ Service: LogPluginErr ----------------------------
 CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 

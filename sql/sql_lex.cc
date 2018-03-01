@@ -3063,7 +3063,7 @@ void LEX::clear_privileges() {
   @brief Restore the LEX and THD in case of a parse error.
 
   This is a clean up call that is invoked by the Bison generated
-  parser before returning an error from MYSQLparse. If your
+  parser before returning an error from THD::sql_parser(). If your
   semantic actions manipulate with the global thread state (which
   is a very bad practice and should not normally be employed) and
   need a clean-up in case of error, and you can not use %destructor
@@ -4310,6 +4310,25 @@ static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
     }
   }
 }
+
+/**
+  Uses parse_tree to instantiate an Sql_cmd object and assigns it to the Lex.
+
+  @param parse_tree The parse tree.
+
+  @returns false on success, true on error.
+*/
+bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
+  if (!will_contextualize) return false;
+
+  m_sql_cmd = parse_tree->make_cmd(thd);
+  if (m_sql_cmd == nullptr) return true;
+
+  DBUG_ASSERT(m_sql_cmd->sql_command_code() == sql_command);
+
+  return false;
+}
+
 /*
   The BINLOG_* AND TRX_CACHE_* values can be combined by using '&' or '|',
   which means that both conditions need to be satisfied or any of them is

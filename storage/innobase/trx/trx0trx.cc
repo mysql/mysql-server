@@ -2946,9 +2946,17 @@ void trx_kill_blocking(trx_t *trx) {
     /* start with optimistic sleep time of 20 micro seconds. */
     ulint sleep_time = 20;
 
+    bool exited_innodb = false;
+
     while ((victim_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0 &&
            victim_trx->version == version) {
       trx_mutex_exit(victim_trx);
+
+      /* Declare this OS thread to exit InnoDB, before waiting */
+      if (trx->declared_to_be_inside_innodb) {
+        exited_innodb = true;
+        srv_conc_force_exit_innodb(trx);
+      }
 
       loop_count++;
       /* If the wait is long, don't hog the cpu. */
@@ -2966,6 +2974,12 @@ void trx_kill_blocking(trx_t *trx) {
       os_thread_sleep(sleep_time);
 
       trx_mutex_enter(victim_trx);
+    }
+
+    /* Return back inside InnoDB */
+    if (exited_innodb) {
+      exited_innodb = false;
+      srv_conc_force_enter_innodb(trx);
     }
 
     /* Compare the version to check if the transaction has

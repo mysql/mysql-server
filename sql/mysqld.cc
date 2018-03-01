@@ -79,55 +79,49 @@
   @page PAGE_CODING_GUIDELINES Coding Guidelines
 
   This section shows the guidelines that MySQL developers
-  follow when writing new code. In general, MySQL development
-  uses the Google coding style (See https://google.github.io/styleguide/cppguide.html):
+  follow when writing new code.
 
-  - For new projects/components, use Google coding style wherever
-    possible.
-
-  - For old projects or code, use the style already used in the
-    existing code for the time being.
-
-  Exceptions in MySQL coding guidelines:
-
-  - Class names: Do not use MyClass. Instead, use My_class.
-    This exception exists because the server has a history of using
-    My_class. It will be confusing to mix the two
-    (from a code-review perspective).
-    InnoDB has had freedom of choice for Class names
-    and will therefore not suffer from the mix.
+  New MySQL code uses the Google C++ coding style
+  (https://google.github.io/styleguide/cppguide.html), with one
+  exception:
 
   - Member variable names: Do not use foo_. Instead, use
-    m_foo (non-static) and s_foo (static), which
-    are improvements over the Google style.
+    m_foo (non-static) or s_foo (static).
 
-  Notes:
+  Old projects and modifications to old code use an older MySQL-specific
+  style for the time being. Since 8.0, MySQL style uses the same formatting
+  rules as Google coding style (e.g., brace placement, indentation, line
+  lengths, etc.), but differs in a few important aspects:
+
+  - Class names: Do not use MyClass. Instead, use My_class.
+
+  - Function names: Use snake_case().
 
   - Comment Style: Use either the // or <em>/</em>* *<em>/</em> syntax. // is
     much more common but both syntaxes are permitted for the time being.
 
   - Doxygen comments: Use <em>/</em>** ... *<em>/</em> syntax and not ///.
 
-  - Doxygen command: Use '@' and not '\' for doxygen commands.
+  - Doxygen commands: Use '@' and not '\' for doxygen commands.
 
-  - Braces alignment, if..else indentation, spaces around '=':
-    MySQL coding guideline traditionally places left braces aligned
-    with the start of the preceding line, whereas the Google style is
-    to place the left brace on the end of the previous line.
-
-  - MySQL coding guideline is to have no space before '='
-    while assignment “foo= bar”. The Google style is have space
-    around '=' in assignment "foo = bar".
+  - You may see structs starting with st_ and being typedef-ed to some
+    UPPERCASE (e.g. typedef struct st_foo { ... } FOO). However,
+    this is legacy from when the codebase contained C. Do not make such new
+    typedefs nor structs with st_ prefixes, and feel free to remove those that
+    already exist, except in public header files that are part of libmysql
+    (which need to be parseable as C99).
 
 
-  Consistent style is important for us, because everyone must
-  know what to expect. For example, after we become accustomed
-  to seeing that everything inside an <em>if</em> is indented
-  two spaces, we can glance at a listing and understand what's
-  nested within what. Writing non-conforming code can be bad.
-  Knowing our rules, you'll find it easier to read our code,
-  and when you decide to contribute (which we hope you'll consider!)
-  we'll find it easier to read and review your code.
+  Code formatting is enforced by use of clang-format throughout the code
+  base. However, note that formatting is only one part of coding style;
+  you are required to take care of non-formatting issues yourself, such as
+  following naming conventions, having clear ownership of code or minimizing
+  the use of macros. See the Google coding style guide for the entire list.
+
+  Consistent style is important for us, because everyone must know what to
+  expect. Knowing our rules, you'll find it easier to read our code, and when
+  you decide to contribute (which we hope you'll consider!) we'll find it
+  easier to read and review your code.
 
   - @subpage GENERAL_DEVELOPMENT_GUIDELINES
   - @subpage CPP_CODING_GUIDELINES_FOR_NDB_SE
@@ -2037,7 +2031,8 @@ static void clean_up(bool print_message) {
   delete_pid_file(MYF(0));
 
   if (print_message && my_default_lc_messages && server_start_time)
-    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname);
+    LogErr(SYSTEM_LEVEL, ER_SERVER_SHUTDOWN_COMPLETE, my_progname,
+           server_version, MYSQL_COMPILATION_COMMENT);
   cleanup_errmsgs();
 
   free_connection_acceptors();
@@ -7639,77 +7634,78 @@ static int show_ssl_ctx_get_session_cache_mode(THD *, SHOW_VAR *var, char *) {
          inside an Event.
  */
 static int show_ssl_get_version(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_version(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_version(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_session_reused(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_session_reused(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_session_reused(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_default_timeout(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_default_timeout(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_default_timeout(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_mode(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) = (long)SSL_get_verify_mode(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_mode(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_verify_depth(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_LONG;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl())
-    *((long *)buff) =
-        (long)SSL_get_verify_depth(thd->get_protocol()->get_ssl());
+  if (ssl)
+    *((long *)buff) = (long)SSL_get_verify_depth(ssl);
   else
     *((long *)buff) = 0;
   return 0;
 }
 
 static int show_ssl_get_cipher(THD *thd, SHOW_VAR *var, char *) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
-  if (thd->get_protocol()->get_ssl())
-    var->value =
-        const_cast<char *>(SSL_get_cipher(thd->get_protocol()->get_ssl()));
+  if (ssl)
+    var->value = const_cast<char *>(SSL_get_cipher(ssl));
   else
     var->value = (char *)"";
   return 0;
 }
 
 static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
+  SSL_handle ssl = thd->get_ssl();
   var->type = SHOW_CHAR;
   var->value = buff;
-  if (thd->get_protocol()->get_ssl()) {
+  if (ssl) {
     int i;
     const char *p;
     char *end = buff + SHOW_VAR_FUNC_BUFF_SIZE;
-    for (i = 0; (p = SSL_get_cipher_list(thd->get_protocol()->get_ssl(), i)) &&
-                buff < end;
-         i++) {
+    for (i = 0; (p = SSL_get_cipher_list(ssl, i)) && buff < end; i++) {
       buff = my_stpnmov(buff, p, end - buff - 1);
       *buff++ = ':';
     }

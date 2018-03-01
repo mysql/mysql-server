@@ -60,6 +60,21 @@ file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 
+--echo #
+--echo # Bug #27549249: MYSQL_UPGRADE FAILED TO CHANGE @@SESSION.SQL_LOG_BIN
+--echo #   WHEN AUTOCOMMIT IS OFF
+--echo #
+
+SET GLOBAL autocommit = 0;
+
+# Filter out ndb_binlog_index to mask differences due to running with or
+# without ndb.
+--replace_regex /mysql.ndb_binlog_index.*$//
+--exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
+
+SET GLOBAL autocommit = default;
+
+
 --source include/mysql_upgrade_cleanup.inc
 
 --echo

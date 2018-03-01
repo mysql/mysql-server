@@ -1248,7 +1248,7 @@ void PT_with_clause::print(THD *thd, String *str, enum_query_type query_type) {
   str->append("with ");
   if (m_recursive) str->append("recursive ");
   size_t len2 = str->length(), len3 = len2;
-  for (auto el : m_list.elements()) {
+  for (auto el : m_list->elements()) {
     if (str->length() != len3) {
       str->append(", ");
       len3 = str->length();
@@ -1692,8 +1692,19 @@ static void setup_lex_show_cmd_type(THD *thd, Show_cmd_type show_cmd_type) {
 }
 
 Sql_cmd *PT_show_fields::make_cmd(THD *thd) {
+  LEX *const lex = thd->lex;
+  lex->select_lex->db = nullptr;
+
   setup_lex_show_cmd_type(thd, m_show_cmd_type);
-  return super::make_cmd(thd);
+  lex->current_select()->parsing_place = CTX_SELECT_LIST;
+  lex->sql_command = SQLCOM_SHOW_FIELDS;
+  Sql_cmd *ret = super::make_cmd(thd);
+  if (ret == nullptr) return nullptr;
+  // WL#6599 opt_describe_column is handled during prepare stage in
+  // prepare_schema_dd_view instead of execution stage
+  lex->current_select()->parsing_place = CTX_NONE;
+
+  return ret;
 }
 
 Sql_cmd *PT_show_keys::make_cmd(THD *thd) {

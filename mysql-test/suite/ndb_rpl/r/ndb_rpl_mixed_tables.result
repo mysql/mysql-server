@@ -15,32 +15,32 @@ SHOW CREATE TABLE myisam_innodb;
 Table	Create Table
 myisam_innodb	CREATE TABLE `myisam_innodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE innodb_myisam;
 Table	Create Table
 innodb_myisam	CREATE TABLE `innodb_myisam` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE myisam_ndb;
 Table	Create Table
 myisam_ndb	CREATE TABLE `myisam_ndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE ndb_myisam;
 Table	Create Table
 ndb_myisam	CREATE TABLE `ndb_myisam` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 SHOW CREATE TABLE innodb_ndb;
 Table	Create Table
 innodb_ndb	CREATE TABLE `innodb_ndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE ndb_innodb;
 Table	Create Table
 ndb_innodb	CREATE TABLE `ndb_innodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 ---- setup slave with different engines ----
 DROP TABLE myisam_innodb, innodb_myisam;
 DROP TABLE myisam_ndb, ndb_myisam;
@@ -55,32 +55,32 @@ SHOW CREATE TABLE myisam_innodb;
 Table	Create Table
 myisam_innodb	CREATE TABLE `myisam_innodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE innodb_myisam;
 Table	Create Table
 innodb_myisam	CREATE TABLE `innodb_myisam` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE myisam_ndb;
 Table	Create Table
 myisam_ndb	CREATE TABLE `myisam_ndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 SHOW CREATE TABLE ndb_myisam;
 Table	Create Table
 ndb_myisam	CREATE TABLE `ndb_myisam` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SHOW CREATE TABLE innodb_ndb;
 Table	Create Table
 innodb_ndb	CREATE TABLE `innodb_ndb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COMMENT='NDB_TABLE=NOLOGGING=1'
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='NDB_TABLE=NOLOGGING=1'
 SHOW CREATE TABLE ndb_innodb;
 Table	Create Table
 ndb_innodb	CREATE TABLE `ndb_innodb` (
   `a` int(11) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 ==== AUTOCOMMIT=0, transactions ====
 ---- COMMIT ----
 SET AUTOCOMMIT = 0;

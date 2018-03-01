@@ -73,8 +73,6 @@ def	mysql	PRIMARY	mysql	help_keyword
 def	mysql	PRIMARY	mysql	help_relation
 def	mysql	name	mysql	help_topic
 def	mysql	PRIMARY	mysql	help_topic
-def	mysql	PRIMARY	mysql	innodb_ddl_log
-def	mysql	PRIMARY	mysql	innodb_dynamic_metadata
 def	mysql	PRIMARY	mysql	innodb_index_stats
 def	mysql	PRIMARY	mysql	innodb_table_stats
 def	mysql	PRIMARY	mysql	password_history

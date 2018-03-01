@@ -4161,8 +4161,6 @@ UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
 UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
-DELETE FROM t1;
-ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
 DROP TABLE t1;
 CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
 INSERT INTO t1 (doc) VALUES (
@@ -4180,8 +4178,6 @@ doc
 SELECT ST_ASTEXT(g1) FROM t1;
 ERROR 23000: Column 'g1' cannot be null
 INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
-ERROR 23000: Column 'g1' cannot be null
-DELETE FROM t1;
 ERROR 23000: Column 'g1' cannot be null
 DROP TABLE t1;
 CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
@@ -4379,8 +4375,6 @@ UPDATE t1 SET doc='{"geojson":{"type":"Point","coordinates":[1,2]}}';
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
 UPDATE t1 SET doc='{"geojson":{"type":"Point","invalid":[11.11,12.22]}}';
 ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
-DELETE FROM t1;
-ERROR HY000: Invalid GeoJSON data provided to function st_geomfromgeojson: Missing required member 'coordinates'
 DROP TABLE t1;
 CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;
 INSERT INTO t1 (doc) VALUES (
@@ -4398,8 +4392,6 @@ doc
 SELECT ST_ASTEXT(g1) FROM t1;
 ERROR 23000: Column 'g1' cannot be null
 INSERT INTO t1 (doc) VALUES ('{"foo":"bar"}');
-ERROR 23000: Column 'g1' cannot be null
-DELETE FROM t1;
 ERROR 23000: Column 'g1' cannot be null
 DROP TABLE t1;
 CREATE TABLE t1 (doc JSON) ENGINE=InnoDB;

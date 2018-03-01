@@ -38,7 +38,7 @@ SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 
 --disable_warnings
 
---echo ------ Service: my_plugin_log_service ----------------------------
+--echo ------ Service: LogPluginErr ----------------------------
 if ($run_log_message_test) {
    CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
    --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

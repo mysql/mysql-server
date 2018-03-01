@@ -231,6 +231,13 @@ void dict_table_autoinc_persisted_update(dict_table_t *table,
 UNIV_INLINE
 void dict_table_autoinc_set_col_pos(dict_table_t *table, ulint pos);
 
+/** Write redo logs for autoinc counter that is to be inserted, or to
+update some existing smaller one to bigger.
+@param[in,out]	table	InnoDB table object
+@param[in]	value	AUTOINC counter to log
+@param[in,out]	mtr	mini-transaction */
+void dict_table_autoinc_log(dict_table_t *table, uint64_t value, mtr_t *mtr);
+
 /** Check if a table has an autoinc counter column.
 @param[in]	table	table
 @return true if there is an autoinc column in the table, otherwise false. */
@@ -1230,29 +1237,14 @@ struct dict_sys_t {
 
 /** Structure for persisting dynamic metadata of data dictionary */
 struct dict_persist_t {
-  /** We have an rw-lock and a mutex here. We should always make sure
-  the rw-lock is acquired first and then the mutex according to their
-  latch levels. These two should be low-level latch/lock so that
-  we can use them widely when necessary. However, we will access
-  B-tree and require tree latch after them, the levels good for
-  them would be right before the SYNC_INDEX_TREE and since we
-  want to acquire these two in low-level, we won't check the latching
-  order for these against others above SYNC_LOG, only the order between
-  the two themselves. */
-
-  /** rw-lock which is used to protect write-back on checkpoint.
-  We will write back persistent metadata before holding log mutex
-  on checkpoint, and we have to make sure that during the period
-  between write-back and acquiring log mutex, no one can persist
-  metadata by writing new redo logs. So checkpoint should first
-  hold this lock in X mode and release after log mutex granted,
-  and persisting metadata threads should hold this lock in S mode
-  before writing the redo logs */
-  rw_lock_t lock;
-
   /** Mutex to protect data in this structure, also the
   dict_table_t::dirty_status and
-  dict_table_t::in_dirty_dict_tables_list */
+  dict_table_t::in_dirty_dict_tables_list
+  This mutex should be low-level one so that it can be used widely
+  when necessary, so its level had to be above SYNC_LOG. However,
+  after this mutex, persister may have to access B-tree and require
+  tree latch, the latch level of this mutex then has to be right
+  before the SYNC_INDEX_TREE. */
   ib_mutex_t mutex;
 
   /** List of tables whose dirty_status are marked as METADATA_DIRTY,
@@ -1442,10 +1434,9 @@ update the table object accordingly
 void dict_table_load_dynamic_metadata(dict_table_t *table);
 
 /** Check if any table has any dirty persistent data, if so
-write dirty persistent data of table to DD TABLE BUFFER table accordingly
-@return true if any table is dirty and write to DD TABLE BUFFER would
-possibly be done */
-bool dict_persist_to_dd_table_buffer(void);
+write dirty persistent data of table to mysql.innodb_dynamic_metadata
+accordingly. */
+void dict_persist_to_dd_table_buffer();
 #endif /* !UNIV_HOTBACKUP */
 
 /** Apply the persistent dynamic metadata read from redo logs or

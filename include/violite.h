@@ -226,10 +226,13 @@ extern "C" {
 /* Set wolfSSL to use same type as MySQL do for socket handles */
 typedef my_socket WOLFSSL_SOCKET_T;
 #define WOLFSSL_SOCKET_T_DEFINED
+
+// clang-format off
+#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
+// clang-format on
 
 enum enum_ssl_init_error {
   SSL_INITERR_NOERROR = 0,
@@ -419,5 +422,11 @@ struct Vio {
   Vio &operator=(const Vio &) = delete;
   Vio &operator=(Vio &&vio);
 };
+
+#ifdef HAVE_OPENSSL
+#define SSL_handle SSL *
+#else
+#define SSL_handle void *
+#endif
 
 #endif /* vio_violite_h_ */

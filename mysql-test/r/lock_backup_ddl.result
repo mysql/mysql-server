@@ -41,6 +41,8 @@ tt1
 1
 2
 3
+CREATE RESOURCE GROUP rg1 TYPE=USER;
+Got one of the listed errors
 connection default;
 UNLOCK INSTANCE;
 connection con1;

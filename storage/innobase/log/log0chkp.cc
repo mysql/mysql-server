@@ -367,6 +367,19 @@ void log_files_downgrade(log_t &log) {
 
 /* @{ */
 
+static lsn_t log_determine_checkpoint_lsn(log_t &log) {
+  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
+  const lsn_t dict_lsn = log.dict_suggest_checkpoint_lsn;
+
+  ut_a(dict_lsn == 0 || dict_lsn >= log.last_checkpoint_lsn);
+
+  if (dict_lsn == 0) {
+    return (oldest_lsn);
+  } else {
+    return (std::min(oldest_lsn, dict_lsn));
+  }
+}
+
 void log_files_write_checkpoint(log_t &log, lsn_t next_checkpoint_lsn) {
   ut_ad(log_checkpointer_mutex_own(log));
   ut_a(!srv_read_only_mode);
@@ -452,7 +465,7 @@ static void log_checkpoint(log_t &log) {
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_checkpoint_disabled);
 
-  const lsn_t oldest_lsn = log.available_for_checkpoint_lsn;
+  const lsn_t checkpoint_lsn = log_determine_checkpoint_lsn(log);
 
   LOG_SYNC_POINT("log_before_checkpoint_data_flush");
 
@@ -483,12 +496,12 @@ static void log_checkpoint(log_t &log) {
     log_test->fsync_written_pages();
   }
 
-  ut_a(oldest_lsn >= log.last_checkpoint_lsn.load());
+  ut_a(checkpoint_lsn >= log.last_checkpoint_lsn.load());
 
-  ut_a(oldest_lsn <= log_buffer_dirty_pages_added_up_to_lsn(log));
+  ut_a(checkpoint_lsn <= log_buffer_dirty_pages_added_up_to_lsn(log));
 
 #ifdef UNIV_DEBUG
-  if (oldest_lsn > log.flushed_to_disk_lsn.load()) {
+  if (checkpoint_lsn > log.flushed_to_disk_lsn.load()) {
     /* We need log_flusher, because we need redo flushed up
     to the oldest_lsn, and it's not been flushed yet. */
 
@@ -496,15 +509,15 @@ static void log_checkpoint(log_t &log) {
   }
 #endif
 
-  ut_a(log.flushed_to_disk_lsn.load() >= oldest_lsn);
+  ut_a(log.flushed_to_disk_lsn.load() >= checkpoint_lsn);
 
   const auto current_time = std::chrono::high_resolution_clock::now();
 
   log.last_checkpoint_time = current_time;
 
-  DBUG_PRINT("ib_log", ("Starting checkpoint at " LSN_PF, oldest_lsn));
+  DBUG_PRINT("ib_log", ("Starting checkpoint at " LSN_PF, checkpoint_lsn));
 
-  log_files_write_checkpoint(log, oldest_lsn);
+  log_files_write_checkpoint(log, checkpoint_lsn);
 
   DBUG_PRINT("ib_log",
              ("checkpoint ended at " LSN_PF ", log flushed to " LSN_PF,
@@ -795,26 +808,16 @@ static bool log_consider_checkpoint(log_t &log) {
     return (false);
   }
 
-  /* Now we know that a next checkpoint should be written.
-  However we haven't acquired dict_persist->lock yet, and
-  we cannot acquire it now because order of latches has to
-  be different (to avoid deadlocks). We retry the check,
-  but this time we first x-lock the dict_persist->lock.
-  We didn't want to x-lock the lock previously to avoid
-  locking it very often (for each check). */
+  /* It's clear that a new checkpoint should be written.
+  So do write back the dynamic metadata. Since the checkpointer
+  mutex is low-level one, it has to be released first. */
   log_checkpointer_mutex_exit(log);
 
   if (log_test == nullptr) {
-    rw_lock_x_lock(&dict_persist->lock);
-
     dict_persist_to_dd_table_buffer();
   }
 
   log_checkpointer_mutex_enter(log);
-
-  if (log_test == nullptr) {
-    rw_lock_x_unlock(&dict_persist->lock);
-  }
 
   /* We need to re-check if checkpoint should really be
   written, because we re-acquired the checkpointer_mutex.
@@ -986,6 +989,8 @@ void log_update_limits(log_t &log) {
   } else {
     log.sn_limit_for_start.store(limit_for_start - margins);
   }
+
+  log.dict_suggest_checkpoint_lsn = 0;
 }
 
 bool log_calc_max_ages(log_t &log) {

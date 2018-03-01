@@ -1,4 +1,4 @@
-// Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -136,6 +136,9 @@ Error_code Message_decoder::parse(Request &request) {
       log_debug("Error parsing message of type %i: %s", request.get_type(),
                 message->InitializationErrorString().c_str());
 
+      if (!msg_is_shared) ngs::free_object(message);
+      message = nullptr;
+
       // Workaraound
       stream.DecrementRecursionDepth();
       if (!stream.IncrementRecursionDepth()) {
@@ -144,9 +147,6 @@ Error_code Message_decoder::parse(Request &request) {
                      max_recursion_limit);
       }
 
-      if (!msg_is_shared) ngs::free_object(message);
-
-      message = NULL;
       return Error_code(ER_X_BAD_MESSAGE,
                         "Parse error unserializing protobuf message");
     } else

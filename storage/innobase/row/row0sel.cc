@@ -5308,6 +5308,37 @@ locks_ok:
         goto next_rec;
       }
     }
+
+    /* TODO: This is for a temporary fix, will be removed later */
+    /* Check duplicate rec for spatial index. */
+    if (dict_index_is_spatial(index) && rec_get_deleted_flag(rec, comp) &&
+        prebuilt->rtr_info->is_dup) {
+      dtuple_t *clust_row;
+      row_ext_t *ext = nullptr;
+      rtr_mbr_t clust_mbr;
+      rtr_mbr_t index_mbr;
+      ulint *index_offsets;
+      const dtuple_t *index_entry;
+      bool *is_dup_rec = prebuilt->rtr_info->is_dup;
+
+      *is_dup_rec = false;
+
+      if (!heap) {
+        heap = mem_heap_create(100);
+      }
+
+      clust_row = row_build(ROW_COPY_DATA, clust_index, clust_rec, offsets,
+                            NULL, NULL, NULL, &ext, heap);
+      index_entry = row_build_index_entry(clust_row, ext, index, heap);
+      rtr_get_mbr_from_tuple(index_entry, &clust_mbr);
+
+      index_offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
+      rtr_get_mbr_from_rec(rec, index_offsets, &index_mbr);
+
+      if (mbr_equal_cmp(index->rtr_srs.get(), &clust_mbr, &index_mbr)) {
+        *is_dup_rec = true;
+      }
+    }
   } else {
     result_rec = rec;
   }
@@ -5774,8 +5805,9 @@ dberr_t row_count_rtree_recs(
                               position the cursor at the start or
                               the end of the index, depending on
                               'mode' */
-    ulint *n_rows)            /*!< out: number of entries
+    ulint *n_rows,            /*!< out: number of entries
                               seen in the consistent read */
+    ulint *n_dups)            /*!< out: number of dup entries */
 {
   dict_index_t *index = prebuilt->index;
   dberr_t ret = DB_SUCCESS;
@@ -5786,10 +5818,12 @@ dberr_t row_count_rtree_recs(
   ulint entry_len;
   ulint i;
   byte *buf;
+  bool is_dup = false;
 
   ut_a(dict_index_is_spatial(index));
 
   *n_rows = 0;
+  *n_dups = 0;
 
   heap = mem_heap_create(256);
 
@@ -5834,7 +5868,14 @@ dberr_t row_count_rtree_recs(
 
   ulint cnt = 1000;
 
-  ret = row_search_for_mysql(buf, PAGE_CUR_WITHIN, prebuilt, 0, 0);
+  ut_ad(!index->table->is_intrinsic());
+
+  ret = row_search_mvcc(buf, PAGE_CUR_WITHIN, prebuilt, 0, 0);
+
+  /* TODO: This is for a temporary fix, will be removed later */
+  if (prebuilt->rtr_info != nullptr) {
+    prebuilt->rtr_info->is_dup = &is_dup;
+  }
 loop:
   /* Check thd->killed every 1,000 scanned rows */
   if (--cnt == 0) {
@@ -5866,8 +5907,12 @@ loop:
   }
 
   *n_rows = *n_rows + 1;
+  if (is_dup) {
+    *n_dups = *n_dups + 1;
+    is_dup = false;
+  }
 
-  ret = row_search_for_mysql(buf, PAGE_CUR_WITHIN, prebuilt, 0, ROW_SEL_NEXT);
+  ret = row_search_mvcc(buf, PAGE_CUR_WITHIN, prebuilt, 0, ROW_SEL_NEXT);
 
   goto loop;
 }

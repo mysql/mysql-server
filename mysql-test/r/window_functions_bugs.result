@@ -363,7 +363,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "5.75"
     },
     "windowing": {
       "windows": [
@@ -379,6 +379,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -416,7 +419,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "5.75"
     },
     "windowing": {
       "windows": [
@@ -440,6 +443,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",
@@ -475,7 +481,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "0.75"
+      "query_cost": "5.75"
     },
     "windowing": {
       "windows": [
@@ -499,6 +505,9 @@ EXPLAIN
           ]
         }
       ],
+      "cost_info": {
+        "sort_cost": "5.00"
+      },
       "table": {
         "table_name": "t",
         "access_type": "ALL",

@@ -738,13 +738,19 @@ class Window {
     Columns present in both list (redundancies) are eliminated, while
     making sure the order of columns in the ORDER BY is maintained
     in the merged list.
-  */
-  ORDER *sorting_order(THD *thd);
 
-  /**
-    Return true if ordering is redundant for this window
+    @param thd                Optional. Session state. If not nullptr,
+                              initialize the cache.
+
+    @param implicit_grouping  Optional. If true, we won't sort (single row
+                              result set). Presence implies thd != nullptr for
+                              the first call when we lazily set up this
+                              information.  Succeeding calls return the cached
+                              value.
+
+    @returns The start of the concatenated ordering expressions, or nullptr
   */
-  bool sort_redundant() const { return m_sort_redundant; }
+  ORDER *sorting_order(THD *thd = nullptr, bool implicit_grouping = false);
 
   /**
     Check that the semantic requirements for window functions over this
@@ -915,14 +921,15 @@ class Window {
 
   /**
     Determine if the window had either a partition clause (inclusive) or a
-    ORDER BY clause
+    ORDER BY clause, either defined by itself or inherited from another window.
 
     @return true if we have such a clause, which means we need to sort the
-            input table before evaluating the window functions
+            input table before evaluating the window functions, unless it has
+            been made redundant by a previous windowing step, cf.
+            m_sort_redundant, or due to a single row result set, cf.
+            SELECT_LEX::is_implicitly_grouped().
   */
-  bool needs_sorting() const {
-    return (m_partition_by != nullptr || m_order_by != nullptr);
-  }
+  bool needs_sorting() const { return m_sorting_order != nullptr; }
 
   /**
     If we cannot compute one of window functions without looking at succeeding
@@ -1333,6 +1340,16 @@ class Window {
 
   bool has_windowing_steps() const;
 
+  /**
+    Compute sorting costs for windowing.
+
+    @param cost Cost of sorting result set once
+    @param windows The set of windows
+
+    @returns the aggregated sorting costs of the windowing
+  */
+  static double compute_cost(double cost, List<Window> &windows);
+
  private:
   /**
     Common implementation of before_frame() and after_frame().
@@ -1354,8 +1371,18 @@ class Window {
 
     If the result set is implicitly grouped, we also skip any sorting for
     windows.
+
+    @param windows     list of windows
+    @param first_exec  if true, the as done a part of a first prepare, not a
+                       reprepare. On a reprepare the analysis part will be
+                       skipped, since the flag m_sort_redundant flag is stable
+                       across prepares.
+    @todo in WL#6570 we may set m_sorting_order only once, during preparation,
+    then Window::m_sort_redundant could be removed, as well as the first_exec
+    argument.
   */
-  static void reorder_and_eliminate_sorts(THD *thd, List<Window> &windows);
+  static void reorder_and_eliminate_sorts(List<Window> &windows,
+                                          bool first_exec);
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the
@@ -1370,7 +1397,7 @@ class Window {
     [1] After concatenating effective PARTITION BY and ORDER BY (including
     inheritance) expressions.
   */
-  static bool equal_sort(THD *thd, Window *w1, Window *w2);
+  static bool equal_sort(Window *w1, Window *w2);
 
   /**
     Check that a frame border is constant during execution and that it does

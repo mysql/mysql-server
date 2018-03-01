@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -238,7 +238,9 @@ static bool my_demangle_symbol(char *line) {
   }
   if (demangled) my_safe_printf_stderr("%s(%s+%s\n", line, demangled, end);
 #endif            // !__APPLE__
-  return (demangled == NULL);
+  bool ret = (demangled == NULL);
+  free(demangled);
+  return (ret);
 }
 
 static void my_demangle_symbols(char **addrs, int n) {

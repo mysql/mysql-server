@@ -40,7 +40,7 @@ t1	CREATE TABLE `t1` (
   `h` text,
   `i` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i
 1	1	1	1	1	1	Rankin	Rebus	1
@@ -75,7 +75,7 @@ t1	CREATE TABLE `t1` (
   `h` text,
   `i` int(11) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`)
-) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4
+) ENGINE=ndbcluster DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 Retry with --promote-attributes
 select * from t1 order by a;
 a	b	c	d	e	f	g	h	i

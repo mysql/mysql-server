@@ -223,6 +223,7 @@ class JOIN {
         best_read(0.0),
         best_rowcount(0),
         sort_cost(0.0),
+        windowing_cost(0.0),
         // Needed in case optimizer short-cuts, set properly in
         // make_tmp_tables_info()
         fields(&select->item_list),
@@ -416,6 +417,8 @@ class JOIN {
   ha_rows best_rowcount;
   /// Expected cost of filesort.
   double sort_cost;
+  /// Expected cost of windowing;
+  double windowing_cost;
   List<Item> *fields;
   List<Cached_item> group_fields, group_fields_cache;
   Item_sum **sum_funcs, ***sum_funcs_end;

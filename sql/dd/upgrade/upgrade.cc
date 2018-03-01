@@ -321,7 +321,8 @@ bool check_for_dd_tables() {
         System_tables::instance()->find_type(schema_name, table_name);
 
     bool is_innodb_stats_table =
-        (table_type != nullptr) && (*table_type == System_tables::Types::DDSE);
+        (table_type != nullptr) &&
+        (*table_type == System_tables::Types::DDSE_PROTECTED);
     is_innodb_stats_table &= ((table_name == "innodb_table_stats") ||
                               (table_name == "innodb_index_stats"));
 

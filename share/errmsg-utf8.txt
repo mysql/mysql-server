@@ -7791,6 +7791,9 @@ ER_AUDIT_LOG_USER_NAME_INVALID_CHARACTER
 ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
   eng "Invalid character in the host name."
 
+OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
+  eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
+
 #
 #  End of 5.7 error messages.
 #
@@ -8486,9 +8489,6 @@ ER_POLYGON_TOO_LARGE 22023
 #  End of 8.0 error messages.
 #
 
-ER_OOM_SAVE_GTIDS
-  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
-
 
 #
 # Start of 8.0 Server error messages
@@ -8852,7 +8852,7 @@ ER_UNSUPPORTED_DATE
   eng "This MySQL server doesn't support dates later then 2038"
 
 ER_STARTING_AS
-  eng "%s (mysqld %s) starting as process %lu ..."
+  eng "%s (mysqld %s) starting as process %lu"
 
 ER_SHUTTING_DOWN_SLAVE_THREADS
   eng "Shutting down slave threads"
@@ -11237,7 +11237,7 @@ ER_FORCE_CLOSE_THREAD
   eng "%s: Forcing close of thread %ld  user: '%-.48s'."
 
 ER_SERVER_SHUTDOWN_COMPLETE  
-  eng "%s: Shutdown complete."
+  eng "%s: Shutdown complete (mysqld %s)  %s."
 
 ER_RPL_CANT_HAVE_SAME_BASENAME
   eng "Cannot have same base name '%s' for both binary and relay logs. Please check %s (default '%s' if --log-bin option is not used, default '%s' if --log-bin option is used without argument) and %s (default '%s') options to ensure they do not conflict."
@@ -13778,7 +13778,13 @@ ER_LDAP_AUTH_INFO_FOR_USER
   eng "User is authenticated as: %s external user: %s"
 
 ER_LDAP_AUTH_USER_GROUP_SEARCH_INFO
-  eng "Group search information: %s scope: %d filter: %s"
+  eng "Group search information base DN: %s scope: %d filter: %s attribute: %s"
+
+ER_LDAP_AUTH_GRP_SEARCH_SPECIAL_HDL
+  eng "Special handling for group search, {GA} found"
+
+ER_LDAP_AUTH_GRP_IS_FULL_DN
+  eng "Group search special handling, group full DN found. "
 
 ER_LDAP_AUTH_USER_NOT_FOUND_IN_ANY_GRP
   eng "User %s is not member of any group."
@@ -17823,6 +17829,21 @@ ER_KEYRING_MIGRATE_FAILED
 
 ER_GRP_RPL_LOWER_CASE_TABLE_NAMES_DIFF_FROM_GRP
   eng "The member is configured with a lower_case_table_names option value '%u' different from the group '%u'. The member will now exit the group. If there is existing data on member, it may be incompatible with group if it was created with a lower_case_table_names value different from the group."
+
+ER_OOM_SAVE_GTIDS
+  eng "An out-of-memory error occured while saving the set of GTIDs from the last binary log into the mysql.gtid_executed table"
+
+ER_LCTN_NOT_FOUND
+  eng "The lower_case_table_names setting for the data dictionary was not found. Starting the server using lower_case_table_names = '%u'."
+
+ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+  eng "A capture group has an invalid name."
+
+ER_COMPONENT_FILTER_WRONG_VALUE
+  eng "Variable '%-.64s' can't be set to the value of '%-.200s'"
+
+ER_XPLUGIN_FAILED_TO_STOP_SERVICES
+  eng "Stopping services failed with error \"%s\""
 
 #
 # End of 8.0 Server error messages.

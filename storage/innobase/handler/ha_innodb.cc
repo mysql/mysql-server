@@ -661,7 +661,6 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
     PSI_RWLOCK_KEY(buf_block_debug_latch, 0, PSI_DOCUMENT_ME),
 #endif /* UNIV_DEBUG */
     PSI_RWLOCK_KEY(dict_operation_lock, 0, PSI_DOCUMENT_ME),
-    PSI_RWLOCK_KEY(dict_persist_checkpoint, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(fil_space_latch, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(log_sn_lock, 0, PSI_DOCUMENT_ME),
     PSI_RWLOCK_KEY(undo_spaces_lock, 0, PSI_DOCUMENT_ME),
@@ -2565,6 +2564,14 @@ void innobase_copy_frm_flags_from_table_share(
   innodb_table->stats_sample_pages = table_share->stats_sample_pages;
 }
 
+void ha_innobase::srv_concurrency_enter() {
+  innobase_srv_conc_enter_innodb(m_prebuilt);
+}
+
+void ha_innobase::srv_concurrency_exit() {
+  innobase_srv_conc_exit_innodb(m_prebuilt);
+}
+
 /** Construct ha_innobase handler. */
 
 ha_innobase::ha_innobase(handlerton *hton, TABLE_SHARE *table_arg)
@@ -4115,7 +4122,8 @@ static int innodb_init(void *p) {
   innobase_hton->collect_hton_log_info = innobase_collect_hton_log_info;
   innobase_hton->fill_is_table = innobase_fill_i_s_table;
   innobase_hton->flags = HTON_SUPPORTS_EXTENDED_KEYS |
-                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL;
+                         HTON_SUPPORTS_FOREIGN_KEYS | HTON_SUPPORTS_ATOMIC_DDL |
+                         HTON_CAN_RECREATE;
 
   innobase_hton->replace_native_transaction_in_thd = innodb_replace_trx_in_thd;
   innobase_hton->file_extensions = ha_innobase_exts;
@@ -10817,7 +10825,7 @@ static bool innobase_ddse_dict_init(
   /* Instantiate table defs only if we are successful so far. */
   dd::Object_table *innodb_dynamic_metadata =
       dd::Object_table::create_object_table();
-  innodb_dynamic_metadata->set_hidden(false);
+  innodb_dynamic_metadata->set_hidden(true);
   dd::Object_table_definition *def =
       innodb_dynamic_metadata->target_table_definition();
   def->set_table_name("innodb_dynamic_metadata");
@@ -10878,7 +10886,7 @@ static bool innobase_ddse_dict_init(
   /* Options and tablespace are set at the SQL layer. */
 
   dd::Object_table *innodb_ddl_log = dd::Object_table::create_object_table();
-  innodb_ddl_log->set_hidden(false);
+  innodb_ddl_log->set_hidden(true);
   def = innodb_ddl_log->target_table_definition();
   def->set_table_name("innodb_ddl_log");
   def->add_field(0, "id", "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
@@ -12292,6 +12300,295 @@ template int innobase_basic_ddl::rename_impl<dd::Partition>(
     THD *, const char *, const char *, const dd::Partition *,
     const dd::Partition *);
 
+template <typename Table>
+innobase_truncate<Table>::~innobase_truncate() {
+  if (m_table != nullptr) {
+    dd_table_close(m_table, m_thd, nullptr, false);
+    m_table = nullptr;
+  }
+}
+
+template innobase_truncate<dd::Table>::~innobase_truncate();
+template innobase_truncate<dd::Partition>::~innobase_truncate();
+
+template <typename Table>
+int innobase_truncate<Table>::open_table(dict_table_t *&innodb_table) {
+  if (m_dd_table->table().is_persistent()) {
+    dd::cache::Dictionary_client *client = dd::get_dd_client(m_thd);
+    dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+    int error = dd_table_open_on_dd_obj(
+        client, m_dd_table->table(),
+        (dd_table_is_partitioned(m_dd_table->table())
+             ? reinterpret_cast<const dd::Partition *>(m_dd_table)
+             : nullptr),
+        m_name, innodb_table, m_thd);
+
+    if (error != 0) {
+      return (error);
+    }
+  } else {
+    innodb_table = dd_table_open_on_name_in_mem(m_name, false);
+    ut_ad(innodb_table->is_temporary());
+  }
+
+  m_table = innodb_table;
+
+  return (0);
+}
+
+template int innobase_truncate<dd::Table>::open_table(
+    dict_table_t *&innodb_table);
+template int innobase_truncate<dd::Partition>::open_table(
+    dict_table_t *&innodb_table);
+
+template <typename Table>
+int innobase_truncate<Table>::prepare() {
+  int error = 0;
+
+  if (m_table == nullptr) {
+    error = open_table(m_table);
+
+    if (error != 0) {
+      return (error);
+    }
+  }
+
+  ut_ad(m_table != nullptr);
+
+  m_trx = check_trx_exists(m_thd);
+  m_file_per_table = dict_table_is_file_per_table(m_table);
+  m_flags = m_table->flags;
+  m_flags2 = m_table->flags2;
+
+  update_create_info_from_table(&m_create_info, m_form);
+
+  m_create_info.tablespace = nullptr;
+  if (m_table->is_temporary()) {
+    m_create_info.options |= HA_LEX_CREATE_TMP_TABLE;
+  } else {
+    if (m_table->tablespace != nullptr) {
+      m_create_info.tablespace = mem_strdup(m_table->tablespace);
+    }
+  }
+
+  m_create_info.key_block_size = m_form->s->key_block_size;
+
+  if (m_table->data_dir_path != nullptr) {
+    m_create_info.data_file_name = mem_strdup(m_table->data_dir_path);
+  } else {
+    m_create_info.data_file_name = nullptr;
+  }
+
+  if (m_table->can_be_evicted) {
+    mutex_enter(&dict_sys->mutex);
+    dict_table_ddl_acquire(m_table);
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  return (error);
+}
+
+template <typename Table>
+int innobase_truncate<Table>::truncate() {
+  int error = 0;
+  bool reset = false;
+
+  /* Rename tablespace file to avoid existing file in create. */
+  if (m_file_per_table) {
+    error = rename_tablespace();
+  }
+
+  DBUG_EXECUTE_IF("ib_truncate_fail_after_rename", error = HA_ERR_GENERIC;);
+
+  if (error != 0) {
+    return (error);
+  }
+
+  dd_table_close(m_table, m_thd, nullptr, false);
+  m_table = nullptr;
+
+  DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
+
+  error = innobase_basic_ddl::delete_impl(m_thd, m_name, m_dd_table,
+                                          SQLCOM_TRUNCATE);
+
+  DBUG_EXECUTE_IF("ib_truncate_fail_after_delete", error = HA_ERR_GENERIC;);
+
+  if (error != 0) {
+    return (error);
+  }
+
+  DBUG_EXECUTE_IF("ib_truncate_crash_after_drop_old_table", DBUG_SUICIDE(););
+
+  if (m_dd_table->is_persistent()) {
+    m_dd_table->set_se_private_id(dd::INVALID_OBJECT_ID);
+    for (auto dd_index : *m_dd_table->indexes()) {
+      dd_index->se_private_data().clear();
+    }
+  }
+
+  if (dd_table_is_partitioned(m_dd_table->table()) &&
+      m_create_info.tablespace != nullptr &&
+      m_dd_table->tablespace_id() == dd::INVALID_OBJECT_ID) {
+    /* Don't change the tablespace if it's a partitioned table,
+    so temporarily set the tablespace_id as an explicit one
+    to make it consistent with info->tablespace */
+    m_dd_table->set_tablespace_id(dd_first_index(m_dd_table)->tablespace_id());
+    reset = true;
+  }
+
+  m_trx->in_truncate = true;
+  error = innobase_basic_ddl::create_impl(m_thd, m_name, m_form, &m_create_info,
+                                          m_dd_table, m_file_per_table, false,
+                                          true, m_flags, m_flags2);
+  m_trx->in_truncate = false;
+
+  if (reset) {
+    m_dd_table->set_tablespace_id(dd::INVALID_OBJECT_ID);
+  }
+
+  if (error == 0) {
+    mutex_enter(&dict_sys->mutex);
+    m_table = dict_table_check_if_in_cache_low(m_name);
+    ut_ad(m_table != nullptr);
+    m_table->acquire();
+    mutex_exit(&dict_sys->mutex);
+  }
+
+  DBUG_EXECUTE_IF("ib_truncate_fail_after_create_new_table",
+                  error = HA_ERR_GENERIC;);
+
+  DBUG_EXECUTE_IF("ib_truncate_crash_after_create_new_table", DBUG_SUICIDE(););
+
+  return (error);
+}
+
+template <typename Table>
+int innobase_truncate<Table>::rename_tablespace() {
+  ut_ad(m_table != nullptr);
+  ut_ad(dict_table_is_file_per_table(m_table));
+  ut_ad(!m_table->is_temporary());
+  ut_ad(m_table->trunc_name.m_name == nullptr);
+
+  uint64_t old_size = mem_heap_get_size(m_table->heap);
+  char *temp_name = dict_mem_create_temporary_tablename(
+      m_table->heap, m_table->name.m_name, m_table->id);
+  uint64_t new_size = mem_heap_get_size(m_table->heap);
+
+  mutex_enter(&dict_sys->mutex);
+  dict_sys->size += new_size - old_size;
+  mutex_exit(&dict_sys->mutex);
+
+  std::string new_path;
+  char *old_path = fil_space_get_first_path(m_table->space);
+
+  if (DICT_TF_HAS_DATA_DIR(m_table->flags)) {
+    new_path = Fil_path::make_new_ibd(old_path, temp_name);
+  } else {
+    char *ptr = Fil_path::make_ibd_from_table_name(temp_name);
+    new_path.assign(ptr);
+    ut_free(ptr);
+  }
+
+  /* New filepath must not exist. */
+  dberr_t err = fil_rename_tablespace_check(m_table->space, old_path,
+                                            new_path.c_str(), false);
+
+  if (err == DB_SUCCESS) {
+    mutex_enter(&dict_sys->mutex);
+    clone_mark_abort(true);
+    bool success = fil_rename_tablespace(m_table->space, old_path, temp_name,
+                                         new_path.c_str());
+    clone_mark_active();
+    mutex_exit(&dict_sys->mutex);
+
+    if (!success) {
+      err = DB_ERROR;
+    } else {
+      m_table->trunc_name.m_name = temp_name;
+    }
+  }
+
+  ut_free(old_path);
+
+  return (convert_error_code_to_mysql(err, m_table->flags, nullptr));
+}
+
+template <typename Table>
+void innobase_truncate<Table>::cleanup() {
+  if (m_table == nullptr) {
+    m_table = dd_table_open_on_name_in_mem(m_name, false);
+  }
+
+  if (m_table != nullptr && !m_table->is_temporary()) {
+    m_table->discard_after_ddl = true;
+  }
+
+  char *tablespace = const_cast<char *>(m_create_info.tablespace);
+  char *data_file_name = const_cast<char *>(m_create_info.data_file_name);
+
+  ut_free(tablespace);
+  ut_free(data_file_name);
+}
+
+template <typename Table>
+int innobase_truncate<Table>::load_fk() {
+  if (dd_table_is_partitioned(m_dd_table->table())) {
+    return (0);
+  }
+
+  int error = 0;
+  dict_names_t fk_tables;
+  dd::cache::Dictionary_client *client = dd::get_dd_client(m_thd);
+  dd::cache::Dictionary_client::Auto_releaser releaser(client);
+
+  ut_ad(m_table != nullptr);
+  error = dd_table_check_for_child(client, m_table->name.m_name, nullptr,
+                                   m_table, &m_dd_table->table(), m_thd, true,
+                                   DICT_ERR_IGNORE_NONE, &fk_tables);
+
+  ut_ad(fk_tables.empty());
+
+  if (error != DB_SUCCESS) {
+    push_warning_printf(m_thd, Sql_condition::SL_WARNING,
+                        HA_ERR_CANNOT_ADD_FOREIGN,
+                        "Truncate table '%s' failed to load some"
+                        " foreign key constraints.",
+                        m_name);
+  } else {
+    error = 0;
+  }
+
+  return (error);
+}
+
+template <typename Table>
+int innobase_truncate<Table>::exec() {
+  int error = 0;
+
+  error = prepare();
+
+  if (error == 0) {
+    error = truncate();
+  }
+
+  cleanup();
+
+  if (error == 0) {
+    error = load_fk();
+  }
+
+  DBUG_EXECUTE_IF("ib_truncate_crash_after_innodb_complete", DBUG_SUICIDE(););
+
+  DBUG_EXECUTE_IF("ib_truncate_rollback_test", error = HA_ERR_GENERIC;);
+
+  return (error);
+}
+
+template int innobase_truncate<dd::Table>::exec();
+template int innobase_truncate<dd::Partition>::exec();
+
 /** Check if a column is the only column in an index.
 @param[in]	index	data dictionary index
 @param[in]	column	the column to look for
@@ -12621,6 +12918,11 @@ statement commit time.
 int ha_innobase::create(const char *name, TABLE *form,
                         HA_CREATE_INFO *create_info, dd::Table *table_def) {
   THD *thd = ha_thd();
+
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
+    return (truncate_impl(name, form, table_def));
+  }
+
   trx_t *trx = check_trx_exists(thd);
 
   if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
@@ -12835,150 +13137,55 @@ int ha_innobase::truncate_rename_tablespace(const char *name) {
   return (convert_error_code_to_mysql(err, table->flags, nullptr));
 }
 
-/** DROP and CREATE an InnoDB table.
-@param[in,out]	table_def	dd::Table describing table to be
-truncated. Can be adjusted by SE, the changes will be saved into
-the data-dictionary at statement commit time.
-@return	error number
-@retval 0 on success */
-int ha_innobase::truncate(dd::Table *table_def) {
-  THD *thd = ha_thd();
+int ha_innobase::truncate_impl(const char *name, TABLE *form,
+                               dd::Table *table_def) {
+  DBUG_ENTER("ha_innobase::truncate_impl");
 
-  DBUG_ENTER("ha_innobase::truncate");
-  /* The table should have been opened in ha_innobase::open().
-  Purge might be holding a reference to the table. */
-  DBUG_ASSERT(m_prebuilt->table->n_ref_count >= 1);
-
-  if (dict_sys_t::is_dd_table_id(m_prebuilt->table->id)) {
-    ut_ad(!m_prebuilt->table->is_temporary());
+  /* Truncate of intrinsic table or hard-coded DD tables is not allowed
+  for now. */
+  if (table_def == nullptr ||
+      dict_sys_t::is_dd_table_id(table_def->se_private_id())) {
     my_error(ER_NOT_ALLOWED_COMMAND, MYF(0));
     DBUG_RETURN(HA_ERR_UNSUPPORTED);
-  }
-
-  /* Truncate of intrinsic table is not allowed truncate for now. */
-  if (m_prebuilt->table->is_intrinsic()) {
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
   }
 
   if (high_level_read_only) {
     DBUG_RETURN(HA_ERR_TABLE_READONLY);
   }
 
-  if (dict_table_is_discarded(m_prebuilt->table)) {
-    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
-                table->s->table_name.str);
-    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
-  }
-
-  HA_CREATE_INFO info;
-  const bool file_per_table = dict_table_is_file_per_table(m_prebuilt->table);
-  update_create_info_from_table(&info, table);
-  char *tsname = NULL;
-  ulint old_flags = m_prebuilt->table->flags;
-  ulint old_flags2 = m_prebuilt->table->flags2;
-
-  if (m_prebuilt->table->is_temporary()) {
-    info.options |= HA_LEX_CREATE_TMP_TABLE;
-  } else {
-    innobase_register_trx(ht, thd, m_prebuilt->trx);
-
-    dd_get_and_save_data_dir_path<dd::Table>(m_prebuilt->table, NULL, false);
-
-    if (m_prebuilt->table->tablespace != NULL) {
-      tsname = mem_strdup(m_prebuilt->table->tablespace);
-    }
-  }
-
-  info.tablespace = tsname;
-  info.key_block_size = table->s->key_block_size;
-
-  char *data_file_name = m_prebuilt->table->data_dir_path;
-
-  if (data_file_name != nullptr) {
-    info.data_file_name = data_file_name = mem_strdup(data_file_name);
-  }
-
-  char *name = mem_strdup(m_share->table_name);
-
-  if (m_prebuilt->table->can_be_evicted) {
-    mutex_enter(&dict_sys->mutex);
-    dict_table_ddl_acquire(m_prebuilt->table);
-    mutex_exit(&dict_sys->mutex);
-  }
-
-  close();
-
+  char norm_name[FN_REFLEN];
+  THD *thd = ha_thd();
+  dict_table_t *innodb_table = nullptr;
+  bool has_autoinc = false;
   int error = 0;
 
-  /* Rename tablespace file to avoid existing file in create. */
-  if (file_per_table) {
-    error = truncate_rename_tablespace(name);
+  normalize_table_name(norm_name, name);
+
+  innobase_truncate<dd::Table> truncator(thd, norm_name, form, table_def);
+
+  error = truncator.open_table(innodb_table);
+
+  if (error != 0) {
+    DBUG_RETURN(error);
   }
 
-  DBUG_EXECUTE_IF("ib_truncate_crash_after_rename", DBUG_SUICIDE(););
+  has_autoinc = dict_table_has_autoinc_col(innodb_table);
 
-  if (error == 0) {
-    error =
-        innobase_basic_ddl::delete_impl(thd, name, table_def, SQLCOM_TRUNCATE);
+  if (dict_table_is_discarded(innodb_table)) {
+    ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
+    DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+  } else if (innodb_table->ibd_file_missing) {
+    DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
   }
 
-  DBUG_EXECUTE_IF("ib_truncate_crash_after_drop_old_table", DBUG_SUICIDE(););
+  trx_t *trx = check_trx_exists(thd);
+  innobase_register_trx(ht, thd, trx);
 
-  if (error == 0) {
-    table_def->set_se_private_id(dd::INVALID_OBJECT_ID);
-    for (auto dd_index : *table_def->indexes()) {
-      dd_index->se_private_data().clear();
-    }
+  error = truncator.exec();
 
-    trx_t *trx = check_trx_exists(thd);
-    trx->in_truncate = true;
-
-    error = innobase_basic_ddl::create_impl(thd, name, table, &info, table_def,
-                                            file_per_table, true, true,
-                                            old_flags, old_flags2);
-    trx->in_truncate = false;
+  if (error == 0 && has_autoinc) {
+    dd_set_autoinc(table_def->se_private_data(), 0);
   }
-
-  DBUG_EXECUTE_IF("ib_truncate_crash_after_create_new_table", DBUG_SUICIDE(););
-
-  if (error == 0) {
-    error = open(name, 0, 0, table_def);
-  }
-
-  if (error == 0) {
-    if (table->found_next_number_field != nullptr) {
-      dd_set_autoinc(table_def->se_private_data(), 0);
-    }
-
-    dict_names_t fk_tables;
-
-    dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
-    dd::cache::Dictionary_client::Auto_releaser releaser(client);
-
-    error = dd_table_check_for_child(client, m_prebuilt->table->name.m_name,
-                                     nullptr, m_prebuilt->table, table_def, thd,
-                                     true, DICT_ERR_IGNORE_NONE, &fk_tables);
-
-    DBUG_ASSERT(fk_tables.empty());
-
-    if (error != DB_SUCCESS) {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          HA_ERR_CANNOT_ADD_FOREIGN,
-                          "Truncate table '%s' failed to load some"
-                          " foreign key constraints.",
-                          name);
-    } else {
-      error = 0;
-    }
-  }
-
-  DBUG_EXECUTE_IF("ib_truncate_crash_after_innodb_complete", DBUG_SUICIDE(););
-
-  DBUG_EXECUTE_IF("ib_truncate_rollback_test", error = HA_ERR_GENERIC;);
-
-  ut_free(name);
-  ut_free(tsname);
-  ut_free(data_file_name);
 
   DBUG_RETURN(error);
 }
@@ -14920,6 +15127,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   dict_index_t *index;
   ulint n_rows;
   ulint n_rows_in_table = ULINT_UNDEFINED;
+  ulint n_dups;
   bool is_ok = true;
   ulint old_isolation_level;
   dberr_t ret;
@@ -15041,7 +15249,7 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     /* Scan this index. */
     if (dict_index_is_spatial(index)) {
-      ret = row_count_rtree_recs(m_prebuilt, &n_rows);
+      ret = row_count_rtree_recs(m_prebuilt, &n_rows, &n_dups);
     } else {
       ret = row_scan_index_for_mysql(m_prebuilt, index, true, &n_rows);
     }
@@ -15069,7 +15277,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
 
     if (index == m_prebuilt->table->first_index()) {
       n_rows_in_table = n_rows;
-    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table)) {
+    } else if (!(index->type & DICT_FTS) && (n_rows != n_rows_in_table) &&
+               (!dict_index_is_spatial(index) || (n_rows < n_rows_in_table) ||
+                (n_dups < n_rows - n_rows_in_table))) {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NOT_KEYFILE,
                           "InnoDB: Index '%-.200s' contains %lu"
                           " entries, should be %lu.",
@@ -17939,6 +18149,10 @@ static int innodb_monitor_validate(
   ut_a(value != NULL);
 
   name = value->val_str(value, buff, &len);
+
+  if (name == nullptr) {
+    return (1);
+  }
 
   /* Check if the value is a valid string. */
   size_t valid_len;

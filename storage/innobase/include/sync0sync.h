@@ -184,7 +184,6 @@ extern mysql_pfs_key_t buf_block_lock_key;
 extern mysql_pfs_key_t buf_block_debug_latch_key;
 #endif /* UNIV_DEBUG */
 extern mysql_pfs_key_t dict_operation_lock_key;
-extern mysql_pfs_key_t dict_persist_checkpoint_key;
 extern mysql_pfs_key_t undo_spaces_lock_key;
 extern mysql_pfs_key_t rsegs_lock_key;
 extern mysql_pfs_key_t fil_space_latch_key;

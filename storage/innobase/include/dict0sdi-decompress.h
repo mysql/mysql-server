@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,18 +57,20 @@ class Sdi_Decompressor {
 
       switch (ret) {
         case Z_BUF_ERROR:
-
           ib::fatal() << "retval = Z_BUF_ERROR";
+          break;
 
         case Z_MEM_ERROR:
-
           ib::fatal() << "retval = Z_MEM_ERROR";
+          break;
 
         case Z_DATA_ERROR:
-
           ib::fatal() << "retval = Z_DATA_ERROR";
+          break;
+
         default:
-          ut_error;
+          ib::fatal() << "retval = UNKNOWN_ERROR";
+          break;
       }
     }
   }

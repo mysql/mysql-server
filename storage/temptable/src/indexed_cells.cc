@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,20 +23,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/indexed_cells.cc
 TempTable Indexed Cells implementation. */
 
-#include <array>   /* std::array */
-#include <cstddef> /* size_t */
-#include <limits>  /* std::numeric_limits */
+#include <array>
+#include <cstddef>
+#include <limits>
 
-#include "my_dbug.h"                                   /* DBUG_ASSERT() */
-#include "my_hash_combine.h"                           /* my_hash_combine() */
-#include "sql/field.h"                                 /* Field */
-#include "sql/key.h"                                   /* KEY */
-#include "storage/temptable/include/temptable/cell.h"  /* temptable::Cell */
-#include "storage/temptable/include/temptable/index.h" /* temptable::Index */
-#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells */
-#include "storage/temptable/include/temptable/row.h" /* temptable::Row, temptable::Rows, temptable::Rows_cursor */
-#include "storage/temptable/include/temptable/storage.h" /* temptable::Storage::Element */
-#include "storage/temptable/include/temptable/table.h" /* temptable::Table */
+#include "my_dbug.h"
+#include "my_hash_combine.h"
+#include "sql/field.h"
+#include "sql/key.h"
+#include "storage/temptable/include/temptable/cell.h"
+#include "storage/temptable/include/temptable/index.h"
+#include "storage/temptable/include/temptable/indexed_cells.h"
+#include "storage/temptable/include/temptable/row.h"
+#include "storage/temptable/include/temptable/storage.h"
+#include "storage/temptable/include/temptable/table.h"
 
 namespace temptable {
 
@@ -156,9 +156,9 @@ int Indexed_cells::compare(const Indexed_cells &rhs, const Index &index) const {
   for (size_t i = 0; i < number_of_cells_to_compare; ++i) {
     const Cell &lhs_cell = lhs.cell(i, index);
     const Cell &rhs_cell = rhs.cell(i, index);
-    const auto &indexed_column = index.indexed_column(i);
+    const auto &calculator = index.indexed_column(i).cell_calculator();
 
-    const int cmp_result = lhs_cell.compare(indexed_column, rhs_cell);
+    const int cmp_result = calculator.compare(lhs_cell, rhs_cell);
 
     if (cmp_result != 0) {
       return cmp_result;
@@ -259,7 +259,8 @@ size_t Indexed_cells_hash::operator()(
 
   for (size_t i = 0; i < number_of_cells; ++i) {
     const Cell &cell = indexed_cells.cell(i, m_index);
-    const size_t cell_hash = cell.hash(m_index.indexed_column(i));
+    const auto &calculator = m_index.indexed_column(i).cell_calculator();
+    const size_t cell_hash = calculator.hash(cell);
     my_hash_combine(h, cell_hash);
   }
 

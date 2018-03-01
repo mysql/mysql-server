@@ -127,7 +127,7 @@ int yylex(void *yylval, void *yythd);
     ulong val= *(H);                          \
     if (my_yyoverflow((B), (D), (F), &val))   \
     {                                         \
-      yyerror(NULL, YYTHD, (char*) (A));      \
+      yyerror(NULL, YYTHD, NULL, (char*) (A));\
       return 2;                               \
     }                                         \
     else                                      \
@@ -205,7 +205,7 @@ int yylex(void *yylval, void *yythd);
 #define MAKE_CMD(x)                                    \
   do                                                   \
   {                                                    \
-    if (assign_cmd(YYTHD, Lex, (x)))                   \
+    if (YYTHD->is_error() || Lex->make_sql_cmd(x))     \
       MYSQL_YYABORT;                                   \
   } while(0)
 
@@ -237,7 +237,7 @@ int yylex(void *yylval, void *yythd);
   to abort from the parser.
 */
 
-static void MYSQLerror(YYLTYPE *, THD *thd, const char *s)
+static void MYSQLerror(YYLTYPE *, THD *thd, Parse_tree_root **, const char *s)
 {
   /*
     Restore the original LEX if it was replaced when parsing
@@ -426,33 +426,6 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 #include "sql/parse_tree_nodes.h"
 #include "sql/parse_tree_partitions.h"
 
-/**
-  Uses parse_tree to instantiate an Sql_cmd object and assigns it to the Lex.
-
-  @param thd Needed to make an Sql_cmd.
-  @param lex The Lex to assign to.
-  @param parse_tree The parse tree.
-
-  @retval false OK
-  @retval true A fatal error occured, MYSQL_YYABORT should be called.
-*/
-static bool assign_cmd(THD *thd, LEX *lex, Parse_tree_root *parse_tree)
-{
-  if (thd->is_error())
-    return true;
-
-  if (!lex->will_contextualize)
-    return false;
-
-  lex->m_sql_cmd= parse_tree->make_cmd(thd);
-  if (lex->m_sql_cmd == nullptr)
-    return true;
-
-  DBUG_ASSERT(lex->m_sql_cmd->sql_command_code() == lex->sql_command);
-
-  return false;
-}
-
 void warn_about_deprecated_national(THD *thd)
 {
   if (native_strcasecmp(national_charset_info->csname, "utf8") == 0)
@@ -466,6 +439,8 @@ void warn_about_deprecated_national(THD *thd)
 %start start_entry
 
 %parse-param { class THD *YYTHD }
+%parse-param { class Parse_tree_root **parse_tree }
+
 %lex-param { class THD *YYTHD }
 %pure-parser                                    /* We have threads */
 /*
@@ -1289,6 +1264,7 @@ void warn_about_deprecated_national(THD *thd)
         filter_wild_db_table_string
         opt_constraint
         ts_datafile lg_undofile /*lg_redofile*/ opt_logfile_group_name
+        opt_describe_column
 
 %type <lex_cstr>
         opt_table_alias
@@ -1633,21 +1609,26 @@ void warn_about_deprecated_national(THD *thd)
 %type <text_literal> text_literal
 
 %type <top_level_node>
-	alter_instance_stmt
+        alter_instance_stmt
+        alter_resource_group_stmt
         alter_table_stmt
         analyze_table_stmt
         call_stmt
         check_table_stmt
         create_index_stmt
+        create_resource_group_stmt
+        create_role_stmt
         create_srs_stmt
         create_table_stmt
         delete_stmt
+        describe_stmt
         do_stmt
         drop_index_stmt
+        drop_resource_group_stmt
         drop_role_stmt
         drop_srs_stmt
-        explain_stmt
         explainable_stmt
+        explain_stmt
         handler_stmt
         insert_stmt
         keycache_stmt
@@ -1662,6 +1643,7 @@ void warn_about_deprecated_national(THD *thd)
         set_resource_group_stmt
         set_role_stmt
         shutdown_stmt
+        simple_statement
         truncate_stmt
         update_stmt
 
@@ -2003,95 +1985,101 @@ opt_end_of_input:
         ;
 
 simple_statement_or_begin:
-          simple_statement
+          simple_statement      { *parse_tree= $1; }
         | begin_stmt
         ;
 
 /* Verb clauses, except begin_stmt */
 simple_statement:
-          alter_database_stmt
-        | alter_event_stmt
-        | alter_function_stmt
-        | alter_instance_stmt   { MAKE_CMD($1); }
-        | alter_logfile_stmt
-        | alter_procedure_stmt
-        | alter_server_stmt
-        | alter_tablespace_stmt
-        | alter_table_stmt      { MAKE_CMD($1); }
-        | alter_user_stmt
-        | alter_view_stmt
-        | analyze_table_stmt    { MAKE_CMD($1); }
-        | binlog_base64_event
-        | call_stmt             { MAKE_CMD($1); }
-        | change
-        | check_table_stmt      { MAKE_CMD($1); }
-        | checksum
-        | clone_stmt
-        | commit
-        | create
-        | create_srs_stmt       { MAKE_CMD($1); }
-        | deallocate
-        | delete_stmt           { MAKE_CMD($1); }
-        | describe
-        | do_stmt               { MAKE_CMD($1); }
-        | drop_database_stmt
-        | drop_event_stmt
-        | drop_function_stmt
-        | drop_index_stmt       { MAKE_CMD($1); }
-        | drop_logfile_stmt
-        | drop_procedure_stmt
-        | drop_role_stmt        { MAKE_CMD($1); }
-        | drop_server_stmt
-        | drop_srs_stmt         { MAKE_CMD($1); }
-        | drop_tablespace_stmt
-        | drop_table_stmt
-        | drop_trigger_stmt
-        | drop_user_stmt
-        | drop_view_stmt
-        | execute
-        | explain_stmt          { MAKE_CMD($1); }
-        | flush
-        | get_diagnostics
-        | group_replication
-        | grant
-        | handler_stmt          { MAKE_CMD($1); }
-        | help
-        | import_stmt
-        | insert_stmt           { MAKE_CMD($1); }
-        | install
-        | kill
-        | load_stmt             { MAKE_CMD($1); }
-        | lock
-        | optimize_table_stmt   { MAKE_CMD($1); }
-        | keycache_stmt         { MAKE_CMD($1); }
-        | preload_stmt          { MAKE_CMD($1); }
-        | prepare
-        | purge
-        | release
-        | rename
-        | repair_table_stmt     { MAKE_CMD($1); }
-        | replace_stmt          { MAKE_CMD($1); }
-        | reset
-        | resignal_stmt
-        | restart_server_stmt   { MAKE_CMD($1); }
-        | revoke
-        | rollback
-        | savepoint
-        | select_stmt           { MAKE_CMD($1); }
-        | set                   { CONTEXTUALIZE($1); }
-        | set_resource_group_stmt { MAKE_CMD($1); }
-        | set_role_stmt         { MAKE_CMD($1); } // TODO: merge with "set"
-        | signal_stmt
-        | show
-        | shutdown_stmt         { MAKE_CMD($1); }
-        | slave
-        | start
-        | truncate_stmt         { MAKE_CMD($1); }
-        | uninstall
-        | unlock
-        | update_stmt           { MAKE_CMD($1); }
-        | use
-        | xa
+          alter_database_stmt           { $$= nullptr; }
+        | alter_event_stmt              { $$= nullptr; }
+        | alter_function_stmt           { $$= nullptr; }
+        | alter_instance_stmt
+        | alter_logfile_stmt            { $$= nullptr; }
+        | alter_procedure_stmt          { $$= nullptr; }
+        | alter_resource_group_stmt
+        | alter_server_stmt             { $$= nullptr; }
+        | alter_tablespace_stmt         { $$= nullptr; }
+        | alter_table_stmt
+        | alter_user_stmt               { $$= nullptr; }
+        | alter_view_stmt               { $$= nullptr; }
+        | analyze_table_stmt
+        | binlog_base64_event           { $$= nullptr; }
+        | call_stmt
+        | change                        { $$= nullptr; }
+        | check_table_stmt
+        | checksum                      { $$= nullptr; }
+        | clone_stmt                    { $$= nullptr; }
+        | commit                        { $$= nullptr; }
+        | create                        { $$= nullptr; }
+        | create_index_stmt
+        | create_resource_group_stmt
+        | create_role_stmt
+        | create_srs_stmt
+        | create_table_stmt
+        | deallocate                    { $$= nullptr; }
+        | delete_stmt
+        | describe_stmt
+        | do_stmt
+        | drop_database_stmt            { $$= nullptr; }
+        | drop_event_stmt               { $$= nullptr; }
+        | drop_function_stmt            { $$= nullptr; }
+        | drop_index_stmt
+        | drop_logfile_stmt             { $$= nullptr; }
+        | drop_procedure_stmt           { $$= nullptr; }
+        | drop_resource_group_stmt
+        | drop_role_stmt
+        | drop_server_stmt              { $$= nullptr; }
+        | drop_srs_stmt
+        | drop_tablespace_stmt          { $$= nullptr; }
+        | drop_table_stmt               { $$= nullptr; }
+        | drop_trigger_stmt             { $$= nullptr; }
+        | drop_user_stmt                { $$= nullptr; }
+        | drop_view_stmt                { $$= nullptr; }
+        | execute                       { $$= nullptr; }
+        | explain_stmt
+        | flush                         { $$= nullptr; }
+        | get_diagnostics               { $$= nullptr; }
+        | group_replication             { $$= nullptr; }
+        | grant                         { $$= nullptr; }
+        | handler_stmt
+        | help                          { $$= nullptr; }
+        | import_stmt                   { $$= nullptr; }
+        | insert_stmt
+        | install                       { $$= nullptr; }
+        | kill                          { $$= nullptr; }
+        | load_stmt
+        | lock                          { $$= nullptr; }
+        | optimize_table_stmt
+        | keycache_stmt
+        | preload_stmt
+        | prepare                       { $$= nullptr; }
+        | purge                         { $$= nullptr; }
+        | release                       { $$= nullptr; }
+        | rename                        { $$= nullptr; }
+        | repair_table_stmt
+        | replace_stmt
+        | reset                         { $$= nullptr; }
+        | resignal_stmt                 { $$= nullptr; }
+        | restart_server_stmt
+        | revoke                        { $$= nullptr; }
+        | rollback                      { $$= nullptr; }
+        | savepoint                     { $$= nullptr; }
+        | select_stmt
+        | set                           { $$= nullptr; CONTEXTUALIZE($1); }
+        | set_resource_group_stmt
+        | set_role_stmt
+        | signal_stmt                   { $$= nullptr; }
+        | show                          { $$= nullptr; }
+        | shutdown_stmt
+        | slave                         { $$= nullptr; }
+        | start                         { $$= nullptr; }
+        | truncate_stmt
+        | uninstall                     { $$= nullptr; }
+        | unlock                        { $$= nullptr; }
+        | update_stmt
+        | use                           { $$= nullptr; }
+        | xa                            { $$= nullptr; }
         ;
 
 deallocate:
@@ -2678,10 +2666,27 @@ create_table_stmt:
           }
         ;
 
+create_role_stmt:
+          CREATE ROLE_SYM opt_if_not_exists role_list
+          {
+            $$= NEW_PTN PT_create_role(!!$3, $4);
+          }
+        ;
+
+create_resource_group_stmt:
+          CREATE RESOURCE_SYM GROUP_SYM ident TYPE_SYM
+          opt_equal resource_group_types
+          opt_resource_group_vcpu_list opt_resource_group_priority
+          opt_resource_group_enable_disable
+          {
+            $$= NEW_PTN PT_create_resource_group(to_lex_cstring($4), $7, $8, $9,
+                                                 $10.is_default ? true :
+                                                 $10.value);
+          }
+        ;
+
 create:
-          create_table_stmt     { MAKE_CMD($1); }
-        | create_index_stmt     { MAKE_CMD($1); }
-        | CREATE DATABASE opt_if_not_exists ident
+          CREATE DATABASE opt_if_not_exists ident
           {
             Lex->create_info= YYTHD->alloc_typed<HA_CREATE_INFO>();
             if (Lex->create_info == NULL)
@@ -2709,11 +2714,6 @@ create:
             if (Lex->create_info == NULL)
               MYSQL_YYABORT; // OOM
             lex->create_info->options= $3 ? HA_LEX_CREATE_IF_NOT_EXISTS : 0;
-          }
-        | CREATE ROLE_SYM opt_if_not_exists role_list
-          {
-            auto *tmp= NEW_PTN PT_create_role(!!$3, $4);
-            MAKE_CMD(tmp);
           }
         | CREATE LOGFILE_SYM GROUP_SYM ident ADD lg_undofile
           opt_logfile_group_options
@@ -2753,15 +2753,6 @@ create:
               MYSQL_YYABORT; /* purecov: inspected */ //OOM
             Lex->m_sql_cmd= cmd;
             Lex->sql_command= SQLCOM_ALTER_TABLESPACE;
-          }
-        | CREATE RESOURCE_SYM GROUP_SYM ident TYPE_SYM opt_equal resource_group_types
-          opt_resource_group_vcpu_list opt_resource_group_priority
-          opt_resource_group_enable_disable
-          {
-            auto *tmp= NEW_PTN PT_create_resource_group(
-                                 to_lex_cstring($4), $7, $8,
-                                 $9, $10.is_default ? true : $10.value);
-            MAKE_CMD(tmp);
           }
         | CREATE SERVER_SYM ident_or_text FOREIGN DATA_SYM WRAPPER_SYM
           ident_or_text OPTIONS_SYM '(' server_options_list ')'
@@ -4177,6 +4168,9 @@ sp_proc_stmt_statement:
           }
           simple_statement
           {
+            if ($2 != nullptr)
+              MAKE_CMD($2);
+
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             sp_head *sp= lex->sphead;
@@ -7351,13 +7345,15 @@ alter_user_stmt:
                                                  role_enum::ROLE_NAME);
             MAKE_CMD(tmp);
           }
-        | ALTER RESOURCE_SYM GROUP_SYM ident opt_resource_group_vcpu_list
+        ;
+
+alter_resource_group_stmt:
+          ALTER RESOURCE_SYM GROUP_SYM ident opt_resource_group_vcpu_list
           opt_resource_group_priority opt_resource_group_enable_disable
           opt_force
           {
-            auto *tmp= NEW_PTN PT_alter_resource_group(
-              to_lex_cstring($4), $5, $6, $7, $8);
-            MAKE_CMD(tmp);
+            $$= NEW_PTN PT_alter_resource_group(to_lex_cstring($4),
+                                                $5, $6, $7, $8);
           }
         ;
 
@@ -9696,7 +9692,7 @@ fulltext_options:
                             {
                               THD *thd= YYTHD;
                               if (thd->sp_runtime_ctx)
-                                MYSQLerror(NULL,thd,"syntax error");
+                                MYSQLerror(NULL,thd,NULL,"syntax error");
                             });
           }
         ;
@@ -11453,10 +11449,12 @@ drop_function_stmt:
             spname->init_qname(thd);
             lex->spname= spname;
           }
-        | DROP RESOURCE_SYM GROUP_SYM ident opt_force
+        ;
+
+drop_resource_group_stmt:
+          DROP RESOURCE_SYM GROUP_SYM ident opt_force
           {
-            auto *tmp= NEW_PTN PT_drop_resource_group(to_lex_cstring($4), $5);
-            MAKE_CMD(tmp);
+            $$= NEW_PTN PT_drop_resource_group(to_lex_cstring($4), $5);
           }
          ;
 
@@ -12580,26 +12578,10 @@ opt_wild_or_where_for_show:
         ;
 
 /* A Oracle compatible synonym for show */
-describe:
+describe_stmt:
           describe_command table_ident opt_describe_column
           {
-            LEX *lex= Lex;
-            lex->current_select()->parsing_place= CTX_SELECT_LIST;
-            lex->select_lex->db= NULL;
-
-            LEX_STRING wild= { nullptr, 0 };
-            if (lex->wild)
-              wild= lex->wild->lex_string();
-
-            auto *p= NEW_PTN PT_show_fields(@$, Show_cmd_type::STANDARD, $2,
-                                            wild);
-
-            lex->sql_command= SQLCOM_SHOW_FIELDS;
-            MAKE_CMD(p);
-
-            // WL#6599 opt_describe_column is handled during prepare stage in
-            // prepare_schema_dd_view instead of execution stage
-            Select->parsing_place= CTX_NONE;
+            $$= NEW_PTN PT_show_fields(@$, Show_cmd_type::STANDARD, $2, $3);
           }
         ;
 
@@ -12647,16 +12629,13 @@ opt_explain_format_type:
         ;
 
 opt_describe_column:
-          /* empty */ {}
-        | text_string { Lex->wild= $1; }
-        | ident
+          /* empty */ { $$= LEX_STRING{ nullptr, 0 }; }
+        | text_string
           {
-            Lex->wild= NEW_PTN String((const char*) $1.str,
-                                      $1.length,
-                                      system_charset_info);
-            if (Lex->wild == NULL)
-              MYSQL_YYABORT;
+            if ($1 != nullptr)
+              $$= $1->lex_string();
           }
+        | ident
         ;
 
 

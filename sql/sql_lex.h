@@ -102,6 +102,7 @@
 
 class Item_func_set_user_var;
 class Item_sum;
+class Parse_tree_root;
 class PT_alter_table_standalone_action;
 class PT_assign_to_keycache;
 class PT_base_index_option;
@@ -1978,7 +1979,7 @@ union YYSTYPE {
     class Item *default_value;
   } lead_lag_info;
   class PT_insert_values_list *values_list;
-  class Parse_tree_root *top_level_node;
+  Parse_tree_root *top_level_node;
   class Table_ident *table_ident;
   Mem_root_array_YY<Table_ident *> table_ident_list;
   delete_option_enum opt_delete_option;
@@ -3680,7 +3681,7 @@ struct LEX : public Query_tables_list {
   bool binlog_need_explicit_defaults_ts;
 
   /**
-    Used to inform MYSQLparse() whether it should contextualize the parse
+    Used to inform the parser whether it should contextualize the parse
     tree. When we get a pure parser this will not be needed.
   */
   bool will_contextualize;
@@ -3828,6 +3829,8 @@ struct LEX : public Query_tables_list {
 
   bool set_wild(LEX_STRING);
   void clear_privileges();
+
+  bool make_sql_cmd(Parse_tree_root *parse_tree);
 };
 
 /**

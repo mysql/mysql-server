@@ -1910,3 +1910,148 @@
    obj:*
    obj:*
 }
+
+# Bug #25964438  LDAP: ASAN AND VALGRIND ISSUES
+
+{
+   LDAP_TLS_workaround1
+   Memcheck:Leak
+   fun:calloc
+   ...
+   ...
+   ...
+   ...
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   fun:*establish_tls*
+   fun:*create*
+}
+{
+   LDAP_TLS_workaround2
+   Memcheck:Leak
+   fun:malloc
+   ...
+   ...
+   ...
+   ...
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   fun:*establish_tls*
+   fun:*create*
+}
+{
+   LDAP_TLS_workaround3
+   Memcheck:Leak
+   fun:calloc
+   fun:PR_LoadLibraryWithFlags
+   ...
+   ...
+   ...
+   fun:PR_CallOnce
+   ...
+   ...
+   fun:_dl_init
+}
+{
+   LDAP_TLS_workaround4
+   Memcheck:Leak
+   fun:malloc
+   fun:PR_ErrorInstallTable
+   fun:PR_CallOnce
+   ...
+   ...
+   fun:PR_CallOnceWithArg
+   ...
+   fun:NSS_SetDomesticPolicy
+   ...
+   fun:PR_CallOnceWithArg
+   ...
+   ...
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+   fun:*establish_tls*
+}
+{
+   LDAP_TLS_workaround5
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:PR_LoadLibraryWithFlags
+   ...
+   ...
+   ...
+   fun:PR_CallOnce
+   ...
+   ...
+   ...
+   ...
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+}
+{
+   LDAP_TLS_workaround6
+   Memcheck:Leak
+   fun:malloc
+   fun:ber_memalloc_x
+   fun:ber_strdup_x
+   ...
+   fun:ldap_int_initialize
+   fun:ldap_create
+   fun:ldap_initialize
+   fun:*create*
+}
+{
+   LDAP_TLS_workaround7
+   Memcheck:Leak
+   fun:malloc
+   fun:*dl_close_worker*
+   fun:*dl_close*
+   fun:*dl_catch_error*
+   fun:*libc_dlclose*
+   fun:*free_mem*
+   fun:*libc_freeres*
+   fun:*vgnU_freeres*
+   fun:*run_exit_handlers*
+   fun:exit*
+   fun:*mysqld_exit*
+   fun:*mysqld_main*
+   fun:*main*
+}
+{
+   LDAP_TLS_workaround8
+   Memcheck:Leak
+   fun:malloc
+   fun:ber_memalloc_x
+   fun:ber_strdup_x
+   ...
+   fun:ldap_int_initialize
+   fun:ldap_set_option
+   fun:*configure_tls*
+}
+{
+   LDAP_TLS_workaround9
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:PR_ErrorInstallTable
+   ...
+   ...
+   ...
+   ...
+   ...
+   ...  
+   ...
+   ...
+   ...
+   ...
+   ...
+   ...
+   fun:ldap_int_tls_start
+   fun:ldap_start_tls_s
+}

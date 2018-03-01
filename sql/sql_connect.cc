@@ -632,6 +632,14 @@ static int check_connection(THD *thd) {
     reset_host_connect_errors(thd->m_main_security_ctx.ip().str);
   }
 
+  /*
+    Now that acl_authenticate() is executed,
+    the SSL info is available.
+    Advertise it to THD, so SSL status variables
+    can be inspected.
+  */
+  thd->set_ssl(net->vio);
+
   return auth_rc;
 }
 

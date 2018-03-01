@@ -1,0 +1,243 @@
+# Check with caching_sha2_password as --default-authentication-plugin
+# Restart the server with caching_sha2_password as default authnetication plugin
+# Create users
+CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
+CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
+# Connection tests
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+FLUSH PRIVILEGES;
+# Change user tests
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+# Drop users
+DROP USER caching_sha2@localhost;
+DROP USER native@localhost;
+DROP USER sha256@localhost;
+# Check with mysql_native_password as --default-authentication-plugin
+# Restart the server with mysql_native_password as default authnetication plugin
+# Create users
+CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
+CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
+# Connection tests
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+FLUSH PRIVILEGES;
+# Change user tests
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+# Drop users
+DROP USER caching_sha2@localhost;
+DROP USER native@localhost;
+DROP USER sha256@localhost;
+# Check with sha256_password as --default-authentication-plugin
+# Restart the server with sha256_password as default authnetication plugin
+# Create users
+CREATE USER caching_sha2@localhost IDENTIFIED WITH 'caching_sha2_password' BY 'abcd';
+CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
+# Connection tests
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+caching_sha2@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+FLUSH PRIVILEGES;
+# Change user tests
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+caching_sha2@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+# Drop users
+DROP USER caching_sha2@localhost;
+DROP USER native@localhost;
+DROP USER sha256@localhost;

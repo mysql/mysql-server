@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -23,17 +23,17 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** @file storage/temptable/src/index.cc
 TempTable Index implementation. */
 
-#include <utility> /* std::pair */
+#include <utility>
 
-#include "my_base.h"                                       /* HA_NOSAME */
-#include "sql/key.h"                                       /* KEY */
-#include "storage/temptable/include/temptable/allocator.h" /* temptable::allocator */
-#include "storage/temptable/include/temptable/constants.h" /* temptable::INDEX_DEFAULT_HASH_TABLE_BUCKETS */
-#include "storage/temptable/include/temptable/containers.h" /* temptable::*container */
-#include "storage/temptable/include/temptable/cursor.h" /* temptable::Cursor */
-#include "storage/temptable/include/temptable/index.h"  /* temptable::Index */
-#include "storage/temptable/include/temptable/indexed_cells.h" /* temptable::Indexed_cells* */
-#include "storage/temptable/include/temptable/result.h" /* temptable::Result */
+#include "my_base.h"
+#include "sql/key.h"
+#include "storage/temptable/include/temptable/allocator.h"
+#include "storage/temptable/include/temptable/constants.h"
+#include "storage/temptable/include/temptable/containers.h"
+#include "storage/temptable/include/temptable/cursor.h"
+#include "storage/temptable/include/temptable/index.h"
+#include "storage/temptable/include/temptable/indexed_cells.h"
+#include "storage/temptable/include/temptable/result.h"
 
 namespace temptable {
 
@@ -43,7 +43,11 @@ Index::Index(const Table &table, const KEY &mysql_index)
       m_mysql_index(&mysql_index) {
   DBUG_ASSERT(m_number_of_indexed_columns <= m_indexed_columns.size());
 
+  /* Re-construction of the array with proper initialization. */
   for (size_t i = 0; i < m_number_of_indexed_columns; ++i) {
+    /* Call destructor as the default constructor was already called. */
+    m_indexed_columns[i].~Indexed_column();
+    /* Call constructor with arguments. */
     new (&m_indexed_columns[i]) Indexed_column{mysql_index.key_part[i]};
   }
 }
@@ -51,9 +55,8 @@ Index::Index(const Table &table, const KEY &mysql_index)
 Index::~Index() {
   DBUG_ASSERT(m_number_of_indexed_columns <= m_indexed_columns.size());
 
-  for (size_t i = 0; i < m_number_of_indexed_columns; ++i) {
-    m_indexed_columns[i].~Indexed_column();
-  }
+  /* No need to call m_indexed_columns destructors manually,
+   * the std::array will do that. */
 }
 
 Tree::Tree(const Table &table, const KEY &mysql_index,

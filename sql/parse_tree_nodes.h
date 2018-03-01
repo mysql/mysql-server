@@ -371,8 +371,8 @@ class PT_with_clause : public Parse_tree_node {
   typedef Parse_tree_node super;
 
  public:
-  PT_with_clause(PT_with_list *l, bool r)
-      : m_list(*l), m_recursive(r), m_most_inner_in_parsing(nullptr) {}
+  PT_with_clause(const PT_with_list *l, bool r)
+      : m_list(l), m_recursive(r), m_most_inner_in_parsing(nullptr) {}
 
   virtual bool contextualize(Parse_context *pc) {
     if (super::contextualize(pc)) return true; /* purecov: inspected */
@@ -406,7 +406,7 @@ class PT_with_clause : public Parse_tree_node {
 
  private:
   /// All CTEs of this clause
-  const PT_with_list &m_list;
+  const PT_with_list *const m_list;
   /// True if the user has specified the RECURSIVE keyword.
   const bool m_recursive;
   /**
@@ -2331,7 +2331,7 @@ class PT_create_srs final : public Parse_tree_root {
   /// verified to be less than the uint32 maximum value.
   unsigned long long m_srid;
   /// All attributes except SRID.
-  const Sql_cmd_srs_attributes &m_attributes;
+  const Sql_cmd_srs_attributes m_attributes;
 
   /// Check if a UTF-8 string contains control characters.
   ///
@@ -4265,7 +4265,7 @@ class PT_alter_table_exchange_partition final
   }
 
  private:
-  const LEX_STRING &m_partition_name;
+  const LEX_STRING m_partition_name;
   Table_ident *m_table_name;
   const Alter_info::enum_with_validation m_validation;
 };
@@ -4531,7 +4531,7 @@ class PT_cache_index_stmt final : public PT_table_ddl_stmt_base {
 
  private:
   Mem_root_array<PT_assign_to_keycache *> *m_tbl_index_lists;
-  const LEX_STRING &m_key_cache_name;
+  const LEX_STRING m_key_cache_name;
 };
 
 class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
@@ -4552,7 +4552,7 @@ class PT_cache_index_partitions_stmt : public PT_table_ddl_stmt_base {
   Table_ident *m_table;
   PT_adm_partition *m_partitions;
   List<Index_hint> *m_opt_key_usage_list;
-  const LEX_STRING &m_key_cache_name;
+  const LEX_STRING m_key_cache_name;
 };
 
 class PT_preload_keys final : public Table_ddl_node {

@@ -224,9 +224,11 @@ struct buf_pools_list_size_t {
 
 #ifndef UNIV_HOTBACKUP
 /** Creates the buffer pool.
- @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
-dberr_t buf_pool_init(ulint size, /*!< in: Size of the total pool in bytes */
-                      ulint n_instances); /*!< in: Number of instances */
+@param[in]  total_size    Size of the total pool in bytes.
+@param[in]  n_instances   Number of buffer pool instances to create.
+@return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
+dberr_t buf_pool_init(ulint total_size, ulint n_instances);
+
 /** Frees the buffer pool at shutdown.  This must not be invoked before
  freeing all mutexes. */
 void buf_pool_free_all();

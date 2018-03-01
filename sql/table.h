@@ -1398,7 +1398,12 @@ struct TABLE {
     See TABLE_LIST::process_index_hints().
   */
   bool force_index_group{false};
-  bool distinct{false};
+  /**
+    Whether this is a temporary table that already has a UNIQUE index (removing
+    duplicate rows on insert), so that the optimizer does not need to run
+    DISTINCT itself.
+   */
+  bool is_distinct{false};
   bool const_table{false};
   /// True if writes to this table should not write rows and just write keys.
   bool no_rows{false};
@@ -1738,6 +1743,20 @@ struct TABLE {
 #ifndef DBUG_OFF
   void set_tmp_table_seq_id(uint arg) { tmp_table_seq_id = arg; }
 #endif
+  /**
+    Update covering keys depending on max read key length.
+
+    Update available covering keys for the table, based on a constrained field
+    and the identified covering prefix keys: If the matched part of field is
+    longer than the index prefix,
+    the prefix index cannot be used as a covering index.
+
+    @param[in]   field                Pointer to field object
+    @param[in]   key_read_length      Max read key length
+    @param[in]   covering_prefix_keys Covering prefix keys
+  */
+  void update_covering_prefix_keys(Field *field, uint16 key_read_length,
+                                   Key_map *covering_prefix_keys);
 
  private:
   /**

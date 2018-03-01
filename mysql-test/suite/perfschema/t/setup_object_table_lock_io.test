@@ -54,17 +54,6 @@ select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
        from performance_schema.table_io_waits_summary_by_table
        where OBJECT_SCHEMA='db1';
 
-truncate table db1.t1;
-truncate table db1.t2;
-
-# Query P_S tables. Stats should be updated.
-select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
-       from performance_schema.table_lock_waits_summary_by_table
-       where OBJECT_SCHEMA='db1';
-select OBJECT_SCHEMA, OBJECT_NAME, COUNT_STAR, COUNT_READ, COUNT_WRITE
-       from performance_schema.table_io_waits_summary_by_table
-       where OBJECT_SCHEMA='db1';
-
 # Disable instrumentation for db1.t1
 update performance_schema.setup_objects
   set ENABLED='NO' where OBJECT_SCHEMA = 'db1' and OBJECT_NAME='t1';

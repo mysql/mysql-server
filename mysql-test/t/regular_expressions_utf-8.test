@@ -686,4 +686,19 @@ SELECT regexp_like( soundex(@v1), 'abc' );
 SELECT regexp_like( left('', ''), 'abc' );
 SELECT regexp_like( repeat(@v1, 'abc'), 'abc' );
 
+--echo #
+--echo # Bug#27597980: ADD ERROR MESSAGE FOR INVALID CAPTURE GROUP NAME
+--echo #
+
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace((' F' ) ,'^ ','[,$' );
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace(24031 ,''*' ','$>$' );
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace('e C' ,'. ','$ ' );
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace('%* ' ,'. ',' A*#$?$@^-' );
+--error ER_REGEXP_INVALID_CAPTURE_GROUP_NAME
+SELECT regexp_replace(' 0(' ,'^ ','3$!' );
+
 --source ../mysql-test/include/cleanup_icu_utils.inc

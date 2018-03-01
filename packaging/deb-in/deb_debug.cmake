@@ -1,4 +1,4 @@
-# Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,7 @@ SET (DEB_RULES_DEBUG_CMAKE
 		-DWITH_INNODB_MEMCACHED=1 \\
 		-DWITH_MECAB=system \\
 		-DWITH_NUMA=ON \\
-		-DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} Server (${DEB_LICENSENAME})\" \\
+		-DCOMPILATION_COMMENT=\"MySQL ${DEB_PRODUCTNAMEC} Server - ${DEB_LICENSENAME} - Debug\" \\
 		-DINSTALL_LAYOUT=DEB \\
 		-DDEB_PRODUCT=${DEB_PRODUCT} \\
 		${DEB_CMAKE_EXTRAS}

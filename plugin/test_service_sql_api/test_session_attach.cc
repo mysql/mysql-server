@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,12 @@
 #include <string>
 #include <utility>
 
+#define LOG_SUBSYSTEM_TAG "test_session_attach"
+
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/log_builtins.h>
+#include <mysqld_error.h>
+
 #include <fcntl.h>
 #include <mysql/plugin.h>
 #include <stdlib.h>
@@ -35,6 +41,10 @@
 #include "my_io.h"
 #include "my_sys.h"  // my_write, my_malloc
 #include "mysql_com.h"
+
+static SERVICE_TYPE(registry) *reg_srv = nullptr;
+SERVICE_TYPE(log_builtins) *log_bi = nullptr;
+SERVICE_TYPE(log_builtins_string) *log_bs = nullptr;
 
 namespace Conversions {
 
@@ -97,7 +107,7 @@ class Plugin_context {
   void log_error(const Args &... args) {
     auto text = Conversions::to_string(args...);
 
-    my_plugin_log_message(&m_plugin_handle, MY_ERROR_LEVEL, "%s", text.c_str());
+    LogPluginErr(ERROR_LEVEL, ER_LOG_PRINTF_MSG, text.c_str());
   }
 
   void *get_plugin_handler() { return m_plugin_handle; }
@@ -350,7 +360,11 @@ bool execute_test_init(UDF_INIT *, UDF_ARGS *, char *error_message_buffer) {
 */
 static int test_sql_service_plugin_init(void *p) {
   DBUG_ENTER("test_sql_service_plugin_init");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Installation.");
+
+  if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs))
+    DBUG_RETURN(1);
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Installation.");
+
   plugin_context = new Plugin_context(p);
 
   DBUG_RETURN(0);
@@ -359,13 +373,13 @@ static int test_sql_service_plugin_init(void *p) {
 /*
   Plugin deinitialization function
 */
-static int test_sql_service_plugin_deinit(void *p) {
+static int test_sql_service_plugin_deinit(void *p MY_ATTRIBUTE((unused))) {
   DBUG_ENTER("test_sql_service_plugin_deinit");
-  my_plugin_log_message(&p, MY_INFORMATION_LEVEL, "Uninstallation.");
+  LogPluginErr(INFORMATION_LEVEL, ER_LOG_PRINTF_MSG, "Uninstallation.");
 
   delete plugin_context;
   plugin_context = nullptr;
-
+  deinit_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs);
   DBUG_RETURN(0);
 }
 

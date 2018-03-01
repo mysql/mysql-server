@@ -83,8 +83,25 @@ set session sql_log_bin=1;
 --echo ##     does not match.
 --echo
 
---let $restart_parameters=restart:--group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+# Since we cannot change lower_case_table_names in a server restart, we need to initialize a new datadir
+# and restart the server using the new datadir.
+
+let BASEDIR=    `select @@basedir`;
+let DDIR=       $MYSQL_TMP_DIR/lctn_test;
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server.log;
+let extra_args= --no-defaults --secure-file-priv="" --datadir=$DDIR --innodb_dedicated_server=OFF --log-error=$MYSQLD_LOG --log-syslog=0 --loose-skip-auto_generate_certs --loose-skip-sha256_password_auto_generate_rsa_keys --skip-ssl --lower_case_table_names=2 --basedir=$BASEDIR --lc-messages-dir=$MYSQL_SHAREDIR;
+let BOOTSTRAP_SQL= $MYSQL_TMP_DIR/tiny_bootstrap.sql;
+
+# Create bootstrap file.
+write_file $BOOTSTRAP_SQL;
+  CREATE SCHEMA test;
+EOF
+
+# First start the server with --initialize.
+--exec $MYSQLD $extra_args --initialize-insecure --init-file=$BOOTSTRAP_SQL
+
+--let $restart_parameters=restart:--secure-file-priv="" --datadir=$DDIR --group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=2
+--replace_result $DDIR DATADIR $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
 #Needed as we are not using rpl_restart_server.inc
@@ -120,5 +137,24 @@ START GROUP_REPLICATION;
 --echo
 --echo ## 5.  Cleanup.
 --echo
+
+# Restart against the original datadir.
+--let $restart_parameters=restart: --group_replication_start_on_boot=1 --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_group_name=$group_replication_group_name --lower_case_table_names=1
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
+--source include/restart_mysqld.inc
+
+# Needed as we are not using rpl_restart_server.inc
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+# Delete the datadir used for l_c_t_n = 2.
+#   Delete \$DDIR.
+--force-rmdir $DDIR
+#   Delete sql files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.sql
+#   Delete log files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.log
+#   Delete expect files.
+--remove_files_wildcard $MYSQL_TMP_DIR *.expect
 
 --source include/group_replication_end.inc

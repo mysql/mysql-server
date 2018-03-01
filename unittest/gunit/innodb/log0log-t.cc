@@ -481,6 +481,7 @@ static void log_test_run() {
   run_threads(
       [max_dirty_page_age](size_t thread_no) {
 
+        static_cast<void>(max_dirty_page_age);  // clang -Wunused-lambda-capture
         log_t &log = *log_sys;
 
         for (int j = 0; j < LOG_TEST_N_STEPS; ++j) {

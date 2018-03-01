@@ -298,7 +298,9 @@ volatile ulint buf_withdraw_clock;
 
 /** Map of buffer pool chunks by its first frame address
 This is newly made by initialization of buffer pool and buf_resize_thread.
-Currently, no need mutex protection for update. */
+Note: mutex protection is required when creating multiple buffer pools
+in parallel. We don't use a mutex during resize because that is still single
+threaded. */
 typedef std::map<const byte *, buf_chunk_t *, std::less<const byte *>,
                  ut_allocator<std::pair<const byte *const, buf_chunk_t *>>>
     buf_pool_chunk_map_t;
@@ -795,7 +797,8 @@ static void buf_block_init(
 static buf_chunk_t *buf_chunk_init(
     buf_pool_t *buf_pool, /*!< in: buffer pool instance */
     buf_chunk_t *chunk,   /*!< out: chunk of buffers */
-    ulint mem_size)       /*!< in: requested size in bytes */
+    ulint mem_size,       /*!< in: requested size in bytes */
+    std::mutex *mutex)    /*!< in,out: Mutex protecting chunk map. */
 {
   buf_block_t *block;
   byte *frame;
@@ -875,7 +878,15 @@ static buf_chunk_t *buf_chunk_init(
     frame += UNIV_PAGE_SIZE;
   }
 
+  if (mutex != nullptr) {
+    mutex->lock();
+  }
+
   buf_pool_register_chunk(chunk);
+
+  if (mutex != nullptr) {
+    mutex->unlock();
+  }
 
 #ifdef PFS_GROUP_BUFFER_SYNC
   pfs_register_buffer_block(chunk);
@@ -999,9 +1010,11 @@ static void buf_pool_set_sizes(void) {
 @param[in]	buf_pool	    buffer pool instance
 @param[in]	buf_pool_size size in bytes
 @param[in]	instance_no   id of the instance
+@param[in,out]  mutex     Mutex to protect common data structures
 @param[out] err           DB_SUCCESS if all goes well */
 static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
-                            ulint instance_no, dberr_t &err) {
+                            ulint instance_no, std::mutex *mutex,
+                            dberr_t &err) {
   ulint i;
   ulint chunk_size;
   buf_chunk_t *chunk;
@@ -1067,7 +1080,7 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
     chunk = buf_pool->chunks;
 
     do {
-      if (!buf_chunk_init(buf_pool, chunk, chunk_size)) {
+      if (!buf_chunk_init(buf_pool, chunk, chunk_size, mutex)) {
         while (--chunk >= buf_pool->chunks) {
           buf_block_t *block = chunk->blocks;
 
@@ -1230,7 +1243,7 @@ static void buf_pool_free() {
 }
 
 /** Creates the buffer pool.
-@param[in]  total_Size    Size of the total pool in bytes.
+@param[in]  total_size    Size of the total pool in bytes.
 @param[in]  n_instances   Number of buffer pool instances to create.
 @return DB_SUCCESS if success, DB_ERROR if not enough memory or error */
 dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
@@ -1282,9 +1295,11 @@ dberr_t buf_pool_init(ulint total_size, ulint n_instances) {
 
     std::vector<std::thread> threads;
 
+    std::mutex m;
+
     for (ulint id = i; id < n; ++id) {
       threads.emplace_back(std::thread(buf_pool_create, &buf_pool_ptr[id], size,
-                                       id, std::ref(errs[id])));
+                                       id, &m, std::ref(errs[id])));
     }
 
     for (ulint id = i; id < n; ++id) {
@@ -2060,7 +2075,7 @@ withdraw_retry:
         warning = true;
         buf_pool->chunks_old = NULL;
         for (ulint j = 0; j < buf_pool->n_chunks_new; j++) {
-          buf_pool_register_chunk(&(buf_pool->chunks[j]));
+          buf_pool_register_chunk(&buf_pool->chunks[j]);
         }
         goto calc_buf_pool_size;
       }
@@ -2088,7 +2103,7 @@ withdraw_retry:
       while (chunk < echunk) {
         ulong unit = srv_buf_pool_chunk_unit;
 
-        if (!buf_chunk_init(buf_pool, chunk, unit)) {
+        if (!buf_chunk_init(buf_pool, chunk, unit, nullptr)) {
           ib::error(ER_IB_MSG_65) << "buffer pool " << i
                                   << " : failed to allocate"
                                      " new memory.";

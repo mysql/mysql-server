@@ -352,7 +352,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
   if (!tab->tmp_table_param->m_window) {
     if (table->group)
       explain_flags.set(tmp_table_group.src, ESP_USING_TMPTABLE);
-    else if (table->distinct || select_distinct)
+    else if (table->is_distinct || select_distinct)
       explain_flags.set(ESC_DISTINCT, ESP_USING_TMPTABLE);
     else {
       /*
@@ -391,7 +391,7 @@ bool JOIN::create_intermediate_table(QEP_TAB *const tab,
     if (prepare_sum_aggregators(sum_funcs, need_distinct)) goto err;
     if (setup_sum_funcs(thd, sum_funcs)) goto err;
 
-    if (!group_list && !table->distinct && order && simple_order &&
+    if (!group_list && !table->is_distinct && order && simple_order &&
         !m_windows_sort) {
       DBUG_PRINT("info", ("Sorting for order"));
       THD_STAGE_INFO(thd, stage_sorting_for_order);
@@ -2585,7 +2585,8 @@ int read_first_record_seq(QEP_TAB *tab) {
 int join_init_read_record(QEP_TAB *tab) {
   int error;
 
-  if (tab->distinct && tab->remove_duplicates())  // Remove duplicates.
+  if (tab->needs_duplicate_removal &&
+      tab->remove_duplicates())  // Remove duplicates.
     return 1;
   if (tab->filesort && tab->sort_table())  // Sort table.
     return 1;
@@ -3417,9 +3418,9 @@ bool check_unique_constraint(TABLE *table) {
                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT);
   while (!res) {
     // Check whether records are the same.
-    if (!(table->distinct ? table_rec_cmp(table)
-                          : group_rec_cmp(table->group, table->record[0],
-                                          table->record[1])))
+    if (!(table->is_distinct ? table_rec_cmp(table)
+                             : group_rec_cmp(table->group, table->record[0],
+                                             table->record[1])))
       return false;  // skip it
     res = table->file->ha_index_next_same(table->record[1],
                                           table->hash_field->ptr, sizeof(hash));
