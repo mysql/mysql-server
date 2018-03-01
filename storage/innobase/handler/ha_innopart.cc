@@ -2311,8 +2311,12 @@ int ha_innopart::create(const char *name, TABLE *form,
   THD *thd = ha_thd();
   trx_t *trx;
 
+  if (thd_sql_command(thd) == SQLCOM_TRUNCATE) {
+    return (truncate_impl(name, form, table_def));
+  }
+
   if (high_level_read_only) {
-    return HA_ERR_INNODB_READ_ONLY;
+    return (HA_ERR_INNODB_READ_ONLY);
   }
 
   trx = check_trx_exists(thd);
@@ -2788,21 +2792,73 @@ int ha_innopart::extra(enum ha_extra_function operation) {
   return (ha_innobase::extra(operation));
 }
 
-/** Deletes all rows of a partitioned InnoDB table.
-@param[in,out]	table_def	dd::Table object for table to be truncated.
-Can be adjusted by this call. Changes to the table definition will be
-persisted in the data-dictionary at statement commit time.
-@return	0 or error number. */
-int ha_innopart::truncate(dd::Table *table_def) {
-  DBUG_ENTER("ha_innopart::truncate");
-  ut_ad(m_part_info->num_partitions_used() == m_tot_parts);
+int ha_innopart::truncate_impl(const char *name, TABLE *form,
+                               dd::Table *table_def) {
+  DBUG_ENTER("ha_innopart::truncate_impl");
 
-  DBUG_RETURN(truncate_partition_low(table_def));
+  ut_ad(table_def != NULL);
+  ut_ad(dd_table_is_partitioned(*table_def));
+  ut_ad(table_def->is_persistent());
+
+  if (high_level_read_only) {
+    DBUG_RETURN(HA_ERR_TABLE_READONLY);
+  }
+
+  THD *thd = ha_thd();
+  trx_t *trx = check_trx_exists(thd);
+  char partition_name[FN_REFLEN];
+  uint16_t table_name_len;
+  bool has_autoinc = false;
+  int error = 0;
+
+  innobase_register_trx(ht, thd, trx);
+
+  table_name_len = strlen(name);
+  memcpy(partition_name, name, table_name_len);
+
+  for (const auto dd_part : *table_def->leaf_partitions()) {
+    size_t len;
+    char norm_name[FN_REFLEN];
+    dict_table_t *part_table = nullptr;
+
+    len = Ha_innopart_share::create_partition_postfix(
+        partition_name + table_name_len, FN_REFLEN - table_name_len, dd_part);
+    ut_a(len + table_name_len < FN_REFLEN);
+
+    normalize_table_name(norm_name, partition_name);
+
+    innobase_truncate<dd::Partition> truncator(thd, norm_name, form, dd_part);
+
+    error = truncator.open_table(part_table);
+    if (error != 0) {
+      DBUG_RETURN(error);
+    }
+
+    has_autoinc = dict_table_has_autoinc_col(part_table);
+
+    if (dict_table_is_discarded(part_table)) {
+      ib_senderrf(thd, IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED, norm_name);
+      DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
+    } else if (part_table->ibd_file_missing) {
+      DBUG_RETURN(HA_ERR_TABLESPACE_MISSING);
+    }
+
+    error = truncator.exec();
+
+    if (error != 0) {
+      DBUG_RETURN(error);
+    }
+  }
+
+  if (error == 0 && has_autoinc) {
+    dd_set_autoinc(table_def->se_private_data(), 0);
+  }
+
+  DBUG_RETURN(error);
 }
 
 /** Delete all rows in the requested partitions.
 Done by deleting the partitions and recreate them again.
-TODO: Add DDL_LOG handling to avoid missing partitions in case of crash.
 @param[in,out]	dd_table	dd::Table object for partitioned table
 which partitions need to be truncated. Can be adjusted by this call.
 Changes to the table definition will be persisted in the data-dictionary
