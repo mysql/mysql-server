@@ -81,7 +81,7 @@ SELECT * FROM t1;
 id
 1
 TRUNCATE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 id
@@ -89,7 +89,7 @@ id
 2
 DELETE FROM t1;
 TRUNCATE t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`id`) REFERENCES `test`.`t1` (`id`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 INSERT INTO t1 (id) VALUES (NULL);
 SELECT * FROM t1;
 id
@@ -255,15 +255,15 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 update t4 set a=2;
 ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `t3` (`a`))
 truncate t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 truncate t3;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t3` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1`)
 truncate t2;
 truncate t4;
 truncate t1;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t1` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t2`, CONSTRAINT `t2_ibfk_1`)
 truncate t3;
-ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`a`) REFERENCES `test`.`t3` (`a`))
+ERROR 42000: Cannot truncate a table referenced in a foreign key constraint (`test`.`t4`, CONSTRAINT `t4_ibfk_1`)
 drop table t4,t3,t2,t1;
 create table t1 (s1 varbinary(2),primary key (s1)) engine=innodb;
 create table t2 (s1 binary(2),primary key (s1)) engine=innodb;

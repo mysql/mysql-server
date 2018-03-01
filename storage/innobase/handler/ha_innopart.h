@@ -460,8 +460,6 @@ class ha_innopart : public ha_innobase,
   @retval 0 on success */
   int delete_table(const char *name, const dd::Table *dd_table);
 
-  int truncate(dd::Table *table_def);
-
   /** Rename a table.
   @param[in]	from		table name before rename
   @param[in]	to		table name after rename
@@ -705,6 +703,16 @@ class ha_innopart : public ha_innobase,
   Copies needed info from m_prebuilt into the partition specific memory.
   @param[in]	part_id	Partition to set as active. */
   void update_partition(uint part_id);
+
+  /** TRUNCATE an InnoDB partitioned table.
+  @param[in]		name		table name
+  @param[in]		form		table definition
+  @param[in,out]	table_def	dd::Table describing table to be
+  truncated. Can be adjusted by SE, the changes will be saved into
+  the data-dictionary at statement commit time.
+  @return	error number
+  @retval 0 on success */
+  int truncate_impl(const char *name, TABLE *form, dd::Table *table_def);
 
   /** Helpers needed by Partition_helper, @see partition_handler.h @{ */
 

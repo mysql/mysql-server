@@ -557,10 +557,10 @@ Warning	1812	Tablespace is missing for table test/t5980d.
 # Discarded and missing tablespaces cannot be TRUNCATED
 #
 TRUNCATE TABLE t5980a;
-ERROR HY000: Tablespace has been discarded for table 't5980a'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980a'
 call mtr.add_suppression("Table .* does not exist .* though MySQL .* rename");
 TRUNCATE TABLE t5980b;
-ERROR HY000: Tablespace has been discarded for table 't5980b'
+ERROR HY000: Tablespace has been discarded for table 'test/t5980b'
 TRUNCATE TABLE t5980c;
 ERROR HY000: Tablespace is missing for table `test`.`t5980c`.
 TRUNCATE TABLE t5980d;

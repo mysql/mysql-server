@@ -1,0 +1,92 @@
+CREATE TABLE t1 (a INT, b INT);
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+SET SESSION DEBUG="+d,ib_truncate_fail_after_rename";
+TRUNCATE TABLE t1;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+0	1
+1	2
+SET SESSION DEBUG="-d,ib_truncate_fail_after_rename";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_delete";
+TRUNCATE TABLE t1;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+0	1
+1	2
+INSERT INTO t1 VALUES(0, 1), (1, 2);
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+0	1
+1	2
+0	1
+1	2
+SET SESSION DEBUG="-d,ib_truncate_fail_after_delete";
+SET SESSION DEBUG="+d,ib_truncate_fail_after_create_new_table";
+TRUNCATE TABLE t1;
+ERROR HY000: Got error 168 - 'Unknown (generic) error from engine' from storage engine
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+0	1
+1	2
+0	1
+1	2
+0	1
+1	2
+SET SESSION DEBUG="-d,ib_truncate_fail_after_create_new_table";
+TRUNCATE TABLE t1;
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL,
+  `b` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+a	b
+DROP TABLE t1;
