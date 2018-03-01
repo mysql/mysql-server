@@ -1,6 +1,7 @@
 CREATE TABLE t1(a int, b VARCHAR(5), PRIMARY KEY(a))ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'ab'), (3, 'abc'), (4, 'abcd'), (5, 'abcde');
 ALTER TABLE t1 ADD KEY k2 (b(4));
+ANALYZE TABLE t1;
 
 --source include/func_prefix_key.inc
 
@@ -9,6 +10,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a int, b VARCHAR(5), PRIMARY KEY(a))ENGINE=INNODB  DEFAULT CHARSET=latin1;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'ab'), (3, 'abc'), (4, 'abcd'), (5, 'abcde');
 ALTER TABLE t1 ADD KEY k2 (b(4));
+ANALYZE TABLE t1;
 
 --source include/func_prefix_key.inc
 
@@ -17,6 +19,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a int, b VARCHAR(5), PRIMARY KEY(a))ENGINE=INNODB  DEFAULT CHARSET=utf32;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'ab'), (3, 'abc'), (4, 'abcd'), (5, 'abcde');
 ALTER TABLE t1 ADD KEY k2 (b(4));
+ANALYZE TABLE t1;
 
 --source include/func_prefix_key.inc
 
@@ -27,6 +30,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a int, b TEXT, PRIMARY KEY(a))ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'ab'), (3, 'abc'), (4, 'abcd'), (5, 'abcde');
 ALTER TABLE t1 ADD KEY k2 (b(4));
+ANALYZE TABLE t1;
 
 --source include/func_prefix_key.inc
 
@@ -39,6 +43,7 @@ INSERT INTO t1 VALUES (1, 'a'), (2, 'ab'), (3, 'abc'), (4, 'abcd'), (5, 'abcde')
 ALTER TABLE t1 ADD KEY k2 (b(4));
 ALTER TABLE t1 ADD KEY k3 (b(2));
 ALTER TABLE t1 ADD KEY k4 (a, b(3));
+ANALYZE TABLE t1;
 
 --echo # k2 index used since it's  covering.
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE b like 'abc%';
@@ -81,6 +86,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a int, b TEXT, c TEXT, PRIMARY KEY(a))ENGINE=INNODB;
 INSERT INTO t1 VALUES (1, 'a', 'a'), (2, 'ab', 'ab'), (3, 'abc', 'abc'), (4, 'abcd', 'abcd'), (5, 'abcde', 'abcde');
 ALTER TABLE t1 ADD KEY k2 (b(4), c(3));
+ANALYZE TABLE t1;
 --echo # Index access is used since key is covering.
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE b like 'aaaa';
 DROP TABLE t1;
