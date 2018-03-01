@@ -3623,8 +3623,6 @@ void Dir_Walker::walk_posix(const Path &basedir, Function &&f) {
         path += OS_PATH_SEPARATOR;
       }
 
-      Fil_path::normalize(dirent->d_name);
-
       path.append(dirent->d_name);
 
       if (is_directory(path)) {

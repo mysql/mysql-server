@@ -9515,6 +9515,8 @@ void Tablespace_dirs::tokenize_paths(const std::string &str,
       continue;
     }
 
+    Fil_path::normalize(dir.first);
+
     m_dirs.push_back(Tablespace_files{dir.first});
   }
 }
