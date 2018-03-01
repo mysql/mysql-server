@@ -32,7 +32,6 @@ SET (KEYRING_FILE_SOURCES
      keyring.cc
      hash_to_buffer_serializer.cc
      buffered_file_io.cc
-     converter.cc
      buffer.cc
      digest.cc
      checker/checker_ver_1_0.cc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,13 +37,5 @@ bool CheckerVer_1_0::is_dgst_correct(File, Digest *digest) {
   digest->is_empty = true;
   return true;
 }
-
-/**
-  calculates the size of end-of-file data for particular format
-  - it includes fixed size data after the last key in file
-
-  @return size of end-of-file data
-*/
-size_t CheckerVer_1_0::eof_size() { return EOF_TAG_SIZE; }
 
 }  // namespace keyring
