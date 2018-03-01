@@ -105,7 +105,7 @@ public:
 
   void erase();
   
-  static Uint32 hash(const char * str, Uint32 len);
+  static Uint32 hash(const char * str, Uint32 len, Uint32 starter = 0);
 
   static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
 

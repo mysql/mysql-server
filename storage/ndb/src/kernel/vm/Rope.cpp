@@ -213,14 +213,12 @@ LocalRope::erase(){
 }
 
 Uint32
-LocalRope::hash(const char * p, Uint32 len){
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::hash(%s, %d)", p, len);
-  Uint32 h = 0;
+LocalRope::hash(const char * p, Uint32 len, Uint32 starter){
+  Uint32 h = starter;
   for (; len > 0; len--)
     h = (h << 5) + h + (* p++);
   if(DEBUG_ROPE)
-    ndbout_c("LocalRope::hash(...) -> 0x%x", h);
+    ndbout_c("LocalRope::hash(%s, %d) : 0x%x -> 0x%x", p, len, starter, h);
   return h;
 }
 
