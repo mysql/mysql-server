@@ -4016,9 +4016,15 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
 
   /*
     The connection may be closed. If so: do not try to read from the buffer.
+    If server sends OK packet without sending auth-switch first, client side
+    auth plugin may not be able to process it correctly.
+    However, if server sends OK, it means server side authentication plugin
+    already performed required checks. Further, server side plugin did not
+    really care about plugin used by client in this case.
   */
   if (res > CR_OK && 
-      (!my_net_is_inited(&mysql->net) || mysql->net.read_pos[0] != 254))
+      (!my_net_is_inited(&mysql->net) ||
+      (mysql->net.read_pos[0] != 0 && mysql->net.read_pos[0] != 254)))
   {
     /*
       the plugin returned an error. write it down in mysql,
@@ -6189,29 +6195,16 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_ENTER("native_password_auth_client");
 
+  /* read the scramble */
+  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+    DBUG_RETURN(CR_ERROR);
 
-  if (((MCPVIO_EXT *)vio)->mysql_change_user)
-  {
-    /*
-      in mysql_change_user() the client sends the first packet.
-      we use the old scramble.
-    */
-    pkt= (uchar*)mysql->scramble;
-    pkt_len= SCRAMBLE_LENGTH + 1;
-  }
-  else
-  {
-    /* read the scramble */
-    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-      DBUG_RETURN(CR_ERROR);
+  if (pkt_len != SCRAMBLE_LENGTH + 1)
+    DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    if (pkt_len != SCRAMBLE_LENGTH + 1)
-      DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
-
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-    mysql->scramble[SCRAMBLE_LENGTH] = 0;
-  }
+  /* save it in MYSQL */
+  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+  mysql->scramble[SCRAMBLE_LENGTH] = 0;
 
   if (mysql->passwd[0])
   {
