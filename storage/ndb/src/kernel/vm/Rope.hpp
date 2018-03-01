@@ -65,6 +65,11 @@ public:
   int compare(const char *, Uint32 len) const; 
 
   bool equal(const ConstRope& r2) const;
+
+private:
+  const char * firstSegment(Ptr<Segment> &) const;
+  const char * nextSegment(Ptr<Segment> &) const;
+
 private:
   const RopeHandle & src;
   Uint32 m_length;
@@ -103,6 +108,11 @@ public:
   static Uint32 hash(const char * str, Uint32 len);
 
   static Uint32 getSegmentSize() { return RopeBase::getSegmentSize();}
+
+private:
+  char * firstSegment(Ptr<Segment> &) const;
+  char * nextSegment(Ptr<Segment> &) const;
+
 private:
   Uint32 m_hash;
   Uint32 m_length;

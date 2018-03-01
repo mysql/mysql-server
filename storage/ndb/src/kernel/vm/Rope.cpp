@@ -33,6 +33,22 @@
 #define DEBUG_ROPE 0
 #endif
 
+const char *
+ConstRope::firstSegment(Ptr<Segment> &it) const {
+  it.i = head.firstItem;
+  if(it.i == RNIL) return 0;
+  thePool.getPtr(it);
+  return (const char *) it.p->data;
+}
+
+const char *
+ConstRope::nextSegment(Ptr<Segment> &it) const {
+  it.i = it.p->nextPool;
+  if(it.i == RNIL) return 0;
+  thePool.getPtr(it);
+  return (const char *) it.p->data;
+}
+
 void
 ConstRope::copy(char* buf) const {
   char * ptr = buf;
@@ -40,18 +56,16 @@ ConstRope::copy(char* buf) const {
     ndbout_c("ConstRope::copy() head = [ %d 0x%x 0x%x ]",
 	     head.used, head.firstItem, head.lastItem);
   Uint32 left = m_length;
-  Ptr<Segment> curr;
-  curr.i = head.firstItem;
+  Ptr<Segment> it;
+  const char * data = firstSegment(it);
   while(left > 4 * getSegmentSize()){
-    thePool.getPtr(curr);
-    memcpy(buf, curr.p->data, 4 * getSegmentSize());
-    curr.i = curr.p->nextPool;
+    memcpy(buf, data, 4 * getSegmentSize());
+    data = nextSegment(it);
     left -= 4 * getSegmentSize();
     buf += 4 * getSegmentSize();
   }
   if(left > 0){
-    thePool.getPtr(curr);
-    memcpy(buf, curr.p->data, left);
+    memcpy(buf, data, left);
   }
   
   if(DEBUG_ROPE)
@@ -64,35 +78,47 @@ ConstRope::compare(const char * str, Uint32 len) const {
     ndbout_c("ConstRope[ %d  0x%x  0x%x ]::compare(%s, %d)", 
 	     head.used, head.firstItem, head.lastItem, str, (int) len);
   Uint32 left = m_length > len ? len : m_length;
-  Ptr<Segment> curr;
-  curr.i = head.firstItem;
+  Ptr<Segment> it;
+  const char * data = firstSegment(it);
   while(left > 4 * getSegmentSize()){
-    thePool.getPtr(curr);
-    int res = memcmp(str, (const char*)curr.p->data, 4 * getSegmentSize());
+    int res = memcmp(str, data, 4 * getSegmentSize());
     if(res != 0){
       if(DEBUG_ROPE)
-	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left,
-		 (const char*)curr.p->data, res);
+	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, data, res);
       return res;
     }
-    curr.i = curr.p->nextPool;
+    data = nextSegment(it);
     left -= 4 * getSegmentSize();
     str += 4 * getSegmentSize();
   }
   
   if(left > 0){
-    thePool.getPtr(curr);
-    int res = memcmp(str, (const char*)curr.p->data, left);
+    int res = memcmp(str, data, left);
     if(res){
       if(DEBUG_ROPE)
-	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", 
-		 str, left, (const char*)curr.p->data, res);
+	ndbout_c("ConstRope::compare(%s, %d, %s) -> %d", str, left, data, res);
       return res;
     }
   }
   if(DEBUG_ROPE)
     ndbout_c("ConstRope::compare(%s, %d) -> %d", str, (int) len, m_length > len);
   return m_length > len;
+}
+
+char *
+LocalRope::firstSegment(Ptr<Segment> &it) const {
+  it.i = head.firstItem;
+  if(it.i == RNIL) return 0;
+  thePool.getPtr(it);
+  return (char *) it.p->data;
+}
+
+char *
+LocalRope::nextSegment(Ptr<Segment> &it) const {
+  it.i = it.p->nextPool;
+  if(it.i == RNIL) return 0;
+  thePool.getPtr(it);
+  return (char *) it.p->data;
 }
 
 void
@@ -102,18 +128,18 @@ LocalRope::copy(char* buf) const {
     ndbout_c("LocalRope::copy() head = [ %d 0x%x 0x%x ]",
 	     head.used, head.firstItem, head.lastItem);
   Uint32 left = m_length;
+  Ptr<Segment> it;
+  const char * data = firstSegment(it);
   Ptr<Segment> curr;
   curr.i = head.firstItem;
   while(left > 4 * getSegmentSize()){
-    thePool.getPtr(curr);
-    memcpy(buf, curr.p->data, 4 * getSegmentSize());
-    curr.i = curr.p->nextPool;
+    memcpy(buf, data, 4 * getSegmentSize());
+    data = nextSegment(it);
     left -= 4 * getSegmentSize();
     buf += 4 * getSegmentSize();
   }
   if(left > 0){
-    thePool.getPtr(curr);
-    memcpy(buf, curr.p->data, left);
+    memcpy(buf, data, left);
   }
   if(DEBUG_ROPE)
     ndbout_c("LocalRope::copy()-> %s", ptr);
@@ -124,26 +150,23 @@ LocalRope::compare(const char * str, Uint32 len) const {
   if(DEBUG_ROPE)
     ndbout_c("LocalRope::compare(%s, %d)", str, (int) len);
   Uint32 left = m_length > len ? len : m_length;
-  Ptr<Segment> curr;
-  curr.i = head.firstItem;
+  Ptr<Segment> it;
+  const char * data = firstSegment(it);
   while(left > 4 * getSegmentSize()){
-    thePool.getPtr(curr);
-    int res = memcmp(str, (const char*)curr.p->data, 4 * getSegmentSize());
+    int res = memcmp(str, data, 4 * getSegmentSize());
     if(res != 0){
       if(DEBUG_ROPE)
-	ndbout_c("LocalRope::compare(%s, %d, %s) -> %d", str, (int) len,
-		 (const char*)curr.p->data, res);
+	ndbout_c("LocalRope::compare(%s, %u, %s) -> %d", str, len, data, res);
       return res;
     }
     
-    curr.i = curr.p->nextPool;
-    left -= 4 * getSegmentSize();
+   data = nextSegment(it);
+   left -= 4 * getSegmentSize();
     str += 4 * getSegmentSize();
   }
   
   if(left > 0){
-    thePool.getPtr(curr);
-    int res = memcmp(str, (const char*)curr.p->data, left);
+    int res = memcmp(str, data, left);
     if(res){
       if(DEBUG_ROPE)
 	ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, res);
@@ -212,27 +235,23 @@ ConstRope::equal(const ConstRope& r2) const
 
   Uint32 left = m_length;
   Ptr<Segment> s1, s2;
-  s1.i = head.firstItem;
-  s2.i = r2.head.firstItem;
+  const char * s1_data = firstSegment(s1);
+  const char * s2_data = firstSegment(s2);
   while(left > 4 * getSegmentSize())
   {
-    thePool.getPtr(s1);
-    thePool.getPtr(s2);
-    int res = memcmp(s1.p->data, s2.p->data, 4 * getSegmentSize());
+    int res = memcmp(s1_data, s2_data, 4 * getSegmentSize());
     if(res != 0)
     {
       return false;
     }
-    s1.i = s1.p->nextPool;
-    s2.i = s2.p->nextPool;
+    s1_data = nextSegment(s1);
+    s2_data = nextSegment(s2);
     left -= 4 * getSegmentSize();
   }
   
   if(left > 0)
   {
-    thePool.getPtr(s1);
-    thePool.getPtr(s2);
-    int res = memcmp(s1.p->data, s2.p->data, left);
+    int res = memcmp(s1_data, s2_data, left);
     if (res != 0)
     {
       return false;
@@ -251,9 +270,9 @@ int main(int argc, char ** argv) {
   RopePool c_rope_pool;
   c_rope_pool.setSize(10000);
 
-//  char buffer_sml[32];
+  char buffer_sml[32];
   const char * a_string = "One Two Three Four Five Six Seven Eight Nine Ten";
-  RopeHandle h1, h2, h3, h4;
+  RopeHandle h1, h2, h3, h4, h5, h6;
   bool ok;
 
   /* Create a scope for the LocalRope */
@@ -273,6 +292,25 @@ int main(int argc, char ** argv) {
   */
   ConstRope cr1(c_rope_pool, h1);
   printf("ConstRope cr1 size: %d\n", cr1.size());
+
+  /* Copy a zero-length rope */
+  {
+    LocalRope lr6(c_rope_pool, h6);
+  }
+  ConstRope cr6(c_rope_pool, h6);
+  cr6.copy(buffer_sml);
+
+  /* Assign & copy a string that is exactly the size as a rope segment */
+  const char * str28 = "____V____X____V____X____VII";
+  char buf28[28];
+  {
+    LocalRope lr5(c_rope_pool, h5);
+    lr5.assign(str28);
+  }
+  ConstRope cr5(c_rope_pool, h5);
+  cr5.copy(buf28);
+
+
 //  printf("SegmentSizeInBytes %d\n", h1.m_head.getSegmentSizeInBytes());
 
 //  /* Test buffered-style reading from ConstRope
