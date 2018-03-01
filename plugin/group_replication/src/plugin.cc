@@ -410,6 +410,9 @@ int plugin_group_replication_start(char **) {
   DBUG_ENTER("plugin_group_replication_start");
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
+  int error = 0;
+
+  std::string debug_options;
 
   DBUG_EXECUTE_IF("group_replication_wait_on_start", {
     const char act[] =
@@ -417,12 +420,21 @@ int plugin_group_replication_start(char **) {
     DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  if (plugin_is_group_replication_running())
-    DBUG_RETURN(GROUP_REPLICATION_ALREADY_RUNNING);
-  if (check_if_server_properly_configured())
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
-  if (check_group_name_string(group_name_var))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+  if (plugin_is_group_replication_running()) {
+    error = GROUP_REPLICATION_ALREADY_RUNNING;
+    goto err;
+  }
+
+  if (check_if_server_properly_configured()) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
+  if (check_group_name_string(group_name_var)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
   if (check_recovery_ssl_string(recovery_ssl_ca_var, "ssl_ca") ||
       check_recovery_ssl_string(recovery_ssl_capath_var, "ssl_capath") ||
       check_recovery_ssl_string(recovery_ssl_cert_var, "ssl_cert_pointer") ||
@@ -433,28 +445,45 @@ int plugin_group_replication_start(char **) {
       check_recovery_ssl_string(recovery_ssl_crlpath_var,
                                 "ssl_crlpath_pointer") ||
       check_recovery_ssl_string(recovery_public_key_path_var,
-                                "public_key_path"))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+                                "public_key_path")) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
   if (!start_group_replication_at_boot_var && !server_engine_initialized()) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_FAILED_TO_START_WITH_INVALID_SERVER_ID);
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
   }
+
   if (force_members_var != NULL && strlen(force_members_var) > 0) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FORCE_MEMBERS_MUST_BE_EMPTY,
                  force_members_var);
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
   }
-  if (check_flow_control_min_quota_long(flow_control_min_quota_var))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
-  if (check_flow_control_min_recovery_quota_long(
-          flow_control_min_recovery_quota_var))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
-  if (check_flow_control_max_quota_long(flow_control_max_quota_var))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
 
-  if (init_group_sidno())
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
+  if (check_flow_control_min_quota_long(flow_control_min_quota_var)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
+  if (check_flow_control_min_recovery_quota_long(
+          flow_control_min_recovery_quota_var)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
+  if (check_flow_control_max_quota_long(flow_control_max_quota_var)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+    goto err;
+  }
+
+  if (init_group_sidno()) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR; /* purecov: inspected */
+    goto err;
+  }
 
   DBUG_EXECUTE_IF("register_gms_listener_example",
                   { register_listener_service_gr_example(); });
@@ -467,9 +496,11 @@ int plugin_group_replication_start(char **) {
     however, that the option variable is not automatically set to a valid
     value if the validation fails.
   */
-  std::string debug_options(communication_debug_options_var);
-  if (gcs_module->set_debug_options(debug_options))
-    DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR); /* purecov: inspected */
+  debug_options.assign(communication_debug_options_var);
+  if (gcs_module->set_debug_options(debug_options)) {
+    error = GROUP_REPLICATION_CONFIGURATION_ERROR; /* purecov: inspected */
+    goto err;
+  }
 
   /*
     Instantiate certification latch.
@@ -488,14 +519,24 @@ int plugin_group_replication_start(char **) {
                    ER_GRP_RPL_PLUGIN_STRUCT_INIT_NOT_POSSIBLE_ON_SERVER_START);
       delete delayed_initialization_thread;
       delayed_initialization_thread = NULL;
-      DBUG_RETURN(GROUP_REPLICATION_CONFIGURATION_ERROR);
+      error = GROUP_REPLICATION_CONFIGURATION_ERROR;
+      goto err;
       /* purecov: end */
     }
 
-    DBUG_RETURN(0);  // leave the decision for later
+    goto err;  // leave the decision for later
   }
 
   DBUG_RETURN(initialize_plugin_and_join(PSESSION_DEDICATED_THREAD, NULL));
+
+err:
+
+  if (error) {
+    // end wait for thread waiting for server to start
+    terminate_wait_on_start_process();
+  }
+
+  DBUG_RETURN(error);
 }
 
 int initialize_plugin_and_join(
@@ -788,7 +829,7 @@ int leave_group() {
         errcode = ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP;
         log_severity = ERROR_LEVEL;
         break;
-        /* purecov: end */
+      /* purecov: end */
       case Gcs_operations::ALREADY_LEAVING:
         errcode = ER_GRP_RPL_SERVER_IS_ALREADY_LEAVING;
         break;
@@ -796,7 +837,7 @@ int leave_group() {
         /* purecov: begin inspected */
         errcode = ER_GRP_RPL_SERVER_ALREADY_LEFT;
         break;
-        /* purecov: end */
+      /* purecov: end */
       case Gcs_operations::NOW_LEAVING:
         goto bypass_message;
     }
@@ -1022,7 +1063,7 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   // Initialize error logging service.
   if (init_logging_service_for_plugin(&reg_srv, &log_bi, &log_bs)) return 1;
 
-    // Register all PSI keys at the time plugin init
+// Register all PSI keys at the time plugin init
 #ifdef HAVE_PSI_INTERFACE
   register_all_group_replication_psi_keys();
 #endif /* HAVE_PSI_INTERFACE */
