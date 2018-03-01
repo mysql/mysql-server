@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2017, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,7 +45,8 @@ PSI_memory_info pfs_info[] = {
     {&mem_key_logical, "logical", 0, 0, PSI_DOCUMENT_ME},
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
     {&mem_key_physical_disk, "physical_disk", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_physical_ram, "physical_ram", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_physical_ram, "physical_ram", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
 };
 #endif /* TEMPTABLE_PFS_MEMORY */
 

@@ -7363,7 +7363,7 @@ static PSI_memory_key pfs_memory_claim_v1(PSI_memory_key key, size_t size,
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *delta;
 
-  if (flag_thread_instrumentation) {
+  if (flag_thread_instrumentation && !klass->is_global()) {
     PFS_thread *old_thread = sanitize_thread(*owner_thread);
     PFS_thread *new_thread = my_thread_get_THR_PFS();
     PFS_memory_safe_stat *event_name_array;
