@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,17 +22,13 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _SQL_USER_REQUIRE_H_
-#define _SQL_USER_REQUIRE_H_
+#ifndef PLUGIN_X_SRC_SQL_USER_REQUIRE_H_
+#define PLUGIN_X_SRC_SQL_USER_REQUIRE_H_
 
+#include <string>
+
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
 #include "plugin/x/src/sql_data_context.h"
-
-namespace ngs {
-
-class IOptions_session;
-typedef ngs::shared_ptr<IOptions_session> IOptions_session_ptr;
-
-}  // namespace ngs
 
 namespace xpl {
 
@@ -43,7 +39,8 @@ class Sql_user_require {
   std::string ssl_x509_issuer;
   std::string ssl_x509_subject;
 
-  ngs::Error_code validate(const ngs::IOptions_session_ptr &options) const;
+  ngs::Error_code validate(
+      const ngs::Ssl_session_options_interface &options) const;
 
  private:
   const static std::string SSL_TYPE_NONE;
@@ -51,12 +48,14 @@ class Sql_user_require {
   const static std::string SSL_TYPE_X509;
   const static std::string SSL_TYPE_SPECIFIC;
 
-  ngs::Error_code check_ssl(const ngs::IOptions_session_ptr &options) const;
-  ngs::Error_code check_x509(const ngs::IOptions_session_ptr &options) const;
+  ngs::Error_code check_ssl(
+      const ngs::Ssl_session_options_interface &options) const;
+  ngs::Error_code check_x509(
+      const ngs::Ssl_session_options_interface &options) const;
   ngs::Error_code check_specific(
-      const ngs::IOptions_session_ptr &options) const;
+      const ngs::Ssl_session_options_interface &options) const;
 };
 
 }  // namespace xpl
 
-#endif  // _SQL_USER_REQUIRE_H_
+#endif  // PLUGIN_X_SRC_SQL_USER_REQUIRE_H_

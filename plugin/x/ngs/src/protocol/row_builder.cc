@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ using namespace ngs;
   google::protobuf::internal::WireFormatLite::WriteTag(                      \
       1,                                                                     \
       google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED, \
-      m_out_stream.get());                                                   \
+      m_out_stream);                                                         \
   ++m_num_fields;
 
 Row_builder::Row_builder() : m_row_processing(false) {}
@@ -55,7 +55,7 @@ Row_builder::~Row_builder() { abort_row(); }
 
 void Row_builder::abort_row() {
   if (m_row_processing) {
-    m_out_stream.reset();
+    reset_stream();
     m_out_buffer->rollback();
     m_row_processing = false;
   }
@@ -368,7 +368,7 @@ void Row_builder::add_time_field(const MYSQL_TIME *value, uint) {
   google::protobuf::uint8 neg = (value->neg) ? 0x01 : 0x00;
   m_out_stream->WriteRaw(&neg, 1);
 
-  append_time_values(value, m_out_stream.get());
+  append_time_values(value, m_out_stream);
 }
 
 void Row_builder::add_datetime_field(const MYSQL_TIME *value, uint) {
@@ -386,7 +386,7 @@ void Row_builder::add_datetime_field(const MYSQL_TIME *value, uint) {
   m_out_stream->WriteVarint64(value->month);
   m_out_stream->WriteVarint64(value->day);
 
-  append_time_values(value, m_out_stream.get());
+  append_time_values(value, m_out_stream);
 }
 
 void Row_builder::add_string_field(const char *const value, size_t length,
@@ -394,7 +394,7 @@ void Row_builder::add_string_field(const char *const value, size_t length,
   ADD_FIELD_HEADER();
 
   m_out_stream->WriteVarint32(static_cast<google::protobuf::uint32>(
-      length + 1));  // 1 byte for thre trailing '\0'
+      length + 1));  // 1 byte for the trailing '\0'
 
   m_out_stream->WriteRaw(value, static_cast<int>(length));
   char zero = '\0';

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -22,42 +22,18 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _NGS_OPTIONS_SSL_H_
-#define _NGS_OPTIONS_SSL_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_
 
-#include "plugin/x/ngs/include/ngs_common/options.h"
 #include "violite.h"
+
+#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
 
 namespace ngs {
 
-class Options_session_ssl : public IOptions_session {
+class Ssl_context_options : public Ssl_context_options_interface {
  public:
-  Options_session_ssl(Vio *vio) : m_vio(vio) {}
-
-  bool supports_tls() const override { return true; };
-  bool active_tls() const override { return true; };
-
-  std::string ssl_cipher() const override;
-  std::string ssl_version() const override;
-  std::vector<std::string> ssl_cipher_list() const override;
-
-  long ssl_verify_depth() const override;
-  long ssl_verify_mode() const override;
-
-  long ssl_sessions_reused() const override;
-  long ssl_get_verify_result_and_cert() const override;
-
-  std::string ssl_get_peer_certificate_issuer() const override;
-
-  std::string ssl_get_peer_certificate_subject() const override;
-
- private:
-  Vio *m_vio;
-};
-
-class Options_context_ssl : public IOptions_context {
- public:
-  Options_context_ssl(st_VioSSLFd *vio_ssl) : m_vio_ssl(vio_ssl) {}
+  Ssl_context_options(st_VioSSLFd *vio_ssl = nullptr) : m_vio_ssl(vio_ssl) {}
 
   long ssl_ctx_verify_depth() override;
   long ssl_ctx_verify_mode() override;
@@ -84,4 +60,4 @@ class Options_context_ssl : public IOptions_context {
 
 }  // namespace ngs
 
-#endif  // _NGS_OPTIONS_SSL_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_H_

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -51,17 +51,17 @@ class No_delete {
 class CapabilityHanderTlsTestSuite : public Test {
  public:
   CapabilityHanderTlsTestSuite() : sut(mock_client) {
-    mock_options.reset(new StrictMock<Mock_options_session>());
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
-    EXPECT_CALL(mock_connection, options())
-        .WillRepeatedly(
-            Return(IOptions_session_ptr(mock_options.get(), No_delete())));
+    EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(mock_server));
+    EXPECT_CALL(mock_server, ssl_context())
+        .WillRepeatedly(Return(&mock_ssl_context));
   }
 
-  StrictMock<Mock_connection> mock_connection;
-  ngs::shared_ptr<Mock_options_session> mock_options;
+  StrictMock<Mock_vio> mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;
+  StrictMock<Mock_ssl_context> mock_ssl_context;
+  StrictMock<Mock_server> mock_server;
 
   Capability_tls sut;
 };
@@ -69,10 +69,10 @@ class CapabilityHanderTlsTestSuite : public Test {
 TEST_F(
     CapabilityHanderTlsTestSuite,
     isSupported_returnsCurrentConnectionOption_on_supported_connection_type) {
-  EXPECT_CALL(*mock_options, supports_tls())
+  EXPECT_CALL(mock_ssl_context, has_ssl())
       .WillOnce(Return(true))
       .WillOnce(Return(false));
-  EXPECT_CALL(mock_connection, connection_type())
+  EXPECT_CALL(mock_connection, get_type())
       .WillOnce(Return(Connection_tcpip))
       .WillOnce(Return(Connection_tcpip));
 
@@ -82,10 +82,10 @@ TEST_F(
 
 TEST_F(CapabilityHanderTlsTestSuite,
        isSupported_returnsFailure_on_unsupported_connection_type) {
-  EXPECT_CALL(*mock_options, supports_tls())
+  EXPECT_CALL(mock_ssl_context, has_ssl())
       .WillOnce(Return(true))
       .WillOnce(Return(false));
-  EXPECT_CALL(mock_connection, connection_type())
+  EXPECT_CALL(mock_connection, get_type())
       .WillOnce(Return(Connection_namedpipe))
       .WillOnce(Return(Connection_namedpipe));
 
@@ -102,7 +102,8 @@ TEST_F(CapabilityHanderTlsTestSuite,
   const bool expected_result = true;
   Any any;
 
-  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(expected_result));
+  EXPECT_CALL(mock_connection, get_type())
+      .WillOnce(Return(ngs::Connection_type::Connection_tls));
 
   sut.get(any);
 
@@ -181,12 +182,11 @@ class SuccessSetCapabilityHanderTlsTestSuite
 #if !defined(HAVE_UBSAN)
 TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_success_forValidParametersAndTlsSupportedOnTcpip) {
-  Set_params s = GetParam();
+  auto s = GetParam();
 
-  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
-  EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true));
-  EXPECT_CALL(mock_connection, connection_type())
-      .WillOnce(Return(Connection_tcpip));
+  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
+  EXPECT_CALL(mock_connection, get_type())
+      .WillRepeatedly(Return(Connection_tcpip));
 
   ASSERT_TRUE(sut.set(s.m_any));
 
@@ -200,10 +200,9 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsSupportedOnNamedPipe) {
   Set_params s = GetParam();
 
-  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
-  EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(true));
-  EXPECT_CALL(mock_connection, connection_type())
-      .WillOnce(Return(Connection_namedpipe));
+  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(true));
+  EXPECT_CALL(mock_connection, get_type())
+      .WillRepeatedly(Return(Connection_namedpipe));
 
   ASSERT_FALSE(sut.set(s.m_any));
 }
@@ -212,10 +211,9 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
        get_failure_forValidParametersAndTlsIsntSupported) {
   Set_params s = GetParam();
 
-  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
-  EXPECT_CALL(*mock_options, supports_tls()).WillOnce(Return(false));
-  EXPECT_CALL(mock_connection, connection_type())
-      .WillOnce(Return(Connection_tcpip));
+  EXPECT_CALL(mock_ssl_context, has_ssl()).WillOnce(Return(false));
+  EXPECT_CALL(mock_connection, get_type())
+      .WillRepeatedly(Return(Connection_tcpip));
 
   ASSERT_FALSE(sut.set(s.m_any));
 }
@@ -232,7 +230,9 @@ class FaildSetCapabilityHanderTlsTestSuite
 TEST_P(FaildSetCapabilityHanderTlsTestSuite, get_failure_forValidParameters) {
   Set_params s = GetParam();
 
-  EXPECT_CALL(*mock_options, active_tls()).WillOnce(Return(s.m_tls_active));
+  EXPECT_CALL(mock_connection, get_type())
+      .WillRepeatedly(
+          Return(s.m_tls_active ? Connection_tls : Connection_tcpip));
 
   ASSERT_FALSE(sut.set(s.m_any));
 
@@ -267,7 +267,7 @@ class CapabilityHanderAuthMechTestSuite : public Test {
 
   ngs::shared_ptr<StrictMock<Mock_server>> mock_server;
 
-  StrictMock<Mock_connection> mock_connection;
+  StrictMock<Mock_vio> mock_connection;
   StrictMock<xpl::test::Mock_client> mock_client;
 
   Capability_auth_mech sut;

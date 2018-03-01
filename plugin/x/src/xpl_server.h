@@ -30,11 +30,16 @@
 #include <vector>
 
 #include "mysql/plugin.h"
+
 #include "plugin/x/ngs/include/ngs/interface/document_id_generator_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_session_options_interface.h"
 #include "plugin/x/src/mysql_show_variable_wrapper.h"
 #include "plugin/x/src/sha256_password_cache.h"
 #include "plugin/x/src/xpl_client.h"
@@ -66,7 +71,7 @@ class Server : public ngs::Server_delegate {
   static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType,
-            ReturnType (ngs::IOptions_session::*method)() const>
+            ReturnType (ngs::Ssl_session_options_interface::*method)() const>
   static void session_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename ReturnType, ReturnType (Server::*method)()>
@@ -85,7 +90,8 @@ class Server : public ngs::Server_delegate {
                                      ngs::Common_status_variables::*variable>
   static void common_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
-  template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
+  template <typename ReturnType,
+            ReturnType (ngs::Ssl_context_options_interface::*method)()>
   static void global_status_variable(THD *thd, SHOW_VAR *var, char *buff);
 
   template <typename Copy_type,
@@ -133,7 +139,7 @@ class Server : public ngs::Server_delegate {
   void update_global_timeout_values();
 
   virtual ngs::shared_ptr<ngs::Client_interface> create_client(
-      ngs::Connection_ptr connection);
+      std::shared_ptr<ngs::Vio_interface> connection);
   virtual ngs::shared_ptr<ngs::Session_interface> create_session(
       ngs::Client_interface &client, ngs::Protocol_encoder_interface &proto,
       const ngs::Session_interface::Session_id session_id);
@@ -185,7 +191,7 @@ void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
 }
 
 template <typename ReturnType,
-          ReturnType (ngs::IOptions_session::*method)() const>
+          ReturnType (ngs::Ssl_session_options_interface::*method)() const>
 void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
   var->value = buff;
@@ -196,7 +202,8 @@ void Server::session_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
     Client_ptr client = get_client_by_thd(server, thd);
 
     if (client) {
-      ReturnType result = ((*client->connection().options()).*method)();
+      ReturnType result =
+          (ngs::Ssl_session_options(&client->connection()).*method)();
       mysqld::xpl_show_var(var).assign(result);
     }
   }
@@ -272,18 +279,18 @@ void Server::common_status_variable(THD *thd, SHOW_VAR *var, char *buff) {
   mysqld::xpl_show_var(var).assign(result);
 }
 
-template <typename ReturnType, ReturnType (ngs::IOptions_context::*method)()>
+template <typename ReturnType,
+          ReturnType (ngs::Ssl_context_options_interface::*method)()>
 void Server::global_status_variable(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_UNDEF;
   var->value = buff;
 
   Server_ptr server = get_instance();
   if (!server || !(*server)->server().ssl_context()) return;
-  ngs::IOptions_context_ptr context =
-      (*server)->server().ssl_context()->options();
-  if (!context) return;
 
-  ReturnType result = ((*context).*method)();
+  auto &context = (*server)->server().ssl_context()->options();
+
+  ReturnType result = ((context).*method)();
 
   mysqld::xpl_show_var(var).assign(result);
 }

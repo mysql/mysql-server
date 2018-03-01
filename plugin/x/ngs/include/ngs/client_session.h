@@ -55,15 +55,15 @@ class Session : public Session_interface {
       const Authentication_interface::Response &response) override;
 
   // handle a single message, returns true if message was handled false if not
-  bool handle_message(ngs::Request &command) override;
+  bool handle_message(ngs::Message_request &command) override;
 
   Client_interface &client() override { return m_client; }
 
   Protocol_encoder_interface &proto() override { return *m_encoder; }
 
  protected:
-  virtual bool handle_auth_message(ngs::Request &command);
-  virtual bool handle_ready_message(ngs::Request &command);
+  virtual bool handle_auth_message(ngs::Message_request &command);
+  virtual bool handle_ready_message(ngs::Message_request &command);
 
   void stop_auth();
 

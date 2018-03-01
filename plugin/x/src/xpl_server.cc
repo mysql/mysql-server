@@ -39,6 +39,7 @@
 #include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/ngs/include/ngs/server_acceptors.h"
 #include "plugin/x/ngs/include/ngs_common/config.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_context.h"
 #include "plugin/x/src/auth_challenge_response.h"
 #include "plugin/x/src/auth_plain.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
@@ -203,7 +204,7 @@ bool xpl::Server::on_verify_server_state() {
 }
 
 ngs::shared_ptr<ngs::Client_interface> xpl::Server::create_client(
-    ngs::Connection_ptr connection) {
+    std::shared_ptr<ngs::Vio_interface> connection) {
   ngs::shared_ptr<ngs::Client_interface> result;
   auto global_timeouts = m_config->get_global_timeouts();
   result = ngs::allocate_shared<xpl::Client>(
@@ -576,8 +577,7 @@ bool xpl::Server::on_net_startup() {
 
     instance->start_verify_server_state_timer();
 
-    ngs::Ssl_context_unique_ptr ssl_ctx(
-        ngs::allocate_object<ngs::Ssl_context>());
+    std::unique_ptr<ngs::Ssl_context> ssl_ctx(new ngs::Ssl_context());
 
     ssl_config = choose_ssl_config(mysqld_have_ssl, ssl_config,
                                    xpl::Plugin_system_variables::ssl_config);

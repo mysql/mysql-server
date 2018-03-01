@@ -22,51 +22,42 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
-#define PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_
 
-#include "plugin/x/ngs/include/ngs/memory.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include <violite.h>
+#include <memory>
+
+#include "plugin/x/ngs/include/ngs/interface/ssl_context_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
+#include "plugin/x/ngs/include/ngs_common/ssl_context_options_interface.h"
 
 namespace ngs {
 
-#ifdef USE_MYSQLX_FULL_PROTO
-typedef ::google::protobuf::Message Message;
-#else
-typedef ::google::protobuf::MessageLite Message;
-#endif
-
-class Message_request {
+class Ssl_context : public Ssl_context_interface {
  public:
-  ~Message_request() { free_msg(); }
+  Ssl_context();
+  bool setup(const char *tls_version, const char *ssl_key, const char *ssl_ca,
+             const char *ssl_capath, const char *ssl_cert,
+             const char *ssl_cipher, const char *ssl_crl,
+             const char *ssl_crlpath) override;
+  ~Ssl_context();
 
-  void reset(Message *msg = nullptr, const uint8 msg_type = 0,
-             const bool cant_be_deleted = true) {
-    free_msg();
+  bool activate_tls(Vio_interface *conn, const int handshake_timeout) override;
 
-    m_message = msg;
-    m_message_type = msg_type;
-    m_is_owned = !cant_be_deleted;
-  }
-
-  Message *get_message() const { return m_message; }
-  uint8 get_message_type() const { return m_message_type; }
-
-  bool has_message() const { return nullptr != m_message; }
+  Ssl_context_options_interface &options() override { return *m_options; }
+  bool has_ssl() override { return nullptr != m_ssl_acceptor; }
+  void reset() override;
 
  private:
-  void free_msg() {
-    if (m_is_owned) {
-      if (m_message) ngs::free_object(m_message);
-      m_is_owned = false;
-    }
-  }
+  struct Config;
+  bool setup(const Config &config);
 
-  Message *m_message = nullptr;
-  uint8 m_message_type{0};
-  bool m_is_owned{false};
+  st_VioSSLFd *m_ssl_acceptor;
+  std::unique_ptr<Ssl_context_options_interface> m_options;
+  std::unique_ptr<Config> m_config;
 };
 
 }  // namespace ngs
 
-#endif  // PLUGIN_X_NGS_INCLUDE_NGS_PROTOCOL_MESSAGE_H_
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_H_

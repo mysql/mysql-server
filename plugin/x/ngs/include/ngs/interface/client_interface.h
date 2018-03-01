@@ -26,8 +26,8 @@
 #define _NGS_CLIENT_INTERFACE_H_
 
 #include "plugin/x/ngs/include/ngs/interface/session_interface.h"
+#include "plugin/x/ngs/include/ngs/interface/vio_interface.h"
 #include "plugin/x/ngs/include/ngs_common/chrono.h"
-#include "plugin/x/ngs/include/ngs_common/connection_vio.h"
 
 namespace ngs {
 
@@ -53,7 +53,7 @@ class Client_interface {
 
   virtual Protocol_encoder_interface &protocol() const = 0;
   virtual Server_interface &server() const = 0;
-  virtual Connection_vio &connection() = 0;
+  virtual Vio_interface &connection() = 0;
 
   virtual void activate_tls() = 0;
 

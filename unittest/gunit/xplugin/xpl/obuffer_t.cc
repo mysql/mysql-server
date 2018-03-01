@@ -1,5 +1,4 @@
-
-/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -47,6 +46,20 @@ static void add_pages(Output_buffer &ob, const size_t no_of_pages,
     ob.push_back(page_del.back().get());
   }
 }
+
+template <typename T>
+class Push_back_visitor : public ngs::Output_buffer::Visitor {
+ public:
+  Push_back_visitor(T *t) : m_t(t) {}
+
+  bool visit(const char *p, ssize_t s) override {
+    m_t->push_back(std::make_pair(p, s));
+    return true;
+  }
+
+ private:
+  T *m_t;
+};
 
 TEST(OBuffer, Next) {
   Page_pool page_pool(default_pool_config);
@@ -153,11 +166,16 @@ TEST(OBuffer, write_big_buffer) {
   EXPECT_EQ(300000u, obuffer.length());
 
   int total = 0;
-  Const_buffer_sequence buffers(obuffer.get_buffers());
-  for (Const_buffer_sequence::const_iterator buf = buffers.begin();
-       buf != buffers.end(); ++buf) {
-    size_t size = (*buf).second;
-    const char *d = (*buf).first;
+  using Page_vector = std::vector<std::pair<const char *, std::size_t>>;
+
+  Page_vector buffers;
+
+  Push_back_visitor<Page_vector> visitor(&buffers);
+  obuffer.visit_buffers(&visitor);
+
+  for (const auto &buf : buffers) {
+    size_t size = buf.second;
+    const char *d = buf.first;
     int first = 0;
 
     if (total == 0) {

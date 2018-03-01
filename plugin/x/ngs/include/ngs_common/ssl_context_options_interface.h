@@ -22,25 +22,38 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
-#ifndef _XPL_DISPATCHER_H_
-#define _XPL_DISPATCHER_H_
+#ifndef PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_
+#define PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_
 
-#include "plugin/x/ngs/include/ngs/protocol/message.h"
-#include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
+#include <string>
+#include <vector>
 
-namespace xpl {
+namespace ngs {
 
-class Session;
-class Crud_command_handler;
-class Sql_data_context;
-class Expectation_stack;
-class Session_options;
+class Ssl_context_options_interface {
+ public:
+  virtual ~Ssl_context_options_interface() = default;
 
-namespace dispatcher {
-bool dispatch_command(Session &session, Crud_command_handler &crudh,
-                      Expectation_stack &expect, ngs::Message_request &command);
+  virtual long ssl_ctx_verify_depth() = 0;
+  virtual long ssl_ctx_verify_mode() = 0;
 
-}  // namespace dispatcher
-}  // namespace xpl
+  virtual std::string ssl_server_not_after() = 0;
+  virtual std::string ssl_server_not_before() = 0;
 
-#endif
+  virtual long ssl_sess_accept_good() = 0;
+  virtual long ssl_sess_accept() = 0;
+  virtual long ssl_accept_renegotiates() = 0;
+
+  virtual std::string ssl_session_cache_mode() = 0;
+
+  virtual long ssl_session_cache_hits() = 0;
+  virtual long ssl_session_cache_misses() = 0;
+  virtual long ssl_session_cache_overflows() = 0;
+  virtual long ssl_session_cache_size() = 0;
+  virtual long ssl_session_cache_timeouts() = 0;
+  virtual long ssl_used_session_cache_entries() = 0;
+};
+
+}  // namespace ngs
+
+#endif  // PLUGIN_X_NGS_INCLUDE_NGS_COMMON_SSL_CONTEXT_OPTIONS_INTERFACE_H_

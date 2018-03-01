@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ void Notice_builder::encode_rows_affected(Output_buffer *out_buffer,
   // 3) Payload
   google::protobuf::internal::WireFormatLite::WriteTag(
       3, google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED,
-      m_out_stream.get());
+      m_out_stream);
   uint32 size_scalar = CodedOutputStream::VarintSize32SignExtended(type) +
                        CodedOutputStream::VarintSize64(value) + 2 /*tags*/;
   uint32 size_payload =
@@ -74,7 +74,7 @@ void Notice_builder::encode_rows_affected(Output_buffer *out_buffer,
     google::protobuf::internal::WireFormatLite::WriteTag(
         2,
         google::protobuf::internal::WireFormatLite::WIRETYPE_LENGTH_DELIMITED,
-        m_out_stream.get());
+        m_out_stream);
     m_out_stream->WriteVarint32(size_scalar);
     {
       m_field_number = 0;

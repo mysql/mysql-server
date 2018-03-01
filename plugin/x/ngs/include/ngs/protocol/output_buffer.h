@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/ngs/include/ngs/protocol/buffer.h"
 #include "plugin/x/ngs/include/ngs_common/protocol_protobuf.h"
-#include "plugin/x/ngs/include/ngs_common/types.h"
 
 namespace ngs {
 
@@ -48,10 +47,16 @@ class Output_buffer : public Buffer,
   bool add_int8(int8_t i);
   bool add_bytes(const char *data, size_t length);
 
-  Const_buffer_sequence get_buffers();
-
   void save_state();
   void rollback();  // restores last saved state
+
+ public:
+  class Visitor {
+   public:
+    virtual bool visit(const char *, ssize_t) = 0;
+  };
+
+  void visit_buffers(Visitor *visitor);
 
  public:
   virtual bool Next(void **data, int *size);

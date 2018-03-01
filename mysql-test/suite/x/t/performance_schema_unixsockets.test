@@ -99,7 +99,6 @@ EOF
 -->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
 -->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
 
-
 -->varlet %READ_BYTES1% 0
 -->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
 -->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'

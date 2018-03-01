@@ -43,13 +43,12 @@
 
 namespace xpl {
 
-Client::Client(ngs::Connection_ptr connection, ngs::Server_interface &server,
-               Client_id client_id, ngs::Protocol_monitor_interface *pmon,
-               const Global_timeouts &timeouts)
-    : ngs::Client(connection, server, client_id, *pmon, timeouts),
+Client::Client(std::shared_ptr<ngs::Vio_interface> connection,
+               ngs::Server_interface &server, Client_id client_id,
+               Protocol_monitor *pmon, const Global_timeouts &timeouts)
+    : ngs::Client(connection, server, client_id, pmon, timeouts),
       m_protocol_monitor(pmon) {
-  if (m_protocol_monitor)
-    static_cast<Protocol_monitor *>(m_protocol_monitor)->init(this);
+  if (m_protocol_monitor) m_protocol_monitor->init(this);
 }
 
 Client::~Client() { ngs::free_object(m_protocol_monitor); }
@@ -90,9 +89,10 @@ void Client::set_is_interactive(const bool flag) {
   if (!m_session->data_context().attach()) {
     auto global_timeouts = get_global_timeouts();
 
-    m_wait_timeout = m_is_interactive ? global_timeouts.interactive_timeout
-                                      : global_timeouts.wait_timeout;
-    set_session_wait_timeout(thd, m_wait_timeout);
+    const auto timeout = m_is_interactive ? global_timeouts.interactive_timeout
+                                          : global_timeouts.wait_timeout;
+    m_decoder.set_wait_timeout(timeout);
+    set_session_wait_timeout(thd, timeout);
 
     m_session->data_context().detach();
   }
@@ -148,7 +148,8 @@ bool Client::is_handler_thd(THD *thd) {
 }
 
 void Client::get_status_ssl_cipher_list(SHOW_VAR *var) {
-  std::vector<std::string> ciphers = connection().options()->ssl_cipher_list();
+  std::vector<std::string> ciphers =
+      ngs::Ssl_session_options(&connection()).ssl_cipher_list();
 
   mysqld::xpl_show_var(var).assign(ngs::join(ciphers, ":"));
 }
@@ -159,7 +160,7 @@ std::string Client::resolve_hostname() {
   uint16 socket_port;
 
   sockaddr_storage *addr =
-      m_connection->peer_address(socket_ip_string, socket_port);
+      m_connection->peer_addr(socket_ip_string, socket_port);
 
   if (NULL == addr) {
     log_error(ER_XPLUGIN_GET_PEER_ADDRESS_FAILED, m_id);

@@ -59,9 +59,7 @@ class User_verification_test : public Test {
  public:
   StrictMock<xpl::test::Mock_client> mock_client;
   StrictMock<ngs::test::Mock_session> mock_session;
-  StrictMock<ngs::test::Mock_connection> mock_connection;
-  ngs::IOptions_session_ptr mock_options{
-      new StrictMock<ngs::test::Mock_options_session>()};
+  StrictMock<ngs::test::Mock_vio> mock_connection;
   StrictMock<ngs::test::Mock_sql_data_context> mock_sql_data_context;
   ngs::test::Mock_account_verification *mock_account_verification{
       ngs::allocate_object<StrictMock<ngs::test::Mock_account_verification>>()};
@@ -94,8 +92,6 @@ TEST_F(User_verification_test, everything_matches_and_hash_is_right) {
 
   EXPECT_CALL(mock_client, connection())
       .WillRepeatedly(ReturnRef(mock_connection));
-
-  EXPECT_CALL(mock_connection, options()).WillOnce(Return(mock_options));
 
   EXPECT_CALL(*mock_account_verification,
               verify_authentication_string(_, _, _, _))
@@ -207,12 +203,8 @@ TEST_P(User_verification_param_test_with_connection_type_combinations,
   EXPECT_CALL(mock_client, connection())
       .WillRepeatedly(ReturnRef(mock_connection));
 
-  if (param.expected_error == ER_SUCCESS)
-    EXPECT_CALL(mock_connection, options()).WillOnce(Return(mock_options));
-
   if (param.requires_secure)
-    EXPECT_CALL(mock_connection, connection_type())
-        .WillOnce(Return(param.type));
+    EXPECT_CALL(mock_connection, get_type()).WillOnce(Return(param.type));
 
   EXPECT_CALL(*mock_account_verification,
               verify_authentication_string(_, _, _, _))
