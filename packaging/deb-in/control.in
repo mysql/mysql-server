@@ -70,6 +70,7 @@ Description: MySQL Server
 
 Package: mysql-@DEB_PRODUCTNAME@-server-core
 Architecture: any
+Recommends: mecab-ipadic-utf8
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 8.0.1),
  mysql-@DEB_NOTPRODUCTNAME@-server (<< 8.0.1),
@@ -268,7 +269,8 @@ Package: mysql-@DEB_PRODUCTNAME@-test
 Architecture: any
 Depends: mysql-@DEB_PRODUCTNAME@-server (= ${binary:Version}),
  mysql-@DEB_PRODUCTNAME@-client (= ${binary:Version}), python,
- libmysqlclient-dev, libjson-perl, ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
+ libmysqlclient-dev, libjson-perl, mecab-ipadic-utf8,
+ ${shlibs:Depends}, ${misc:Depends}, @DEB_NDB_CONTROL_TEST_DEPS@
 Breaks: mysql-@DEB_PRODUCTNAME@-server (<< 5.7.14),
  mysql-@DEB_PRODUCTNAME@-client (<< 5.7.14)
 Conflicts: mysql,

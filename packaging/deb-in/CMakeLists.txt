@@ -352,8 +352,8 @@ ELSEIF(DEB_CODENAME STREQUAL "bionic")
   SET (DEB_SERVICE_SERVER_EXECPRE
     "ExecStartPre=/usr/share/mysql/mysql-systemd-start pre")
   SET (DEB_INIT_APPARMOR "/lib/apparmor/profile-load usr.sbin.mysqld")
-  SET (DEB_CONTROL_DBGSYM ${DEB_CONTROL_DBGSYM_DEFAULT})
-  SET (DEB_RULES_STRIP ${DEB_RULES_STRIP_DEFAULT})
+  SET (DEB_CONTROL_DBGSYM "")
+  SET (DEB_RULES_STRIP "")
 ELSE()
   MESSAGE(STATUS
     "Skipping deb packaging on unsupported platform ${DEB_CODENAME}.")
