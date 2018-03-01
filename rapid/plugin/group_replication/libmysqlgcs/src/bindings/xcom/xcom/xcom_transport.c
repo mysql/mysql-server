@@ -54,7 +54,7 @@
 #include "xcom_ssl_transport.h"
 #endif
 
-#define MY_XCOM_PROTO x_1_3
+#define MY_XCOM_PROTO x_1_2
 
 xcom_proto const my_min_xcom_version = x_1_0; /* The minimum protocol version I am able to understand */
 xcom_proto const my_xcom_version = MY_XCOM_PROTO; /* The maximun protocol version I am able to understand */
@@ -658,20 +658,11 @@ static inline int old_proto_knows(xcom_proto x_proto MY_ATTRIBUTE((unused)),
 
 int serialize_msg(pax_msg *p, xcom_proto x_proto, uint32_t *buflen, char **buf)
 {
-	int retval = 0;
-
 	*buflen = 0;
 	*buf = 0;
 
-	if(old_proto_knows(x_proto, p->op)){
-	/* We want to send the internal xcom ID instead of the reference count,
-	so we need to save and restore the count */
-		int save = p->refcnt;
-		p->refcnt = (int) get_my_id();
-		retval =  serialize((void * )p, x_proto, buflen, (xdrproc_t)xdr_pax_msg, buf);
-		p->refcnt = save;
-	}
-	return retval;
+	return old_proto_knows(x_proto, p->op) &&
+						serialize((void *)p, x_proto, buflen, (xdrproc_t)xdr_pax_msg, buf);
 }
 
 int deserialize_msg(pax_msg *p, xcom_proto x_proto,  char *buf, uint32_t buflen)
@@ -2162,7 +2153,6 @@ bool_t xdr_node_list_1_1(XDR *xdrs, node_list_1_1 *objp)
 		sizeof (node_address), (xdrproc_t) xdr_node_address_with_1_0);
 	case x_1_1:
 	case x_1_2:
-	case x_1_3:
 		return xdr_array (xdrs, (char **)&objp->node_list_val, (u_int *) &objp->node_list_len, NSERVERS,
 		sizeof (node_address), (xdrproc_t) xdr_node_address);
 	default:
@@ -2195,7 +2185,6 @@ bool_t xdr_pax_msg(XDR *xdrs, pax_msg *objp)
 			objp->delivered_msg = get_delivered_msg(); /* Use our own minimum */
 		return TRUE;
 	case x_1_2:
-	case x_1_3:
 		return xdr_pax_msg_1_2(xdrs, objp);
 	default:
 		return FALSE;
