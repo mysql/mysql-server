@@ -99,9 +99,11 @@ till the time client object is destroyed.
   state ARCH_CLIENT_STATE_STOPPED
 
   [*] -down-> ARCH_CLIENT_STATE_INIT
-  ARCH_CLIENT_STATE_INIT -down-> ARCH_CLIENT_STATE_STARTED : Attach and start
-archiving ARCH_CLIENT_STATE_STARTED -right-> ARCH_CLIENT_STATE_STOPPED : Stop
-archiving ARCH_CLIENT_STATE_STOPPED -down-> [*] : Detach client
+  ARCH_CLIENT_STATE_INIT -down-> ARCH_CLIENT_STATE_STARTED : Attach and start \
+  archiving
+  ARCH_CLIENT_STATE_STARTED -right-> ARCH_CLIENT_STATE_STOPPED : Stop \
+  archiving
+  ARCH_CLIENT_STATE_STOPPED -down-> [*] : Detach client
 
 @enduml */
 enum Arch_Client_State {
