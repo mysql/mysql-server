@@ -40,26 +40,6 @@ extern int	xcom_shutdown;
 
 /* static double	detected[NSERVERS]; */
 
-static struct{
-  int changed;
-  uint32_t id[NSERVERS];
-}id_tracker;
-
-void update_xcom_id(node_no node, uint32_t id){
-  if(node < NSERVERS && id_tracker.id[node] != id){
-    id_tracker.changed = 1;
-    id_tracker.id[node] = id;
-  }
-}
-
-static int xcom_id_changed(){
-  return id_tracker.changed;
-}
-
-static void reset_id_changed(){
-  id_tracker.changed = 0;
-}
-
 /* See if node has been suspiciously still for some time */
 int	may_be_dead(detector_state const ds, node_no i, double seconds)
 {
@@ -322,10 +302,8 @@ int	detector_task(task_arg arg MY_ATTRIBUTE((unused)))
 			DBGOHK(FN; NDBG(iamtheleader(x_site), d); NDBG(enough_live_nodes(x_site), d); );
 			/* Send xcom message if node has changed state */
 			DBGOHK(FN; NDBG(ep->notify,d));
-			if ((xcom_id_changed() || ep->notify) &&
-				enough_live_nodes(x_site) && iamtheleader(x_site)) {
+			if (ep->notify && iamtheleader(x_site) && enough_live_nodes(x_site)) {
 				ep->notify = 0;
-                reset_id_changed();
 				send_my_view(x_site);
 			}
 		}
