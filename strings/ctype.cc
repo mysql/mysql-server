@@ -998,13 +998,12 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e) {
 /**
    Identify whether given like pattern looks like a prefix pattern, which can
    become candidate for index only scan on prefix indexes.
-   @param cs           Character set and collation pointer
-   @param wildstr      Pointer to LIKE pattern.
-   @param wildend      Pointer to end of LIKE pattern.
-   @param escape       Escape character pattern,  typically '\'.
-   @param w_many       'Many characters' pattern, typically '%'.
-
-   @param[out] prefix  Length of LIKE pattern.
+   @param cs               Character set and collation pointer
+   @param wildstr          Pointer to LIKE pattern.
+   @param wildend          Pointer to end of LIKE pattern.
+   @param escape           Escape character pattern,  typically '\'.
+   @param w_many           'Many characters' pattern, typically '%'.
+   @param[out] prefix_len  Length of LIKE pattern.
 
    @return Optimization status.
    @retval TRUE if LIKE pattern can be used for prefix index only scan.
