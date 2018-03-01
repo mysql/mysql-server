@@ -405,6 +405,15 @@ const uint64_t INVALID_XID = 0xffffffffffffffffULL;
     <td>Stores variable carrying xid info of 2pc-aware (recoverable) DDL
         queries. </td>
   </tr>
+  <tr>
+    <td>default_collation_for_utf8mb4_number</td>
+    <td>Q_DEFAULT_COLLATION_FOR_UTF8MB4</td>
+    <td>2 byte integer</td>
+    <td>Stores variable carrying the the default collation for the utf8mb4
+        character set. Mainly used to support replication 5.7- master to a 8.0+
+        slave.
+    </td>
+  </tr>
   </table>
 
   @subsection Query_event_notes_on_previous_versions Notes on Previous Versions
@@ -492,7 +501,12 @@ class Query_event : public Binary_log_event {
     /*
       The variable carries xid info of 2pc-aware (recoverable) DDL queries.
     */
-    Q_DDL_LOGGED_WITH_XID
+    Q_DDL_LOGGED_WITH_XID,
+    /*
+      This variable stores the default collation for the utf8mb4 character set.
+      Used to support cross-version replication.
+    */
+    Q_DEFAULT_COLLATION_FOR_UTF8MB4
   };
   const char *query;
   const char *db;
@@ -606,6 +620,8 @@ class Query_event : public Binary_log_event {
   char mts_accessed_db_names[MAX_DBS_IN_EVENT_MTS][NAME_LEN];
   /* XID value when the event is a 2pc-capable DDL */
   uint64_t ddl_xid;
+  /* Default collation for the utf8mb4 set. Used in cross-version replication */
+  uint16_t default_collation_for_utf8mb4_number;
   /**
     The constructor will be used while creating a Query_event, to be
     written to the binary log.
