@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,9 @@ ngs::Error_code Account_verification_handler::authenticate(
     const ngs::Authentication_interface &account_verificator,
     const std::string &sasl_message) const {
   std::size_t message_position = 0;
-  std::string schema, account, passwd;
+  std::string schema = "";
+  std::string account = "";
+  std::string passwd = "";
   if (sasl_message.empty() ||
       !extract_sub_message(sasl_message, message_position, schema) ||
       !extract_sub_message(sasl_message, message_position, account) ||
@@ -55,7 +57,7 @@ ngs::Error_code Account_verification_handler::authenticate(
 bool Account_verification_handler::extract_last_sub_message(
     const std::string &message, std::size_t &element_position,
     std::string &sub_message) const {
-  if (std::string::npos == element_position) return false;
+  if (element_position >= message.size()) return true;
 
   sub_message = message.substr(element_position);
   element_position = std::string::npos;
@@ -66,7 +68,7 @@ bool Account_verification_handler::extract_last_sub_message(
 bool Account_verification_handler::extract_sub_message(
     const std::string &message, std::size_t &element_position,
     std::string &sub_message) const {
-  if (std::string::npos == element_position) return false;
+  if (element_position >= message.size()) return true;
 
   if (message[element_position] == '\0') {
     ++element_position;
@@ -78,7 +80,10 @@ bool Account_verification_handler::extract_sub_message(
       message.find('\0', element_position);
   sub_message = message.substr(element_position, last_character_of_element);
   element_position = last_character_of_element;
-  if (element_position != std::string::npos) ++element_position;
+  if (element_position != std::string::npos)
+    ++element_position;
+  else
+    return false;
   return true;
 }
 
