@@ -55,11 +55,7 @@ independently of any UNIV_ debugging conditions. */
 MY_ATTRIBUTE((format(printf, 1, 2)))
 /** Report a failure to decompress or compress.
  @return number of characters printed */
-#ifndef UNIV_HOTBACKUP
-static
-#endif /* !UNIV_HOTBACKUP */
-    int
-    page_zip_fail_func(const char *fmt, /*!< in: printf(3) format string */
+int page_zip_fail_func(const char *fmt, /*!< in: printf(3) format string */
                        ...) /*!< in: arguments corresponding to fmt */
 {
   int res;
