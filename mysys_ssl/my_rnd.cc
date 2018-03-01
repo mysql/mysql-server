@@ -33,8 +33,6 @@
 #include "my_rnd.h"
 #include <openssl/err.h>
 #include <openssl/rand.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #if !defined(HAVE_OPENSSL)
 #error not using an SSL library not supported
 #endif

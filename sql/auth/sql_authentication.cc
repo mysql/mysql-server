@@ -96,13 +96,10 @@
 struct MEM_ROOT;
 
 #if defined(HAVE_OPENSSL)
-#include <wolfssl_fix_namespace_pollution_pre.h>
-
 #include <openssl/err.h>
 #include <openssl/pem.h>
 #include <openssl/rsa.h>
 #include <openssl/x509v3.h>
-#include <wolfssl_fix_namespace_pollution.h>
 #endif /* HAVE_OPENSSL */
 
 /**
