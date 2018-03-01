@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -172,7 +172,8 @@ static PSI_thread_info all_myisam_threads[] = {
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 static PSI_memory_info all_myisam_memory[] = {
-    {&mi_key_memory_MYISAM_SHARE, "MYISAM_SHARE", 0, 0, PSI_DOCUMENT_ME},
+    {&mi_key_memory_MYISAM_SHARE, "MYISAM_SHARE", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
+     PSI_DOCUMENT_ME},
     {&mi_key_memory_MI_INFO, "MI_INFO", 0, 0, PSI_DOCUMENT_ME},
     {&mi_key_memory_MI_INFO_ft1_to_ft2, "MI_INFO::ft1_to_ft2", 0, 0,
      PSI_DOCUMENT_ME},

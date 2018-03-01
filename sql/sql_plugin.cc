@@ -1269,8 +1269,8 @@ static PSI_memory_info all_plugin_memory[]=
   { &key_memory_plugin_mem_root, "plugin_mem_root", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_init_tmp, "plugin_init_tmp", 0, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_int_mem_root, "plugin_int_mem_root", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", 0, 0, PSI_DOCUMENT_ME},
-  { &key_memory_mysql_plugin, "mysql_plugin", 0, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin_dl, "mysql_plugin_dl", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
+  { &key_memory_mysql_plugin, "mysql_plugin", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME},
   { &key_memory_plugin_bookmark, "plugin_bookmark", PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */

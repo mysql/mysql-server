@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -293,7 +293,8 @@ static PSI_mutex_info all_blackhole_mutexes[] = {
      PSI_DOCUMENT_ME}};
 
 static PSI_memory_info all_blackhole_memory[] = {
-    {&bh_key_memory_blackhole_share, "blackhole_share", 0, 0, PSI_DOCUMENT_ME}};
+    {&bh_key_memory_blackhole_share, "blackhole_share",
+     PSI_FLAG_ONLY_GLOBAL_STAT, 0, PSI_DOCUMENT_ME}};
 
 static void init_blackhole_psi_keys() {
   const char *category = "blackhole";

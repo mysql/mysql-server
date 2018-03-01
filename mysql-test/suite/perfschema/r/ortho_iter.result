@@ -55,26 +55,8 @@ into count_builtin_expected;
 select count(name)
 from performance_schema.setup_instruments
 where (name like (concat(instr_name, "%")))
-and (name in (
-"memory/sql/buffered_logs",
-"memory/sql/sql_acl_mem",
-"memory/sql/sql_acl_memex",
-"memory/sql/acl_cache",
-"memory/sql/acl_map_cache",
-"memory/sql/TABLE_SHARE::mem_root",
-"memory/sql/TABLE",
-"memory/sql/native_functions",
-"memory/sql/Event_basic::mem_root",
-"memory/sql/root",
-"memory/sql/load_env_plugins",
-"memory/sql/plugin_ref",
-"memory/sql/plugin_mem_root",
-"memory/sql/plugin_bookmark",
-"memory/csv/TINA_SHARE",
-"memory/sql/tz_storage",
-"memory/sql/servers_cache",
-"memory/sql/udf_mem"
-    ))
+and (name not like "memory/performance_schema/%")
+and (find_in_set(properties, 'global_statistics'))
 into count_global_expected;
 set cmd_1= "select count(*) from (select distinct event_name from performance_schema.";
 set cmd_2= concat(" where event_name like \"",
