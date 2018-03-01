@@ -1,0 +1,174 @@
+# Check with mysql_native_password as --default-authentication-plugin
+# Restart the server with mysql_native_password as default authnetication plugin
+# Create users
+CREATE USER qa_test_1_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_1_dest';
+CREATE USER qa_test_1_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_passwd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
+CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
+# Connection tests
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+FLUSH PRIVILEGES;
+# Change user tests
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+qa_test_1_user@%
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+qa_test_1_user@%
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+# Drop users
+DROP USER qa_test_1_user;
+DROP USER qa_test_1_dest;
+DROP USER native@localhost;
+DROP USER sha256@localhost;
+# Check with sha256_password as --default-authentication-plugin
+# Restart the server with sha256_password as default authnetication plugin
+# Create users
+CREATE USER qa_test_1_user IDENTIFIED WITH qa_auth_interface AS 'qa_test_1_dest';
+CREATE USER qa_test_1_dest IDENTIFIED BY 'dest_passwd';
+GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_passwd';
+Warnings:
+Warning	1287	Using GRANT statement to modify existing user's properties other than privileges is deprecated and will be removed in future release. Use ALTER USER statement for this operation.
+GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
+CREATE USER native@localhost IDENTIFIED WITH 'mysql_native_password' BY 'abcd';
+CREATE USER sha256@localhost IDENTIFIED WITH 'sha256_password' BY 'abcd';
+# Connection tests
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+qa_test_1_user@%
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+native@localhost
+FLUSH PRIVILEGES;
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+mysql: [Warning] Using a password on the command line interface can be insecure.
+CURRENT_USER()
+sha256@localhost
+FLUSH PRIVILEGES;
+# Change user tests
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+qa_test_1_user@%
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+sha256@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+qa_test_1_user@%
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+SELECT CURRENT_USER();
+CURRENT_USER()
+native@localhost
+# Drop users
+DROP USER qa_test_1_user;
+DROP USER qa_test_1_dest;
+DROP USER native@localhost;
+DROP USER sha256@localhost;
