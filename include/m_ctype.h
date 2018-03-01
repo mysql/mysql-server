@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -644,6 +644,10 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
                   const CHARSET_INFO *from_cs, uint *errors);
 
 uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);
+
+bool my_is_prefixidx_cand(const CHARSET_INFO *cs, const char *wildstr,
+                          const char *wildend, int escape, int w_many,
+                          size_t *prefix_len);
 
 #define _MY_U 01    /* Upper case */
 #define _MY_L 02    /* Lower case */

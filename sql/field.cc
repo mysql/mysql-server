@@ -2023,6 +2023,7 @@ Field *Field::new_field(MEM_ROOT *root, TABLE *new_table,
   tmp->table = new_table;
   tmp->key_start.init(0);
   tmp->part_of_key.init(0);
+  tmp->part_of_prefixkey.init(0);
   tmp->part_of_sortkey.init(0);
   tmp->m_indexed = false;
   /*
@@ -10198,6 +10199,12 @@ bool Field::is_part_of_actual_key(THD *thd, uint cur_index,
                  !(cur_index_info->flags & HA_NOSAME)
              ? part_of_key.is_set(cur_index)
              : part_of_key_not_extended.is_set(cur_index);
+}
+
+Key_map Field::get_covering_prefix_keys() {
+  Key_map covering_prefix_keys = part_of_prefixkey;
+  covering_prefix_keys.intersect(table->covering_keys);
+  return covering_prefix_keys;
 }
 
 void Field::set_default() {

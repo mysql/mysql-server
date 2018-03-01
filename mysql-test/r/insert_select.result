@@ -780,7 +780,7 @@ INSERT INTO t1 (c) VALUES ('7_chars'), ('13_characters');
 EXPLAIN
 SELECT (SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters') FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	NULL	index	NULL	ix_c	43	NULL	2	100.00	Using index
 2	SUBQUERY	t1	NULL	ref	ix_c	ix_c	43	const	1	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select sum(length(`test`.`t1`.`c`)) from `test`.`t1` where (`test`.`t1`.`c` = '13_characters')) AS `(SELECT SUM(LENGTH(c)) FROM t1 WHERE c='13_characters')` from `test`.`t1`

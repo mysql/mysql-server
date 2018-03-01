@@ -712,16 +712,29 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
                          : MULTIPLE_KEY_FLAG);
   if (key_part_n == 0) field->key_start.set_bit(key_n);
   field->m_indexed = true;
-  if (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG)) {
-    if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) {
-      share->keys_for_keyread.set_bit(key_n);
+
+  const bool full_length_key_part =
+      (field->key_length() == key_part->length && !(field->flags & BLOB_FLAG));
+  if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY) {
+    /*
+      Set the key as 'keys_for_keyread' even if it is prefix key.
+      part_of_key contains all non-prefix keys, part_of_prefixkey
+      contains prefix keys.
+      Note that prefix keys in the extended PK key parts
+      (part_of_key_not_extended is false) are not considered.
+    */
+    share->keys_for_keyread.set_bit(key_n);
+    if (full_length_key_part) {
       field->part_of_key.set_bit(key_n);
       if (part_of_key_not_extended)
         field->part_of_key_not_extended.set_bit(key_n);
-    }
-    if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
-      field->part_of_sortkey.set_bit(key_n);
+    } else if (part_of_key_not_extended)
+      field->part_of_prefixkey.set_bit(key_n);
   }
+
+  if (full_length_key_part &&
+      (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER))
+    field->part_of_sortkey.set_bit(key_n);
 
   if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
       *usable_parts == key_part_n)
@@ -5161,16 +5174,18 @@ void TABLE::mark_column_used(THD *thd, Field *field,
       if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
       break;
 
-    case MARK_COLUMNS_READ:
+    case MARK_COLUMNS_READ: {
+      Key_map part_of_key = field->part_of_key;
       bitmap_set_bit(read_set, field->field_index);
 
+      part_of_key.merge(field->part_of_prefixkey);
       // Update covering_keys and merge_keys based on all fields that are read:
-      covering_keys.intersect(field->part_of_key);
+      covering_keys.intersect(part_of_key);
       merge_keys.merge(field->part_of_key);
       if (get_fields_in_item_tree) field->flags |= GET_FIXED_FIELDS_FLAG;
       if (field->is_virtual_gcol()) mark_gcol_in_maps(field);
       break;
-
+    }
     case MARK_COLUMNS_WRITE:
       if (bitmap_fast_test_and_set(write_set, field->field_index)) {
         /*
@@ -7482,4 +7497,19 @@ void TABLE::set_binlog_drop_if_temp(bool should_binlog) {
 bool TABLE::should_binlog_drop_if_temp(void) const {
   return should_binlog_drop_if_temp_flag;
 }
+
+void TABLE::update_covering_prefix_keys(Field *field, uint16 key_read_length,
+                                        Key_map *covering_prefix_keys) {
+  for (uint keyno = 0; keyno < s->keys; keyno++)
+    if (covering_prefix_keys->is_set(keyno)) {
+      KEY *key_info = &this->key_info[keyno];
+      for (KEY_PART_INFO *part = key_info->key_part,
+                         *part_end = part + actual_key_parts(key_info);
+           part != part_end; ++part)
+        if ((part->key_part_flag & HA_PART_KEY_SEG) && field->eq(part->field) &&
+            part->length < key_read_length)
+          covering_keys.clear_bit(keyno);
+    }
+}
+
 //////////////////////////////////////////////////////////////////////////

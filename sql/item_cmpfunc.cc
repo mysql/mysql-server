@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5368,10 +5368,42 @@ Item_func::optimize_type Item_func_like::select_optimize() const {
                                                    : OPTIMIZE_OP;
 }
 
+/**
+  The method updates covering keys depending on the
+  length of wild string prefix.
+*/
+
+void Item_func_like::check_covering_prefix_keys() {
+  Item *first_arg = args[0]->real_item();
+  Item *second_arg = args[1]->real_item();
+  if (first_arg->type() == Item::FIELD_ITEM) {
+    Field *field = down_cast<Item_field *>(first_arg)->field;
+    Key_map covering_keys = field->get_covering_prefix_keys();
+    if (covering_keys.is_clear_all()) return;
+    if (second_arg->const_item()) {
+      size_t prefix_length = 0;
+      String *wild_str = second_arg->val_str(&cmp.value2);
+      if (my_is_prefixidx_cand(wild_str->charset(), wild_str->ptr(),
+                               wild_str->ptr() + wild_str->length(), escape,
+                               wild_many, &prefix_length))
+        field->table->update_covering_prefix_keys(
+            field, prefix_length * wild_str->charset()->mbmaxlen,
+            &covering_keys);
+      else
+        // Not comparing to a prefix, remove all prefix indexes
+        field->table->covering_keys.subtract(field->part_of_prefixkey);
+    } else
+      // Second argument is not a const
+      field->table->covering_keys.subtract(field->part_of_prefixkey);
+  }
+}
+
 bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   DBUG_ASSERT(fixed == 0);
 
   Disable_semijoin_flattening DSF(thd->lex->current_select(), true);
+
+  args[0]->real_item()->set_can_use_prefix_key();
 
   if (Item_bool_func2::fix_fields(thd, ref) ||
       escape_item->fix_fields(thd, &escape_item) ||
@@ -5396,6 +5428,8 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref) {
   if (escape_item->may_evaluate_const(thd)) {
     if (eval_escape_clause(thd)) return true;
   }
+
+  check_covering_prefix_keys();
 
   return false;
 }

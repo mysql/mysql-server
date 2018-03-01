@@ -720,9 +720,11 @@ class Field : public Proto_field {
   const char **table_name, *field_name;
   LEX_STRING comment;
   /* Field is part of the following keys */
-  Key_map key_start;       /* Keys that starts with this field */
-  Key_map part_of_key;     /* All keys that includes this field */
-  Key_map part_of_sortkey; /* ^ but only keys usable for sorting */
+  Key_map key_start;          /* Keys that starts with this field */
+  Key_map part_of_key;        ///< Keys that includes this field
+                              ///< except of prefix keys.
+  Key_map part_of_prefixkey;  ///< Prefix keys
+  Key_map part_of_sortkey;    /* ^ but only keys usable for sorting */
   /**
     All keys that include this field, but not extended by the storage engine to
     include primary key columns.
@@ -1598,6 +1600,13 @@ class Field : public Proto_field {
 
   */
   bool is_part_of_actual_key(THD *thd, uint cur_index, KEY *cur_index_info);
+
+  /**
+    Get covering prefix keys.
+
+    @retval covering prefix keys.
+  */
+  Key_map get_covering_prefix_keys();
 
   friend class Copy_field;
   friend class Item_avg_field;
