@@ -29,7 +29,6 @@ void note_detected(struct site_def const *site, node_no node);
 int	may_be_dead(detector_state const ds, node_no i, double seconds);
 void init_detector(detector_state ds);
 void invalidate_detector_sites(struct site_def *site);
-void update_xcom_id(node_no node, uint32_t id);
 
 #ifdef __cplusplus
 }
