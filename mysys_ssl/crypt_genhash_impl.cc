@@ -39,8 +39,6 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
-
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>

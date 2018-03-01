@@ -294,9 +294,8 @@
 #include "sql/protocol_classic.h"
 
 #include <openssl/ssl.h>
+
 #include <string.h>
-#include <wolfssl_fix_namespace_pollution.h>
-#include <wolfssl_fix_namespace_pollution_pre.h>
 #include <algorithm>
 #include <limits>
 
