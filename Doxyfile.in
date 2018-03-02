@@ -29,7 +29,17 @@
 # To run doxygen:
 # ---------------
 #
+# Single-config builds:
+#
 #   make doxygen
+#
+# or
+#
+#   ninja doxygen
+#
+# Multi-config builds (Xcode, Visual Studio):
+#
+#   cmake --build . --config <Debug|RelWithDebInfo> --target doxygen
 #
 # See the logs in ./doxyerror.log
 # See the doc in ./doxygen/html/index.html
