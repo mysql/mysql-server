@@ -1653,13 +1653,18 @@ struct KeyReqStruct {
   EmulatedJamBuffer * jamBuffer;
   Tuple_header *m_tuple_ptr;
 
-  Uint32 check_offset[2];
-
+  /**
+   * Variables often used in read of columns
+   */
   TableDescriptor *attr_descr;
+  Uint32 check_offset[2];
   Uint32          max_read;
   Uint32          out_buf_index;
+
   Uint32          out_buf_bits;
   Uint32          in_buf_index;
+
+
   union {
     Uint32 in_buf_len;
     Uint32 m_lcp_varpart_len;

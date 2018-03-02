@@ -443,23 +443,25 @@ Dbtup::readFixedSizeTHOneWordNotNULL(Uint8* outBuffer,
   ndbassert((req_struct->out_buf_index & 3) == 0);
   ndbassert(req_struct->out_buf_bits == 0);
 
-  Uint32 *tuple_header= req_struct->m_tuple_ptr->m_data;
   Uint32 indexBuf= req_struct->out_buf_index;
+  Uint32 *tuple_header = req_struct->m_tuple_ptr->m_data;
   Uint32 readOffset= AttributeOffset::getOffset(attrDes2);
-  Uint32 const wordRead= tuple_header[readOffset];
-
-  Uint32 newIndexBuf = indexBuf + 4;
-  Uint32* dst = (Uint32*)(outBuffer + indexBuf);
   Uint32 maxRead= req_struct->max_read;
+  Uint32 checkOffset = req_struct->check_offset[MM];
+  Uint32 newIndexBuf = indexBuf + 4;
+  Uint32 const wordRead = tuple_header[readOffset];
+  Uint32* dst = (Uint32*)(outBuffer + indexBuf);
 
-  ndbrequire(readOffset < req_struct->check_offset[MM]);
-  if (newIndexBuf <= maxRead) {
-    thrjamDebug(req_struct->jamBuffer);
-    dst[0] = wordRead;
-    ahOut->setDataSize(1);
-    req_struct->out_buf_index= newIndexBuf;
+  req_struct->out_buf_index= newIndexBuf;
+  ahOut->setDataSize(1);
+  dst[0] = wordRead;
+
+  if (likely(readOffset < checkOffset &&
+             newIndexBuf <= maxRead))
+  {
     return true;
   } else {
+    ndbrequire(readOffset < checkOffset);
     thrjam(req_struct->jamBuffer);
     req_struct->errorCode = ZTRY_TO_READ_TOO_MUCH_ERROR;
     return false;
