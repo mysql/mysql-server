@@ -156,7 +156,8 @@ Requires:       grep
 Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
-Requires:       mecab-ipadic
+Recommends:     mecab-ipadic
+Recommends:     mecab-ipadic-EUCJP
 %if 0%{?commercial}
 Obsoletes:      mysql-commercial-bench < 5.7.8
 Obsoletes:      mysql-community-server < %{version}-%{release}
@@ -262,6 +263,8 @@ MySQL database server.
 %package        test
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
+Requires:       mecab-ipadic
+Requires:       mecab-ipadic-EUCJP
 Requires:       perl(Carp)
 Requires:       perl(Config)
 Requires:       perl(Cwd)
