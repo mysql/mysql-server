@@ -53,6 +53,8 @@ class Output_buffer : public Buffer,
  public:
   class Visitor {
    public:
+    virtual ~Visitor() = default;
+
     virtual bool visit(const char *, ssize_t) = 0;
   };
 
