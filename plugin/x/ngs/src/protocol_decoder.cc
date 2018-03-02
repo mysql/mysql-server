@@ -57,8 +57,8 @@ bool Protocol_decoder::Decode_error::was_error() const {
 
 bool Protocol_decoder::read_header(uint8 *message_type, uint32 *message_size) {
   int header_copied = 0;
-  int input_size;
-  const char *input;
+  int input_size = 0;
+  const char *input = nullptr;
   union {
     char buffer[4];  // Must be properly aligned
     longlong dummy;
