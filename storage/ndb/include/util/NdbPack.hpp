@@ -709,8 +709,8 @@ NdbPack::Data::reset()
 inline int
 NdbPack::Data::finalize()
 {
-  if (m_varBytes == 0 ||
-      finalize_impl() == 0)
+  if (likely(m_varBytes == 0 ||
+             finalize_impl() == 0))
     return 0;
   return -1;
 }
@@ -833,12 +833,12 @@ NdbPack::Bound::reset()
 inline int
 NdbPack::Bound::finalize(int side)
 {
-  if (m_data.finalize() == -1)
+  if (unlikely(m_data.finalize() == -1))
   {
     set_error(m_data);
     return -1;
   }
-  if (BoundC::finalize(side) == -1)
+  if (unlikely(BoundC::finalize(side) == -1))
     return -1;
   return 0;
 }

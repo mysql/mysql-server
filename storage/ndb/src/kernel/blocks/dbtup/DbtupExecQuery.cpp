@@ -1331,14 +1331,21 @@ Dbtup::setup_fixed_part(KeyReqStruct* req_struct,
 			Operationrec* regOperPtr,
 			Tablerec* regTabPtr)
 {
-  req_struct->check_offset[MM]= regTabPtr->get_check_offset(MM);
-  req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
-  
+  ndbassert(regOperPtr->op_type == ZINSERT ||
+            (! (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::FREE)));
+  Uint32 descr_start = regTabPtr->tabDescriptor;
+  TableDescriptor *loc_tab_descriptor = tableDescriptor;
   Uint32 num_attr= regTabPtr->m_no_of_attributes;
-  Uint32 descr_start= regTabPtr->tabDescriptor;
-  TableDescriptor *tab_descr= &tableDescriptor[descr_start];
-  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= cnoOfTabDescrRec);
-  req_struct->attr_descr= tab_descr; 
+  Uint32 TnoOfTabDescrRec = cnoOfTabDescrRec;
+  Uint32 mm_check_offset = regTabPtr->get_check_offset(MM);
+  Uint32 dd_check_offset = regTabPtr->get_check_offset(DD);
+  TableDescriptor *tab_descr= &loc_tab_descriptor[descr_start];
+  
+  ndbrequire(descr_start + (num_attr << ZAD_LOG_SIZE) <= TnoOfTabDescrRec);
+  req_struct->check_offset[MM] = mm_check_offset;
+  req_struct->check_offset[DD] = dd_check_offset;
+  req_struct->attr_descr= tab_descr;
+  NDB_PREFETCH_READ((char*)tab_descr);
 }
 
 void

@@ -808,6 +808,8 @@ private:
     KeyData *entryKey;
     Uint32 *keyAttrs;
 
+    Uint32 scanBoundCnt;
+    Uint32 descending;
     Uint32 numAttrs;
     Uint32 boundCnt;
 

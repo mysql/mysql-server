@@ -1857,10 +1857,20 @@ public:
    */
   int accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag);
 
+  inline Uint32 get_tuple_operation_ptr_i()
+  {
+    Tuple_header *tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
+    return tuple_ptr->m_operation_ptr_i;
+  }
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savepointId);
+  bool tuxQueryTh(Uint32 opPtrI,
+                  Uint32 tupVersion,
+                  Uint32 transId1,
+                  Uint32 transId2,
+                  bool dirty,
+                  Uint32 savepointId);
 
   int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI,
 		    Uint32 lkey1, Uint32 lkey2, Uint32 flags);
