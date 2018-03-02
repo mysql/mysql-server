@@ -341,12 +341,13 @@ Dbtux::readKeyAttrsCurr(TuxCtx& ctx,
 
   int ret;
   ret = c_tup->tuxReadAttrsCurr(ctx.jamBuffer,
-                                tupVersion,
                                 keyAttrs32,
                                 count,
                                 outputBuffer,
-                                false);
+                                false,
+                                tupVersion);
   thrjamDebug(ctx.jamBuffer);
+  thrjamLineDebug(ctx.jamBuffer, count);
   ndbrequire(ret > 0);
   keyData.reset();
   Uint32 len;

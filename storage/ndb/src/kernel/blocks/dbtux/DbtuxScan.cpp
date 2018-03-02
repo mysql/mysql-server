@@ -60,14 +60,15 @@ Dbtux::prepare_scan_bounds()
                         KeyData(index.m_keySpec, true, 0);
     c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
 */
-    c_ctx.scanBoundCnt = scanBound.m_cnt;
     c_ctx.descending = scan.m_descending;
     c_ctx.numAttrs = index.m_numAttrs;
     c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
     const DescHead& descHead = getDescHead(index);
     const AttributeHeader* keyAttrs = getKeyAttrs(descHead);
     c_ctx.keyAttrs = (Uint32*)keyAttrs;
+    jamLineDebug((Uint16)c_ctx.numAttrs);
   }
+  c_ctx.scanBoundCnt = scanBound.m_cnt;
 }
 
 void
@@ -879,7 +880,7 @@ Dbtux::execACC_ABORTCONF(Signal* signal)
     debugOut << "ACC_ABORTCONF scan " << scanPtr.i << " " << scan << endl;
   }
 #endif
-  c_lqh->setup_scan_pointers(scan.m_userPtr);
+  c_lqh->setup_scan_pointers(signal, scan.m_userPtr);
   ndbrequire(scan.m_state == ScanOp::Aborting);
   // most likely we are still in lock wait
   if (scan.m_lockwait) {
@@ -1279,7 +1280,6 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
   int ret = 0;
   if (likely(scanBoundCnt != 0))
   {
-    jamDebug();
     const unsigned idir = c_ctx.descending;
     const int jdir = 1 - 2 * (int)idir;
     const ScanBound& scanBound = scan.m_scanBound[1 - idir];
@@ -1293,6 +1293,8 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
                      ent,
                      keyData,
                      c_ctx.numAttrs);
+    jamLineDebug(c_ctx.numAttrs);
+    jamLineDebug(c_ctx.boundCnt);
     // compare bound to key
     ret = cmpSearchBound(c_ctx,
                          searchBound,

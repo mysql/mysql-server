@@ -2311,7 +2311,6 @@ public:
     UintR reqRef;
     UintR reqinfo;
     UintR schemaVersion;
-    UintR storedProcId;
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
@@ -2460,8 +2459,8 @@ public:
   Uint32 getCreateSchemaVersion(Uint32 tableId);
 
   void execNEXT_SCANCONF(Signal* signal);
-  void setup_scan_pointers(Uint32 scanPtrI, bool early = false);
-  void setup_scan_pointers_from_tc_con(TcConnectionrecPtr, bool early = false);
+  void setup_scan_pointers(Signal*, Uint32 scanPtrI, bool early = false);
+  void setup_scan_pointers_from_tc_con(Signal*, TcConnectionrecPtr, bool early = false);
   void setup_key_pointers(Uint32 tcIndex);
   void exec_next_scan_conf(Signal *signal);
   void continue_next_scan_conf(Signal *signal,
@@ -2980,7 +2979,11 @@ private:
   void moreconnectionsLab(Signal* signal, TcConnectionrecPtr);
   void scanReleaseLocksLab(Signal* signal, TcConnectionrec*);
   void closeScanLab(Signal* signal, TcConnectionrec*);
-  void scanNextLoopLab(Signal* signal, Uint32 clientPtrI, Uint32 accOpPtr);
+  void scanNextLoopLab(Signal* signal,
+                       Uint32 clientPtrI,
+                       Uint32 accOpPtr,
+                       ScanRecord * const scanPtr,
+                       Fragrecord * const fragPtr);
   void commitReqLab(Signal* signal,
                     Uint32 gci_hi,
                     Uint32 gci_lo,
