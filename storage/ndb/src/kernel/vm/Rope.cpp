@@ -49,27 +49,53 @@ ConstRope::nextSegment(Ptr<Segment> &it) const {
   return (const char *) it.p->data;
 }
 
-void
-ConstRope::copy(char* buf) const {
-  char * ptr = buf;
-  if(DEBUG_ROPE)
-    ndbout_c("ConstRope::copy() head = [ %d 0x%x 0x%x ]",
-	     head.used, head.firstItem, head.lastItem);
-  Uint32 left = m_length;
+/* Returns number of bytes read, or 0 at EOF */
+int
+ConstRope::readBuffered(char* buf, Uint32 bufSize,
+                        Uint32 & rope_offset) const {
+   if(DEBUG_ROPE)
+    ndbout_c("ConstRope::readBuffered(sz=%u,offset=%u) head = [ %d 0x%x 0x%x ]",
+            bufSize, rope_offset, head.used, head.firstItem, head.lastItem);
+
+  Uint32 offset = rope_offset;
+  require(m_length >= offset);
+  Uint32 bytesLeft = m_length - offset;
+  require((bytesLeft == 0) || (rope_offset % 4 == 0));
+  Uint32 bytesWritten = 0;
+
+  /* Skip forward */
   Ptr<Segment> it;
   const char * data = firstSegment(it);
-  while(left > getSegmentSizeInBytes()){
-    memcpy(buf, data, getSegmentSizeInBytes());
+  while(offset > getSegmentSizeInBytes()) {
     data = nextSegment(it);
-    left -= getSegmentSizeInBytes();
-    buf += getSegmentSizeInBytes();
+    offset -= getSegmentSizeInBytes();
   }
-  if(left > 0){
-    memcpy(buf, data, left);
+
+  /* Read */
+  while(bytesLeft > 0 && bytesWritten < bufSize) {
+    Uint32 readBytes = getSegmentSizeInBytes() - offset;
+    if(readBytes > bytesLeft) readBytes = bytesLeft;
+    if(readBytes + bytesWritten > bufSize) readBytes = bufSize - bytesWritten;
+
+    memcpy(buf + bytesWritten, data + offset, readBytes);
+
+    bytesLeft -= readBytes;
+    bytesWritten += readBytes;
+    offset = 0;
+    data = nextSegment(it);
   }
-  
+
+  rope_offset += bytesWritten;
+  return (int) bytesWritten;
+}
+
+void
+ConstRope::copy(char* buf) const {
+  /* Assume that buffer is big enough */
+  Uint32 offset = 0;
+  readBuffered(buf, m_length, offset);
   if(DEBUG_ROPE)
-    ndbout_c("ConstRope::copy()-> %s", ptr);
+    ndbout_c("ConstRope::copy()-> %s", buf);
 }
 
 int
@@ -135,37 +161,54 @@ LocalRope::compare(const char * str, Uint32 len) const {
   return self.compare(str, len);
 }
 
-bool
-LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::assign(%s, %d, 0x%x)", s, (int) len, hash);
-  m_hash = hash;
-  erase();
-  if(append((const Uint32*)s, len >> 2)){
-    if(len & 3){
-      Uint32 buf = 0;
-      const char * src = (const char*)(((Uint32*)s)+(len >> 2));
-      char* dst = (char*)&buf;
-      Uint32 left = len & 3;
-      while(left){
-	* dst ++ = * src++;
-	left--;
-      }
-      if(!append(&buf, 1))
-	return false;
-    }
-    m_length = len;
-    if(DEBUG_ROPE)
-      ndbout_c("LocalRope::assign(...) head = [ %d 0x%x 0x%x ]",
-	       head.used, head.firstItem, head.lastItem);
+bool packFinalWord(const char * src, Uint32 & dest, Uint32 len) {
+  dest = 0;
+  Uint32 left = len % 4;
+  if(left) {
+    src += len-left;
+    char* dst = (char*)&dest;
+    while(left--)
+      * dst++ = * src++;
     return true;
   }
   return false;
 }
 
+bool
+LocalRope::appendBuffer(const char * s, Uint32 len) {
+  if(DEBUG_ROPE)
+    ndbout_c("LocalRope::appendBuffer(%s, %d)", s, (int) len);
+  bool ok = append((const Uint32*) s, len >> 2);
+  if(ok) {
+    Uint32 tail;
+    if(packFinalWord(s, tail, len))
+      ok = append(&tail, 1);
+    m_length += len;
+    m_hash = hash(s, len, m_hash);
+  }
+  return ok;
+}
+
+bool
+LocalRope::assign(const char * s, Uint32 len, Uint32 hash){
+  if(DEBUG_ROPE)
+    ndbout_c("LocalRope::assign(%s, %d, 0x%x)", s, (int) len, hash);
+  erase();
+  m_hash = hash;
+  bool ok = append((const Uint32*) s, len >> 2);
+  if(ok) {
+    Uint32 tail;
+    if(packFinalWord(s, tail, len))
+      ok = append(&tail, 1);
+    m_length = len;
+  }
+  return ok;
+}
+
 void
 LocalRope::erase(){
   m_length = 0;
+  m_hash = 0;
   release();
 }
 
@@ -267,48 +310,52 @@ int main(int argc, char ** argv) {
   ConstRope cr5(c_rope_pool, h5);
   cr5.copy(buf28);
 
+  /* Test buffered-style reading from ConstRope
+  */
+  assert(! cr1.compare(a_string));
+  Uint32 offset = 0;
+  int nread = 0;
+  printf(" --> START readBuffered TEST <-- \n");
+  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+  nread = cr1.readBuffered(buffer_sml, 32, offset);
+  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+  assert(! strncmp(a_string, buffer_sml, nread));
+  nread = cr1.readBuffered(buffer_sml, 32, offset);
+  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
+  assert(! strncmp(a_string + offset - nread, buffer_sml, nread));
+  /* All done: */
+  assert(offset = cr1.size());
+  /* Read once more; should return 0: */
+  nread = cr1.readBuffered(buffer_sml, 32, offset);
+  assert(nread == 0);
+  printf(" --> END readBuffered TEST <-- \n");
 
-//  printf("SegmentSizeInBytes %d\n", h1.m_head.getSegmentSizeInBytes());
+  /* Test buffered-style writing to LocalRope
+  */
+  printf(" --> START appendBuffer TEST <-- \n");
+  LocalRope lr2(c_rope_pool, h2);
+  lr2.appendBuffer(a_string, 40);
+  printf("lr2 size: %d \n", lr2.size());
+  assert(lr2.size() == 40);
+  lr2.appendBuffer(a_string, 40);
+  printf("lr2 size: %d \n", lr2.size());
+  assert(lr2.size() == 80);
 
-//  /* Test buffered-style reading from ConstRope
-//  */
-//  Uint32 offset = 0;
-//  int nread = 0;
-//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
-//  nread = cr1.readBuffered(buffer_sml, 32, offset);
-//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
-//  nread = cr1.readBuffered(buffer_sml, 32, offset);
-//  printf("ConstRope cr1 nread: %d offset: %d \n", nread, offset);
-//  /* All done: */
-//  assert(offset = cr1.size());
-//  /* Read once more; should return 0: */
-//  nread = cr1.readBuffered(buffer_sml, 32, offset);
-//  assert(nread == 0);
-//
-//  /* Test buffered-style writing to LocalRope
-//  */
-//  LocalRope lr2(c_rope_pool, h2);
-//  lr2.appendBuffer(a_string, 40);
-//  printf("lr2 size: %d \n", lr2.size());
-//  assert(lr2.size() == 40);
-//  lr2.appendBuffer(a_string, 40);
-//  printf("lr2 size: %d \n", lr2.size());
-//  assert(lr2.size() == 80);
-//
-//  /* Identical strings should have the same hash code whether they were stored
-//     in one part or in two.  Here is a scope for two local ropes that should
-//     end up with the same hash.
-//  */
-//  {
-//    LocalRope lr3(c_rope_pool, h3);
-//    lr3.assign(a_string, 16);
-//    lr3.appendBuffer(a_string + 16, 16);
-//
-//    LocalRope lr4(c_rope_pool, h4);
-//    lr4.assign(a_string, 32);
-//  }
-//  printf("Hashes:  h3=%u, h4=%u \n", h3.m_hash, h4.m_hash);
-//  assert(h3.m_hash == h4.m_hash);
+  /* Identical strings should have the same hash code whether they were stored
+     in one part or in two.  Here is a scope for two local ropes that should
+     end up with the same hash.
+  */
+  {
+    LocalRope lr3(c_rope_pool, h3);
+    lr3.assign(a_string, 16);
+    lr3.appendBuffer(a_string + 16, 16);
+
+    LocalRope lr4(c_rope_pool, h4);
+    lr4.assign(a_string, 32);
+  }
+  printf("Hashes:  h3=%u, h4=%u \n", h3.m_hash, h4.m_hash);
+  assert(h3.m_hash == h4.m_hash);
+  printf(" --> END appendBuffer TEST <-- \n");
 
   ndb_end(0);
   return 0;

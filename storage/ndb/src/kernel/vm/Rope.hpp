@@ -61,7 +61,13 @@ public:
   bool empty() const;
 
   void copy(char* buf) const;
-  
+
+  /* Returns number of bytes read, or 0 at EOF.
+     Context is maintained in rope_offset.
+     The caller must initialize rope_offset to 0 before the first read.
+  */
+  int readBuffered(char* buf, Uint32 buf_size, Uint32 & rope_offset) const;
+
   int compare(const char * s) const { return compare(s, (Uint32)strlen(s) + 1);}
   int compare(const char *, Uint32 len) const; 
 
@@ -103,6 +109,8 @@ public:
   bool assign(const char * s) { return assign(s, Uint32(strlen(s) + 1));}
   bool assign(const char * s, Uint32 l) { return assign(s, l, hash(s, l));}
   bool assign(const char *, Uint32 len, Uint32 hash);
+
+  bool appendBuffer(const char * buf, Uint32 len);
 
   void erase();
   
