@@ -123,59 +123,16 @@ LocalRope::nextSegment(Ptr<Segment> &it) const {
 
 void
 LocalRope::copy(char* buf) const {
-  char * ptr = buf;
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::copy() head = [ %d 0x%x 0x%x ]",
-	     head.used, head.firstItem, head.lastItem);
-  Uint32 left = m_length;
-  Ptr<Segment> it;
-  const char * data = firstSegment(it);
-  Ptr<Segment> curr;
-  curr.i = head.firstItem;
-  while(left > getSegmentSizeInBytes()){
-    memcpy(buf, data, getSegmentSizeInBytes());
-    data = nextSegment(it);
-    left -= getSegmentSizeInBytes();
-    buf += getSegmentSizeInBytes();
-  }
-  if(left > 0){
-    memcpy(buf, data, left);
-  }
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::copy()-> %s", ptr);
+  RopeHandle handle(head, m_length);
+  ConstRope self(thePool, handle);
+  self.copy(buf);
 }
 
 int
 LocalRope::compare(const char * str, Uint32 len) const {
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::compare(%s, %d)", str, (int) len);
-  Uint32 left = m_length > len ? len : m_length;
-  Ptr<Segment> it;
-  const char * data = firstSegment(it);
-  while(left > getSegmentSizeInBytes()){
-    int res = memcmp(str, data, getSegmentSizeInBytes());
-    if(res != 0){
-      if(DEBUG_ROPE)
-	ndbout_c("LocalRope::compare(%s, %u, %s) -> %d", str, len, data, res);
-      return res;
-    }
-    
-   data = nextSegment(it);
-   left -= getSegmentSizeInBytes();
-    str += getSegmentSizeInBytes();
-  }
-  
-  if(left > 0){
-    int res = memcmp(str, data, left);
-    if(res){
-      if(DEBUG_ROPE)
-	ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, res);
-      return res;
-    }
-  }
-  if(DEBUG_ROPE)
-    ndbout_c("LocalRope::compare(%s, %d) -> %d", str, (int) len, m_length > len);
-  return m_length > len;
+  RopeHandle handle(head, m_length);
+  ConstRope self(thePool, handle);
+  return self.compare(str, len);
 }
 
 bool
@@ -304,6 +261,8 @@ int main(int argc, char ** argv) {
   {
     LocalRope lr5(c_rope_pool, h5);
     lr5.assign(str28);
+    lr5.copy(buf28);
+    memset(buf28, 0, 28);
   }
   ConstRope cr5(c_rope_pool, h5);
   cr5.copy(buf28);

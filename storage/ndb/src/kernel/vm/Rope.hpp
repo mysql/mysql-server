@@ -36,6 +36,7 @@ typedef RopeBase::DataBufferPool RopePool;
 
 struct RopeHandle {
   RopeHandle() { m_hash = m_length = 0; }
+  RopeHandle(RopeBase::Head h, Uint32 l) : m_length(l), m_head(h) {}
 
   Uint32 m_hash;
   Uint32 m_length;
