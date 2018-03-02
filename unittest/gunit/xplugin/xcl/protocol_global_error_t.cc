@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@ TEST_F(Xcl_protocol_impl_error_tests, execute_close) {
   XProtocol::Server_message_type_id out_smid;
   XProtocol::Client_message_type_id out_cmid{
       Mysqlx::ClientMessages::Type::ClientMessages_Type_CON_CLOSE};
-  uint8_t buffer[8];
   XError out_error;
   Mysqlx::Session::Reset reset;
 
@@ -50,8 +49,6 @@ TEST_F(Xcl_protocol_impl_error_tests, execute_close) {
   ASSERT_EQ(expected_error_code,
             m_sut->send(out_cmid, *static_cast<XProtocol::Message *>(&reset))
                 .error());
-
-  ASSERT_EQ(expected_error_code, m_sut->send(out_smid, buffer, 1).error());
 
   ASSERT_EQ(expected_error_code,
             m_sut->send(Mysqlx::Session::AuthenticateContinue()).error());

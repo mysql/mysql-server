@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -198,18 +198,7 @@ TYPED_TEST(xcl_protocol_impl_tests_execute_msg, msg_with_payload) {
   ASSERT_EQ(expected_result, result.get());
 }
 
-TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_header_write) {
-  const uint32 expected_error_code = 2000;
-  XError out_error;
-
-  this->expect_write_message_without_payload(*this->m_message,
-                                             expected_error_code);
-  auto result = this->do_execute(*this->m_message, &out_error);
-
-  ASSERT_EQ(expected_error_code, out_error.error());
-}
-
-TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_payload_write) {
+TYPED_TEST(xcl_protocol_impl_tests_execute_msg, fails_at_message_write) {
   const uint32 expected_error_code = 23324;
   XError out_error;
 
@@ -351,13 +340,13 @@ TEST_F(Xcl_protocol_impl_tests,
 }
 
 TEST_F(Xcl_protocol_impl_tests,
-       execute_set_capability_failed_because_of_header_send_error) {
+       execute_set_capability_failed_because_of_send_error) {
   using Send_desc = Client_message<::Mysqlx::Connection::CapabilitiesSet>;
 
   const uint32 expected_error_code = 1002;
   auto msg_send = Send_desc::make_required();
 
-  expect_write_message_without_payload(msg_send, expected_error_code);
+  expect_write_message(msg_send, expected_error_code);
 
   auto error = m_sut->execute_set_capability(msg_send);
 

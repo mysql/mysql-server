@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -124,8 +124,8 @@ TEST_F(Xcl_protocol_impl_tests_auth,
        execute_authenticate_plain_method_io_error_at_write) {
   const int32 expected_error_code = 30002;
 
-  expect_write_message_without_payload(
-      Auth_test_messages().msg_auth_start_plain, expected_error_code);
+  expect_write_message(Auth_test_messages().msg_auth_start_plain,
+                       expected_error_code);
 
   assert_authenticate("PLAIN", expected_error_code);
 }
@@ -261,8 +261,7 @@ TEST_P(Xcl_protocol_impl_tests_auth,
        execute_authenticate_challenge_response_method_write_io_error1) {
   const int32 expected_error_code = 30008;
 
-  expect_write_message_without_payload(GetParam().m_start_message,
-                                       expected_error_code);
+  expect_write_message(GetParam().m_start_message, expected_error_code);
 
   assert_authenticate(GetParam().m_auth_name, expected_error_code);
 }
