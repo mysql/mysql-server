@@ -2704,7 +2704,6 @@ libmysql/merge_archives_mysqlclient.cmake
 sql/dummy.bak
 mysys/thr_lock
 mysys/queues
-generated/doxygen/*
 doxyerror.log
 VERSION.dep
 info_macros.cmake
