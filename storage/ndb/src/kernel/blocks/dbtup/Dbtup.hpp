@@ -1831,17 +1831,17 @@ public:
                    Uint32* dataOut,
                    bool xfrmFlag);
   int tuxReadAttrsCurr(EmulatedJamBuffer*,
-                       Uint32 tupVersion,
                        const Uint32* attrIds,
                        Uint32 numAttrs,
                        Uint32* dataOut,
-                       bool xfrmFlag);
+                       bool xfrmFlag,
+                       Uint32 tupVersion);
   int tuxReadAttrsCommon(KeyReqStruct &req_struct,
-                         Uint32 tupVersion,
                          const Uint32* attrIds,
                          Uint32 numAttrs,
                          Uint32* dataOut,
-                         bool xfrmFlag);
+                         bool xfrmFlag,
+                         Uint32 tupVersion);
 
   /*
    * TUX reads primary key without headers into an array of words.  Used
@@ -2726,6 +2726,9 @@ private:
   void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
 			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
+  Uint32 copyAttrinfo(Uint32 storedProcId);
+  void copyAttrinfo(Uint32 expectedLen,
+                    Uint32 attrInfoIVal);
   /**
    * Used by Restore...
    */
@@ -2753,11 +2756,6 @@ private:
   void set_commit_change_mask_info(const Tablerec*,
                                    KeyReqStruct*,
                                    const Operationrec*);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void copyAttrinfo(Operationrec * regOperPtr, Uint32*  inBuffer, 
-                    Uint32 expectedLen, Uint32 attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------

@@ -378,6 +378,7 @@ int Dbtup::readAttributes(KeyReqStruct *req_struct,
   thrjamDebug(req_struct->jamBuffer);
   while (inBufIndex < inBufLen)
   {
+    thrjamDebug(req_struct->jamBuffer);
     tmpAttrBufIndex= req_struct->out_buf_index;
     tmpAttrBufBits = req_struct->out_buf_bits;
     AttributeHeader ahIn(inBuffer[inBufIndex]);

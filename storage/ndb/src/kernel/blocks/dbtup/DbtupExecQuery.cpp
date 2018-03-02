@@ -124,17 +124,14 @@ void Dbtup::getStoredProcAttrInfo(Uint32 storedId,
   getSection(sectionPtr, storedPtr.p->storedProcIVal);
   Uint32 storedProcLen= sectionPtr.sz;
 
-  ndbassert( attrInfoIVal == RNIL );
   attrInfoIVal= storedPtr.p->storedProcIVal;
   req_struct->attrinfo_len= storedProcLen;
-  return;
 }
 
-void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
-                         Uint32* inBuffer,
-                         Uint32 expectedLen,
+void Dbtup::copyAttrinfo(Uint32 expectedLen,
                          Uint32 attrInfoIVal)
 {
+  Uint32 *inBuffer = &cinBuffer[0];
   ndbassert( expectedLen > 0 || attrInfoIVal == RNIL );
 
   if (expectedLen > 0)
@@ -153,10 +150,15 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     // appropriate
     copy(inBuffer, attrInfoIVal);
   }
+}
 
-  regOperPtr->m_any_value= 0;
-  
-  return;
+Uint32 Dbtup::copyAttrinfo(Uint32 storedProcId)
+{
+  Uint32 attrinfoVal;
+  KeyReqStruct req_struct(this);
+  getStoredProcAttrInfo(storedProcId, &req_struct, attrinfoVal);
+  copyAttrinfo(req_struct.attrinfo_len, attrinfoVal);
+  return req_struct.attrinfo_len;
 }
 
 void
@@ -1038,8 +1040,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    Tablerec * const regTabPtr = prepare_tabptr.p;
 
    /* Get AttrInfo section if this is a long TUPKEYREQ */
-   Uint32 attrInfoIVal= tupKeyReq->attrInfoIVal;
-   const Uint32 Rstoredid= tupKeyReq->storedProcedure;
    Fragrecord *regFragPtr = prepare_fragptr.p;
    
    req_struct.trans_id1= transId1;
@@ -1047,30 +1047,9 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.tablePtrP = regTabPtr;
    req_struct.fragPtrP = regFragPtr;
 
-   /* If we have AttrInfo, check we expected it, and
-    * that we don't have AttrInfo by another means
-    */
-   ndbassert( (attrInfoIVal == RNIL) ||  
-              (tupKeyReq->attrBufLen > 0));
-   
    const Uint32 Roptype = regOperPtr->op_type;
 
-   if (Rstoredid != ZNIL)
-   {
-     /* This is part of a scan, get attrInfoIVal for 
-      * given stored procedure
-      */
-     getStoredProcAttrInfo(Rstoredid,
-                           &req_struct,
-                           attrInfoIVal);
-   }
-
-   /* Copy AttrInfo from section into linear in-buffer */
-   copyAttrinfo(regOperPtr, 
-                &cinBuffer[0], 
-                req_struct.attrinfo_len,
-                attrInfoIVal);
-   
+   regOperPtr->m_any_value= 0;
 
    const Uint32 loc_prepare_page_id = prepare_page_no;
    /**

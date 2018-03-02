@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -323,6 +323,9 @@ void Dbtup::copyProcedure(Signal* signal,
                 regOperPtr,
                 &handle,
                 true); // isCopy
+  Ptr<SectionSegment> first;
+  g_sectionSegmentPool.getPtr(first, cCopyProcedure);
+  signal->theData[2] = first.p->m_sz;
 }//Dbtup::copyProcedure()
 
 void Dbtup::storedProcBufferSeizeErrorLab(Signal* signal,

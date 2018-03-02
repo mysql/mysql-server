@@ -133,11 +133,11 @@ Dbtup::tuxGetNode(Uint32 fragPtrI,
 
 int
 Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
-                        Uint32 tupVersion,
                         const Uint32* attrIds,
                         Uint32 numAttrs,
                         Uint32* dataOut,
-                        bool xfrmFlag)
+                        bool xfrmFlag,
+                        Uint32 tupVersion)
 {
   thrjamEntryDebug(jamBuf);
   // use own variables instead of globals
@@ -155,11 +155,11 @@ Dbtup::tuxReadAttrsCurr(EmulatedJamBuffer *jamBuf,
   setup_fixed_part(&req_struct, &tmpOp, tablePtrP);
 
   return tuxReadAttrsCommon(req_struct,
-                            tupVersion,
                             attrIds,
                             numAttrs,
                             dataOut,
-                            xfrmFlag);
+                            xfrmFlag,
+                            tupVersion);
 }
 
 int
@@ -195,20 +195,20 @@ Dbtup::tuxReadAttrs(EmulatedJamBuffer * jamBuf,
   setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
   setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
   return tuxReadAttrsCommon(req_struct,
-                            tupVersion,
                             attrIds,
                             numAttrs,
                             dataOut,
-                            xfrmFlag);
+                            xfrmFlag,
+                            tupVersion);
 }
 
 int
 Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
-                          Uint32 tupVersion,
                           const Uint32* attrIds,
                           Uint32 numAttrs,
                           Uint32* dataOut,
-                          bool xfrmFlag)
+                          bool xfrmFlag,
+                          Uint32 tupVersion)
 {
   Tuple_header *tuple_ptr = req_struct.m_tuple_ptr;
   if (tuple_ptr->get_tuple_version() != tupVersion)
@@ -243,7 +243,6 @@ Dbtup::tuxReadAttrsCommon(KeyReqStruct &req_struct,
                            dataOut,
                            ZNIL,
                            xfrmFlag);
-
   // done
   return ret;
 }

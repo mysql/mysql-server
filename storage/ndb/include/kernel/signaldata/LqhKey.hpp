@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2016, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -120,6 +120,7 @@ private:
 
   static void setAttrLen(UintR & scanInfoAttrLen, UintR val);
   static void setScanTakeOverFlag(UintR & scanInfoAttrLen, UintR val);
+  /* stored procedure flag is deprecated if ever used */
   static void setStoredProcFlag(UintR & scanData, UintR val);
   static void setDistributionKey(UintR & scanData, UintR val);
   
