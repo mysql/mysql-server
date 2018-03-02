@@ -3251,13 +3251,19 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (isExecutingTrigger)
   {
     // Save the TcOperationPtr for fireing operation
+    ndbrequire(TsenderData != RNIL);
     regTcPtr->triggeringOperation = TsenderData;
     // ndbrequire(hasOp(apiConnectptr, TsenderData));
 
     // Grab trigger Id from ApiConnectRecord
     ndbrequire(regApiPtr->immediateTriggerId != RNIL);
     regTcPtr->currentTriggerId= regApiPtr->immediateTriggerId;
+
+    Ptr<TcDefinedTriggerData> trigPtr;
+    c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
+    trigPtr.p->refCount++;
   }
+
   ndbassert(isExecutingTrigger || 
             (regApiPtr->immediateTriggerId == RNIL));
 
@@ -4136,16 +4142,6 @@ void Dbtc::packLqhkeyreq(Signal* signal,
                      regCachePtr->keyInfoSectionI);
   }//if
 
-  if (tcConnectptr.p->triggeringOperation != RNIL &&
-      tcConnectptr.p->currentTriggerId != RNIL)
-  {
-    jam();
-    //NOTE: before packLqhkeyreq040Lab which might release operation...
-    Ptr<TcDefinedTriggerData> trigPtr;
-    c_theDefinedTriggers.getPtr(trigPtr, tcConnectptr.p->currentTriggerId);
-    trigPtr.p->refCount++;
-  }
-
   /* Release key storage */ 
   releaseKeys();
   packLqhkeyreq040Lab(signal,
@@ -4619,10 +4615,7 @@ void Dbtc::releaseTcCon()
     Ptr<TcDefinedTriggerData> trigPtr;
     c_theDefinedTriggers.getPtr(trigPtr, regTcPtr->currentTriggerId);
     ndbrequire(trigPtr.p->refCount > 0);
-    if (trigPtr.p->refCount)
-    {
-      trigPtr.p->refCount--;
-    }
+    trigPtr.p->refCount--;
   }
 
   if (!regTcPtr->thePendingTriggers.isEmpty())
@@ -19060,7 +19053,7 @@ Dbtc::executeFKParentTrigger(Signal* signal,
   else
   {
     jam();
-    fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr,
+    fk_scanFromChildTable(signal, firedTriggerData, transPtr, opPtr->i,
                           fkPtr.p, op, attrValuesPtrI);
   }
   return;
@@ -19351,7 +19344,7 @@ void
 Dbtc::fk_scanFromChildTable(Signal* signal,
                             TcFiredTriggerData* firedTriggerData,
                             ApiConnectRecordPtr* transPtr,
-                            TcConnectRecordPtr* opPtr,
+                            const Uint32 opPtrI,
                             TcFKData* fkData,
                             Uint32 op,
                             Uint32 attrValuesPtrI)
@@ -19392,8 +19385,8 @@ Dbtc::fk_scanFromChildTable(Signal* signal,
   scanApiConnectPtr.p->ndbapiConnect = tcPtr.i;
 
   tcPtr.p->apiConnect = scanApiConnectPtr.i;
-  tcPtr.p->triggeringOperation = opPtr->i;
-  ndbrequire(hasOp(* transPtr, opPtr->i));
+  ndbrequire(hasOp(* transPtr, opPtrI));
+  tcPtr.p->triggeringOperation = opPtrI;
   tcPtr.p->currentTriggerId = firedTriggerData->triggerId;
   tcPtr.p->triggerErrorCode = ZNOT_FOUND;
   tcPtr.p->operation = op;
