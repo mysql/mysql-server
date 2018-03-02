@@ -6195,16 +6195,29 @@ static int native_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   DBUG_ENTER("native_password_auth_client");
 
-  /* read the scramble */
-  if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
-    DBUG_RETURN(CR_ERROR);
 
-  if (pkt_len != SCRAMBLE_LENGTH + 1)
-    DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
+  if (((MCPVIO_EXT *)vio)->mysql_change_user)
+  {
+    /*
+      in mysql_change_user() the client sends the first packet.
+      we use the old scramble.
+    */
+    pkt= (uchar*)mysql->scramble;
+    pkt_len= SCRAMBLE_LENGTH + 1;
+  }
+  else
+  {
+    /* read the scramble */
+    if ((pkt_len= vio->read_packet(vio, &pkt)) < 0)
+      DBUG_RETURN(CR_ERROR);
 
-  /* save it in MYSQL */
-  memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
-  mysql->scramble[SCRAMBLE_LENGTH] = 0;
+    if (pkt_len != SCRAMBLE_LENGTH + 1)
+      DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
+
+    /* save it in MYSQL */
+    memcpy(mysql->scramble, pkt, SCRAMBLE_LENGTH);
+    mysql->scramble[SCRAMBLE_LENGTH] = 0;
+  }
 
   if (mysql->passwd[0])
   {

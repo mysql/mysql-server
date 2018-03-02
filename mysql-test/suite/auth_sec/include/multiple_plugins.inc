@@ -52,8 +52,6 @@ FLUSH PRIVILEGES;
 --echo # Change user tests
 
 --connect(qa_test_1_conn, localhost, qa_test_1_user, qa_test_1_dest,,,,SSL)
---change_user native, abcd
-SELECT CURRENT_USER();
 --change_user sha256, abcd
 SELECT CURRENT_USER();
 --change_user
@@ -69,8 +67,6 @@ SELECT CURRENT_USER();
 
 --connect(sha256_conn, localhost, sha256, abcd,,,,SSL)
 --change_user qa_test_1_user, qa_test_1_dest
-SELECT CURRENT_USER();
---change_user native, abcd
 SELECT CURRENT_USER();
 --change_user
 SELECT CURRENT_USER();
