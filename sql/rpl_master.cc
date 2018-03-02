@@ -258,6 +258,347 @@ bool show_slave_hosts(THD *thd) {
   DBUG_RETURN(false);
 }
 
+/* clang-format off */
+/**
+  @page page_protocol_replication Replication Protocol
+
+  Replication uses binlogs to ship changes done on the master to the slave
+  and can be written to @ref sect_protocol_replication_binlog_file and sent
+  over the network as @ref sect_protocol_replication_binlog_stream.
+
+  @section sect_protocol_replication_binlog_file Binlog File
+
+  Binlog files start with a @ref sect_protocol_replication_binlog_file_header
+  followed by a series of @subpage page_protocol_replication_binlog_event
+
+  @subsection sect_protocol_replication_binlog_file_header Binlog File Header
+
+  A binlog file start with a `Binlog File Header [ 0xFE 'bin']`
+  ~~~~~
+  $ hexdump -C /tmp/binlog-test.log
+  00000000  fe 62 69 6e 19 6f c9 4c  0f 01 00 00 00 66 00 00  |.bin.o.L.....f..|
+  00000010  00 6a 00 00 00 00 00 04  00 6d 79 73 71 6c 2d 70  |.j.......mysql-p|
+  00000020  72 6f 78 79 2d 30 2e 37  2e 30 00 00 00 00 00 00  |roxy-0.7.0......|
+  ...
+  ~~~~~
+
+  @section sect_protocol_replication_binlog_stream Binlog Network Stream
+
+  Network streams are requested with @subpage page_protocol_com_binlog_dump and
+  prepend each @ref page_protocol_replication_binlog_event with `00` OK-byte.
+
+  @section sect_protocol_replication_binlog_version Binlog Version
+
+  Depending on the MySQL version that created the binlog the format is slightly
+  different. Four versions are currently known:
+
+  Binlog version | MySQL Version
+  ---------------|-----------------------
+  1              | MySQL 3.23 - < 4.0.0
+  2              | MySQL 4.0.0 - 4.0.1
+  3              | MySQL 4.0.2 - < 5.0.0
+  4              | MySQL 5.0.0+
+
+  @subsection sect_protocol_replication_binlog_version_v1 Version 1
+
+  Supported @ref sect_protocol_replication_binlog_event_sbr
+
+  @subsection sect_protocol_replication_binlog_version_v2 Version 2
+
+  Can be ignored as it was only used in early alpha versinos of MySQL 4.1 and
+  won't be documented here.
+
+  @subsection sect_protocol_replication_binlog_version_v3 Version 3
+
+  Added the relay logs and changed the meaning of the log position
+
+  @subsection sect_protocol_replication_binlog_version_v4 Version 4
+
+  Added the @ref sect_protocol_replication_event_format_desc and made the
+  protocol extensible.
+
+  In MySQL 5.1.x the @ref sect_protocol_replication_binlog_event_rbr were
+  added.
+*/
+
+/**
+  @page page_protocol_replication_binlog_event Binlog Event
+
+  The events contain the actual data that should be shipped from the master to
+  the slave. Depending on the use, different events are sent.
+
+  @section sect_protocol_replication_binlog_event_mgmt Binlog Management
+
+  The first event is either a @ref sect_protocol_replication_event_start_v3 or
+  a @ref sect_protocol_replication_event_format_desc while the last event is
+  either a @ref sect_protocol_replication_event_stop or
+  @ref sect_protocol_replication_event_rotate.
+
+  @subsection sect_protocol_replication_event_start_v3 START_EVENT_V3
+
+  <table>
+  <caption>Binlog::START_EVENT_V3:</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>binlog-version</td>
+      <td>Version of the binlog format.
+        See @ref sect_protocol_replication_binlog_version</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[50]"</td>
+    <td>mysql-server version</td>
+    <td>version of the MySQL Server that created the binlog.
+      The string is evaluted to apply work-arounds in the slave. </td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>create-timestamp</td>
+      <td>seconds since Unix epoch when the binlog was created</td></tr>
+  </table>
+
+  @subsection sect_protocol_replication_event_format_desc FORMAT_DESCRIPTION_EVENT
+
+  A format description event is the first event of a binlog for
+  binlog @ref sect_protocol_replication_binlog_version_v4.
+  It described how the other events are laid out.
+
+  @note Added in MySQL 5.0.0 as a replacement for
+  @ref sect_protocol_replication_event_start_v3.
+
+  <table>
+  <caption>Binlog::FORMAT_DESCRIPTION_EVENT:</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>binlog-version</td>
+      <td>Version of the binlog format.
+        See @ref sect_protocol_replication_binlog_version</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_fix "string[50]"</td>
+    <td>mysql-server version</td>
+    <td>version of the MySQL Server that created the binlog.
+      The string is evaluted to apply work-arounds in the slave. </td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>create-timestamp</td>
+      <td>seconds since Unix epoch when the binlog was created</td></tr>
+  </table>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>event-header-length</td>
+      <td>Length of the @ref sect_protocol_replication_binlog_event_header
+        of next events. Should always be 19.</td></tr>
+  </table>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>event type header lengths</td>
+      <td>a array indexed by `binlog-event-type - 1` to extract the length
+        of the event specific header</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~~~~
+  $ hexdump -v -s 4 -C relay-bin.000001
+  00000004  82 2d c2 4b 0f 02 00 00  00 67 00 00 00 6b 00 00  |.-.K.....g...k..|
+  00000014  00 00 00 04 00 35 2e 35  2e 32 2d 6d 32 00 00 00  |.....5.5.2-m2...|
+  00000024  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+  00000034  00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00  |................|
+  00000044  00 00 00 00 00 00 00 82  2d c2 4b 13 38 0d 00 08  |........-.K.8...|
+  00000054  00 12 00 04 04 04 04 12  00 00 54 00 04 1a 08 00  |..........T.....|
+  00000064  00 00 08 08 08 02 00                              |........        |
+  ~~~~~~~~~~~~
+
+  For mysql-5.5.2-m2 the event specific header lengths are:
+
+
+  <table>
+  <tr><th rowspan="2">Event Name</th><th colspan="3">Header Length</th></tr>
+  <tr><th>v4</th><th>v3</th><th>v1</th></tr>
+  <tr><td>@ref sect_protocol_replication_binlog_event_header</td>
+    <td colspan="2">19</td><td>13</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_start_v3</td>
+    <td colspan="3">56</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_query</td>
+    <td>13</td><td colspan="2">11</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_stop</td>
+    <td colspan="3">0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_rotate</td>
+    <td colspan="2">8</td><td>0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_intvar</td>
+    <td colspan="3">0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_load</td>
+    <td colspan="3">18</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_slave</td>
+    <td colspan="3">0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_create_file</td>
+    <td colspan="3">4</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_append_block</td>
+    <td colspan="3">4</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_exec_load</td>
+    <td colspan="3">4</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_delete_file</td>
+    <td colspan="3">4</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_new_load</td>
+    <td colspan="3">18</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_rand</td>
+    <td colspan="3">0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_uservar</td>
+    <td colspan="3">0</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_format_desc</td>
+    <td>84</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_xid</td>
+    <td>0</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_load_query_begin</td>
+    <td>4</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_load_query_execute</td>
+    <td>26</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_table_map</td>
+    <td>8</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_delete_rows_v0</td>
+    <td>0</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_update_rows_v0</td>
+    <td>0</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_write_rows_v0</td>
+    <td>0</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_delete_rows_v1</td>
+    <td>8/6</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_update_rows_v1</td>
+    <td>8/6</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_write_rows_v1</td>
+    <td>8/6</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_incident</td>
+    <td>2</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_heartbeat</td>
+    <td>0</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_delete_rows_v2</td>
+    <td>10</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_update_rows_v2</td>
+    <td>10</td><td colspan="2">---</td></tr>
+  <tr><td>@ref sect_protocol_replication_event_write_rows_v2</td>
+    <td>10</td><td colspan="2">---</td></tr>
+  </table>
+
+  The `event-size` of `0x67` (`103`) minus the `event-header` length of
+  `0x13` (`19`) should match the event type header length of the
+  @ref sect_protocol_replication_event_format_desc `0x54` (`84`).
+
+  The number of events understood by the master may differ from what the slave
+  supports. It is calculated by:
+
+  ~~~~~~~
+  event_size - event_header_length - 2 - 50 - 4 - 1
+  ~~~~~~~
+
+  For mysql-5.5.2-m2 it is `0x1b` (`27`).
+
+  @subsection sect_protocol_replication_event_stop STOP_EVENT
+  @subsection sect_protocol_replication_event_rotate ROTATE_EVENT
+  @subsection sect_protocol_replication_event_slave SLAVE_EVENT
+  @subsection sect_protocol_replication_event_incident INCIDENT_EVENT
+  @subsection sect_protocol_replication_event_heartbeat HEARTBEAT_EVENT
+
+  @section sect_protocol_replication_binlog_event_sbr Statement Based Replication Events
+
+  Statement Based Replication or SBR sends the SQL queries a client sent to
+  the master AS IS to the slave. It needs extra events to mimic the client
+  connection's state on the slave side.
+
+  @subsection sect_protocol_replication_event_query QUERY_EVENT
+  @subsection sect_protocol_replication_event_intvar INTVAR_EVENT
+  @subsection sect_protocol_replication_event_rand RAND_EVENT
+  @subsection sect_protocol_replication_event_uservar USER_VAR_EVENT
+  @subsection sect_protocol_replication_event_xid XID_EVENT
+
+  @section sect_protocol_replication_binlog_event_rbr Row Based Replication Events
+
+  In Row Based replication the changed rows are sent to the slave which removes
+  side-effects and makes it more reliable. Now all statements can be sent with
+  RBR though. Most of the time you will see RBR and SBR side by side.
+
+  @subsection sect_protocol_replication_event_table_map TABLE_MAP_EVENT
+  @subsection sect_protocol_replication_event_delete_rows_v0 DELETE_ROWS_EVENTv0
+  @subsection sect_protocol_replication_event_update_rows_v0 UPDATE_ROWS_EVENTv0
+  @subsection sect_protocol_replication_event_write_rows_v0 WRITE_ROWS_EVENTv0
+  @subsection sect_protocol_replication_event_delete_rows_v1 DELETE_ROWS_EVENTv1
+  @subsection sect_protocol_replication_event_update_rows_v1 UPDATE_ROWS_EVENTv1
+  @subsection sect_protocol_replication_event_write_rows_v1 WRITE_ROWS_EVENTv1
+  @subsection sect_protocol_replication_event_delete_rows_v2 DELETE_ROWS_EVENTv2
+  @subsection sect_protocol_replication_event_update_rows_v2 UPDATE_ROWS_EVENTv2
+  @subsection sect_protocol_replication_event_write_rows_v2 WRITE_ROWS_EVENTv2
+
+  @section sect_protocol_replication_binlog_event_load_file LOAD INFILE replication
+
+  `LOAD DATA|XML INFILE` is a special SQL statement as it has to ship the files
+  over to the slave too to execute the statement.
+
+  @subsection sect_protocol_replication_event_load LOAD_EVENT
+  @subsection sect_protocol_replication_event_create_file CREATE_FILE_EVENT
+  @subsection sect_protocol_replication_event_append_block APPEND_BLOCK_EVENT
+  @subsection sect_protocol_replication_event_exec_load EXEC_LOAD_EVENT
+  @subsection sect_protocol_replication_event_delete_file DELETE_FILE_EVENT
+  @subsection sect_protocol_replication_event_new_load NEW_LOAD_EVENT
+  @subsection sect_protocol_replication_event_load_query_begin BEGIN_LOAD_QUERY_EVENT
+  @subsection sect_protocol_replication_event_load_query_execute EXECUTE_LOAD_QUERY_EVENT
+
+  A binlog event starts with @ref sect_protocol_replication_binlog_event_header
+  and is followed by a event specific part.
+
+  @section sect_protocol_replication_binlog_event_header Binlog Event Header
+
+  The binlog event header starts each event and is either 13 or 19 bytes long, depending
+  on the @ref sect_protocol_replication_binlog_version
+
+  <table>
+  <caption>Binlog::EventHeader:</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>timestamp</td>
+      <td>seconds since unix epoch</td></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>event_type</td>
+      <td>See binary_log::Log_event_type</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>server-id</td>
+      <td>server-id of the originating mysql-server. Used to filter out events
+        in circular replication</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>event-size</td>
+      <td>size of the event (header, post-header, body)</td></tr>
+  <tr><td colspan="3">if binlog-version > 1 {</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>log-pos</td>
+      <td>position of the next event</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td>See @ref group_cs_binglog_event_header_flags</td></tr>
+  </table>
+*/
+
+
+/**
+  @page page_protocol_com_binlog_dump COM_BINLOG_DUMP
+
+  @brief Request a @ref sect_protocol_replication_binlog_stream from the server
+
+  @return @ref sect_protocol_replication_binlog_stream on success or
+    @ref page_protocol_basic_err_packet on error
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x12] COM_BINLOG_DUMP</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>binlog-pos</td>
+      <td>position in the binlog-file to start the stream with</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>flags</td>
+      <td>can right now has one possible value:
+          ::BINLOG_DUMP_NON_BLOCK</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>server-id</td>
+      <td>Server id of this slave</td></tr>
+  <tr><td>@ref sect_protocol_basic_dt_string_eof "string&lt;EOF&gt;"</td>
+      <td>binlog-filename</td>
+      <td>filename of the binlog on the master</td></tr>
+  </table>
+
+  @sa com_binlog_dump
+*/
+/* clang-format on */
+
 /**
   If there are less than BYTES bytes left to read in the packet,
   report error.
