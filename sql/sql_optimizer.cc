@@ -839,7 +839,9 @@ bool substitute_gc(THD *thd, SELECT_LEX *select_lex, Item *where_cond,
     if (tl->table->s->keys == 0) continue;
     for (uint i = 0; i < tl->table->s->fields; i++) {
       Field *fld = tl->table->field[i];
-      if (fld->is_gcol() && fld->m_indexed &&
+      if (fld->is_gcol() &&
+          !(fld->part_of_key.is_clear_all() &&
+            fld->part_of_prefixkey.is_clear_all()) &&
           fld->gcol_info->expr_item->can_be_substituted_for_gc()) {
         // Don't check allowed keys here as conditions/group/order use
         // different keymaps for that.
