@@ -50,16 +50,18 @@ Dbtux::prepare_scan_bounds()
   if (likely(scanBound.m_cnt != 0))
   {
     jamDebug();
-/*
     c_ctx.searchBoundData = new (c_ctx.searchBoundData)
                             KeyDataC(index.m_keySpec, true);
     c_ctx.searchBound = new (c_ctx.searchBound)
                         KeyBoundC(*c_ctx.searchBoundData);
+    unpackBound(c_ctx, scanBound, *c_ctx.searchBound);
+/*
     c_ctx.entryKey = new (c_ctx.entryKey)
                         KeyData(index.m_keySpec, true, 0);
-    unpackBound(c_ctx, scanBound, *c_ctx.searchBound);
     c_ctx.entryKey->set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
 */
+    c_ctx.scanBoundCnt = scanBound.m_cnt;
+    c_ctx.descending = scan.m_descending;
     c_ctx.numAttrs = index.m_numAttrs;
     c_ctx.boundCnt = c_ctx.searchBound->get_data().get_cnt();
     const DescHead& descHead = getDescHead(index);
@@ -1267,19 +1269,20 @@ bool
 Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
 {
   jamDebug();
+  Uint32 scanBoundCnt = c_ctx.scanBoundCnt;
   ScanOp& scan = *scanPtr.p;
   if (unlikely(scan.m_errorCode != 0))
   {
     jam();
     return false;
   }
-  const unsigned idir = scan.m_descending;
-  const ScanBound& scanBound = scan.m_scanBound[1 - idir];
-  const int jdir = 1 - 2 * (int)idir;
   int ret = 0;
-  if (likely(scanBound.m_cnt != 0))
+  if (likely(scanBoundCnt != 0))
   {
     jamDebug();
+    const unsigned idir = c_ctx.descending;
+    const int jdir = 1 - 2 * (int)idir;
+    const ScanBound& scanBound = scan.m_scanBound[1 - idir];
     KeyDataC searchBoundData(c_ctx.indexPtr.p->m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
     unpackBound(c_ctx, scanBound, searchBound);
@@ -1324,28 +1327,23 @@ bool
 Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
 {
   const ScanOp& scan = *scanPtr.p;
-  if (unlikely(scan.m_errorCode != 0)) {
-    jam();
-    return false;
-  }
-  const Frag& frag = *c_ctx.fragPtr.p;
-  Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
-  Uint32 pageId = ent.m_tupLoc.getPageId();
-  Uint32 pageOffset = ent.m_tupLoc.getPageOffset();
   Uint32 tupVersion = ent.m_tupVersion;
-  // check for same tuple twice in row
-  if (scan.m_scanEnt.m_tupLoc == ent.m_tupLoc)
-  {
-    jam();
-    return false;
-  }
   Uint32 transId1 = scan.m_transId1;
   Uint32 transId2 = scan.m_transId2;
   bool dirty = scan.m_readCommitted;
   Uint32 savePointId = scan.m_savePointId;
-  bool ret = c_tup->tuxQueryTh(tableFragPtrI,
-                               pageId,
-                               pageOffset,
+  // check for same tuple twice in row
+  if (unlikely(scan.m_scanEnt.m_tupLoc == ent.m_tupLoc))
+  {
+    jamDebug();
+    return false;
+  }
+  Uint32 opPtrI = c_tup->get_tuple_operation_ptr_i();
+  if (likely(opPtrI == RNIL))
+  {
+    return true;
+  }
+  bool ret = c_tup->tuxQueryTh(opPtrI,
                                tupVersion,
                                transId1,
                                transId2,

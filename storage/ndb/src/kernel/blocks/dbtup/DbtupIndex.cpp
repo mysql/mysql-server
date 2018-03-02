@@ -368,9 +368,7 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
  * clear to do the full check here.
  */
 bool
-Dbtup::tuxQueryTh(Uint32 fragPtrI,
-                  Uint32 pageId,
-                  Uint32 pageIndex,
+Dbtup::tuxQueryTh(Uint32 opPtrI,
                   Uint32 tupVersion,
                   Uint32 transId1,
                   Uint32 transId2,
@@ -378,36 +376,9 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
                   Uint32 savepointId)
 {
   jamEntryDebug();
-  FragrecordPtr fragPtr;
-  fragPtr.i= fragPtrI;
-  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
-  TablerecPtr tablePtr;
-  tablePtr.i= fragPtr.p->fragTableId;
-  ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  PagePtr pagePtr;
-  pagePtr.i = pageId;
-  c_page_pool.getPtr(pagePtr);
-
-  KeyReqStruct req_struct(this);
-
-  {
-    Operationrec tmpOp;
-    tmpOp.m_tuple_location.m_page_no = pageId;
-    tmpOp.m_tuple_location.m_page_idx = pageIndex;
-    tmpOp.op_type = ZREAD; // valgrind
-    setup_fixed_tuple_ref(&req_struct, &tmpOp, tablePtr.p);
-    setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
-  }
-
-  Tuple_header* tuple_ptr = req_struct.m_tuple_ptr;
 
   OperationrecPtr currOpPtr;
-  currOpPtr.i = tuple_ptr->m_operation_ptr_i;
-  if (currOpPtr.i == RNIL) {
-    jamDebug();
-    // tuple has no operation, any scan can see it
-    return true;
-  }
+  currOpPtr.i = opPtrI;
   c_operation_pool.getPtr(currOpPtr);
 
   const bool sameTrans =
@@ -416,52 +387,62 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   bool res = false;
   OperationrecPtr loopOpPtr = currOpPtr;
 
-  if (!sameTrans) {
-    jam();
-    if (!dirty) {
-      jam();
-      if (currOpPtr.p->nextActiveOp == RNIL) {
-        jam();
+  if (!sameTrans)
+  {
+    jamDebug();
+    if (!dirty)
+    {
+      jamDebug();
+      if (currOpPtr.p->nextActiveOp == RNIL)
+      {
+        jamDebug();
         // last op - TUX makes ACC lock request in same timeslice
         res = true;
       }
     }
-    else {
+    else
+    {
       // loop to first op (returns false)
       find_savepoint(loopOpPtr, 0);
       const Uint32 op_type = loopOpPtr.p->op_type;
 
-      if (op_type != ZINSERT) {
-        jam();
+      if (op_type != ZINSERT)
+      {
+        jamDebug();
         // read committed version
+        Tuple_header *tuple_ptr = (Tuple_header*)prepare_tuple_ptr;
         const Uint32 origVersion = tuple_ptr->get_tuple_version();
-        if (origVersion == tupVersion) {
-          jam();
+        if (origVersion == tupVersion)
+        {
+          jamDebug();
           res = true;
         }
       }
     }
   }
-  else {
-    jam();
+  else
+  {
+    jamDebug();
     // for own trans, ignore dirty flag
 
-    if (find_savepoint(loopOpPtr, savepointId)) {
-      jam();
+    if (find_savepoint(loopOpPtr, savepointId))
+    {
+      jamDebug();
       const Uint32 op_type = loopOpPtr.p->op_type;
 
-      if (op_type != ZDELETE) {
-        jam();
+      if (op_type != ZDELETE)
+      {
+        jamDebug();
         // check if this op has produced the scanned version
         Uint32 loopVersion = loopOpPtr.p->op_struct.bit_field.tupVersion;
-        if (loopVersion == tupVersion) {
-          jam();
+        if (loopVersion == tupVersion)
+        {
+          jamDebug();
           res = true;
         }
       }
     }
   }
-
   return res;
 }
 

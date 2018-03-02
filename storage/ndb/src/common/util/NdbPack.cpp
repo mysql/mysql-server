@@ -127,38 +127,38 @@ static const int g_ndb_pack_type_info_cnt =
 int
 NdbPack::Type::complete()
 {
-  if (m_typeId == 0)
+  if (unlikely(m_typeId == 0))
   {
     set_error(TypeNotSet, __LINE__);
     return -1;
   }
-  if (m_typeId >= g_ndb_pack_type_info_cnt)
+  if (unlikely(m_typeId >= g_ndb_pack_type_info_cnt))
   {
     set_error(TypeNotSet, __LINE__);
     return -1;
   }
   const Ndb_pack_type_info& info = g_ndb_pack_type_info[m_typeId];
-  if (!info.m_supported)
+  if (unlikely(!info.m_supported))
   {
     set_error(TypeNotSupported, __LINE__);
     return -1;
   }
-  if (m_byteSize == 0)
+  if (unlikely(m_byteSize == 0))
   {
     set_error(TypeSizeZero, __LINE__);
     return -1;
   }
-  if (info.m_fixSize != 0 && m_byteSize != info.m_fixSize)
+  if (unlikely(info.m_fixSize != 0 && m_byteSize != info.m_fixSize))
   {
     set_error(TypeFixSizeInvalid, __LINE__);
     return -1;
   }
-  if (!(m_nullable <= 1))
+  if (unlikely(!(m_nullable <= 1)))
   {
     set_error(TypeNullableNotBool, __LINE__);
     return -1;
   }
-  if (info.m_charType && m_csNumber == 0)
+  if (unlikely(info.m_charType && m_csNumber == 0))
   {
     set_error(CharsetNotSpecified, __LINE__);
     return -1;
@@ -166,14 +166,14 @@ NdbPack::Type::complete()
   if (info.m_charType && all_charsets[m_csNumber] == 0)
   {
     CHARSET_INFO* cs = get_charset(m_csNumber, MYF(0));
-    if (cs == 0)
+    if (unlikely(cs == 0))
     {
       set_error(CharsetNotFound, __LINE__);
       return -1;
     }
     all_charsets[m_csNumber] = cs; // yes caller must do this
   }
-  if (!info.m_charType && m_csNumber != 0)
+  if (unlikely(!info.m_charType && m_csNumber != 0))
   {
     set_error(CharsetNotAllowed, __LINE__);
     return -1;
@@ -191,7 +191,7 @@ NdbPack::Spec::add(Type type)
   Uint32 nullable_cnt = m_nullableCnt;
   Uint32 varsize_cnt = m_varsizeCnt;
   Uint32 max_byte_size = m_maxByteSize;
-  if (type.complete() == -1)
+  if (unlikely(type.complete() == -1))
   {
     set_error(type);
     return -1;
@@ -207,7 +207,7 @@ NdbPack::Spec::add(Type type)
     varsize_cnt++;
   }
   max_byte_size += type.m_byteSize;
-  if (cnt >= m_bufMaxCnt)
+  if (unlikely(cnt >= m_bufMaxCnt))
   {
     set_error(SpecBufOverflow, __LINE__);
     return -1;
@@ -226,7 +226,7 @@ NdbPack::Spec::add(Type type, Uint32 cnt)
 {
   for (Uint32 i = 0; i < cnt; i++)
   {
-    if (add(type) == -1)
+    if (unlikely(add(type) == -1))
       return -1;
   }
   return 0;
@@ -273,7 +273,7 @@ NdbPack::Iter::desc(const Uint8* item)
     return -1;
   }
   const Uint32 itemLen = lenBytes + bareLen;
-  if (itemLen > type.m_byteSize)
+  if (unlikely(itemLen > type.m_byteSize))
   {
     set_error(DataValueOverflow, __LINE__);
     return -1;
@@ -355,7 +355,7 @@ NdbPack::DataC::desc(Iter& r) const
     const Uint8& the_byte = m_buf[byte_pos];
     if ((the_byte & bit_mask) != 0)
     {
-      if (r.desc_null() == -1)
+      if (unlikely(r.desc_null() == -1))
       {
         set_error(r);
         return -1;
@@ -365,7 +365,7 @@ NdbPack::DataC::desc(Iter& r) const
   }
   const Uint32 pos = r.m_itemPos + r.m_itemLen;
   const Uint8* item = &m_buf[pos];
-  if (r.desc(item) == -1)
+  if (unlikely(r.desc(item) == -1))
   {
     set_error(r);
     return -1;
@@ -403,7 +403,7 @@ NdbPack::Data::add(const void* data, Uint32* len_out)
   assert(data != 0);
   const Uint8* item = (const Uint8*)data;
   const Uint32 i = m_cnt; // item index
-  if (i >= m_spec.m_cnt)
+  if (unlikely(i >= m_spec.m_cnt))
   {
     set_error(DataCntOverflow, __LINE__);
     return -1;
@@ -411,12 +411,12 @@ NdbPack::Data::add(const void* data, Uint32* len_out)
   Iter& r = m_iter;
   assert(r.m_cnt == i);
   const Uint32 fullLen = m_varBytes + r.m_itemPos + r.m_itemLen;
-  if (r.desc(item) == -1)
+  if (unlikely(r.desc(item) == -1))
   {
     set_error(r);
     return -1;
   }
-  if (fullLen + r.m_itemLen > m_bufMaxLen)
+  if (unlikely(fullLen + r.m_itemLen > m_bufMaxLen))
   {
     set_error(DataBufOverflow, __LINE__);
     return -1;
@@ -435,7 +435,7 @@ NdbPack::Data::add(const void* data, Uint32 cnt, Uint32* len_out)
   for (Uint32 i = 0; i < cnt; i++)
   {
     Uint32 len;
-    if (add(data_ptr, &len) == -1)
+    if (unlikely(add(data_ptr, &len) == -1))
       return -1;
     if (data != 0)
       data_ptr += len;
@@ -449,14 +449,14 @@ int
 NdbPack::Data::add_null(Uint32* len_out)
 {
   const Uint32 i = m_cnt; // item index
-  if (i >= m_spec.m_cnt)
+  if (unlikely(i >= m_spec.m_cnt))
   {
     set_error(DataCntOverflow, __LINE__);
     return -1;
   }
   Iter& r = m_iter;
   assert(r.m_cnt == i);
-  if (r.desc_null() == -1)
+  if (unlikely(r.desc_null() == -1))
   {
     set_error(r);
     return -1;
@@ -465,7 +465,7 @@ NdbPack::Data::add_null(Uint32* len_out)
   if (!m_allNullable)
   {
     const Type& type = m_spec.m_buf[i];
-    if (!type.m_nullable)
+    if (unlikely(!type.m_nullable))
     {
       set_error(DataNotNullable, __LINE__);
       return -1;
@@ -494,7 +494,7 @@ NdbPack::Data::add_null(Uint32 cnt, Uint32* len_out)
   for (Uint32 i = 0; i < cnt; i++)
   {
     Uint32 len;
-    if (add_null(&len) == -1)
+    if (unlikely(add_null(&len) == -1))
       return -1;
     len_tot += len;
   }
@@ -508,15 +508,15 @@ NdbPack::Data::add_poai(const Uint32* poai, Uint32* len_out)
   const AttributeHeader ah = *(const AttributeHeader*)&poai[0];
   if (!ah.isNULL())
   {
-    if (add(&poai[1], len_out) == -1)
+    if (unlikely(add(&poai[1], len_out) == -1))
       return -1;
   }
   else
   {
-    if (add_null(len_out) == -1)
+    if (unlikely(add_null(len_out) == -1))
       return -1;
   }
-  if (ah.getByteSize() != *len_out)
+  if (unlikely(ah.getByteSize() != *len_out))
   {
     set_error(InvalidAttrInfo, __LINE__);
     return -1;
@@ -531,7 +531,7 @@ NdbPack::Data::add_poai(const Uint32* poai, Uint32 cnt, Uint32* len_out)
   for (Uint32 i = 0; i < cnt; i++)
   {
     Uint32 len;
-    if (add_poai(poai, &len) == -1)
+    if (unlikely(add_poai(poai, &len) == -1))
       return -1;
     len_tot += len;
     poai += 1 + (len + 3) / 4;
@@ -578,10 +578,10 @@ NdbPack::Data::desc_all(Uint32 cnt, Endian::Value from_endian)
   for (Uint32 i = 0; i < cnt; i++)
   {
     m_cnt++;
-    if (desc(m_iter) == -1)
+    if (unlikely(desc(m_iter) == -1))
       return -1;
   }
-  if (finalize() == -1)
+  if (unlikely(finalize() == -1))
     return -1;
   return 0;
 }
@@ -594,23 +594,23 @@ NdbPack::Data::copy(const DataC& d2)
   const Uint32 cnt2 = d2.m_cnt;
   for (Uint32 i = 0; i < cnt2; i++)
   {
-    if (d2.desc(r2) == -1)
+    if (unlikely(d2.desc(r2) == -1))
       return -1;
     Uint32 len_out = ~(Uint32)0;
     if (r2.m_itemLen != 0)
     {
-      if (add(&d2.m_buf[r2.m_itemPos], &len_out) == -1)
+      if (unlikely(add(&d2.m_buf[r2.m_itemPos], &len_out) == -1))
           return -1;
       assert(len_out == r2.m_itemLen);
     }
     else
     {
-      if (add_null(&len_out) == -1)
+      if (unlikely(add_null(&len_out) == -1))
         return -1;
       assert(len_out ==0);
     }
   }
-  if (finalize() == -1)
+  if (unlikely(finalize() == -1))
     return -1;
   return 0;
 }
@@ -622,7 +622,7 @@ NdbPack::Data::convert_impl(Endian::Value to_endian)
   Iter r(*this);
   for (Uint32 i = 0; i < m_cnt; i++)
   {
-    if (DataC::desc(r) == -1)
+    if (unlikely(DataC::desc(r) == -1))
     {
       set_error(r);
       return -1;
@@ -645,12 +645,12 @@ NdbPack::Data::convert_impl(Endian::Value to_endian)
 int
 NdbPack::BoundC::finalize(int side)
 {
-  if (m_data.m_cnt == 0 && side != 0)
+  if (unlikely(m_data.m_cnt == 0 && side != 0))
   {
     set_error(BoundEmptySide, __LINE__);
     return -1;
   }
-  if (m_data.m_cnt != 0 && side != -1 && side != +1)
+  if (unlikely(m_data.m_cnt != 0 && side != -1 && side != +1))
   {
     set_error(BoundNonemptySide, __LINE__);
     return -1;
