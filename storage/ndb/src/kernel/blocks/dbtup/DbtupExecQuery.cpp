@@ -890,7 +890,6 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.no_exec_instructions = 0;
    req_struct.read_length= 0;
    req_struct.last_row= false;
-   req_struct.changeMask.clear();
    req_struct.m_is_lcp = false;
 
    if (unlikely(trans_state != TRANS_IDLE))
@@ -1104,6 +1103,7 @@ bool Dbtup::execTUPKEYREQ(Signal* signal)
      jamDebug();
      return false;
    }
+   req_struct.changeMask.clear();
 
    if (!Local_key::isInvalid(pageid, pageidx))
    {
@@ -5113,7 +5113,7 @@ Dbtup::nr_delete(Signal* signal, Uint32 senderData,
                                       *scanOp.p,
                                       0))
     {
-      KeyReqStruct req_struct(jamBuffer());
+      KeyReqStruct req_struct(jamBuffer(), KRS_PREPARE);
       Operationrec oprec;
       Tuple_header *copy;
       if ((copy = alloc_copy_tuple(tablePtr.p,
