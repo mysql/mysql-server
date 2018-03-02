@@ -954,7 +954,7 @@ DROP TABLE t;
 --echo #
 
 CREATE TABLE t (vc VARCHAR(100),
-                gc TEXT GENERATED ALWAYS AS (REVERSE(vc)) STORED,
+                gc VARCHAR(100) GENERATED ALWAYS AS (REVERSE(vc)) STORED,
                 KEY (gc(3)));
 
 INSERT INTO t(vc) VALUES ('a'), ('abc'), ('abcabc'), ('abcdef');
