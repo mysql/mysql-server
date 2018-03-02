@@ -1606,7 +1606,9 @@ typedef Ptr<HostBuffer> HostBufferPtr;
 
 struct KeyReqStruct {
 
-  KeyReqStruct(EmulatedJamBuffer * _jamBuffer, When when = KRS_PREPARE) {
+  KeyReqStruct(EmulatedJamBuffer * _jamBuffer, When when) :
+    changeMask()
+  {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif
@@ -1616,7 +1618,34 @@ struct KeyReqStruct {
     m_disable_fk_checks = false;
     m_tuple_ptr = NULL;
   }
-  KeyReqStruct(Dbtup* tup, When when = KRS_PREPARE) {
+
+  KeyReqStruct(EmulatedJamBuffer * _jamBuffer) :
+    changeMask(false)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    memset(this, 0xf3, sizeof(* this));
+#endif
+    jamBuffer = _jamBuffer;
+    m_when = KRS_PREPARE;
+    m_deferred_constraints = true;
+    m_disable_fk_checks = false;
+  }
+
+  KeyReqStruct(Dbtup* tup) :
+    changeMask(false)
+  {
+#if defined VM_TRACE || defined ERROR_INSERT
+    memset(this, 0xf3, sizeof(* this));
+#endif
+    jamBuffer = tup->jamBuffer();
+    m_when = KRS_PREPARE;
+    m_deferred_constraints = true;
+    m_disable_fk_checks = false;
+  }
+
+  KeyReqStruct(Dbtup* tup, When when) :
+    changeMask()
+  {
 #if defined VM_TRACE || defined ERROR_INSERT
     memset(this, 0xf3, sizeof(* this));
 #endif

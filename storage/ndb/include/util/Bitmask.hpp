@@ -1449,6 +1449,7 @@ template <unsigned size>
 class Bitmask : public BitmaskPOD<size> {
 public:
   Bitmask() { this->clear();}
+  Bitmask(bool v) { (void)v; }
 
   template<unsigned sz2> Bitmask& operator=(const Bitmask<sz2>& src){
     if (size >= sz2)
