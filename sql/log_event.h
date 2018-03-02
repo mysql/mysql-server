@@ -238,6 +238,12 @@ int ignored_error_code(int err_code);
 /* 4 bytes which all binlogs should begin with */
 #define BINLOG_MAGIC "\xfe\x62\x69\x6e"
 
+/**
+  @addtogroup group_cs_binglog_event_header_flags Binlog Event Header Flags
+  @ingroup group_cs
+  @{
+*/
+
 /*
   The 2 flags below were useless :
   - the first one was never set
@@ -333,6 +339,8 @@ int ignored_error_code(int err_code);
    a query accessing more than OVER_MAX_DBS_IN_EVENT_MTS databases.
 */
 #define LOG_EVENT_MTS_ISOLATE_F 0x200
+
+/** @}*/
 
 /**
   @def OPTIONS_WRITTEN_TO_BIN_LOG

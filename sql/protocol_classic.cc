@@ -172,7 +172,6 @@
   - @subpage page_protocol_command_phase_utility
   - @subpage page_protocol_command_phase_ps
   - @subpage page_protocol_command_phase_sp
-  - @subpage page_protocol_command_phase_replication
 
   @sa ::dispatch_command
 */
@@ -192,6 +191,7 @@
    - @subpage page_protocol_com_ping
    - @subpage page_protocol_com_change_user
    - @subpage page_protocol_com_reset_connection
+   - @subpage page_protocol_com_set_option
 */
 
 
@@ -208,6 +208,7 @@
   few new commands:
     - @subpage page_protocol_com_stmt_prepare
     - @subpage page_protocol_com_stmt_execute
+    - @subpage page_protocol_com_stmt_fetch
     - @subpage page_protocol_com_stmt_close
     - @subpage page_protocol_com_stmt_reset
     - @subpage page_protocol_com_stmt_send_long_data
@@ -222,23 +223,156 @@
 
 /**
   @page page_protocol_command_phase_sp Stored Programs
+
+  In MySQL 5.0 the protocol was extended to handle:
+   - @ref sect_protocol_command_phase_sp_multi_resultset
+   - @ref sect_protocol_command_phase_sp_multi_statement
+
+   @section sect_protocol_command_phase_sp_multi_resultset Multi-Resultset
+
+   Multi-resultsets are sent by a stored program if more than one resultset was
+   generated inside of it. e.g.:
+   ~~~~~~~~~~~~
+   CREATE TEMPORARY TABLE ins ( id INT );
+   DROP PROCEDURE IF EXISTS multi;
+   DELIMITER $$
+   CREATE PROCEDURE multi() BEGIN
+     SELECT 1;
+     SELECT 1;
+     INSERT INTO ins VALUES (1);
+     INSERT INTO ins VALUES (2);
+   END$$
+   DELIMITER ;
+
+   CALL multi();
+   DROP TABLE ins;
+   ~~~~~~~~~~~~
+
+   results in:
+   - a resultset
+   ~~~~~~~~~~~~~
+   01 00 00 01 01 17 00 00    02 03 64 65 66 00 00 00    ..........def...
+   01 31 00 0c 3f 00 01 00    00 00 08 81 00 00 00 00    .1..?...........
+   05 00 00 03 fe 00 00 0a    00 02 00 00 04 01 31 05    ..............1.
+   00 00 05 fe 00 00 0a 00                               ........
+   ~~~~~~~~~~~~~
+      - see the @ref page_protocol_basic_eof_packet
+        `05 00 00 03 fe 00 00 0a 00` with its status-flag being `0x0A`
+   - another resultset:
+   ~~~~~~~~~~~~~
+   01 00 00 06 01 17 00 00    07 03 64 65 66 00 00 00    ..........def...
+   01 31 00 0c 3f 00 01 00    00 00 08 81 00 00 00 00    .1..?...........
+   05 00 00 08 fe 00 00 0a    00 02 00 00 09 01 31 05    ..............1.
+   00 00 0a fe 00 00 0a 00                               ........
+   ~~~~~~~~~~~~~
+      - see the @ref page_protocol_basic_eof_packet
+        `05 00 00 03 fe 00 00 0a 00` with its status-flag being `0x0A`
+   - and a closing empty resultset, an @ref page_protocol_basic_ok_packet
+   ~~~~~~~~~~~~~
+   07 00 00 0b 00 01 00 02    00 00 00                   ...........
+   ~~~~~~~~~~~~~
+
+   If the ::SERVER_MORE_RESULTS_EXISTS flag ise set, that indicates more
+   resultsets will follow.
+
+   The trailing @ref page_protocol_basic_ok_packet is the response to the
+   `CALL` statement and contains the `affected_rows` count of the last
+   statement. In our case we inserted 2 rows, but only the `affected_rows`
+   of the last `INSERT` statement is returned as part of the
+   @ref page_protocol_basic_ok_packet. If the last statement is a `SELECT`,
+   the `affected_rows` count is 0.
+
+   As of MySQL 5.7.5, the resultset is followed by an
+   @ref page_protocol_basic_ok_packet, and this
+   @ref page_protocol_basic_ok_packet has the ::SERVER_MORE_RESULTS_EXISTS
+   flag set to start the processing of the next resultset.
+
+   The client has to announce that it wants multi-resultsets by either setting
+   the ::CLIENT_MULTI_RESULTS or ::CLIENT_PS_MULTI_RESULTS capabilitiy flags.
+
+   @subsection sect_protocol_command_phase_sp_multi_resultset_out_params OUT Parameter Set
+
+   Starting with MySQL 5.5.3, prepared statements can bind OUT parameters of
+   stored procedures. They are returned as an extra resultset in the
+   multi-resultset response. The client announces it can handle OUT parameters
+   by settting the ::CLIENT_PS_MULTI_RESULTS capability.
+
+   To distinguish a normal resultset from an OUT parameter set, the
+   @ref page_protocol_basic_eof_packet or (if ::CLIENT_DEPRECATE_EOF capability
+   flag is set) @ref page_protocol_basic_ok_packet that follows its field
+   definition has the ::SERVER_PS_OUT_PARAMS flag set.
+
+   @note The closing @ref page_protocol_basic_eof_packet does NOT have either
+   ::SERVER_PS_OUT_PARAMS flag nor the ::SERVER_MORE_RESULTS_EXISTS flag set.
+   Only the first @ref page_protocol_basic_eof_packet has.
+
+   @section sect_protocol_command_phase_sp_multi_statement Multi-Statement
+
+   A multi-statement is permitting ::COM_QUERY to send more than one query to
+   the server, separated by `;` characters.
+
+   The client musst announce that it wants multi-statements by either setting
+   the ::CLIENT_MULTI_STATEMENTS capability or by using
+   @ref page_protocol_com_set_option
 */
 
 /**
-  @page page_protocol_command_phase_replication Replication Protocol
+  @page page_protocol_com_set_option COM_SET_OPTION
+
+  @brief Sets options for the current connection
+
+  ::COM_SET_OPTION enables and disables server capabilities for the current
+  connection.
+
+  @note Only ::CLIENT_MULTI_STATEMENTS can be set to a
+  value defined in ::enum_mysql_set_option.
+
+  @return @ref page_protocol_basic_ok_packet on success,
+    @ref page_protocol_basic_err_packet otherwise.
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x1A] COM_SET_OPTION</td></tr>
+  <tr><td>@ref a_protocol_type_int2 "int&lt;2&gt;"</td>
+      <td>option_operation</td>
+      <td>One of ::enum_mysql_set_option</td></tr>
+  </table>
+
+  @sa ::mysql_set_server_option, ::mysql_parse
 */
 
 /**
   @page page_protocol_connection_lifecycle Connection Lifecycle
 
   The MySQL protocol is a stateful protocol. When a connection is established
-  the server initiates a \ref page_protocol_connection_phase. Once that is
+  the server initiates a @ref page_protocol_connection_phase. Once that is
   performed the connection enters the \ref page_protocol_command_phase. The
-  \ref page_protocol_command_phase ends when the connection terminates.
+  @ref page_protocol_command_phase ends when the connection terminates.
+
+  The connection can also enter @ref page_protocol_replication from
+  @ref page_protocol_connection_phase if one of the replication commands
+  is sent.
+
+  @startuml
+  [*] --> ConnectionState : client connects
+  ConnectionState: Authentication
+  ConnectionState --> [*] : Error or client disconnects
+  ConnectionState --> CommandState : Successful authentication
+  CommandState: RPC commands read/execute loop
+  CommandState --> [*] : client or server closes the connection
+  CommandState --> ReplicationMode : Replication command received
+  ReplicationMode: binlog data streamed
+  ReplicationMode --> [*] : client or server closes the connection
+  @enduml
 
   Further reading:
   - @subpage page_protocol_connection_phase
   - @subpage page_protocol_command_phase
+  - @subpage page_protocol_replication
+
 */
 
 /**
@@ -2324,15 +2458,98 @@ int Protocol_classic::read_packet() {
   stored in the @ref sect_protocol_binary_resultset_row_null_bitmap only
  */
 
+/* clang-format on */
+
 /**
   @page page_protocol_com_stmt_reset COM_STMT_RESET
-*/
 
+  ::COM_STMT_RESET resets the data of a prepared statement which was
+  accumulated with ::COM_STMT_SEND_LONG_DATA commands and closes the cursor if
+  it was opened with ::COM_STMT_EXECUTE.
+
+  The server will send a @ref page_protocol_basic_ok_packet if the
+  statement could be reset, a @ref page_protocol_basic_err_packet if not.
+
+  @return @ref page_protocol_basic_ok_packet or a
+  @ref page_protocol_basic_err_packet
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x1A] COM_STMT_RESET</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>ID of the prepared statement to reset</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~~~~
+  05 00 00 00 1a 01 00 00    00                         .........
+  ~~~~~~~~~~~~
+
+  @sa ::mysql_stmt_reset, ::mysqld_stmt_reset, ::mysql_stmt_precheck
+*/
 
 /**
   @page page_protocol_com_stmt_close COM_STMT_CLOSE
+
+  ::COM_STMT_CLOSE deallocates a prepared statement.
+
+  No response packet is sent back to the client.
+
+  @return None
+
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x19] COM_STMT_CLOSE</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>ID of the prepared statement to close</td></tr>
+  </table>
+
+  @par Example
+  ~~~~~~~~~~~~
+  05 00 00 00 19 01 00 00    00                         .........
+  ~~~~~~~~~~~~
+
+  @sa ::mysql_stmt_close, ::mysql_stmt_prepare,
+  ::mysqld_stmt_close, ::mysql_stmt_precheck
 */
-/* clang-format on */
+
+/**
+  @page page_protocol_com_stmt_fetch COM_STMT_FETCH
+
+  Fetches the requested amount of rows from
+  a resultset produced by ::COM_STMT_EXECUTE
+
+  @return @ref sect_protocol_com_stmt_fetch_response
+  <table>
+  <caption>Payload</caption>
+  <tr><th>Type</th><th>Name</th><th>Description</th></tr>
+  <tr><td>@ref a_protocol_type_int1 "int&lt;1&gt;"</td>
+      <td>status</td>
+      <td>[0x19] COM_STMT_CLOSE</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>statement_id</td>
+      <td>ID of the prepared statement to close</td></tr>
+  <tr><td>@ref a_protocol_type_int4 "int&lt;4&gt;"</td>
+      <td>num_rows</td>
+      <td>max number of rows to return</td></tr>
+  </table>
+
+  @sa ::mysqld_stmt_fetch, ::mysql_stmt_fetch
+
+  @section sect_protocol_com_stmt_fetch_response COM_STMT_FETCH Response
+
+  ::COM_STMT_FETCH may return one of:
+    - @ref sect_protocol_command_phase_sp_multi_resultset
+    - @ref page_protocol_basic_err_packet
+*/
 
 bool Protocol_classic::parse_packet(union COM_DATA *data,
                                     enum_server_command cmd) {
