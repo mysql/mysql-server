@@ -154,7 +154,7 @@ Driver_command_line_options::Driver_command_line_options(const int argc,
     } else if (check_arg(argv, i, "--cached-auth", NULL)) {
       m_auth_methods.push_back("SHA256_MEMORY");
     } else if (check_arg(argv, i, "--using-cap-auth", NULL)) {
-      m_auth_methods.push_back("CAPABILITIES");
+      m_auth_methods.push_back("FROM_CAPABILITIES");
     } else if (check_arg(argv, i, "--mysql41-auth", NULL)) {
       m_auth_methods.push_back("MYSQL41");
     } else if (check_arg_with_value(argv, i, "--debug", NULL, value)) {
