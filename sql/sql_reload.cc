@@ -142,8 +142,11 @@ bool handle_reload_request(THD *thd, unsigned long options, TABLE_LIST *tables,
   if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
     query_logger.reopen_log_file(QUERY_LOG_GENERAL);
 
-  if (options & REFRESH_ENGINE_LOG)
-    if (ha_flush_logs(NULL)) result = 1;
+  if (options & REFRESH_ENGINE_LOG) {
+    if (ha_flush_logs()) {
+      result = 1;
+    }
+  }
   if ((options & REFRESH_BINARY_LOG) || (options & REFRESH_RELAY_LOG)) {
     /*
       If handle_reload_request() is called from SIGHUP handler we have to

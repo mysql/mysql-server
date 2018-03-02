@@ -5337,9 +5337,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD *thd, bool delete_only) {
 
   /*
     Flush logs for storage engines, so that the last transaction
-    is fsynced inside storage engines.
+    is persisted inside storage engines.
   */
-  if (ha_flush_logs(NULL)) DBUG_RETURN(1);
+  if (ha_flush_logs()) {
+    DBUG_RETURN(1);
+  }
 
   ha_reset_logs(thd);
 
@@ -6369,8 +6371,9 @@ int MYSQL_BIN_LOG::new_file_impl(
   mysql_mutex_assert_owner(&LOCK_index);
 
   if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1) &&
-      (error = ha_flush_logs(NULL)))
+      (error = ha_flush_logs())) {
     goto end;
+  }
 
   if (!is_relay_log) {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
@@ -6985,9 +6988,9 @@ void MYSQL_BIN_LOG::purge() {
       if (is_instance_locked == Is_instance_backup_locked_result::NOT_LOCKED) {
         /*
           Flush logs for storage engines, so that the last transaction
-          is fsynced inside storage engines.
+          is persisted inside storage engines.
         */
-        ha_flush_logs(NULL);
+        ha_flush_logs();
         purge_logs_before_date(purge_time, true);
       }
     }
@@ -8191,7 +8194,7 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
     engine (for example, InnoDB redo log) in a group right before
     flushing them to binary log.
   */
-  ha_flush_logs(NULL, true);
+  ha_flush_logs(true);
   DBUG_EXECUTE_IF("crash_after_flush_engine_log", DBUG_SUICIDE(););
   assign_automatic_gtids_to_flush_group(first_seen);
   /* Flush thread caches to binary log. */

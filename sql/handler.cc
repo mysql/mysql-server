@@ -2292,16 +2292,10 @@ static bool flush_handlerton(THD *, plugin_ref plugin, void *arg) {
   return false;
 }
 
-bool ha_flush_logs(handlerton *db_type, bool binlog_group_flush) {
-  if (db_type == NULL) {
-    if (plugin_foreach(NULL, flush_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
-                       static_cast<void *>(&binlog_group_flush)))
-      return true;
-  } else {
-    if (db_type->state != SHOW_OPTION_YES ||
-        (db_type->flush_logs &&
-         db_type->flush_logs(db_type, binlog_group_flush)))
-      return true;
+bool ha_flush_logs(bool binlog_group_flush) {
+  if (plugin_foreach(NULL, flush_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                     static_cast<void *>(&binlog_group_flush))) {
+    return true;
   }
   return false;
 }
