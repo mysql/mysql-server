@@ -55,9 +55,6 @@ FLUSH PRIVILEGES;
 # Change user tests
 SELECT CURRENT_USER();
 CURRENT_USER()
-native@localhost
-SELECT CURRENT_USER();
-CURRENT_USER()
 sha256@localhost
 SELECT CURRENT_USER();
 CURRENT_USER()
@@ -76,10 +73,7 @@ CURRENT_USER()
 qa_test_1_user@%
 SELECT CURRENT_USER();
 CURRENT_USER()
-native@localhost
-SELECT CURRENT_USER();
-CURRENT_USER()
-native@localhost
+qa_test_1_user@%
 # Drop users
 DROP USER qa_test_1_user;
 DROP USER qa_test_1_dest;
@@ -142,9 +136,6 @@ FLUSH PRIVILEGES;
 # Change user tests
 SELECT CURRENT_USER();
 CURRENT_USER()
-native@localhost
-SELECT CURRENT_USER();
-CURRENT_USER()
 sha256@localhost
 SELECT CURRENT_USER();
 CURRENT_USER()
@@ -163,10 +154,7 @@ CURRENT_USER()
 qa_test_1_user@%
 SELECT CURRENT_USER();
 CURRENT_USER()
-native@localhost
-SELECT CURRENT_USER();
-CURRENT_USER()
-native@localhost
+qa_test_1_user@%
 # Drop users
 DROP USER qa_test_1_user;
 DROP USER qa_test_1_dest;
