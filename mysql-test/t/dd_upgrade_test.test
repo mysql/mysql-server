@@ -735,3 +735,43 @@ SHOW CREATE TABLE test.t_set;
 
 --echo # Restart the server with default options.
 --source include/start_mysqld.inc
+
+--echo #
+--echo # Bug #27512609 5.7->8.0 UPGRADE CRASH WITH DEFAULT-TIME-ZONE SET
+--echo #
+--echo #
+
+--source include/not_valgrind.inc
+
+let MYSQLD_LOG= $MYSQL_TMP_DIR/server2.log;
+
+--echo # Zip file contains data directory of a clean 5.7 server.
+--echo # made by: ./mtr --mem --mysqld=--default_time_zone="+01:00" main.1st
+--echo #
+--echo # Copy zip files from suite location to working location.
+--copy_file $MYSQLTEST_VARDIR/std_data/data57_upgrade_default_timezone_bug.zip $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug.zip
+
+--echo # Check that the file exists in the working folder.
+--file_exists $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug.zip
+
+--echo # Unzip the zip file.
+--exec unzip -qo $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug.zip -d $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug
+
+--echo # Set different paths for --datadir
+let $MYSQLD_DATADIR2 = $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data;
+
+--echo # Check that the file exits after unzip
+--file_exists $MYSQL_TMP_DIR/data57_upgrade_default_timezone_bug/data
+
+--echo # Stop DB server which was created by MTR default
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo # Start the DB server
+--exec echo "restart: --default_time_zone="+01:00" --datadir=$MYSQLD_DATADIR2 --log-error=$MYSQLD_LOG" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo # end of test
+
