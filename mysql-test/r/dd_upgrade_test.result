@@ -837,3 +837,18 @@ t_set	CREATE TABLE `t_set` (
 # Remove copied files
 # Restart the server with default options.
 # restart
+#
+# Bug #27512609 5.7->8.0 UPGRADE CRASH WITH DEFAULT-TIME-ZONE SET
+#
+#
+# Zip file contains data directory of a clean 5.7 server.
+# made by: ./mtr --mem --mysqld=--default_time_zone="+01:00" main.1st
+#
+# Copy zip files from suite location to working location.
+# Check that the file exists in the working folder.
+# Unzip the zip file.
+# Set different paths for --datadir
+# Check that the file exits after unzip
+# Stop DB server which was created by MTR default
+# Start the DB server
+# end of test
