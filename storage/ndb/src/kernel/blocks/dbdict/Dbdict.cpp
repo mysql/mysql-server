@@ -11365,11 +11365,16 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
     {
       jam();
       // save old frm and replace it by new
-      const Uint32 sz = MAX_FRM_DATA_SIZE;
-      bool ok =
-        copyRope<sz>(alterTabPtr.p->m_oldFrmData, tablePtr.p->frmData) &&
-        copyRope<sz>(tablePtr.p->frmData, newTablePtr.p->frmData);
-      ndbrequire(ok);
+      {
+        ConstRope r_frm(c_rope_pool, tablePtr.p->frmData);
+        LocalRope r_old(c_rope_pool, alterTabPtr.p->m_oldFrmData);
+        ndbrequire(r_frm.copy(r_old));
+      }
+      {
+        ConstRope r_new(c_rope_pool, newTablePtr.p->frmData);
+        LocalRope r_frm(c_rope_pool, tablePtr.p->frmData);
+        ndbrequire(r_new.copy(r_frm));
+      }
     }
 
     if (AlterTableReq::getAddAttrFlag(changeMask))
