@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -356,16 +356,31 @@ XError Protocol_impl::send(const Client_message_type_id mid,
                            const Message &msg) {
   if (m_context->m_global_error) return m_context->m_global_error;
 
-  std::string message_buffer;
+  std::string msg_buffer;
+  const std::uint8_t header_size = 5;
+  const std::size_t msg_size = msg.ByteSize();
+  msg_buffer.resize(msg_size + header_size);
+
+  if (msg_size > std::numeric_limits<uint32>::max() - header_size)
+    return XError{CR_MALFORMED_PACKET, ER_TEXT_DATA_TOO_LARGE};
 
   dispatch_send_message(mid, msg);
 
-  if (!msg.SerializeToString(&message_buffer)) {
+  if (!msg.SerializeToArray(&msg_buffer[0] + header_size, msg_size)) {
     return XError{CR_MALFORMED_PACKET, ER_TEXT_PB_SERIALIZATION_FAILED};
   }
 
-  return send(mid, reinterpret_cast<const uchar *>(message_buffer.data()),
-              message_buffer.length());
+  std::uint32_t *buf_ptr = reinterpret_cast<std::uint32_t *>(&msg_buffer[0]);
+  *buf_ptr = static_cast<std::uint32_t>(msg_size + 1);
+#ifdef WORDS_BIGENDIAN
+  std::swap(msg_buffer[0], msg_buffer[3]);
+  std::swap(msg_buffer[1], msg_buffer[2]);
+#endif
+  msg_buffer[4] = mid;
+
+  return m_sync_connection->write(
+      reinterpret_cast<const std::uint8_t *>(msg_buffer.data()),
+      msg_buffer.size());
 }
 
 XProtocol::Handler_id Protocol_impl::add_notice_handler(
