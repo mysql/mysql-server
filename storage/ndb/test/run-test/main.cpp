@@ -416,20 +416,12 @@ int main(int argc, char **argv) {
         goto cleanup;
       }
 
-      if (is_running(g_config, p_ndb) != 2) {
-        g_logger.critical("Failure on data/mgmd node(s)");
-        result = ERR_NDB_FAILED;
+      if ((result = check_ndb_or_servers_failures(g_config))) {
         break;
       }
 
-      if (is_running(g_config, p_servers) != 2) {
-        g_logger.critical("Failure on server(s)");
-        result = ERR_SERVERS_FAILED;
-        break;
-      }
-
-      if (is_running(g_config, p_clients) == 0) {
-        break;
+      if (!is_client_running(g_config)) {
+          break;
       }
 
       if (!do_command(g_config)) {
@@ -1162,25 +1154,34 @@ bool update_status(atrt_config &config, int types, bool fail_on_missing) {
   return true;
 }
 
-int is_running(atrt_config &config, int types) {
-  int found = 0, running = 0;
+int check_ndb_or_servers_failures(atrt_config &config) {
+  int result = 0;
+  const int types = p_ndb | p_servers;
   for (unsigned i = 0; i < config.m_processes.size(); i++) {
     atrt_process &proc = *config.m_processes[i];
     if ((types & proc.m_type) != 0) {
-      found++;
-      if (proc.m_proc.m_status == "running")
-        running++;
-      else {
-        if (IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0)) {
-          running++;
-        }
+      if (!(proc.m_proc.m_status == "running" ||
+          IF_WIN(proc.m_type & atrt_process::AP_MYSQLD, 0))) {
+        g_logger.critical("%s #%d not running on %s", proc.m_name.c_str(),
+                          proc.m_index, proc.m_host->m_hostname.c_str());
+        if (p_ndb & proc.m_type)
+          result = ERR_NDB_FAILED;
+        else if (p_servers & proc.m_type)
+          result = ERR_SERVERS_FAILED;
       }
     }
   }
+  return result;
+}
 
-  if (found == running) return 2;
-  if (running == 0) return 0;
-  return 1;
+bool is_client_running(atrt_config &config) {
+  for (unsigned i = 0; i < config.m_processes.size(); i++) {
+    atrt_process &proc = *config.m_processes[i];
+    if ((p_clients & proc.m_type) != 0 && proc.m_proc.m_status == "running") {
+      return true;
+    }
+  }
+  return false;
 }
 
 bool wait_for_processes_to_stop(atrt_config &config, int types, int retries,
