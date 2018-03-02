@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,7 +154,8 @@ bool wait_for_processes_to_stop(atrt_config& config,
 bool wait_for_process_to_stop(atrt_config& config, atrt_process& proc,
                               int retries = 5, int wait_between_retries_s = 5);
 
-int is_running(atrt_config&, int);
+int check_ndb_or_servers_failures(atrt_config& config);
+bool is_client_running(atrt_config&);
 bool gather_result(atrt_config&, int* result);
 
 int read_test_case(FILE*, atrt_testcase&, int& line);
