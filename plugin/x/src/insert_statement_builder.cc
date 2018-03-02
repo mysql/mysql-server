@@ -121,9 +121,9 @@ void Insert_statement_builder::add_upsert(const bool is_relational) const {
         "Unable update on duplicate key for TABLE data model");
   m_builder.put(
       " ON DUPLICATE KEY UPDATE"
-      " doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc),"
-      " '$._id'), VALUES(doc), MYSQLX_ERROR(" STRINGIFY_ARG(
-          ER_X_BAD_UPSERT_DATA) "))");
+      " doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id'))"
+      " = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')),"
+      " VALUES(doc), MYSQLX_ERROR(" STRINGIFY_ARG(ER_X_BAD_UPSERT_DATA) "))");
 }
 
 bool Insert_statement_builder::add_document_literal(

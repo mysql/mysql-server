@@ -28,7 +28,7 @@ INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"one\"}')
 1 rows affected
 Query
 SELECT @@mysqlx_document_id_unique_prefix,@@auto_increment_offset,@@auto_increment_increment
-INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_EXTRACT(doc, '$._id') = JSON_EXTRACT(VALUES(doc), '$._id'), VALUES(doc), MYSQLX_ERROR(5018))
+INSERT INTO `xtest`.`test` (doc) VALUES ('{\"_id\": \"two\"}') ON DUPLICATE KEY UPDATE doc = IF(JSON_UNQUOTE(JSON_EXTRACT(doc, '$._id')) = JSON_UNQUOTE(JSON_EXTRACT(VALUES(doc), '$._id')), VALUES(doc), MYSQLX_ERROR(5018))
 0 rows affected
 ######### Crud.Update #########
 
