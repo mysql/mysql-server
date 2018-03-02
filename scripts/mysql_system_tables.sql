@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -32,11 +32,6 @@ SET FOREIGN_KEY_CHECKS= 1;
 
 # Added sql_mode elements and making it as SET, instead of ENUM
 
---
--- New DD schema end
---
-
-set sql_mode='';
 set default_storage_engine=InnoDB;
 
 CREATE TABLE IF NOT EXISTS db

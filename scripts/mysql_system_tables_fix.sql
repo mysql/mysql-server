@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -30,8 +30,13 @@
 # Warning message(s) produced for a statement can be printed by explicitly
 # adding a 'SHOW WARNINGS' after the statement.
 
-set sql_mode='';
 set default_storage_engine=InnoDB;
+
+# We meed to turn off the default strict mode in case legacy data contains e.g.
+# zero dates ('0000-00-00-00:00:00'), otherwise, we risk to end up with
+# e.g. failing ALTER TABLE statements and incorrect table definitions.
+
+SET @old_sql_mode = @@session.sql_mode, @@session.sql_mode = '';
 
 # Create a user mysql.infoschema@localhost as the owner of views in information_schema.
 # That user should be created at the beginning of the script, because a query against a
@@ -1062,3 +1067,5 @@ ALTER TABLE mysql.slave_worker_info TABLESPACE = mysql;
 ALTER TABLE mysql.gtid_executed TABLESPACE = mysql;
 ALTER TABLE mysql.server_cost TABLESPACE = mysql;
 ALTER TABLE mysql.engine_cost TABLESPACE = mysql;
+
+SET @@session.sql_mode = @old_sql_mode;
