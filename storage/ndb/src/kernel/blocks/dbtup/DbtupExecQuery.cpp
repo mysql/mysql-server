@@ -2888,7 +2888,7 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 /* TO THE CLIENT APPLICATION.                                       */
 /* THERE IS A FIFTH REGION WHICH CONTAINS SUBROUTINES CALLABLE FROM */
 /* THE INTERPRETER EXECUTION REGION.                                */
-/* THE FIRST FIVE WORDS WILL GIVE THE LENGTH OF THE FIVEE REGIONS   */
+/* THE FIRST FIVE WORDS WILL GIVE THE LENGTH OF THE FIVE REGIONS    */
 /*                                                                  */
 /* THIS MEANS THAT FROM THE APPLICATIONS POINT OF VIEW THE DATABASE */
 /* CAN HANDLE SUBROUTINE CALLS WHERE THE CODE IS SENT IN THE REQUEST*/
@@ -2912,6 +2912,21 @@ Dbtup::checkNullAttributes(KeyReqStruct * req_struct,
 /*       -----------------------------------------                  */
 /*       +   SUBROUTINE REGION                   +                  */
 /*       -----------------------------------------                  */
+/*                                                                  */
+/* For read operations it only makes sense to first perform the     */
+/* interpreted execution (this will perform condition pushdown      */
+/* where we evaluate the conditions that are not evaluated by       */
+/* ranges implied by the scan operation. These conditions pushed    */
+/* down can essentially check any type of condition.                */
+/*                                                                  */
+/* Since it only makes sense to interpret before reading we delay   */
+/* the initial read to after interpreted execution for read         */
+/* operations. This is safe from a protocol point of view since the */
+/* interpreted execution cannot generate Attrinfo data.             */
+/*                                                                  */
+/* For updates it still makes sense to handle initial read and      */
+/* final read separately since we might want to read values before  */
+/* and after changes, the interpreter can write column values.      */
 /* ---------------------------------------------------------------- */
 /* ---------------------------------------------------------------- */
 /* ----------------- INTERPRETED EXECUTION  ----------------------- */
@@ -2961,9 +2976,10 @@ int Dbtup::interpreterStartLab(Signal* signal,
    * is generated from here on so reset the log word count
    */
   Uint32 RlogSize= req_struct->log_size= 0;
-  if (((RtotalLen + 5) == RattrinbufLen) &&
-      (RattrinbufLen >= 5) &&
-      (RattrinbufLen < ZATTR_BUFFER_SIZE)) {
+  if (likely(((RtotalLen + 5) == RattrinbufLen) &&
+             (RattrinbufLen >= 5) &&
+             (RattrinbufLen < ZATTR_BUFFER_SIZE)))
+  {
     /* ---------------------------------------------------------------- */
     // We start by checking consistency. We must have the first five
     // words of the ATTRINFO to give us the length of the regions. The
@@ -2971,29 +2987,44 @@ int Dbtup::interpreterStartLab(Signal* signal,
     // length and finally the total length must be within the limits.
     /* ---------------------------------------------------------------- */
 
-    if (RinitReadLen > 0) {
-      jamDebug();
-      /* ---------------------------------------------------------------- */
-      // The first step that can be taken in the interpreter is to read
-      // data of the tuple before any updates have been applied.
-      /* ---------------------------------------------------------------- */
-      TnoDataRW= readAttributes(req_struct,
-				 &cinBuffer[5],
-				 RinitReadLen,
-				 &dst[0],
-				 dstLen,
-                                 false);
-      if (TnoDataRW >= 0) {
-	RattroutCounter= TnoDataRW;
-	RinstructionCounter += RinitReadLen;
-      } else {
-	jam();
-        terrorCode = Uint32(-TnoDataRW);
-	tupkeyErrorLab(req_struct);
-	return -1;
+    if (likely(RinitReadLen > 0))
+    {
+      if (likely(regOperPtr->op_type == ZREAD))
+      {
+        jamDebug();
+        RinstructionCounter += RinitReadLen;
+      }
+      else
+      {
+        jamDebug();
+        /* ---------------------------------------------------------------- */
+        // The first step that can be taken in the interpreter is to read
+        // data of the tuple before any updates have been applied.
+        /* ---------------------------------------------------------------- */
+        TnoDataRW= readAttributes(req_struct,
+                                  &cinBuffer[5],
+                                  RinitReadLen,
+                                  &dst[0],
+                                  dstLen,
+                                  false);
+        if (TnoDataRW >= 0)
+        {
+          jamDebug();
+          RattroutCounter= TnoDataRW;
+          RinstructionCounter += RinitReadLen;
+          RinitReadLen = 0;
+        }
+        else
+        {
+          jam();
+          terrorCode = Uint32(-TnoDataRW);
+          tupkeyErrorLab(req_struct);
+          return -1;
+        }
       }
     }
-    if (RexecRegionLen > 0) {
+    if (RexecRegionLen > 0)
+    {
       jamDebug();
       /* ---------------------------------------------------------------- */
       // The next step is the actual interpreted execution. This executes
@@ -3004,30 +3035,33 @@ int Dbtup::interpreterStartLab(Signal* signal,
         + RfinalUpdateLen + RfinalRLen;     
       TnoDataRW= interpreterNextLab(signal,
                                      req_struct,
-				     &clogMemBuffer[0],
-				     &cinBuffer[RinstructionCounter],
-				     RexecRegionLen,
-				     &cinBuffer[RsubPC],
-				     RsubLen,
-				     &coutBuffer[0],
-				     sizeof(coutBuffer) / 4);
-      if (TnoDataRW != -1) {
-	RinstructionCounter += RexecRegionLen;
-	RlogSize= TnoDataRW;
+                                     &clogMemBuffer[0],
+                                     &cinBuffer[RinstructionCounter],
+                                     RexecRegionLen,
+                                     &cinBuffer[RsubPC],
+                                     RsubLen,
+                                     &coutBuffer[0],
+                                     sizeof(coutBuffer) / 4);
+      if (TnoDataRW != -1)
+      {
+        jamDebug();
+        RinstructionCounter += RexecRegionLen;
+        RlogSize= TnoDataRW;
       }
       else
       {
-	jamDebug();
-	/**
-	 * TUPKEY REF is sent from within interpreter
-	 */
-	return -1;
+        jamDebug();
+        /**
+         * TUPKEY REF is sent from within interpreter
+         */
+        return -1;
       }
     }
 
     if ((RlogSize > 0) ||
         (RfinalUpdateLen > 0))
     {
+      jamDebug();
       /* Operation updates row,
        * reset author pseudo-col before update takes effect
        * This should probably occur only if the interpreted program
@@ -3046,51 +3080,87 @@ int Dbtup::interpreterStartLab(Signal* signal,
       }
     }
 
-    if (RfinalUpdateLen > 0) {
-      jam();
+    if (unlikely(RfinalUpdateLen > 0))
+    {
       /* ---------------------------------------------------------------- */
       // We can also apply a set of updates without any conditions as part
       // of the interpreted execution.
       /* ---------------------------------------------------------------- */
-      if (regOperPtr->op_type == ZUPDATE) {
-	TnoDataRW= updateAttributes(req_struct,
-				     &cinBuffer[RinstructionCounter],
-				     RfinalUpdateLen);
-	if (TnoDataRW >= 0) {
-	  MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
-			   &cinBuffer[RinstructionCounter],
-			   RfinalUpdateLen);
-	  RinstructionCounter += RfinalUpdateLen;
-	  RlogSize += RfinalUpdateLen;
-	} else {
-	  jam();
+      if (regOperPtr->op_type == ZUPDATE)
+      {
+        jamDebug();
+        TnoDataRW= updateAttributes(req_struct,
+                                    &cinBuffer[RinstructionCounter],
+                                    RfinalUpdateLen);
+        if (TnoDataRW >= 0)
+        {
+          jamDebug();
+          MEMCOPY_NO_WORDS(&clogMemBuffer[RlogSize],
+                           &cinBuffer[RinstructionCounter],
+                           RfinalUpdateLen);
+          RinstructionCounter += RfinalUpdateLen;
+          RlogSize += RfinalUpdateLen;
+        }
+        else
+        {
+          jam();
           terrorCode = Uint32(-TnoDataRW);
-	  tupkeyErrorLab(req_struct);
-	  return -1;
-	}
-      } else {
-	return TUPKEY_abort(req_struct, 19);
+          tupkeyErrorLab(req_struct);
+          return -1;
+        }
+      }
+      else
+      {
+        jamDebug();
+        return TUPKEY_abort(req_struct, 19);
       }
     }
-    if (RfinalRLen > 0) {
-      jam();
+    if (likely(RinitReadLen > 0))
+    {
+      jamDebug();
+      TnoDataRW= readAttributes(req_struct,
+                                &cinBuffer[5],
+                                RinitReadLen,
+                                &dst[0],
+                                dstLen,
+                                false);
+      if (TnoDataRW >= 0)
+      {
+        jamDebug();
+        RattroutCounter = TnoDataRW;
+      }
+      else
+      {
+        jam();
+        terrorCode = Uint32(-TnoDataRW);
+        tupkeyErrorLab(req_struct);
+        return -1;
+      }
+    }
+    if (RfinalRLen > 0)
+    {
+      jamDebug();
       /* ---------------------------------------------------------------- */
       // The final action is that we can also read the tuple after it has
       // been updated.
       /* ---------------------------------------------------------------- */
       TnoDataRW= readAttributes(req_struct,
-				 &cinBuffer[RinstructionCounter],
-				 RfinalRLen,
-				 &dst[RattroutCounter],
-				 (dstLen - RattroutCounter),
+                                &cinBuffer[RinstructionCounter],
+                                RfinalRLen,
+                                &dst[RattroutCounter],
+                                (dstLen - RattroutCounter),
                                  false);
-      if (TnoDataRW >= 0) {
-	RattroutCounter += TnoDataRW;
-      } else {
-	jam();
+      if (TnoDataRW >= 0)
+      {
+        jamDebug();
+        RattroutCounter += TnoDataRW;
+      }
+      else
+      {
+        jam();
         terrorCode = Uint32(-TnoDataRW);
-	tupkeyErrorLab(req_struct);
-	return -1;
+        tupkeyErrorLab(req_struct);
+        return -1;
       }
     }
     /* Add log words explicitly generated here to existing log size
@@ -3100,11 +3170,14 @@ int Dbtup::interpreterStartLab(Signal* signal,
      */
     req_struct->log_size+= RlogSize;
     sendReadAttrinfo(signal, req_struct, RattroutCounter);
-    if (RlogSize > 0) {
+    if (RlogSize > 0)
+    {
       return sendLogAttrinfo(signal, req_struct, RlogSize, regOperPtr);
     }
     return 0;
-  } else {
+  }
+  else
+  {
     return TUPKEY_abort(req_struct, 22);
   }
 }
