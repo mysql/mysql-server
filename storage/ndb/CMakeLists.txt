@@ -106,6 +106,7 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_metadata.cc
   ../../sql/ndb_dd_disk_data.cc
   ../../sql/ndb_dd_upgrade_table.cc
+  ../../sql/ndb_binlog_hooks.cc
 )
 
 # Include directories used when building ha_ndbcluster
