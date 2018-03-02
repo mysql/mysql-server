@@ -30,6 +30,9 @@
 
 #define JAM_FILE_ID 316
 
+// Optimally ROPE_COPY_BUFFER_SIZE should be evenly divisible by 28 (4*sz)
+#define ROPE_COPY_BUFFER_SIZE 5600
+
 
 typedef DataBuffer<7,ArrayPool<DataBufferSegment<7> > > RopeBase;
 typedef RopeBase::DataBufferPool RopePool;
@@ -61,6 +64,7 @@ public:
   bool empty() const;
 
   void copy(char* buf) const;
+  bool copy(class LocalRope & dest);
 
   /* Returns number of bytes read, or 0 at EOF.
      Context is maintained in rope_offset.

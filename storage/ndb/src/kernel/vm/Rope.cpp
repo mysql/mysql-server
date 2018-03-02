@@ -29,6 +29,8 @@
 
 #ifdef TEST_ROPE
 #define DEBUG_ROPE 1
+#undef ROPE_COPY_BUFFER_SIZE
+#define ROPE_COPY_BUFFER_SIZE 24
 #else
 #define DEBUG_ROPE 0
 #endif
@@ -96,6 +98,18 @@ ConstRope::copy(char* buf) const {
   readBuffered(buf, m_length, offset);
   if(DEBUG_ROPE)
     ndbout_c("ConstRope::copy()-> %s", buf);
+}
+
+bool ConstRope::copy(LocalRope & dest) {
+  const int bufsize = ROPE_COPY_BUFFER_SIZE;
+  char buffer[bufsize];
+  int nread;
+  Uint32 offset = 0;
+  dest.erase();
+  while((nread = readBuffered(buffer, bufsize, offset)) > 0)
+    if(! dest.appendBuffer(buffer, nread))
+      return false;
+  return true;
 }
 
 int
@@ -295,8 +309,10 @@ int main(int argc, char ** argv) {
   {
     LocalRope lr6(c_rope_pool, h6);
   }
-  ConstRope cr6(c_rope_pool, h6);
-  cr6.copy(buffer_sml);
+  {
+    ConstRope cr6(c_rope_pool, h6);
+    cr6.copy(buffer_sml);
+  }
 
   /* Assign & copy a string that is exactly the size as a rope segment */
   const char * str28 = "____V____X____V____X____VII";
@@ -333,29 +349,57 @@ int main(int argc, char ** argv) {
   /* Test buffered-style writing to LocalRope
   */
   printf(" --> START appendBuffer TEST <-- \n");
-  LocalRope lr2(c_rope_pool, h2);
-  lr2.appendBuffer(a_string, 40);
-  printf("lr2 size: %d \n", lr2.size());
-  assert(lr2.size() == 40);
-  lr2.appendBuffer(a_string, 40);
-  printf("lr2 size: %d \n", lr2.size());
-  assert(lr2.size() == 80);
-
+  {
+    LocalRope lr2(c_rope_pool, h2);
+    lr2.appendBuffer(a_string, 40);
+    printf("lr2 size: %d \n", lr2.size());
+    assert(lr2.size() == 40);
+    lr2.appendBuffer(a_string, 40);
+    printf("lr2 size: %d \n", lr2.size());
+    assert(lr2.size() == 80);
+  }
   /* Identical strings should have the same hash code whether they were stored
      in one part or in two.  Here is a scope for two local ropes that should
      end up with the same hash.
   */
   {
+    ndbout_c("Hash test h3:");
     LocalRope lr3(c_rope_pool, h3);
     lr3.assign(a_string, 16);
     lr3.appendBuffer(a_string + 16, 16);
 
+    ndbout_c("Hash test h4:");
     LocalRope lr4(c_rope_pool, h4);
     lr4.assign(a_string, 32);
   }
-  printf("Hashes:  h3=%u, h4=%u \n", h3.m_hash, h4.m_hash);
-  assert(h3.m_hash == h4.m_hash);
+  printf("Hashes:  h3=%u, h4=%u \n", h3.hashValue(), h4.hashValue());
+  assert(h3.hashValue() == h4.hashValue());
   printf(" --> END appendBuffer TEST <-- \n");
+
+  /* Test ConstRope::copy(LocalRope &)
+  */
+  ndbout_c(" --> START ConstRope::copy() TEST <--");
+  ConstRope cr2(c_rope_pool, h2);
+  printf("cr2 size: %d \n", cr2.size());
+  assert(cr2.size() == 80);
+  {
+    LocalRope lr3(c_rope_pool, h3);
+    cr2.copy(lr3);
+    printf("lr3 size: %d \n", lr3.size());
+    assert(lr3.size() == 80);
+  }
+  ConstRope cr3(c_rope_pool, h3);
+  assert(cr3.size() == 80);
+  assert(h2.hashValue() == h3.hashValue());
+  assert(cr2.equal(cr3));
+  ndbout_c(" --> END ConstRope::copy() TEST <--");
+
+  /* Test that RopeHandles can be assigned */
+  h6 = h3;
+  assert(h6.hashValue() == h3.hashValue());
+  ConstRope cr6(c_rope_pool, h6);
+  assert(cr6.size() == cr3.size());
+  assert(cr3.equal(cr6));
 
   ndb_end(0);
   return 0;
