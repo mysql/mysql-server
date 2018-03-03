@@ -89,7 +89,7 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
     const ScanBound& scanBound = scan.m_scanBound[idir];
     KeyDataC searchBoundData(index.m_keySpec, true);
     KeyBoundC searchBound(searchBoundData);
-    unpackBound(c_ctx, scanBound, searchBound);
+    unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
     searchToScan(frag, idir, searchBound, pos2);
     // committed read (same timeslice) and range not empty
     ndbrequire(pos2.m_loc != NullTupLoc);

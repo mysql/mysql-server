@@ -54,7 +54,7 @@ Dbtux::prepare_scan_bounds()
                             KeyDataC(index.m_keySpec, true);
     c_ctx.searchBound = new (c_ctx.searchBound)
                         KeyBoundC(*c_ctx.searchBoundData);
-    unpackBound(c_ctx, scanBound, *c_ctx.searchBound);
+    unpackBound(c_ctx.c_nextKey, scanBound, *c_ctx.searchBound);
 /*
     c_ctx.entryKey = new (c_ctx.entryKey)
                         KeyData(index.m_keySpec, true, 0);
@@ -910,7 +910,7 @@ Dbtux::scanFirst(ScanOpPtr scanPtr, Frag& frag, const Index& index)
   const ScanBound& scanBound = scan.m_scanBound[idir];
   KeyDataC searchBoundData(index.m_keySpec, true);
   KeyBoundC searchBound(searchBoundData);
-  unpackBound(c_ctx, scanBound, searchBound);
+  unpackBound(c_ctx.c_searchKey, scanBound, searchBound);
   TreePos treePos;
   searchToScan(frag, idir, searchBound, treePos);
   if (treePos.m_loc != NullTupLoc)
@@ -1282,10 +1282,6 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
   {
     const unsigned idir = c_ctx.descending;
     const int jdir = 1 - 2 * (int)idir;
-    const ScanBound& scanBound = scan.m_scanBound[1 - idir];
-    KeyDataC searchBoundData(c_ctx.indexPtr.p->m_keySpec, true);
-    KeyBoundC searchBound(searchBoundData);
-    unpackBound(c_ctx, scanBound, searchBound);
     KeyData keyData(c_ctx.indexPtr.p->m_keySpec, true, 0);
     keyData.set_buf(c_ctx.c_entryKey, MaxAttrDataSize << 2);
     readKeyAttrsCurr(c_ctx,
@@ -1293,11 +1289,9 @@ Dbtux::scanCheck(ScanOpPtr scanPtr, TreeEnt ent, Frag& frag)
                      ent,
                      keyData,
                      c_ctx.numAttrs);
-    jamLineDebug(c_ctx.numAttrs);
-    jamLineDebug(c_ctx.boundCnt);
     // compare bound to key
     ret = cmpSearchBound(c_ctx,
-                         searchBound,
+                         *c_ctx.searchBound,
                          keyData,
                          c_ctx.boundCnt);
     ndbrequire(ret != 0);
