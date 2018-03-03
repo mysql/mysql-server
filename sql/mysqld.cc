@@ -2844,18 +2844,87 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
     if (MyFlags & ME_FATALERROR) thd->is_fatal_error = 1;
 
     if (!handle) (void)thd->raise_condition(error, NULL, level, str, false);
+
+    /*
+      Only error-codes from the client range should be seen here.
+      We'll assert this here (rather than in raise_condition) as
+      SQL's SIGNAL command calls that as well, and is currently
+      allowed to set any error-code. Those values will be handled
+      in a uniform way, that is to say, SIGNALing an error-code
+      from the error-log range will not result in writing to that
+      log to prevent abuse.
+      We're bailing after rather than before printing to make the
+      culprit easier to track down.)
+    */
+    DBUG_ASSERT(errno < ER_SERVER_RANGE_START);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
   DBUG_EXECUTE_IF("simulate_out_of_memory", DBUG_VOID_RETURN;);
 
-  if (!thd || MyFlags & ME_ERRORLOG) {
+  /*
+    Caller wishes to send to both the client and the error-log.
+    This is legacy behaviour that is no longer legal as errors flagged
+    to a client and those sent to the error-log are in different
+    numeric ranges now. If you own code that does this, see about
+    updating it by splitting it into two calls, one sending status
+    to the client, the other sending it to the error-log using
+    LogErr() and friends.
+  */
+  if (MyFlags & ME_ERRORLOG) {
+    /*
+      We've removed most uses of ME_ERRORLOG in the server.
+      This leaves three possible cases:
+
+      - EE_OUTOFMEMORY: Correct to ER_SERVER_OUT_OF_RESOURCES so
+                        mysys can remain logger-agnostic.
+      - HA_* range:     Correct to catch-all ER_SERVER_HANDLER_ERROR.
+      - otherwise:      Flag as using info from the diagnostics area
+                        (ER_ERROR_INFO_FROM_DA). This is a failsafe;
+                        if your code triggers it, your code is probably
+                        wrong.
+    */
+    if ((error == EE_OUTOFMEMORY) || (error == HA_ERR_OUT_OF_MEM))
+      error = ER_SERVER_OUT_OF_RESOURCES;
+    else if (error <= HA_ERR_LAST)
+      error = ER_SERVER_HANDLER_ERROR;
+
+    if (error < ER_SERVER_RANGE_START)
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .errcode(ER_ERROR_INFO_FROM_DA)
+          .lookup(ER_ERROR_INFO_FROM_DA, error, str);
+    else
+      LogEvent()
+          .type(LOG_TYPE_ERROR)
+          .prio(ERROR_LEVEL)
+          .errcode(error)
+          .verbatim(str);
+
+    /*
+      This is no longer supported behaviour except for the cases
+      outlined above, so flag anything else in debug builds!
+      (We're bailing after rather than before printing to make the
+      culprit easier to track down.)
+    */
+    DBUG_ASSERT((error == ER_FEATURE_NOT_AVAILABLE) ||
+                (error >= ER_SERVER_RANGE_START));
+  }
+
+  /*
+    Caller wishes to send to client, but none is attached, so we send
+    to error-log instead.
+  */
+  else if (!thd) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .subsys(LOG_SUBSYSTEM_TAG)
         .prio(ERROR_LEVEL)
-        .errcode(error)
-        .message("%s: %s", my_progname, str);
+        .errcode((error < ER_SERVER_RANGE_START)
+                     ? ER_SERVER_NO_SESSION_TO_SEND_TO
+                     : error)
+        .lookup(ER_SERVER_NO_SESSION_TO_SEND_TO, error, str);
   }
 
   DBUG_VOID_RETURN;

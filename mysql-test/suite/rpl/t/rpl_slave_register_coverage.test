@@ -21,7 +21,7 @@ CREATE USER rpl_user;
 CHANGE MASTER TO master_user='rpl_user';
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 1597
+--let $slave_io_errno= 13120
 --source include/wait_for_slave_io_error.inc
 
 CALL mtr.add_suppression(".*Slave I/O thread couldn't register on master.*");

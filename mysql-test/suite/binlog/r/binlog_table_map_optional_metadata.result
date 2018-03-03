@@ -67,7 +67,7 @@ CREATE TABLE t1(c_char CHAR(10), c_varchar VARCHAR(500),
 c_tinytext TINYTEXT, c_text TEXT,
 c_mediumtext MEDIUMTEXT, c_longtext LONGTEXT CHARSET utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET GLOBAL binlog_row_metadata = MINIMAL;
 INSERT INTO t1(c_char) VALUES("1");
 Matching lines are:
@@ -88,9 +88,9 @@ CREATE TABLE t1(c_char_utf8 CHAR(10) CHARSET utf8,
 c_varchar_utf8 VARCHAR(10) CHARSET utf8,
 c_text_utf8 TEXT CHARSET utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES("1", "2", "3");
 Matching lines are:
 # Columns(`c_char_utf8` CHAR(10), `c_varchar_utf8` VARCHAR(10), `c_text_utf8` TEXT) DEFAULT CHARSET utf8 COLLATE utf8_general_ci

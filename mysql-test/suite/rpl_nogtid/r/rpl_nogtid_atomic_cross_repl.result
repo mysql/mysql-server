@@ -12,7 +12,7 @@ SET @@global.debug="+d,simulate_error_in_ddl";
 [connection master]
 CREATE TABLE t1(a int);
 [connection slave]
-include/wait_for_slave_sql_error.inc [errno=3002]
+include/wait_for_slave_sql_error.inc [errno=13113]
 DROP TABLE t1;
 SET @@global.debug="-d,simulate_error_in_ddl";
 include/start_slave_sql.inc

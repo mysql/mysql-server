@@ -151,7 +151,7 @@ INSERT INTO global_suppressions VALUES
  ("Slave: Table .* doesn't exist"),
  ("Slave: Table width mismatch"),
  ("Slave: The incident LOST_EVENTS occured on the master"),
- ("Slave: Unknown error.* 1105"),
+ ("Slave: Unknown error.* MY-001105"),
  ("Slave: Can't drop database.* database doesn't exist"),
  ("Sort aborted"),
  ("Time-out in NDB"),

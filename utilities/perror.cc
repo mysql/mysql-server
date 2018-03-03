@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@
 #include "m_string.h"
 #include "my_getopt.h"
 #include "my_sys.h"
+#include "mysys_err.h"
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #define PERROR_VERSION "2.11"
 #include "storage/ndb/include/mgmapi/mgmapi_error.h"
@@ -162,8 +163,16 @@ static st_error global_error_names[] = {
   @param [out] msg_ptr the error text, when found
   @return 1 when found, otherwise 0
 */
-int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr) {
+int get_ER_error_msg_by_code(uint code, const char **name_ptr,
+                             const char **msg_ptr) {
   st_error *tmp_error;
+
+  /* handle "global errors" */
+  if ((code >= EE_ERROR_FIRST) && (code <= EE_ERROR_LAST)) {
+    *name_ptr = NULL;
+    *msg_ptr = globerrs[code - EE_ERROR_FIRST];
+    return 1;
+  }
 
   tmp_error = &global_error_names[0];
 
@@ -173,6 +182,22 @@ int get_ER_error_msg(uint code, const char **name_ptr, const char **msg_ptr) {
       *msg_ptr = tmp_error->text;
       return 1;
     }
+    tmp_error++;
+  }
+
+  return 0;
+}
+
+/**
+  Lookup an error by symbol in the global_error_names array.
+  @param symbol the symbol to lookup
+  @return code >0 when found, otherwise 0
+*/
+int get_ER_error_msg_by_symbol(const char *symbol) {
+  st_error *tmp_error = &global_error_names[0];
+
+  while (tmp_error->name != NULL) {
+    if (0 == strcmp(tmp_error->name, symbol)) return tmp_error->code;
     tmp_error++;
   }
 
@@ -259,7 +284,16 @@ int main(int argc, char *argv[]) {
 
     for (; argc-- > 0; argv++) {
       found = 0;
+
       code = atoi(*argv);
+
+      if ((*argv != nullptr) && (strlen(*argv) > 3)) {
+        if (0 == strncmp(*argv, "MY-", 3))
+          code = atoi(((char *)*argv) + 3);
+        else if (0 == strncmp(*argv, "ER_", 3))
+          code = get_ER_error_msg_by_symbol((char *)*argv);
+      }
+
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
       if (ndb_code) {
         if ((ndb_error_string(code, ndb_string, sizeof(ndb_string)) < 0) &&
@@ -307,15 +341,18 @@ int main(int argc, char *argv[]) {
       if ((msg = get_ha_error_msg(code))) {
         found = 1;
         if (verbose)
-          printf("MySQL error code %3d: %s\n", code, msg);
+          printf("MySQL error code MY-%06d (handler): %s\n", code, msg);
         else
           puts(msg);
       }
-      if (get_ER_error_msg(code, &name, &msg)) {
+      if (get_ER_error_msg_by_code(code, &name, &msg)) {
         found = 1;
-        if (verbose)
-          printf("MySQL error code %3d (%s): %s\n", code, name, msg);
-        else
+        if (verbose) {
+          if (name != nullptr)
+            printf("MySQL error code MY-%06d (%s): %s\n", code, name, msg);
+          else
+            printf("MySQL error code MY-%06d: %s\n", code, msg);
+        } else
           puts(msg);
       }
       if (!found) {

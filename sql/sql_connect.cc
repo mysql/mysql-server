@@ -773,13 +773,14 @@ static void prepare_new_connection_state(THD *thd) {
           .user(sctx_user)
           .host(sctx->host_or_ip())
           .source_file(MY_BASENAME)
-          .errcode(da->mysql_errno())
+          .errcode(ER_SERVER_NEW_ABORTING_CONNECTION)
           .sqlstate(da->returned_sqlstate())
           .string_value(LOG_TAG_DIAG, da->message_text())
           .string_value(LOG_TAG_AUX, what)
-          .lookup(ER_NEW_ABORTING_CONNECTION, thd->thread_id(),
+          .lookup(ER_SERVER_NEW_ABORTING_CONNECTION, thd->thread_id(),
                   thd->db().str ? thd->db().str : "unconnected", user,
-                  sctx->host_or_ip().str, what);
+                  sctx->host_or_ip().str, what, da->mysql_errno(),
+                  da->message_text());
 
       thd->lex->set_current_select(0);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);

@@ -20,7 +20,7 @@ ERROR HY000: Event 'ДоЛеН_регистър_1251' already exists
 DROP EVENT ДоЛеН_регистър_1251;
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE EVENT РґРѕР»РµРЅ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 3 YEAR DO SELECT 300;
 CREATE EVENT Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8 ON SCHEDULE EVERY 4 YEAR DO SELECT 400;
 ERROR HY000: Event 'Р”РћР›Р•Рќ_СЂРµРіРёСЃС‚СЉСЂ_СѓС‚С„8' already exists

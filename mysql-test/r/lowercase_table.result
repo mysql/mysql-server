@@ -86,7 +86,7 @@ show tables;
 Tables_in_test
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 drop table if exists İ,İİ;
 create table İ (s1 int);
 show create table İ;

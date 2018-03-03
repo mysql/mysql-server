@@ -529,7 +529,7 @@ static int test_throttle(log_filter_ruleset *rs) {
     r->cond = LOG_FILTER_COND_EQ;
     // match information: type MySQL error code, class integer
     log_bi->item_set(&r->match, LOG_ITEM_SQL_ERRCODE)->data_integer =
-        ER_UNKNOWN_ERROR_NUMBER;
+        ER_SERVER_TEST_MESSAGE;
 
     // action/verb: throttle (rate-limit)
     r->verb = LOG_FILTER_THROTTLE;
@@ -566,7 +566,7 @@ static int test_throttle(log_filter_ruleset *rs) {
           .component(LOG_COMPONENT_TAG)
           .source_line(__LINE__)
           .source_file(MY_NAME)
-          .lookup(ER_UNKNOWN_ERROR_NUMBER, 1);
+          .lookup(ER_SERVER_TEST_MESSAGE);
   }
 
   if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0) {
@@ -643,10 +643,10 @@ static void banner() {
                   "using log_message() with errno 0");
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_LOG_LOOKUP, (longlong)ER_SYSTEM_SCHEMA_NOT_FOUND);
+                  LOG_ITEM_LOG_LOOKUP, (longlong)ER_SERVER_TEST_MESSAGE);
 
   log_bi->message(LOG_TYPE_ERROR, LOG_ITEM_LOG_PRIO, (longlong)ERROR_LEVEL,
-                  LOG_ITEM_SQL_ERRSYMBOL, "ER_PARSER_TRACE",
+                  LOG_ITEM_SQL_ERRSYMBOL, "ER_SERVER_TEST_MESSAGE",
                   LOG_ITEM_LOG_VERBATIM, "using log_message() with errsymbol");
 
   /*

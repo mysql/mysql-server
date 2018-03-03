@@ -230,7 +230,7 @@ create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innod
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
 alter table t1 convert to character set utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set foreign_key_checks=1;
 drop table t2,t1;
 TODO: NEWDD: Bug 25722927 - NEWDD FK: ALTER TABLE CHANGE COLUMN TYPE SHOULD CHECK FK CONSTRAINT
@@ -586,7 +586,7 @@ a BIGINT(20) NOT NULL,
 PRIMARY KEY  (a)
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 a BIGINT(20) NOT NULL,
 b VARCHAR(128) NOT NULL,
@@ -597,7 +597,7 @@ CONSTRAINT t_fk FOREIGN KEY (a) REFERENCES t1 (a)
 ON DELETE CASCADE
 ) ENGINE=INNODB DEFAULT CHARSET=UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1, 'bar', 'vbar');
 INSERT INTO t2 VALUES (1, 'BAR2', 'VBAR');
@@ -742,14 +742,14 @@ c2 VARCHAR(128) NOT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
 c2 INT(10) UNSIGNED DEFAULT NULL,
 PRIMARY KEY(c1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ANALYZE TABLE t2;
 Table	Op	Msg_type	Msg_text
 test.t2	analyze	status	OK

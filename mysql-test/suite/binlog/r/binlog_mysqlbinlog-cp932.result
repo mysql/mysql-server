@@ -1,7 +1,7 @@
 RESET MASTER;
 create table t3 (f text character set utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t4 (f text character set cp932);
 flush logs;
 rename table t3 to t03, t4 to t04;

@@ -571,7 +571,7 @@ KEY `fk_similar_id` (`similar_id`),
 KEY `ix_id_similarity` (`id`,`similarity`) USING BTREE
 ) ENGINE=ndb CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into indexmerge values(1, 2, REPEAT("A",512));
 insert into indexmerge values(2, 1, REPEAT("B",512));
 insert into indexmerge values(3, 4, REPEAT("C",512));

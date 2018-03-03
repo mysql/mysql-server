@@ -12,7 +12,7 @@ include/stop_slave.inc
 change master to master_log_pos=MASTER_LOG_POS;
 Read_Master_Log_Pos = '75'
 start slave;
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'bogus data in log event; the first event 'master-bin.000001' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
 include/stop_slave_sql.inc
 show master status;

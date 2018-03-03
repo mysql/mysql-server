@@ -28,7 +28,7 @@ include/wait_for_slave_sql_error.inc [errno=1062]
 SELECT "1062" as 'Last_SQL_Errno';
 Last_SQL_Errno
 1062
-call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.* Error_code: MY-001062");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 SELECT * FROM t1;
 a

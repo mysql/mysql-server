@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -461,8 +461,8 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
                         table->s->table_name.str)) {
     DBUG_PRINT("debug", ("Access to dictionary table %s.%s is prohibited",
                          table->s->db.str, table->s->table_name.str));
-    rli->report(ERROR_LEVEL, ER_NO_SYSTEM_TABLE_ACCESS,
-                ER_THD(thd, ER_NO_SYSTEM_TABLE_ACCESS),
+    rli->report(ERROR_LEVEL, ER_SERVER_NO_SYSTEM_TABLE_ACCESS,
+                ER_THD(thd, ER_SERVER_NO_SYSTEM_TABLE_ACCESS),
                 ER_THD(thd, dictionary->table_type_error_code(
                                 table->s->db.str, table->s->table_name.str)),
                 table->s->db.str, table->s->table_name.str);
@@ -519,7 +519,7 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
       String target_type(target_buf, sizeof(target_buf), &my_charset_latin1);
       show_sql_type(type(col), field_metadata(col), &source_type);
       field->sql_type(target_type);
-      if (!ignored_error_code(ER_SLAVE_CONVERSION_FAILED)) {
+      if (!ignored_error_code(ER_SERVER_SLAVE_CONVERSION_FAILED)) {
         report_level = ERROR_LEVEL;
         thd->is_slave_error = 1;
       }
@@ -544,9 +544,9 @@ bool table_def::compatible_with(THD *thd, Relay_log_info *rli, TABLE *table,
         field->sql_type(target_type);
 
       if (report_level != INFORMATION_LEVEL)
-        rli->report(report_level, ER_SLAVE_CONVERSION_FAILED,
-                    ER_THD(thd, ER_SLAVE_CONVERSION_FAILED), col, db_name,
-                    tbl_name, source_type.c_ptr_safe(),
+        rli->report(report_level, ER_SERVER_SLAVE_CONVERSION_FAILED,
+                    ER_THD(thd, ER_SERVER_SLAVE_CONVERSION_FAILED), col,
+                    db_name, tbl_name, source_type.c_ptr_safe(),
                     target_type.c_ptr_safe());
       return false;
     }

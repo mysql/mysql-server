@@ -417,7 +417,7 @@ SET GLOBAL myisam_data_pointer_size = 2;
 
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 
-call mtr.add_suppression("mysqld.*: The table '.*#sql.*' is full");
+call mtr.add_suppression("\\[MY-\\d+.*\\] The table '.*#sql.*' is full");
 --error ER_RECORD_FILE_FULL,ER_RECORD_FILE_FULL
 INSERT IGNORE INTO t1 SELECT t1.a FROM t1,t1 t2,t1 t3,t1 t4,t1 t5,t1 t6,t1 t7;
 set session internal_tmp_mem_storage_engine = default;

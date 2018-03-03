@@ -197,16 +197,16 @@ let $master_pos= `SELECT $master_pos + 1`;
 eval CHANGE MASTER TO master_log_pos=$master_pos;
 
 START SLAVE;
-# ER_MASTER_FATAL_ERROR_READING_BINLOG 1236
+# ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG 13114
 --let $slave_param=Last_IO_Errno
---let $slave_param_value=1236
+--let $slave_param_value=13114
 --source include/wait_for_slave_param.inc
 
 --let $slave_field_result_replace= / at [0-9]*/ at XXX/
 --let $status_items= Last_IO_Errno, Last_IO_Error
 --source include/show_slave_status.inc
 
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE;
 

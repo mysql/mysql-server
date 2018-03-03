@@ -42,8 +42,8 @@ START SLAVE IO_THREAD;
 
 # Step-4)since Master has already purged binary logs  containing GTID 1 and 2,
 # it should throw error and I/O thread should not be started.
-#1236 = ER_MASTER_FATAL_ERROR_READING_BINLOG
---let $slave_io_errno= 1236
+#013114 = ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
+--let $slave_io_errno= 13114
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 
@@ -122,8 +122,8 @@ DELETE FROM mysql.gtid_executed;
 START SLAVE IO_THREAD;
 
 # Step-6) Make sure I/O thread gets error and informs the situation to the Slave.
---let $slave_io_errno=1236
-#convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno=13114
+#convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --let $show_slave_io_error= 1
 --source include/wait_for_slave_io_error.inc
 call mtr.add_suppression(".*Slave has more GTIDs than the master has.*");

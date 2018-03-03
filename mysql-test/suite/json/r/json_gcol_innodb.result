@@ -122,7 +122,7 @@ a	c
 drop table t;
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # WL#8170: Expression analyzer for GC.
 # Queries with GC and JSON_EXTRACT  compared to strings should use index
@@ -281,7 +281,7 @@ pk integer auto_increment key,
 col_varchar_255_utf8_key varchar(255)  CHARACTER SET utf8
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (NULL, 'q') , (NULL, 'tgzvsj') ,
 (NULL, 'b') , (NULL, 'q') , (NULL, 'up') , (NULL, 'up') ;
 ALTER TABLE t1 ADD COLUMN json_varchar255_utf8_key json;

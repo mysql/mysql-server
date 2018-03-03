@@ -3341,11 +3341,11 @@ create table t1 (id int(11) not null default '0');
 insert into t1 values (123),(191),(192);
 create table t2 (id char(16) character set utf8 not null);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values ('58013'),('58014'),('58015'),('58016');
 create table t3 (a_id int(11) not null, b_id char(16) character set utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t3 values (123,null),(123,null),(123,null),(123,null),(123,null),(123,'58013');
 select count(*)
 from t1 inner join (t3 left join t2 on t2.id = t3.b_id) on t1.id = t3.a_id;

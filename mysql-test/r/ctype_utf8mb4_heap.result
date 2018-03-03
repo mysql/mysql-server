@@ -1092,7 +1092,7 @@ ERROR 42000: Invalid default value for 'x'
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SET NAMES UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (
 `id` int(20) NOT NULL auto_increment,
 `country` varchar(100) NOT NULL default '',
@@ -1214,11 +1214,11 @@ drop table t1;
 CREATE TABLE t1 (item varchar(255)) default character set utf8mb4 ENGINE heap;
 INSERT INTO t1 VALUES (N'\\');
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8mb4'\\');
 INSERT INTO t1 VALUES (N'Cote d\'Ivoire');
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES (_utf8mb4'Cote d\'Ivoire');
 SELECT item FROM t1 ORDER BY item;
 item
@@ -1718,8 +1718,8 @@ select concat(a, if(b>10, N'x', N'y')) from t1;
 concat(a, if(b>10, N'x', N'y'))
 ay
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 select concat(a, if(b>10, N'æ', N'ß')) from t1;
 ERROR HY000: Illegal mix of collations (latin1_swedish_ci,IMPLICIT) and (utf8_general_ci,COERCIBLE) for operation 'concat'
 drop table t1;
@@ -2130,7 +2130,7 @@ F09D9C9FEA9DA8
 F09D9E9FEA9DA8
 F3A087AFEA9DA8
 F48FBFBFEA9DA8
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warnings:
 SELECT HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding)) FROM t1,t2;
 HEX(CONCAT(utf8mb4_encoding, utf8mb3_encoding))
@@ -2281,7 +2281,7 @@ u_decimal int NOT NULL,
 utf8mb3_encoding VARCHAR(10) NOT NULL
 ) CHARACTER SET utf8 ENGINE heap;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t3 SELECT * FROM t1;
 DROP TABLE IF EXISTS t4;
 CREATE TABLE t4 (
@@ -2300,13 +2300,13 @@ SELECT CHARSET(CONCAT(_utf8mb4'a',_utf8'b'));
 CHARSET(CONCAT(_utf8mb4'a',_utf8'b'))
 utf8mb4
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (utf8mb4 VARCHAR(10) CHARACTER SET utf8mb4 NOT NULL) ENGINE heap;
 INSERT INTO t1 VALUES (x'ea9da8'),(x'f48fbfbf');
 SELECT CONCAT(utf8mb4, _utf8 x'ea9da8') FROM t1 LIMIT 0;
 CONCAT(utf8mb4, _utf8 x'ea9da8')
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (utf8mb3 VARCHAR(10) CHARACTER SET utf8mb3 NOT NULL) ENGINE heap;
 INSERT INTO t2 VALUES (x'ea9da8');
 SELECT HEX(CONCAT(utf8mb4, utf8mb3)) FROM t1,t2 ORDER BY 1;

@@ -1132,6 +1132,24 @@ class LogEvent {
   /**
     Fill in a format string by substituting the % with the given
     arguments, then add the result as the event's message.
+    This should be used very sparingly; use registered messages
+    and their error codes wherever possible!
+
+    @param  fmt  message (treated as a printf-style format-string,
+                 so % substitution will happen)
+    @param  ap   valist to satisfy any % in the message
+
+    @retval      the LogEvent, for easy fluent-style chaining.
+  */
+  LogEvent &messagev(const char *fmt, va_list ap)
+      MY_ATTRIBUTE((format(printf, 2, 0))) {
+    set_message(fmt, ap);
+    return *this;
+  }
+
+  /**
+    Fill in a format string by substituting the % with the given
+    arguments, then add the result as the event's message.
 
     If you use this in a context other than an external service that
     has no messages registered with the server, your reviewers will

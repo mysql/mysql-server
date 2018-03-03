@@ -17,7 +17,7 @@ INSERT INTO t1 VALUES(0);
 [connection slave]
 CHANGE MASTER TO MASTER_LOG_FILE='master-bin.000002', MASTER_LOG_POS=4, MASTER_AUTO_POSITION=0;
 START SLAVE;
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 [connection master]
 INSERT INTO t1 VALUES (20);
 [connection master]

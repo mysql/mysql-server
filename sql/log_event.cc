@@ -150,7 +150,7 @@
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle slave_ignored_err_throttle(
-    window_size, INFORMATION_LEVEL, ER_SLAVE_IGNORED_TABLE, LOG_SUBSYSTEM_TAG,
+    window_size, INFORMATION_LEVEL, ER_SERVER_SLAVE_IGNORED_TABLE, "Repl",
     "Error log throttle: %lu time(s) Error_code: 1237"
     " \"Slave SQL thread ignored the query because of"
     " replicate-*-table rules\" got suppressed.");
@@ -10723,8 +10723,8 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli) {
           For the cases in which a 'BINLOG' statement is set to
           execute in a user session
          */
-        my_printf_error(ER_SLAVE_FATAL_ERROR, ER_THD(thd, ER_SLAVE_FATAL_ERROR),
-                        MYF(0), buf);
+        my_printf_error(ER_BINLOG_FATAL_ERROR,
+                        ER_THD(thd, ER_BINLOG_FATAL_ERROR), MYF(0), buf);
     }
 
     my_free(memory);

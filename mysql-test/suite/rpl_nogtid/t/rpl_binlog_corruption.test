@@ -23,7 +23,7 @@ source include/have_debug.inc;
 
 --connection slave
 call mtr.add_suppression('Found invalid event in binary log');
-call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* 1594');
+call mtr.add_suppression('Slave SQL.*Relay log read failure: Could not parse relay log event entry.* MY-013121');
 
 #
 # BUG#40482: server/mysqlbinlog crashes when reading invalid Incident_log_event
@@ -40,7 +40,7 @@ source include/setup_fake_relay_log.inc;
 
 --echo ==== Test ====
 START SLAVE SQL_THREAD;
-let $slave_sql_errno= 1594; # ER_SLAVE_RELAY_LOG_READ_FAILURE
+let $slave_sql_errno= 13121; # ER_SLAVE_RELAY_LOG_READ_FAILURE
 let $show_slave_sql_error= 1;
 source include/wait_for_slave_sql_error.inc;
 

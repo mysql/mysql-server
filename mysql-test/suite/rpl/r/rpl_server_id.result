@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 START SLAVE;
-include/wait_for_slave_io_error.inc [errno=1593]
+include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).'
 include/stop_slave_sql.inc
 RESET SLAVE;

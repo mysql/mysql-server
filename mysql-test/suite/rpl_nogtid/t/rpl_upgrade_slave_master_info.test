@@ -288,7 +288,7 @@ ALTER TABLE slave_master_info
 
 # This now should work fine now
 --let $rpl_channel_name=
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/stop_slave.inc
 RESET SLAVE ALL;
 

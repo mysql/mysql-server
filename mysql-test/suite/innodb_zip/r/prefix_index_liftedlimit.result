@@ -650,8 +650,8 @@ col_2_text TEXT (4000) CHARACTER SET 'utf8',
 PRIMARY KEY (col_1_text(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (1024));
 INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
@@ -677,8 +677,8 @@ col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,
 PRIMARY KEY (col_1_varchar(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO worklog5743 VALUES(REPEAT("a", 4000) , REPEAT("o", 4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_varchar (1024));
 INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));
@@ -707,8 +707,8 @@ col_4_blob BLOB (4000),col_5_text TEXT (4000),
 col_6_varchar VARCHAR (4000), col_7_binary BINARY (255)
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE INDEX prefix_idx2 ON worklog5743(col_2_varchar (500));
 CREATE INDEX prefix_idx3 ON worklog5743(col_3_text (500));
 START TRANSACTION;
@@ -757,7 +757,7 @@ col_2_text TEXT (4000) ,
 PRIMARY KEY (col_1_text(1024))
 ) ROW_FORMAT=DYNAMIC, engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO worklog5743 VALUES(REPEAT("स", 4000) , REPEAT("o", 4000));
 CREATE INDEX prefix_idx ON worklog5743(col_1_text (1024));
 INSERT INTO worklog5743 VALUES(REPEAT("b", 4000) , REPEAT("p", 4000));

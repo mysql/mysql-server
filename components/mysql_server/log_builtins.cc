@@ -1536,6 +1536,22 @@ int log_line_submit(log_line *ll) {
 
     mysql_rwlock_unlock(&THR_LOCK_log_stack);
 
+#if !defined(DBUG_OFF)
+    /*
+      Assert that we're not given anything but server error-log codes.
+      If your code bombs out here, check whether you're trying to log
+      using an error-code in the range intended for messages that are
+      sent to the client, not the error-log, (< ER_SERVER_RANGE_START).
+    */
+    if (ll->seen & LOG_ITEM_SQL_ERRCODE) {
+      int n = log_line_index_by_type(ll, LOG_ITEM_SQL_ERRCODE);
+      if (n >= 0) {
+        int ec = (int)ll->item[n].data.data_integer;
+        DBUG_ASSERT((ec < 1) || (ec >= ER_SERVER_RANGE_START));
+      }
+    }
+#endif
+
     log_line_item_free_all(ll);
   }
 

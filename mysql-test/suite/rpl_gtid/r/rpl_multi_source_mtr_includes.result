@@ -77,11 +77,11 @@ INSERT INTO t1 VALUES (4);
 [connection slave]
 include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL '']
 include/start_slave_io.inc [FOR CHANNEL 'ch1']
-include/wait_for_slave_io_error.inc [errno=1236 FOR CHANNEL '']
+include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL '']
 START SLAVE SQL_THREAD FOR CHANNEL 'ch1';
 include/wait_for_slave_sql_error.inc [errno=1062 FOR CHANNEL 'ch1']
 include/start_slave_io.inc [FOR CHANNEL '']
-include/wait_for_slave_io_error.inc [errno=1236 FOR CHANNEL 'ch1']
+include/wait_for_slave_io_error.inc [errno=13114 FOR CHANNEL 'ch1']
 DELETE FROM t1 WHERE c1 = 4;
 include/start_slave_sql.inc [FOR CHANNEL '']
 include/include/rpl_skip_to_end_of_relay_log.inc [FOR CHANNEL 'ch1']

@@ -69,7 +69,7 @@ eval change master to master_port=$SLAVE_MYPORT;
 start slave;
 
 --echo *** must be having the replicate-same-server-id IO thread error ***
-let $slave_io_errno= 1593;
+let $slave_io_errno= 13117;
 let $show_slave_io_error= 1;
 source include/wait_for_slave_io_error.inc;
 

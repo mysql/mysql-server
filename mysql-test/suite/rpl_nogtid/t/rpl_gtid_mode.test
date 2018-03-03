@@ -232,7 +232,7 @@ CREATE TABLE t1 (a int);
 --source include/rpl_connection_slave.inc
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 1236  # ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
+--let $slave_io_errno= 13114  # ER_CANT_REPLICATE_GTID_WITH_GTID_MODE_OFF
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
@@ -275,11 +275,11 @@ CREATE TABLE t2(a int);
 --source include/rpl_connection_slave.inc
 
 # Errors in queue_event() are overwritten in SHOW SLAVE STATUS/P_S
-# by (1595 ER_SLAVE_RELAY_LOG_WRITE_FAILURE).
+# by (13122 ER_SLAVE_RELAY_LOG_WRITE_FAILURE).
 # So the only place where old error exists is slave error log.
 # Grep error log to look for old error.
 
---let $slave_io_errno= 1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= Receiver thread should report - Cannot replicate GTID-transaction when @@GLOBAL.GTID_MODE = OFF.
@@ -360,7 +360,7 @@ CREATE TABLE t3(a int);
 --source include/rpl_connection_slave.inc
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 1236 # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
+--let $slave_io_errno= 13114 # ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate anonymous transaction when @@GLOBAL.GTID_MODE = ON.
@@ -377,7 +377,7 @@ START SLAVE IO_THREAD;
 --source include/rpl_connection_master.inc
 DROP TABLE t3;
 
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/rpl_reset.inc
 
 --echo #
@@ -393,7 +393,7 @@ CREATE TABLE t4(a int);
 
 --source include/rpl_connection_slave.inc
 
---let $slave_io_errno= 1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While gtid-mode=on, slave expects an anonymous event to get ER_CANT_REPLICATE_ANONYMOUS_WITH_GTID_MODE_ON.
@@ -467,7 +467,7 @@ INSERT INTO t5 VALUES(1);  # anonymous transaction
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 1236 # ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
+--let $slave_io_errno= 13114 # ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= sender thread should report - Cannot replicate anonymous transaction when AUTO_POSITION = 1.
@@ -556,7 +556,7 @@ INSERT INTO t6 VALUES(1);  # anonymous transaction
 CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
 START SLAVE IO_THREAD;
 
---let $slave_io_errno= 1595 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
+--let $slave_io_errno= 13122 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_text= While AUTO_POSITION is enabled, Master sends an anonymous transaction resulting into ER_CANT_REPLICATE_ANONYMOUS_WITH_AUTO_POSITION.

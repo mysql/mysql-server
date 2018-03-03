@@ -548,7 +548,7 @@ let $cleanup_stmt= ;
 --source include/check_ftwrl_compatible.inc
 deallocate prepare stmt1;
 
-call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: 1223");
+call mtr.add_suppression("Slave SQL.*Can.t execute the query because you have a conflicting read lock., Error_code: MY-001223");
 
 --echo #
 --echo # 9.2.b) EXECUTE for statement which is incompatible with FTWRL

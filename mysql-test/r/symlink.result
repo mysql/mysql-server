@@ -120,7 +120,7 @@ CREATE TABLE t2(a INT) ENGINE = MYISAM
 DATA DIRECTORY='TEST_DIR/tmp'
 INDEX DIRECTORY='TEST_DIR/tmp';
 RENAME TABLE t2 TO t1;
-ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (Errcode: 17 - File exists)
+ERROR HY000: Can't create/write to file 'TEST_DIR/tmp/t1.MYI' (OS errno 17 - File exists)
 DROP TABLE t2;
 create temporary table t1 (a int) engine=myisam data directory="MYSQLTEST_VARDIR/log" select 9 a;
 show create table t1;
@@ -167,7 +167,7 @@ INDEX DIRECTORY='MYSQLD_DATADIR';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1(a INT) ENGINE=MYISAM
 INDEX DIRECTORY='TEST_DIR/master-data_var';
-ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2 - No such file or directory)
+ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (OS errno 2 - No such file or directory)
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='NO_DIR_IN_CREATE';
 CREATE TABLE t1(a INT) DATA DIRECTORY='MYSQLTEST_VARDIR/tmp' INDEX DIRECTORY='MYSQLTEST_VARDIR/tmp';
 Warnings:

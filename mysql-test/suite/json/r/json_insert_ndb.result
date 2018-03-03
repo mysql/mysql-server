@@ -3,7 +3,7 @@ set default_storage_engine=ndb;
 # ----------------------------------------------------------------------
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (i INT, j JSON) CHARSET utf8mb4;
 Warnings:
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Binlog of table with BLOB attribute and no PK'

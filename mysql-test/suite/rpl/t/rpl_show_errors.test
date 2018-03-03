@@ -29,7 +29,8 @@ DROP TABLE t1;
 # action: now  wait for the slave to stop because it cannot
 #         remove a table that does not exist
 let $slave_sql_errno=1051; # ER_BAD_TABLE_ERROR
-call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: 1051");
+call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
+call mtr.add_suppression("Unknown table .test.t1. Error_code: MY-001051");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 -- source include/wait_for_slave_sql_error.inc
@@ -78,7 +79,7 @@ source include/wait_for_slave_param.inc;
 START SLAVE;
 
 -- let $slave_param= Last_IO_Errno
--- let $slave_param_value= 1593
+-- let $slave_param_value= 13117
 -- source include/wait_for_slave_param.inc
 -- echo *** must be having the replicate-same-server-id IO thread error ***
 

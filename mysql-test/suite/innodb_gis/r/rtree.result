@@ -269,7 +269,7 @@ PRIMARY KEY  (address_id),
 SPATIAL KEY `idx_location` (location)
 )ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET AUTOCOMMIT=0;
 INSERT INTO `address` VALUES (1,'47 MySakila Drive',NULL,'Alberta',300,'','',/*!50705 0x0000000001010000003E0A325D63345CC0761FDB8D99D94840,*/'2014-09-25 22:30:27'),
 (2,'28 MySQL Boulevard',NULL,'QLD',576,'','',/*!50705 0x0000000001010000008E10D4DF812463404EE08C5022A23BC0,*/'2014-09-25 22:30:09'),

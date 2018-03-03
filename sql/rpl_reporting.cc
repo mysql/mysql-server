@@ -166,12 +166,23 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
       .type(LOG_TYPE_ERROR)
       .subsys(LOG_SUBSYSTEM_TAG)
       .prio(level)
-      .errcode(err_code)
+      // if it's a client err-code, flag it as from diagnostics area
+      .errcode((err_code < ER_SERVER_RANGE_START)
+                   ? ER_RPL_SLAVE_ERROR_INFO_FROM_DA
+                   : err_code)
       .subsys("Repl")
-      .message("Slave %s%s: %s%s Error_code: %d", m_thread_name,
+      /*
+        We'll use the original error-code in the actual message,
+        even if it's out of range. That should make it easier
+        to find, debug, and fix.
+      */
+      .message("Slave %s%s: %s%s Error_code: MY-%06d", m_thread_name,
                get_for_channel_str(false), pbuff,
                (curr_buff[0] && *(strend(curr_buff) - 1) == '.') ? "" : ",",
                err_code);
+
+  // we shouldn't really use client error codes here, so bomb out in debug mode
+  // DBUG_ASSERT(err_code >= ER_SERVER_RANGE_START);
 }
 
 Slave_reporting_capability::~Slave_reporting_capability() {

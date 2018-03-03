@@ -14,7 +14,7 @@ Note	1246	Converting column 'b' from VARBINARY to BLOB
 Note	1246	Converting column 'c' from VARCHAR to TEXT
 CREATE TABLE t4 (c varchar(65530) character set utf8 not null);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1246	Converting column 'c' from VARCHAR to TEXT
 show columns from t2;
 Field	Type	Null	Key	Default	Extra
@@ -904,7 +904,7 @@ cast(null as char(4294967295))	longtext	YES		NULL
 drop table b15776;
 CREATE TABLE b15776 select cast(null as nchar(4294967295));
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (67108864) - truncated
 show columns from b15776;
 Field	Type	Null	Key	Default	Extra
@@ -926,7 +926,7 @@ explain select cast(1 as nchar(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8) AS `cast(1 as nchar(4294967295))`
 explain select cast(1 as binary(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -965,7 +965,7 @@ explain select convert(1, nchar(4294967295));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	11266	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
+Warning	3720	NATIONAL/NCHAR/NVARCHAR implies the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using CHAR(x) CHARACTER SET UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select cast(1 as char(4294967295) charset utf8) AS `convert(1, nchar(4294967295))`
 explain select convert(1, nchar(4294967296));
 ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)

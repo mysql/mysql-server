@@ -9,8 +9,8 @@ source include/master-slave.inc;
 --echo [on slave]
 connection slave;
 
-CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: 1050");
-CALL mtr.add_suppression("Slave SQL for channel '': .*Error .Table .t1. already exists. on query.* Error_code: 1050");
+CALL mtr.add_suppression("Slave: Table 't1' already exists Error_code: MY-001050");
+CALL mtr.add_suppression("Slave SQL for channel '': .*Error .Table .t1. already exists. on query.* Error_code: MY-001050");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 --echo # The statement makes SQL thread to fail.

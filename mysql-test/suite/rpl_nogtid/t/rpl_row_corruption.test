@@ -37,8 +37,8 @@ SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
 --eval UPDATE $t1, $t2 SET $t1.c1=3, $t2.c1=4 WHERE $t1.c1=1 OR $t2.c1=2
 --connection slave
 
-# wait for error 1593 (ER_SLAVE_FATAL_ERROR)
---let $slave_sql_errno=1593 
+# wait for error 13117 (ER_SLAVE_FATAL_ERROR)
+--let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
 --source include/stop_slave_io.inc
 
@@ -94,7 +94,7 @@ AAAAAAAAAAAAAAAAAABI6BZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAAAVAYI8=
 # at 855
 #110708 12:21:44 server id 1  end_log_pos 895   Update_rows: table id 67 flags: STMT_END_F
 SET GLOBAL debug="+d,inject_tblmap_same_id_maps_diff_table";
---error ER_SLAVE_FATAL_ERROR
+--error ER_BINLOG_FATAL_ERROR
 BINLOG '
 SOgWThMBAAAAKQAAAAYDAAAAAEIAAAAAAAEABHRlc3QAAnQxAAEDAAE=
 SOgWThMBAAAAKQAAAC8DAAAAAEMAAAAAAAEABHRlc3QAAnQyAAEDAAE=

@@ -28,7 +28,7 @@
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Recovery from master pos*");
-CALL mtr.add_suppression("Slave SQL.*Duplicate entry.* Error_code: 1062");
+CALL mtr.add_suppression("Slave SQL.*Duplicate entry.* Error_code: MY-001062");
 CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --let $auto_position=0
 --let $loop_count=2

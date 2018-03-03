@@ -19,7 +19,8 @@ CREATE TABLE t1(i INT);
 SET SQL_LOG_BIN= 1;
 
 --source include/rpl_connection_slave.inc
-call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: 1051");
+call mtr.add_suppression("Slave SQL for channel '': .*Error .Unknown table .test.t1.. on query.* Error_code: MY-001051");
+call mtr.add_suppression("Slave: Unknown table .test.t1. Error_code: MY-001051");
 call mtr.add_suppression("Slave SQL for channel '': .*Error executing row event: 'Table 'test.t1' doesn't exist'");
 call mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");
 --let $last_applied_trx_before= query_get_value(SELECT LAST_APPLIED_TRANSACTION FROM performance_schema.replication_applier_status_by_worker, LAST_APPLIED_TRANSACTION, 1)
