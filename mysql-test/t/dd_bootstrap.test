@@ -47,7 +47,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[Warning\] \[[^]]*\] Can\'t open and lock time zone table/gi,<FILE>);
+  my $c_e= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] Can\'t open and lock time zone table/gi,<FILE>);
   print "#     Time zone table warning found $c_e times.\n";
   close(FILE);
 EOF
@@ -100,7 +100,7 @@ perl;
   use strict;
   my $log= $ENV{'MYSQLD_LOG'} or die;
   open(FILE, "$log") or die;
-  my $c_e= grep(/\[ERROR\] \[[^]]*\] failed to set datadir/gi,<FILE>);
+  my $c_e= grep(/\[ERROR\] \[[^]]*\] \[[^]]*\] failed to set datadir/gi,<FILE>);
   print "#     Datadir error found $c_e times.\n";
   close(FILE);
 EOF

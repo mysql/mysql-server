@@ -8,12 +8,12 @@ include/assert.inc [binlog_transaction_dependency_tracking should be COMMIT_ORDE
 # Test 1.b: Try starting server with TWSE=OFF and BTDT=WRITESET. Expect FAILURE.
 #
 Occurrences of 'The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32 when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.' in the input file: 1
-Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 1
+Occurrences of '\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting' in the input file: 1
 #
 # Test 1.c: Try starting server with TWSE=OFF and BTDT=WRITESET_SESSION. Expect FAILURE.
 #
 Occurrences of 'The transaction_write_set_extraction must be set to XXHASH64 or MURMUR32 when binlog_transaction_dependency_tracking is WRITESET or WRITESET_SESSION.' in the input file: 1
-Occurrences of '\[ERROR\] \[[^]]*\] Aborting' in the input file: 1
+Occurrences of '\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting' in the input file: 1
 #
 # Test 1.d: Try starting server with TWSE=MURMUR32 and BTDT=COMMIT_ORDER. Expect SUCCESS.
 #

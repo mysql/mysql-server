@@ -27,6 +27,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
       someone's going out of their way to break to API)". :)
 */
 
+#define LOG_SUBSYSTEM_TAG "Server"
+
 #include "log_builtins_filter_imp.h"
 #include "log_builtins_imp.h"  // internal structs
                                // connection_events_loop_aborted()
@@ -1079,12 +1081,13 @@ const char *log_label_from_prio(int prio) {
 static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
-  size_t msg_len = 0, ts_len = 0, label_len = 0;
+  size_t msg_len = 0, ts_len = 0, label_len = 0, subsys_len = 0;
   enum loglevel prio = ERROR_LEVEL;
   unsigned int errcode = 0;
   log_item_type item_type = LOG_ITEM_END;
   log_item_type_mask out_types = 0;
-  const char *iso_timestamp = "";
+  const char *iso_timestamp = "", *subsys = "";
+  ;
   my_thread_id thread_id = 0;
 
   if (ll->count > 0) {
@@ -1109,6 +1112,11 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         case LOG_ITEM_LOG_LABEL:
           label = ll->item[c].data.data_string.str;
           label_len = ll->item[c].data.data_string.length;
+          break;
+        case LOG_ITEM_SRV_SUBSYS:
+          subsys = ll->item[c].data.data_string.str;
+          if ((subsys_len = ll->item[c].data.data_string.length) > 12)
+            subsys_len = 12;
           break;
         case LOG_ITEM_LOG_TIMESTAMP:
           iso_timestamp = ll->item[c].data.data_string.str;
@@ -1161,20 +1169,19 @@ static int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
         message; this should therefore not affect log aggregation.
         Tools reacting to the contents of the message may wish to
         use the new field instead as it's simpler to parse.
-        While for the time being, this field contains a numerical
-        value, the rules are like so:
+        The rules are like so:
 
           '[' [ <namespace> ':' ] <identifier> ']'
 
         That is, an error identifier may be namespaced by a
         subsystem/component name and a ':'; the identifier
         itself should be considered opaque; in particular, it
-        may be non-numerical: [ <alpha> | <digit> | '_' | '.' ]
+        may be non-numerical: [ <alpha> | <digit> | '_' | '.' | '-' ]
       */
       len = snprintf(buff_line, sizeof(buff_line),
-                     "%.*s %u [%.*s] [MY-%06u] %.*s", (int)ts_len,
+                     "%.*s %u [%.*s] [MY-%06u] [%.*s] %.*s", (int)ts_len,
                      iso_timestamp, thread_id, (int)label_len, label, errcode,
-                     (int)msg_len, msg);
+                     (int)subsys_len, subsys, (int)msg_len, msg);
 
       log_write_errstream(buff_line, len);
 
@@ -1469,6 +1476,13 @@ int log_line_submit(log_line *ll) {
         d->data_string.str = es;
         d->data_string.length = strlen(d->data_string.str);
       }
+    }
+
+    /* add the default sub-system if none is set */
+    if (!(ll->seen & LOG_ITEM_SRV_SUBSYS) && !log_line_full(ll)) {
+      log_item_data *d = log_line_item_set(ll, LOG_ITEM_SRV_SUBSYS);
+      d->data_string.str = LOG_SUBSYSTEM_TAG;
+      d->data_string.length = strlen(d->data_string.str);
     }
 
     /* normalize source line if needed */

@@ -32,7 +32,7 @@
 #include "my_sys.h"  // my_write, my_malloc
 #include "mysql_com.h"
 
-#define LOG_SUBSYSTEM_TAG "test_session_detach"
+#define LOG_COMPONENT_TAG "test_session_detach"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>

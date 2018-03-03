@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "test_sql_stored_procedures_functions"
+#define LOG_COMPONENT_TAG "test_sql_stored_procedures_functions"
 
 #include <fcntl.h>
 #include <mysql/plugin.h>

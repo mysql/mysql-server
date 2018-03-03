@@ -768,6 +768,7 @@ static void prepare_new_connection_state(THD *thd) {
 
       LogEvent()
           .prio(WARNING_LEVEL)
+          .subsys(LOG_SUBSYSTEM_TAG)
           .thread_id(thd->thread_id())
           .user(sctx_user)
           .host(sctx->host_or_ip())

@@ -11,8 +11,8 @@
 --echo # SETUP #
 --echo #########
 
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\\(\\)'");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin 'pfs_example_plugin_employee' init function returned error.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin pfs_example_plugin_employee reported: 'Error returned from add_tables\\(\\)'");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin 'pfs_example_plugin_employee' init function returned error.");
 
 let server_log= $MYSQLTEST_VARDIR/log/mysqld.1.err;
 # $server_log has to be processed by include/search_pattern.inc which

@@ -304,7 +304,7 @@ SELECT @@global.flush_time;
 
 --remove_file $MYSQLD_DATADIR/mysqld-auto.cnf
 
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 call mtr.add_suppression("\\[Warning\\] option 'persisted_globals_load': boolean value 'NULL' wasn't recognized. Set to OFF.");
 
 --echo # Restart server with persisted-globals-load=NULL

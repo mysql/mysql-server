@@ -617,6 +617,7 @@ err:
     if (thd->is_fatal_error) {
       LogEvent()
           .type(LOG_TYPE_ERROR)
+          .subsys(LOG_SUBSYSTEM_TAG)
           .prio(INFORMATION_LEVEL)
           .errcode(ER_FILESORT_TERMINATED)
           .user(thd->security_context()->priv_user())

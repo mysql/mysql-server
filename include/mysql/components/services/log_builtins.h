@@ -683,11 +683,14 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
 
 #ifndef DISABLE_ERROR_LOGGING
 
+#if defined(LOG_COMPONENT_TAG)
+
 #define LogErr(severity, ecode, ...) \
   LogEvent()                         \
       .prio(severity)                \
       .errcode(ecode)                \
       .subsys(LOG_SUBSYSTEM_TAG)     \
+      .component(LOG_COMPONENT_TAG)  \
       .source_line(__LINE__)         \
       .source_file(MY_BASENAME)      \
       .function(__FUNCTION__)        \
@@ -698,31 +701,48 @@ extern SERVICE_TYPE(log_builtins_string) * log_bs;
       .prio(severity)                                                \
       .errcode(ecode)                                                \
       .subsys(LOG_SUBSYSTEM_TAG)                                     \
+      .component("plugin:" LOG_COMPONENT_TAG)                        \
       .source_line(__LINE__)                                         \
       .source_file(MY_BASENAME)                                      \
       .function(__FUNCTION__)                                        \
-      .lookup_quoted(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported", \
+      .lookup_quoted(ecode, "Plugin " LOG_COMPONENT_TAG " reported", \
                      ##__VA_ARGS__)
 
-#define LogPluginErrV(severity, ecode, vl) \
-  LogEvent()                               \
-      .prio(severity)                      \
-      .errcode(ecode)                      \
-      .subsys(LOG_SUBSYSTEM_TAG)           \
-      .source_line(__LINE__)               \
-      .source_file(MY_BASENAME)            \
-      .function(__FUNCTION__)              \
-      .lookup_quotedv(ecode, "Plugin " LOG_SUBSYSTEM_TAG " reported", vl)
+#define LogPluginErrV(severity, ecode, vl)    \
+  LogEvent()                                  \
+      .prio(severity)                         \
+      .errcode(ecode)                         \
+      .subsys(LOG_SUBSYSTEM_TAG)              \
+      .component("plugin:" LOG_COMPONENT_TAG) \
+      .source_line(__LINE__)                  \
+      .source_file(MY_BASENAME)               \
+      .function(__FUNCTION__)                 \
+      .lookup_quotedv(ecode, "Plugin " LOG_COMPONENT_TAG " reported", vl)
 
 #define LogPluginErrMsg(severity, ecode, ...) \
   LogEvent()                                  \
       .prio(severity)                         \
       .errcode(ecode)                         \
       .subsys(LOG_SUBSYSTEM_TAG)              \
+      .component("plugin:" LOG_COMPONENT_TAG) \
       .source_line(__LINE__)                  \
       .source_file(MY_BASENAME)               \
       .function(__FUNCTION__)                 \
-      .message_quoted("Plugin " LOG_SUBSYSTEM_TAG " reported", ##__VA_ARGS__)
+      .message_quoted("Plugin " LOG_COMPONENT_TAG " reported", ##__VA_ARGS__)
+
+#else
+
+#define LogErr(severity, ecode, ...) \
+  LogEvent()                         \
+      .prio(severity)                \
+      .errcode(ecode)                \
+      .subsys(LOG_SUBSYSTEM_TAG)     \
+      .source_line(__LINE__)         \
+      .source_file(MY_BASENAME)      \
+      .function(__FUNCTION__)        \
+      .lookup(ecode, ##__VA_ARGS__)
+
+#endif
 
 #else
 
@@ -733,6 +753,7 @@ inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
 
 #define LogErr(severity, ecode, ...) \
   dummy_log_message(severity, ecode, ##__VA_ARGS__)
+
 #define LogPluginErr(severity, ecode, ...) \
   dummy_log_message(severity, ecode, ##__VA_ARGS__)
 #define LogPluginErrV(severity, ecode, ...) \
@@ -937,14 +958,15 @@ class LogEvent {
 
   /**
     Which subsystem in the source was the problem detected in?
-    ("rpl" etc.)
+    ("Repl"/"InnoDB"/"Server")
 
     @param  val  the subsystem. NTBS.
 
     @retval      the LogEvent, for easy fluent-style chaining.
   */
   LogEvent &subsys(const char *val) {
-    log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_SRV_SUBSYS), val);
+    if (val != nullptr)
+      log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_SRV_SUBSYS), val);
     return *this;
   }
 
@@ -958,7 +980,8 @@ class LogEvent {
     @retval      the LogEvent, for easy fluent-style chaining.
   */
   LogEvent &component(const char *val) {
-    log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_SRV_COMPONENT), val);
+    if (val != nullptr)
+      log_set_cstring(log_line_item_set(this->ll, LOG_ITEM_SRV_COMPONENT), val);
     return *this;
   }
 

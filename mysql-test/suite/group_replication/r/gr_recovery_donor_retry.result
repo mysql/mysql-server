@@ -33,7 +33,7 @@ include/gr_wait_for_member_state.inc
 [connection server2]
 include/gr_wait_for_member_state.inc
 Matching lines are:
-DATE_TIME [Note] [MY-011576] Plugin group_replication reported: 'Establishing group recovery connection with a possible donor. Attempt 1/10'
+DATE_TIME [Note] [MY-011576] [Repl] Plugin group_replication reported: 'Establishing group recovery connection with a possible donor. Attempt 1/10'
 Occurrences of 'Establishing group recovery connection with a possible donor' in the input file: 1
 Pattern found.
 Pattern found.

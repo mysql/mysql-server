@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,9 +164,10 @@ void Slave_reporting_capability::va_report(loglevel level, int err_code,
   /* If the msg string ends with '.', do not add a ',' it would be ugly */
   LogEvent()
       .type(LOG_TYPE_ERROR)
+      .subsys(LOG_SUBSYSTEM_TAG)
       .prio(level)
       .errcode(err_code)
-      .subsys("replication")
+      .subsys("Repl")
       .message("Slave %s%s: %s%s Error_code: %d", m_thread_name,
                get_for_channel_str(false), pbuff,
                (curr_buff[0] && *(strend(curr_buff) - 1) == '.') ? "" : ",",

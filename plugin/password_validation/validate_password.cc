@@ -20,8 +20,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "validate_password"
-
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin_validate_password.h>

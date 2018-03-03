@@ -84,7 +84,7 @@ SET SESSION sql_log_bin=1;
 --source include/rpl_connection.inc
 # Restore the backup onto a server outside the GR group
 set sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication*");
+call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication'");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 set sql_log_bin=1;
 

@@ -21,6 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define LOG_SUBSYSTEM_TAG "Repl"
+
 #include "sql/log_event.h"
 
 #include "my_config.h"
@@ -148,7 +150,7 @@
 
 #define window_size Log_throttle::LOG_THROTTLE_WINDOW_SIZE
 Error_log_throttle slave_ignored_err_throttle(
-    window_size, INFORMATION_LEVEL, ER_SLAVE_IGNORED_TABLE, "replication",
+    window_size, INFORMATION_LEVEL, ER_SLAVE_IGNORED_TABLE, LOG_SUBSYSTEM_TAG,
     "Error log throttle: %lu time(s) Error_code: 1237"
     " \"Slave SQL thread ignored the query because of"
     " replicate-*-table rules\" got suppressed.");

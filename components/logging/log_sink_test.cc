@@ -20,6 +20,11 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#define MY_NAME "log_sink_test"
+#define LOG_COMPONENT_TAG MY_NAME
+// Test override. No non-test components should use a non-approved value here!
+#define LOG_SUBSYSTEM_TAG MY_NAME
+
 #include "log_service_imp.h"
 
 #include <assert.h>
@@ -28,8 +33,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/components/services/log_builtins_filter.h>
-
-#define MY_NAME "log_sink_test"
 
 extern REQUIRES_SERVICE_PLACEHOLDER(registry);
 
@@ -155,6 +158,8 @@ static void test_add_item_log_me(log_filter_ruleset *rs, const char *label,
       .string_value(KEY_PRS_ITEM, "test_me_for_presence")
       .string_value(KEY_DEL_ITEM, "delete_me_by_rule")
       .string_value(KEY_PRIO_CHANGE, VAL_PRIO_CHANGE)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .source_file(MY_NAME)
       .message("filter_rules: (add_item %s) %d", label, rs->count - orig_count);
 }
@@ -176,6 +181,8 @@ static int test_if_then_else() {
       .int_value("wl9651_val3a", 1)
       .int_value("wl9651_val3b", 2)
       .int_value("wl9651_val3c", 3)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS");
   LogEvent()
       .type(LOG_TYPE_ERROR)
@@ -186,6 +193,8 @@ static int test_if_then_else() {
       .int_value("wl9651_val3a", 0)
       .int_value("wl9651_val3b", 2)
       .int_value("wl9651_val3c", 3)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE");
   LogEvent()
       .type(LOG_TYPE_ERROR)
@@ -196,6 +205,8 @@ static int test_if_then_else() {
       .int_value("wl9651_val3a", 1)
       .int_value("wl9651_val3b", 0)
       .int_value("wl9651_val3c", 3)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE");
   LogEvent()
       .type(LOG_TYPE_ERROR)
@@ -206,6 +217,8 @@ static int test_if_then_else() {
       .int_value("wl9651_val3a", 1)
       .int_value("wl9651_val3b", 2)
       .int_value("wl9651_val3c", 0)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE");
   LogEvent()
       .type(LOG_TYPE_ERROR)
@@ -215,6 +228,8 @@ static int test_if_then_else() {
       .string_value("wl9651_val2", "1")
       .int_value("wl9651_val3a", 1)
       .int_value("wl9651_val3c", 3)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .message("WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE");
   return 0;
 }
@@ -468,6 +483,8 @@ static int test_throttle(log_filter_ruleset *rs) {
       .prio(INFORMATION_LEVEL)
       .errcode(ER_PARSER_TRACE)
       .source_line(__LINE__)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .source_file(MY_NAME)
       .message(
           "below: 3*unknown error per writer == correct.  "
@@ -475,27 +492,35 @@ static int test_throttle(log_filter_ruleset *rs) {
           "0*unknown error == " MY_NAME " fail.");
 
   if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0) {
+    /* purecov: begin inspected */
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message(MY_NAME
                  ": could not get a lock on built-in filter's "
                  "ruleset (for add)");
     return -1;
+    /* purecov: end */
   }
 
   orig_count = rs->count;
 
   if ((r = (log_filter_rule *)log_bf->filter_rule_init(rs)) == nullptr) {
+    /* purecov: begin inspected */
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message(MY_NAME
                  ": could not init a rule in built-in filter's ruleset");
     rr = -2;
     goto done;
+    /* purecov: end */
   }
 
   // set up a demo rate-limiter
@@ -523,6 +548,8 @@ static int test_throttle(log_filter_ruleset *rs) {
       .type(LOG_TYPE_ERROR)
       .prio(INFORMATION_LEVEL)
       .errcode(ER_PARSER_TRACE)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .source_line(__LINE__)
       .source_file(MY_NAME)
       .message("filter_rules: (throttle: delta in medias res) %d",
@@ -535,20 +562,26 @@ static int test_throttle(log_filter_ruleset *rs) {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(INFORMATION_LEVEL)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .component(LOG_COMPONENT_TAG)
           .source_line(__LINE__)
           .source_file(MY_NAME)
           .lookup(ER_UNKNOWN_ERROR_NUMBER, 1);
   }
 
   if ((log_bf->filter_ruleset_lock(rs, LOG_BUILTINS_LOCK_EXCLUSIVE)) < 0) {
+    /* purecov: begin inspected */
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message(MY_NAME
                  ": could not get a lock on built-in filter's "
                  "ruleset (for delete)");
     return -3;
+    /* purecov: end */
   }
 
   rule_delete(rs, LOG_ITEM_SQL_ERRCODE, nullptr, LOG_FILTER_COND_EQ,
@@ -563,6 +596,8 @@ done:
       .type(LOG_TYPE_ERROR)
       .prio(INFORMATION_LEVEL)
       .errcode(ER_PARSER_TRACE)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .source_line(__LINE__)
       .source_file(MY_NAME)
       .message("filter_rules: (throttle: delta ex post) %d",
@@ -623,6 +658,8 @@ static void banner() {
       .type(LOG_TYPE_ERROR)
       .prio(INFORMATION_LEVEL)
       .errcode(ER_PARSER_TRACE)
+      .subsys(LOG_SUBSYSTEM_TAG)
+      .component(LOG_COMPONENT_TAG)
       .source_line(__LINE__)
       .source_file(MY_NAME)
       .float_value("test_float", 3.1415926927)
@@ -659,6 +696,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 1,
                  consistent[-log_bi->item_inconsistent(li)]);
 
@@ -669,6 +708,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 2,
                  consistent[-log_bi->item_inconsistent(li)]);
 
@@ -680,6 +721,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 2,
                  consistent[-log_bi->item_inconsistent(li)]);
 
@@ -691,6 +734,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 3,
                  consistent[-log_bi->item_inconsistent(li)]);
 
@@ -704,6 +749,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 4,
                  consistent[-log_bi->item_inconsistent(li)]);
 
@@ -718,6 +765,8 @@ static void banner() {
         .type(LOG_TYPE_ERROR)
         .prio(INFORMATION_LEVEL)
         .errcode(ER_PARSER_TRACE)
+        .subsys(LOG_SUBSYSTEM_TAG)
+        .component(LOG_COMPONENT_TAG)
         .message("item_inconsistent(#%d): %s", 5,
                  consistent[-log_bi->item_inconsistent(li)]);
   }

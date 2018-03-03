@@ -26,7 +26,7 @@ include/diff_tables.inc [server1:test.t1, server3:test.t1]
 
 [connection server4]
 set sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication*");
+call mtr.add_suppression("\\[ERROR\\] \\[MY-[^]]*\\] \\[Repl\\] Plugin group_replication reported: 'Binlog must be enabled for Group Replication'");
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work.");
 set sql_log_bin=1;
 # check that t1 exists and has same values in all servers

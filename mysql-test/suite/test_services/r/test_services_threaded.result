@@ -13,14 +13,14 @@ source include/wait_condition.inc;
 UNINSTALL PLUGIN test_services_threaded;
 SET @@global.log_error_verbosity= @orig_log_error_verbosity;
 ------ Service: LogPluginErr ----------------------------
-CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT);
+CREATE TABLE t1 (c1 varchar(30), c2 TEXT, c3 TEXT, c4 TEXT);
 LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/log/mysqld.1.err' INTO TABLE t1 
 FIELDS TERMINATED BY ' [';
-SELECT replace(concat('[',c2,' [',c3),'\r','') AS msg FROM t1 WHERE c3 LIKE '%test_services_threaded%';
+SELECT replace(concat('[',c2,' [',c3,' [',c4),'\r','') AS msg FROM t1 WHERE c4 LIKE '%test_services_threaded%';
 msg
-[Note] [MY-011071] Plugin test_services_threaded reported: 'Test_services_threaded with_log_message_val: 1'
-[Note] [MY-011071] Plugin test_services_threaded reported: 'This is the test plugin for services'
-[Warning] [MY-011071] Plugin test_services_threaded reported: 'This is a warning from test plugin for services'
-[ERROR] [MY-011071] Plugin test_services_threaded reported: 'This is an error from test plugin for services'
-[Note] [MY-010733] Shutting down plugin 'test_services_threaded'
+[Note] [MY-011071] [Server] Plugin test_services_threaded reported: 'Test_services_threaded with_log_message_val: 1'
+[Note] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is the test plugin for services'
+[Warning] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is a warning from test plugin for services'
+[ERROR] [MY-011071] [Server] Plugin test_services_threaded reported: 'This is an error from test plugin for services'
+[Note] [MY-010733] [Server] Shutting down plugin 'test_services_threaded'
 DROP TABLE IF EXISTS t1;

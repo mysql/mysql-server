@@ -73,7 +73,8 @@ SET(GMS_LISTENER_SERVICE_TEST_SOURCES
     src/services/notification/impl/gms_listener_test.cc)
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
-ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="group_replication")
+ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="group_replication")
 
 IF(WITH_UNIT_TESTS)
   ADD_CONVENIENCE_LIBRARY(gr_unit_test_resource

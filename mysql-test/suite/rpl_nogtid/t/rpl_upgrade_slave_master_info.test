@@ -178,11 +178,11 @@ RESET SLAVE ALL;
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
 # Each test will log only one warning line
 --let $assert_count= 1
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[ERROR\] \[[^]]*\] Info table has a problem with its key field.*slave_master_info
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Info table has a problem with its key field.*slave_master_info
 --let $assert_text= Found the expected error line in the error log.
 --source include/assert_grep.inc
 
@@ -269,11 +269,11 @@ RESET SLAVE ALL;
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/tmp/slave.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
 # Each test will log only one warning line
 --let $assert_count= 1
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[ERROR\] \[[^]]*\] Slave: Failed to create a channel from master info table repository
+--let $assert_select=.* \[ERROR\] \[[^]]*\] \[[^]]*\] Slave: Failed to create a channel from master info table repository
 --let $assert_text= Found the expected error line in the error log generated on server startup.
 --source include/assert_grep.inc
 

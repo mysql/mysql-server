@@ -24,7 +24,7 @@
 #include <string>
 #include <utility>
 
-#define LOG_SUBSYSTEM_TAG "test_session_attach"
+#define LOG_COMPONENT_TAG "test_session_attach"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>

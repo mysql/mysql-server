@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,10 +22,6 @@
 
 #ifndef DD__DD_INCLUDED
 #define DD__DD_INCLUDED
-
-#ifndef LOG_SUBSYSTEM_TAG
-#define LOG_SUBSYSTEM_TAG "data_dictionary"
-#endif
 
 namespace dd {
 

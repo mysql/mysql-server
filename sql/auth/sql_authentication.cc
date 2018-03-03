@@ -21,7 +21,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #if defined(HAVE_OPENSSL)
-#define LOG_SUBSYSTEM_TAG "sha256_password"
+#define LOG_COMPONENT_TAG "sha256_password"
 #endif
 
 #include "sql/auth/sql_authentication.h"

@@ -3,8 +3,8 @@
 
 call mtr.add_suppression("keyring_file_data cannot be set to new value as the keyring file cannot be created/accessed in the provided path");
 call mtr.add_suppression("Error while loading keyring content. The keyring might be malformed");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*/bad_keyring_file_data/' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*/keyring' not found .*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*/bad_keyring_file_data/' not found .*");
 
 
 --replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR

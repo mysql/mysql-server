@@ -22,6 +22,8 @@
 
 INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/compile_flags.cmake)
 
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file")
+
 SET (KEYRING_FILE_SOURCES
      common/keyring_key.cc
      common/keys_container.cc
@@ -76,8 +78,6 @@ ELSE()
                      MODULE_ONLY
                      MODULE_OUTPUT_NAME "keyring_file")
 ENDIF()
-
-ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="keyring_file")
 
 IF(WITH_KEYRING_TEST)
   ADD_SUBDIRECTORY(keyring-test)
