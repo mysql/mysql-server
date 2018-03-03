@@ -864,6 +864,20 @@ void Dbdict::packTableIntoPages(Signal* signal)
   ndbabort();
 }//packTableIntoPages()
 
+bool
+packRopeData(SimpleProperties::Writer & w, ConstRope & rope) {
+  const int bufsize = ROPE_COPY_BUFFER_SIZE;
+  char buffer[bufsize];
+  Uint32 offset = 0;
+  int nread;
+  int status = 0;
+
+  while((nread = rope.readBuffered(buffer, bufsize, offset)) != 0) {
+    status = w.append(buffer, nread);
+  }
+  return (status != -1);  // Return true on success
+}
+
 void
 Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 			       TableRecordPtr tablePtr,
@@ -871,7 +885,6 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   union {
     char tableName[MAX_TAB_NAME_SIZE];
-    char frmData[MAX_FRM_DATA_SIZE];
     char rangeData[16*MAX_NDB_PARTITIONS];
     char ngData[2*MAX_NDB_PARTITIONS];
     char defaultValue[MAX_ATTR_DEFAULT_VALUE_SIZE];
@@ -993,9 +1006,9 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
 
   ConstRope frm(c_rope_pool, tablePtr.p->frmData);
-  frm.copy(frmData);
   w.add(DictTabInfo::FrmLen, frm.size());
-  w.add(DictTabInfo::FrmData, frmData, frm.size());
+  w.addKey(SimpleProperties::BinaryValue, DictTabInfo::FrmData, frm.size());
+  ndbrequire(packRopeData(w, frm));
 
   {
     jam();
