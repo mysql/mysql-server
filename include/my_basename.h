@@ -38,4 +38,23 @@ static constexpr int basename_index(const char *const path, const int index) {
 
 #define MY_BASENAME (&__FILE__[basename_index(__FILE__, sizeof(__FILE__) - 1)])
 
+#ifndef LOG_SUBSYSTEM_TAG
+constexpr const char *basename_prefix_eval(const char *const path) {
+  return (path[0] == 'r' && path[1] == 'p' && path[2] == 'l' && path[3] == '_')
+             ? "Repl"
+             : nullptr;
+}
+
+constexpr int basename_prefix_find(const char *const path, const int index) {
+  return (path[index] == '/' || path[index] == '\\')
+             ? index + 1
+             : basename_prefix_find(path, index - 1);
+}
+
+#define LOG_SUBSYSTEM_TAG         \
+  basename_prefix_eval(__FILE__ + \
+                       basename_prefix_find(__FILE__, sizeof(__FILE__) - 1))
+
+#endif
+
 #endif  // MY_BASENAME_INCLUDED

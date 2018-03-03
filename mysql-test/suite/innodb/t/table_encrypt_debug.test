@@ -24,9 +24,9 @@ call mtr.add_suppression("does not exist in the InnoDB internal data dictionary 
 call mtr.add_suppression("Cannot open table tde_db/.* from the internal data dictionary of InnoDB");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace for table `tde_db`.`t1` is set as discarded");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Database page corruption or a failed file read of page");
-call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table .* doesn't have a corresponding tablespace, it was discarded.");
+call mtr.add_suppression("\\[ERROR\\] \\[MY-\\d+\\] \\[[^]]*\\] .*The table .* doesn't have a corresponding tablespace, it was discarded.");
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Cannot calculate statistics for table .* because the \.ibd file is missing");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while restoring keyring from backup file cannot overwrite keyring with backup'");
 --enable_query_log
 
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

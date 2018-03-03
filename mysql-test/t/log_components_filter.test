@@ -497,7 +497,7 @@ INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
                            (NULL, 'IF EXISTS _client_version THEN unset _client_version.'),
                            (NULL, 'IF EXISTS _os THEN unset _os.');
 
-# additional rules who work in tandem with log_sink_test
+# additional rules that work in tandem with log_sink_test
 # 1 - IF/ELSEIF/ELSEIF/ELSE
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val1 < 1 THEN set wl9651_result1:="IF" ELSE IF wl9651_val1 == 1 THEN set wl9651_result1:="ELSEIF1" ELSE IF wl9651_val1 == 2 THEN set wl9651_result1:="ELSEIF2" ELSE set wl9651_result1:="ELSE".');
 
@@ -569,9 +569,25 @@ SET @@global.dragnet.log_error_filter_rules= @rules;
 SHOW WARNINGS;
 # SELECT @@global.dragnet.log_error_filter_rules;
 
-SET @@global.log_error_services=DEFAULT;
+SET @@global.log_error_services="log_filter_dragnet; log_sink_internal";
 UNINSTALL COMPONENT "file://component_log_sink_test";
 UNINSTALL COMPONENT "file://component_log_sink_json";
+
+#
+# WL#11150: Add <component> to error log messages by default
+#
+
+# Filter log messages using their subsystem
+SET @@global.dragnet.log_error_filter_rules="IF subsystem=='Server' THEN SET msg := 'This is a message from the Server subsystem'.";
+
+# Test dropping, comparing and overriding the subsystem field
+SET @@global.dragnet.log_error_filter_rules="IF subsystem == 'Server' THEN SET msg := 'Dropping subsystem if it is \"Server\" and setting it to Repl'. IF subsystem == 'Server' THEN UNSET subsystem. IF NOT EXISTS subsystem THEN SET subsystem := 'Repl'.";
+
+SET @@global.dragnet.log_error_filter_rules="IF subsystem == 'Server' THEN SET subsystem := 'InnoDB'. IF subsystem == 'InnoDB' THEN SET msg := 'The subsystem for this message has been overriden to InnoDB'.";
+
+SET @@global.dragnet.log_error_filter_rules="IF subsystem != 'SERVER' THEN SET msg := 'This message is seen as the the subsystem is specified in upper case'.";
+
+SET @@global.log_error_services=DEFAULT;
 
 --echo # Now we can uninstall.
 --error 0,ER_WRONG_VALUE_FOR_VAR

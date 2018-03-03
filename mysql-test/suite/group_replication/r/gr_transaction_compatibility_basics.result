@@ -28,10 +28,10 @@ SET GLOBAL group_replication_group_name= "c645abc0-ebb9-11e5-a837-0800200c9a66";
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
 Matching lines are:
-DATE_TIME [ERROR] Plugin group_replication reported: 'This member has more executed transactions than those present in the group. Local transactions: aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa:1 > Group transactions: c645abc0-ebb9-11e5-a837-0800200c9a66:1-3'
+DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'This member has more executed transactions than those present in the group. Local transactions: aaaaaaaa-bbbb-aaaa-bbbb-aaaaaaaaaaaa:1 > Group transactions: c645abc0-ebb9-11e5-a837-0800200c9a66:1-3'
 Occurrences of 'This member has more executed transactions than those present in the group. Local transactions' in the input file: 1
 Matching lines are:
-DATE_TIME [ERROR] Plugin group_replication reported: 'The member contains transactions not present in the group. The member will now exit the group.'
+DATE_TIME [ERROR] [Repl] Plugin group_replication reported: 'The member contains transactions not present in the group. The member will now exit the group.'
 Occurrences of 'The member contains transactions not present in the group. The member will now exit the group.' in the input file: 1
 #
 # Test that server 2 can now join after extra data is removed.

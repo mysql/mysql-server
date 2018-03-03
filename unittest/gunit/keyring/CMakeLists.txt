@@ -43,7 +43,7 @@ SET(TESTS
   file_io
 )
 
-ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="keyring_file_tests")
+ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="keyring_file_tests")
 
 SET(ALL_KEYRING_TESTS)
 FOREACH(test ${TESTS})

@@ -10,12 +10,12 @@ undo_002
 # Backup the datadir
 # 1. Start mysqld with non existent innodb_log_group_home_dir
 Pattern "File .path.to.non-existent.*ib_logfile101: 'create' returned OS error \d+" found
-Pattern "\[ERROR\] \[[^]]*\] Aborting" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 # 2. Start mysqld without ibdata1
 Pattern "\[ERROR\] .*MY-\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
 # 3. Start mysqld without ibdata2
 Pattern "Tablespace size stored in header is \d+ pages, but" found
-Pattern "\[ERROR\] \[[^]]*\] Aborting" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 # 4. Start mysqld without ibdata1 & ibdata2
 Pattern "\[ERROR\] .*MY-\d+.* File .*ibdata1: 'open' returned OS error 71. Cannot continue operation" found
 # 5. Start mysqld without ibdata*, ib_logfile* and undo_00*
@@ -30,7 +30,7 @@ Pattern "Creating UNDO Tablespace .*undo_002" found
 # 9. Start mysqld without ib_logfile0
 # 10. Start mysqld without ib_logfile1
 Pattern "Only one log file found" found
-Pattern "\[ERROR\] \[[^]]*\] Aborting" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting" found
 # 11. Start mysqld without ib_logfile2
 Pattern "Resizing redo log from \d+\*\d+ to \d+\*\d+ bytes, LSN=\d+" found
 # 12. Add new datafile at the end

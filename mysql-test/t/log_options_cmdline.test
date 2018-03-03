@@ -324,9 +324,9 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
    # option '--log-error-verbosity' is processed. Hence, they
    # need to be ignored during verbosity checks.
    my @ignore_patterns=
-   ("\\[Warning\\] \\[[^]]*\\] Changed limits",
-    "\\[Note\\] \\[[^]]*\\] Running in sandbox",
-    "\\[Note\\] \\[[^]]*\\] Basedir set to");
+   ("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Changed limits",
+    "\\[Note\\] \\[[^]]*\\] \\[[^]]*\\] Running in sandbox",
+    "\\[Note\\] \\[[^]]*\\] \\[[^]]*\\] Basedir set to");
 
    my $ignore_regex= "(". join('|', @ignore_patterns). ")";
    # --------
@@ -538,7 +538,7 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     if ($line =~ /\[Note\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
+     if ($line =~ /\[Note\] \[[^]]*\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
          $result=1;
        }
      }
@@ -588,7 +588,7 @@ UNINSTALL COMPONENT "file://component_log_filter_dragnet";
    open(FILE, "$file") or die("Unable to open $file: $!");
    while (<FILE>) {
      my $line = $_;
-     if ($line =~ /\[Note\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
+     if ($line =~ /\[Note\] \[[^]]*\] \[[^]]*\] Access denied for user \'unknown_user\'/) {
          $result= $result + 1;
        }
      }

@@ -22,8 +22,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#define LOG_SUBSYSTEM_TAG MYSQLX_PLUGIN_NAME
-
 #include "my_config.h"
 
 #include <mysql/components/my_service.h>

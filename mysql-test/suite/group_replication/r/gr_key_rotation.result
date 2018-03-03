@@ -4,10 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 set sql_log_bin=0;
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
@@ -28,19 +28,19 @@ INSERT INTO t2 VALUES(1,1);
 INSERT INTO t2 VALUEs(2,2);
 [connection server2]
 set sql_log_bin=0;
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] InnoDB: Encryption can't find master key, please check the keyring plugin is loaded*");
 call mtr.add_suppression(".*Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.");
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': Error 'Can't find master key from keyring, please check keyring plugin is loaded.' on query*");
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Plugin group_replication reported: 'To prevent errors, the server read only mode was enabled following a plugin error.'");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'");
-call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] Plugin group_replication reported: 'Skipping leave operation:*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Fatal error during execution on the Applier process of Group Replication. The server will now leave the group.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'To prevent errors, the server read only mode was enabled following a plugin error.'");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'The server was automatically set into read only mode after an error was detected.'");
+call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Skipping leave operation:*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'Error while loading keyring content*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'keyring_file initialization failure.*");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Plugin keyring_file reported: 'File .*keyring' not found .*");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Plugin group_replication reported: 'Message received while the plugin is not ready, message discarded'*");
 set sql_log_bin=1;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.

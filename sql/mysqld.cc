@@ -379,8 +379,6 @@
 */
 /* clang-format on */
 
-#define LOG_SYSTEM_TAG "mysqld"
-
 #include "sql/mysqld.h"
 
 #include "my_config.h"
@@ -2854,6 +2852,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
   if (!thd || MyFlags & ME_ERRORLOG) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
+        .subsys(LOG_SUBSYSTEM_TAG)
         .prio(ERROR_LEVEL)
         .errcode(error)
         .message("%s: %s", my_progname, str);
@@ -6220,6 +6219,7 @@ int mysqld_main(int argc, char **argv)
 
   LogEvent()
       .type(LOG_TYPE_ERROR)
+      .subsys(LOG_SUBSYSTEM_TAG)
       .prio(SYSTEM_LEVEL)
       .lookup(ER_SERVER_STARTUP_MSG, my_progname, server_version,
 #ifdef HAVE_SYS_UN_H

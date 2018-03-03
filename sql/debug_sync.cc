@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -347,8 +347,6 @@
 
   See also worklog entry WL#4259 - Test Synchronization Facility
 */
-
-#define LOG_SUBSYSTEM_TAG "debug_sync"
 
 #include "sql/debug_sync.h"
 

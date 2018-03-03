@@ -29,8 +29,6 @@
 
 #include "plugin/x/generated/mysqlx_version.h"
 
-#define LOG_SUBSYSTEM_TAG MYSQLX_PLUGIN_NAME
-
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
 #include <mysql/plugin.h>

@@ -56,7 +56,7 @@ START SLAVE;
 # Assert that the reason of the failure was the server_id=0
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_text= Slave didn't started because of server_id=0
---let $assert_select= \[ERROR\] \[[^]]*\] Server id not set, will not start slave for channel \'\'
+--let $assert_select= \[ERROR\] \[[^]]*\] \[[^]]*\] Server id not set, will not start slave for channel \'\'
 --let $assert_count= 1
 --let $assert_only_after= rpl_slave_server_id_equal_to_zero
 --source include/assert_grep.inc
@@ -77,7 +77,7 @@ START SLAVE FOR CHANNEL 'any_channel';
 
 # Assert that the reason of the failure was the server_id=0
 --let $assert_text= Slave for channel didn't started because of server_id=0
---let $assert_select= \[ERROR\] \[[^]]*\] Server id not set, will not start slave for channel \'any_channel\'
+--let $assert_select= \[ERROR\] \[[^]]*\] \[[^]]*\] Server id not set, will not start slave for channel \'any_channel\'
 --let $assert_count= 1
 --source include/assert_grep.inc
 

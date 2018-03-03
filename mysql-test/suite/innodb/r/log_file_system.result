@@ -7,7 +7,7 @@ SHOW TABLES;
 Tables_in_test
 t1
 # Recovery and clean shutdown with old data file path
-Pattern "\[ERROR\] \[[^]]*\] unknown option '--innodb-nonexistent-option'" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--innodb-nonexistent-option'" found
 # Start with new data file path
 INSERT INTO t1 VALUES (1);
 # Kill the server
@@ -17,7 +17,7 @@ SHOW TABLES;
 Tables_in_test
 t1
 # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
-Pattern "\[ERROR\] \[[^]]*\] unknown option '--innodb-nonexistent-option'" found
+Pattern "\[ERROR\] \[[^]]*\] \[[^]]*\] unknown option '--innodb-nonexistent-option'" found
 # Cleanup
 # restart
 # No log should be generated while persistent tablespaces are idle

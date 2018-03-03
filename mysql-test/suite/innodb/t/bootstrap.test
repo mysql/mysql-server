@@ -58,7 +58,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 --exec $MYSQLD $args --innodb_log_group_home_dir=/path/to/non-existent/ --innodb-unknown-parameter-1
 let SEARCH_PATTERN=File .path.to.non-existent.*ib_logfile101: 'create' returned OS error \d+;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] Aborting;
+let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 --source include/search_pattern.inc
 
 --echo # 2. Start mysqld without ibdata1
@@ -75,7 +75,7 @@ let SEARCH_PATTERN=\[ERROR\] .*MY-\\d+.* File .*ibdata1: 'open' returned OS erro
 --exec $MYSQLD $args --innodb-unknown-parameter-3
 let SEARCH_PATTERN=Tablespace size stored in header is \d+ pages, but;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] Aborting;
+let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 
@@ -138,7 +138,7 @@ let SEARCH_PATTERN=Cannot create log files because data files are corrupt or the
 --exec $MYSQLD $args --innodb-unknown-parameter-10
 let SEARCH_PATTERN=Only one log file found;
 --source include/search_pattern.inc
-let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] Aborting;
+let SEARCH_PATTERN=\[ERROR\] \[[^]]*\] \[[^]]*\] Aborting;
 --source include/search_pattern.inc
 --source ../include/bootstrap_cleanup.inc
 

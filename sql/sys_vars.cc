@@ -37,8 +37,6 @@
   (for example in storage/myisam/ha_myisam.cc) !
 */
 
-#define LOG_SUBSYSTEM_TAG "server_variables"
-
 #include "sql/sys_vars.h"
 
 #include "my_config.h"

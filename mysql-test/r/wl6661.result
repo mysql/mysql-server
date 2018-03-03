@@ -126,7 +126,7 @@ UTC
 # Spec D  "ISO 8601 / RFC 3339 compliant timestamps"
 #
 # error log:
-DATE_TIME [Note] [MY-010926] Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
+DATE_TIME [Note] [MY-010926] [Server] Access denied for user 'mysqltest_3_yeslog'@'localhost' (using password: NO)
 
 
 # cleanup

@@ -31,7 +31,7 @@
   This test plugin is based on the dialog plugin example.
 */
 
-#define LOG_SUBSYSTEM_TAG "test_plugin_server"
+#define LOG_COMPONENT_TAG "test_plugin_server"
 
 #include <mysql/client_plugin.h>
 #include <mysql/components/my_service.h>

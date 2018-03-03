@@ -155,8 +155,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-          .subsys("validate_password")
-          .lookup(ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED);
+            .lookup(ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED);
     /* NULL is a valid value, despite the warning */
     dictionary_activate(&dict_words);
     return;
@@ -167,8 +166,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-          .subsys("validate_password")
-          .lookup(ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED);
+            .lookup(ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED);
       return;
     }
     dictionary_stream.seekg(0, std::ios::end);
@@ -179,8 +177,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-          .subsys("validate_password")
-          .lookup(ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
+            .lookup(ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
       return;
     }
     for (std::getline(dictionary_stream, words); dictionary_stream.good();
@@ -193,7 +190,6 @@ static void read_dictionary_file() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_DICT_FILE_NOT_SPECIFIED);
   }
 }
@@ -225,7 +221,6 @@ static int validate_dictionary_check(my_h_string password) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_STRING_HANDLER_MEM_ALLOCATION_FAILED);
     return (0);
   }
@@ -234,7 +229,6 @@ static int validate_dictionary_check(my_h_string password) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_STRING_CONV_TO_LOWERCASE_FAILED);
     return (0);
   }
@@ -247,7 +241,6 @@ static int validate_dictionary_check(my_h_string password) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_STRING_CONV_TO_BUFFER_FAILED);
     return (0);
   }
@@ -369,7 +362,6 @@ static bool is_valid_password_by_user_name(void *thd, my_h_string password) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_FAILED_TO_GET_SECURITY_CTX);
     return false;
   }
@@ -379,7 +371,6 @@ static bool is_valid_password_by_user_name(void *thd, my_h_string password) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_CONVERT_TO_BUFFER_FAILED);
     return false;
   }
@@ -422,7 +413,6 @@ static void readjust_validate_password_length() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_LENGTH_CHANGED, policy_password_length);
     validate_password_length = policy_password_length;
   }
@@ -478,7 +468,6 @@ static int validate_password_policy_strength(void *thd, my_h_string password,
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_COULD_BE_NULL);
     return (0);
   }
@@ -541,7 +530,6 @@ DEFINE_BOOL_METHOD(validate_password_imp::get_strength,
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(WARNING_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_COULD_BE_NULL);
     return true;
   }
@@ -587,7 +575,6 @@ int register_status_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_STATUS_VAR_REGISTRATION_FAILED);
     return 1;
   }
@@ -607,7 +594,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.length");
     return 1;
@@ -627,7 +613,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.number_count");
     goto number_count;
@@ -647,7 +632,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.mixed_case_count");
     goto mixed_case_count;
@@ -667,7 +651,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.special_char_count");
     goto special_char_count;
@@ -684,7 +667,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.policy");
     goto policy;
@@ -702,7 +684,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.dictionary_file");
     goto dictionary_file;
@@ -719,7 +700,6 @@ int register_system_variables() {
     LogEvent()
         .type(LOG_TYPE_ERROR)
         .prio(ERROR_LEVEL)
-        .subsys("validate_password")
         .lookup(ER_VALIDATE_PWD_VARIABLE_REGISTRATION_FAILED,
                 "validate_password.check_user_name");
     goto check_user_name;

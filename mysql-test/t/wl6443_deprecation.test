@@ -69,7 +69,7 @@ perl;
   use strict;
   my $logf= $ENV{'LOGF'} or die "LOGF not set";
   open(FILE, "$logf") or die("Unable to open $logf: $!\n");
-  my $count_warnings= grep(/\[Warning\] \[[^]]*\] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release\. Please use validate-password-length instead\./gi,<FILE>);
+  my $count_warnings= grep(/\[Warning\] \[[^]]*\] \[[^]]*\] The syntax 'plugin-validate-password-length' is deprecated and will be removed in a future release\. Please use validate-password-length instead\./gi,<FILE>);
   my $count_warnings= $count_warnings;
   print "Deprecation warning count : $count_warnings\n";
   close(FILE);

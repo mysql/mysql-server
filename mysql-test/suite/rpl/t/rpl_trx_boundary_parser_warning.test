@@ -134,7 +134,7 @@ while ($event_counter <= $expected_amount_of_events)
 # File to GREP
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
 # Show entries only after the last occurrence of the following pattern
---let $assert_only_after=.* \[Note\] \[[^]]*\] Shutting down slave threads
+--let $assert_only_after=.* \[Note\] \[[^]]*\] \[[^]]*\] Shutting down slave threads
 # Each test will log only one warning line
 --let $assert_count= 1
 
@@ -146,7 +146,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 8
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
 --let $assert_text= Case 1 found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -158,7 +158,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 8
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
 --let $assert_text= Case 2 found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -170,7 +170,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 10
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] GTID_LOG_EVENT .* is not expected.*
 --let $assert_text= Case 3 found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -182,7 +182,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 11
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
 --let $assert_text= Case 4 found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -194,7 +194,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 11
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(BEGIN\) is not expected.*
 --let $assert_text= Case 5 found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -206,7 +206,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 13
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 6.a found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -218,7 +218,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 19
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 6.b found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -230,7 +230,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 13
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 7.a found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -242,7 +242,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 19
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 7.b found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -254,7 +254,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 13
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 8.a found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -266,7 +266,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 19
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(COMMIT or ROLLBACK\) or XID_LOG_EVENT is not expected.*
 --let $assert_text= Case 8.b found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -278,7 +278,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 26
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
 --let $assert_text= Case 9.a found the expected warning line in the error log.
 --source include/assert_grep.inc
 
@@ -290,7 +290,7 @@ while ($event_counter <= $expected_amount_of_events)
 --let $restart_at= 26
 --source extra/rpl_tests/rpl_trx_boundary_parser_warning.inc
 # Assert that there is the expected warning log line but just after the last restart
---let $assert_select=.* \[Warning\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
+--let $assert_select=.* \[Warning\] \[[^]]*\] \[[^]]*\] QUERY\(XA ROLLBACK\) is not expected.*
 --let $assert_text= Case 9.b found the expected warning line in the error log.
 --source include/assert_grep.inc
 

@@ -45,7 +45,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] [MY-011276] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011276] [Server] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1
@@ -68,7 +68,7 @@ UPDATE error_log SET line = replace ( line, '\r', '' );
 # Avoid seeing any other error that might be there.
 SELECT search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" );
 search_error_log( '[Error]', "%Plugin Rewriter reported: 'Wrong%" )
-[ERROR] [MY-011276] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
+[ERROR] [MY-011276] [Server] Plugin Rewriter reported: 'Wrong column count or names when loading rules.'
 SHOW STATUS LIKE 'Rewriter_number_reloads';
 Variable_name	Value
 Rewriter_number_reloads	1

@@ -2228,7 +2228,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
         richer (service) interface can use that to add such
         information.
       */
-      .subsys(plugin->name.str)
+      .component(plugin->name.str)
       .verbatim(msg);
 
   return 0;

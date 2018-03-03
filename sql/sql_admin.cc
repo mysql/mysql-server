@@ -1050,6 +1050,7 @@ static bool mysql_admin_table(
             if (!thd->get_protocol()->connection_alive()) {
               LogEvent()
                   .type(LOG_TYPE_ERROR)
+                  .subsys(LOG_SUBSYSTEM_TAG)
                   .prio(ERROR_LEVEL)
                   .source_file(MY_BASENAME)
                   .errcode(da->mysql_errno())

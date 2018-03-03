@@ -26,7 +26,7 @@
   - Transaction progress
   - Server state
  */
-#define LOG_SUBSYSTEM_TAG "replication_observers_example"
+#define LOG_COMPONENT_TAG "replication_observers_example"
 
 #include <assert.h>
 #include <mysql/components/my_service.h>

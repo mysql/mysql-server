@@ -26,7 +26,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#define LOG_SUBSYSTEM_TAG "caching_sha2_password"
+#define LOG_COMPONENT_TAG "caching_sha2_password"
 
 #include <string.h>
 #include <sys/types.h>

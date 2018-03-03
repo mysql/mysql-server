@@ -34,7 +34,7 @@
 #include "my_sys.h"          // my_write, my_malloc
 #include "sql/sql_plugin.h"  // st_plugin_int
 
-#define LOG_SUBSYSTEM_TAG "test_session_in_thd"
+#define LOG_COMPONENT_TAG "test_session_in_thd"
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>

@@ -25,8 +25,6 @@
 #include "plugin/x/src/xpl_server.h"
 #include "plugin/x/generated/mysqlx_version.h"
 
-#define LOG_SUBSYSTEM_TAG MYSQLX_PLUGIN_NAME
-
 #include "my_config.h"
 
 #include "my_inttypes.h"
