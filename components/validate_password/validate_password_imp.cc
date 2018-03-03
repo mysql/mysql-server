@@ -155,7 +155,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-            .lookup(ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED);
+          .lookup(ER_VALIDATE_PWD_STRONG_POLICY_DICT_FILE_UNSPECIFIED);
     /* NULL is a valid value, despite the warning */
     dictionary_activate(&dict_words);
     return;
@@ -166,7 +166,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-            .lookup(ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED);
+          .lookup(ER_VALIDATE_PWD_DICT_FILE_OPEN_FAILED);
       return;
     }
     dictionary_stream.seekg(0, std::ios::end);
@@ -177,7 +177,7 @@ static void read_dictionary_file() {
       LogEvent()
           .type(LOG_TYPE_ERROR)
           .prio(WARNING_LEVEL)
-            .lookup(ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
+          .lookup(ER_VALIDATE_PWD_DICT_FILE_TOO_BIG);
       return;
     }
     for (std::getline(dictionary_stream, words); dictionary_stream.good();
