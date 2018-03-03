@@ -600,7 +600,9 @@ private:
                         KeyData& keyData,
                         Uint32 count);
   void readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSize);
-  void unpackBound(TuxCtx&, const ScanBound& bound, KeyBoundC& searchBound);
+  void unpackBound(Uint32* const outputBuffer,
+                   const ScanBound& bound,
+                   KeyBoundC& searchBound);
   void findFrag(EmulatedJamBuffer* jamBuf, const Index& index, 
                 Uint32 fragId, FragPtr& fragPtr);
 
@@ -815,6 +817,9 @@ private:
 
     // buffer for scan bound and search key data
     Uint32* c_searchKey;
+
+    // buffer for scan bound and search key data for next key
+    Uint32* c_nextKey;
 
     // buffer for current entry key data
     Uint32* c_entryKey;

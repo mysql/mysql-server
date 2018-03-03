@@ -302,6 +302,7 @@ Dbtux::execREAD_CONFIG_REQ(Signal* signal)
   // allocate buffers
   c_ctx.jamBuffer = jamBuffer();
   c_ctx.c_searchKey = (Uint32*)allocRecord("c_searchKey", sizeof(Uint32), MaxAttrDataSize);
+  c_ctx.c_nextKey = (Uint32*)allocRecord("c_nextKey", sizeof(Uint32), MaxAttrDataSize);
   c_ctx.c_entryKey = (Uint32*)allocRecord("c_entryKey", sizeof(Uint32), MaxAttrDataSize);
 
   c_ctx.c_dataBuffer = (Uint32*)allocRecord("c_dataBuffer", sizeof(Uint64), (MaxXfrmDataSize + 1) >> 1);
@@ -432,14 +433,14 @@ Dbtux::readTablePk(const Frag& frag, TreeEnt ent, Uint32* pkData, unsigned& pkSi
 }
 
 void
-Dbtux::unpackBound(TuxCtx& ctx, const ScanBound& scanBound, KeyBoundC& searchBound)
+Dbtux::unpackBound(Uint32* const outputBuffer,
+                   const ScanBound& scanBound,
+                   KeyBoundC& searchBound)
 {
   // there is no const version of LocalDataBuffer
   ScanBoundBuffer::Head head = scanBound.m_head;
   LocalScanBoundBuffer b(c_scanBoundPool, head);
   ScanBoundBuffer::ConstDataBufferIterator iter;
-  // always use searchKey buffer
-  Uint32* const outputBuffer = ctx.c_searchKey;
   b.first(iter);
   const Uint32 n = b.getSize();
   ndbrequire(n <= MaxAttrDataSize);
