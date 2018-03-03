@@ -14,7 +14,7 @@ include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
 include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
-include/wait_for_slave_io_error.inc [errno=1596]
+include/wait_for_slave_io_error.inc [errno=13116]
 Last_IO_Error = 'Failed to create Rotate_event (out of memory?), SHOW SLAVE STATUS may be inaccurate'
 CHANGE MASTER TO IGNORE_SERVER_IDS = ();
 include/start_slave.inc
@@ -36,7 +36,7 @@ include/sync_slave_io_with_master.inc
 SET @@GLOBAL.debug="+d,fail_to_write_ignored_event_to_relay_log";
 include/stop_slave_io.inc
 SET @@GLOBAL.debug="-d,fail_to_write_ignored_event_to_relay_log";
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: failed to write a Rotate event to the relay log, SHOW SLAVE STATUS may be inaccurate'
 CHANGE MASTER TO IGNORE_SERVER_IDS = ();
 include/start_slave.inc

@@ -3932,13 +3932,15 @@ void handler::print_error(int error, myf errflag) {
     case HA_ERR_INDEX_FILE_FULL: {
       textno = ER_RECORD_FILE_FULL;
       /* Write the error message to error log */
-      errflag |= ME_ERRORLOG;
+      LogErr(ERROR_LEVEL, ER_SERVER_RECORD_FILE_FULL,
+             table_share->table_name.str);
       break;
     }
     case HA_ERR_DISK_FULL_NOWAIT: {
       textno = ER_DISK_FULL_NOWAIT;
       /* Write the error message to error log */
-      errflag |= ME_ERRORLOG;
+      LogErr(ERROR_LEVEL, ER_SERVER_DISK_FULL_NOWAIT,
+             table_share->table_name.str);
       break;
     }
     case HA_ERR_LOCK_WAIT_TIMEOUT:

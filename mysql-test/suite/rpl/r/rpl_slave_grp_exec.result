@@ -33,7 +33,7 @@ a	b
 SELECT * FROM t3 ORDER BY a;
 a	b
 1	ZZ
-call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.* Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Table .test.t3. doesn.t exist.*, Error_code: MY-001146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_to_stop.inc
 SHOW TABLES LIKE 't%';

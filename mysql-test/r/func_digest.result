@@ -1422,7 +1422,7 @@ sha2('1',224)
 e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT sha2('1',224);
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
 def					sha2('1',224)	253	168	56	Y	0	31	33
@@ -1439,7 +1439,7 @@ e25388fde8290dc286a6164fa2d97e551b53498dcbf7bc378eb1f178
 #
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1 (a varchar(1));
 SELECT * FROM t1 WHERE a=sha1('a');
 a
@@ -1555,7 +1555,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
 a + b	a - b
 SELECT digest_text, IF( @the_digest = digest, 'YES', 'NO' )
@@ -1568,7 +1568,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c`	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 # The first NULL should be treated as a literal and not influence the
 # digest. The second NULL is a NULL token, however.
 # In order to know, the string must be parsed.
@@ -1585,7 +1585,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ? IS NULL	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT 2;
 2
 2
@@ -1599,7 +1599,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1, t2, t3;
 #
 # Let's make sure that our 'borrowing' the token buffer does not upset
@@ -1620,7 +1620,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `statement_digest` (?) IS NULL	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 #
 # Test of the data type.
 #
@@ -1725,7 +1725,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT a + b, a - b FROM t1, t2, t3 WHERE a = c;
 a + b	a - b
 SELECT digest_text, IF( @the_digest = digest_text, 'YES', 'NO' )
@@ -1738,7 +1738,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT `a` + `b` , `a` - `b` FROM `t1` , `t2` , `t3` WHERE `a` = `c`	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT 2;
 2
 2
@@ -1752,7 +1752,7 @@ FROM (SELECT 1) a1 JOIN (SELECT @ps_protocol) a2;
 digest_text	digest_is_correct
 SELECT ?	YES
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1, t2, t3;
 #
 # Test of the data type.

@@ -45,8 +45,8 @@ SET @@GLOBAL.DEBUG= @debug_save;
 # 5.2. Verify member is OFFLINE
 include/gr_wait_for_member_state.inc
 # 5.3. Verify occurrence of error message
-Occurrences of 'Error stopping channel: ch2_1. Got error: 1, Error_code: 1' in the input file: 1
-Occurrences of 'Error stopping channel: . Got error: 1, Error_code: 1' in the input file: 1
+Occurrences of 'Error stopping channel: ch2_1. Got error: 1, Error_code: MY-000001' in the input file: 1
+Occurrences of 'Error stopping channel: . Got error: 1, Error_code: MY-000001' in the input file: 1
 
 ############################################################
 #  6. Execute data on server 2 and ensure it is not accepted on server 1.

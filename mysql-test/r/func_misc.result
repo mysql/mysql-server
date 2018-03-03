@@ -51,8 +51,8 @@ select length(uuid()), charset(uuid()), length(unhex(replace(uuid(),_utf8'-',_ut
 length(uuid())	charset(uuid())	length(unhex(replace(uuid(),_utf8'-',_utf8'')))
 36	utf8	16
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 set @a= uuid_short();
 set @b= uuid_short();
 select @b - @a;
@@ -91,7 +91,7 @@ select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 export_set(3, _latin1'foo', _utf8'bar', ',', 4)
 foo,foo,bar,bar
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 End of 4.1 tests
 create table t1 as select uuid(), length(uuid());
 show create table t1;

@@ -118,16 +118,16 @@ a
 include/check_slave_is_running.inc
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: 1535");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column [012] type mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (5);
 INSERT INTO t5 VALUES (5,10,25);
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (6);
 INSERT INTO t6 VALUES (6,12,36);
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 INSERT INTO t9 VALUES (6);
 include/check_slave_is_running.inc
 INSERT INTO t7 VALUES (1),(2),(3);

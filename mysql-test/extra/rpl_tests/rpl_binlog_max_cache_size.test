@@ -79,8 +79,8 @@ eval INSERT INTO t2 (a, data) VALUES (2,
 --enable_query_log
 
 # Incident event
-# 1590=ER_SLAVE_INCIDENT
---let $slave_sql_errno= 1590
+# 13119=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 13119
 --source include/wait_for_slave_sql_error_and_skip.inc
 
 --disable_query_log
@@ -99,8 +99,8 @@ eval UPDATE t2, t1 SET t2.data = CONCAT($data, $data, $data, $data),
                        t1.data = CONCAT($data, $data, $data, $data);
 --enable_query_log
 
-# 1590=ER_SLAVE_INCIDENT
---let $slave_sql_errno= 1590
+# 13119=ER_SLAVE_INCIDENT
+--let $slave_sql_errno= 13119
 --let $slave_skip_counter= `SELECT IF(@@binlog_format = 'ROW', 2, 1)`
 --source include/wait_for_slave_sql_error_and_skip.inc
 

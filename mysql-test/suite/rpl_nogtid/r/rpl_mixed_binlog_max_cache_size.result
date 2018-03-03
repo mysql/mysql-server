@@ -32,10 +32,10 @@ CREATE TABLE t3(a INT PRIMARY KEY, data VARCHAR(30000)) ENGINE=Innodb CHARACTER 
 Got one of the listed errors
 *** Single statement on non-transactional table ***
 Got one of the listed errors
-include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13119]
 *** Single statement on both transactional and non-transactional tables. ***
 Got one of the listed errors
-include/wait_for_slave_sql_error_and_skip.inc [errno=1590]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13119]
 include/diff_tables.inc [master:t1,slave:t1]
 #########  2 - BEGIN - IMPLICIT COMMIT by DDL #########
 TRUNCATE TABLE t1;

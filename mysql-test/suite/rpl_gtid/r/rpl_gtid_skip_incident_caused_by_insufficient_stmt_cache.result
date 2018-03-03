@@ -33,7 +33,7 @@ master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 # Wait for the error 'ER_SLAVE_INCIDENT' caused by applying incident
 # event on slave and then stop the slave sql thread.
 #
-include/wait_for_slave_sql_error.inc [errno=1590]
+include/wait_for_slave_sql_error.inc [errno=13119]
 #
 # Prepare the slave to skip the incident event by its GTID.
 #

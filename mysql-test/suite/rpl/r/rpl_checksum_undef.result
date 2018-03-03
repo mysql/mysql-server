@@ -8,7 +8,7 @@ call mtr.add_suppression('The slave I/O thread was stopped because a fatal error
 include/stop_slave.inc
 SET GLOBAL debug='+d,undefined_algorithm_on_slave';
 START SLAVE;
-include/wait_for_slave_io_error.inc [errno=1593]
+include/wait_for_slave_io_error.inc [errno=13117]
 include/stop_slave.inc
 SET GLOBAL debug = '';
 include/start_slave.inc

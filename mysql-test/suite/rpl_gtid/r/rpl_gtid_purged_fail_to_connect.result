@@ -17,7 +17,7 @@ include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest fi
 INSERT INTO t1 VALUES (2);
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 START SLAVE;
-include/wait_for_slave_io_error.inc [errno=1236 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
+include/wait_for_slave_io_error.inc [errno=13114 # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
 CHANGE MASTER TO MASTER_LOG_FILE = 'master-bin.000002', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
 include/start_slave.inc

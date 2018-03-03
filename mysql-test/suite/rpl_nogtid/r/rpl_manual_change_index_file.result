@@ -8,7 +8,7 @@ CREATE TABLE t1(c1 INT);
 include/sync_slave_sql_with_master.inc
 FLUSH LOGS;
 call mtr.add_suppression('Got fatal error 1236 from master when reading data from binary log: .*could not find next log');
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'could not find next log; the first event '' at XXX, the last event read from './master-bin.000002' at XXX, the last byte read from './master-bin.000002' at XXX.''
 CREATE TABLE t2(c1 INT);
 FLUSH LOGS;
@@ -51,9 +51,9 @@ CHANGE MASTER TO master_host='127.0.0.1', master_log_file='master-bin.000001';
 Warnings:
 Warning	3023	CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file.
 START SLAVE IO_THREAD;
-# Instead of EE_FILENOTFOUND, ER_MASTER_FATAL_ERROR_READING_BINLOG
+# Instead of EE_FILENOTFOUND, ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 # and the specific information are sent to slave.
-include/wait_for_slave_io_error.inc [errno=1236]
+include/wait_for_slave_io_error.inc [errno=13114]
 Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Could not open log file''
 [ on master ]
 # Restore master-bin.000001 file

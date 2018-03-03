@@ -3,10 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-call mtr.add_suppression("Can.t find record in .t[12].* Error_code: 1032");
-call mtr.add_suppression("Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: 1451");
-call mtr.add_suppression("Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
-call mtr.add_suppression("Duplicate entry .1. for key .PRIMARY.* Error_code: 1062");
+call mtr.add_suppression("Can.t find record in .t[12].* Error_code: MY-001032");
+call mtr.add_suppression("Cannot delete or update a parent row: a foreign key constraint fails .* Error_code: MY-001451");
+call mtr.add_suppression("Cannot add or update a child row: a foreign key constraint fails .* Error_code: MY-001452");
+call mtr.add_suppression("Duplicate entry .1. for key .PRIMARY.* Error_code: MY-001062");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 set @saved_slave_rows_search_algorithms= @@global.slave_rows_search_algorithms;
 SET GLOBAL slave_rows_search_algorithms= 'INDEX_SCAN,TABLE_SCAN';

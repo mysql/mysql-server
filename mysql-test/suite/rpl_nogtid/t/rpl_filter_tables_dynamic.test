@@ -135,7 +135,7 @@ UPDATE t7 LEFT JOIN (t8, t4, t1) ON (t7.id=t8.id and t7.id=t4.id and t7.id=t1.id
 # and stop slave sql thread.
 sync_slave_with_master;
 connection slave;
-call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: 1146");
+call mtr.add_suppression("Slave SQL.*Error .Table .test.t[47]. doesn.t exist. on query.* Error_code: MY-001146");
 connection master;
 
 # Parameters for include/wait_for_slave_sql_error_and_skip.inc:

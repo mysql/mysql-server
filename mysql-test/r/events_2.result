@@ -12,7 +12,7 @@ create event e_26 on schedule at 'definitely not a datetime' disable do set @a =
 ERROR HY000: Incorrect AT value: 'definitely not a datetime'
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create event задачка on schedule every 123 minute starts now() ends now() + interval 1 month do select 1;
 drop event задачка;
 "DISABLE the scheduler. Testing that it does not work when the variable is 0"
@@ -239,7 +239,7 @@ drop table t1|
 drop event e1|
 set names utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create event имя_события_в_кодировке_утф8_длиной_больше_чем_48 on schedule every 2 year do select 1;
 select EVENT_NAME from information_schema.events
 where event_schema='test';

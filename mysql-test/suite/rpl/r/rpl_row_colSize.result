@@ -15,7 +15,7 @@ CREATE TABLE t1 (a DECIMAL(5,2));
 CREATE TABLE t1 (a DECIMAL(20, 10));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -27,7 +27,7 @@ CREATE TABLE t1 (a DECIMAL(27, 9));
 CREATE TABLE t1 (a DECIMAL(27, 18));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -39,7 +39,7 @@ CREATE TABLE t1 (a NUMERIC(5,2));
 CREATE TABLE t1 (a NUMERIC(20, 10));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -52,7 +52,7 @@ CREATE TABLE t1 (a FLOAT(20));
 CREATE TABLE t1 (a FLOAT(47));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (901251.90125);
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -65,7 +65,7 @@ CREATE TABLE t1 (a BIT(5));
 CREATE TABLE t1 (a BIT(64));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (B'10101');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -77,7 +77,7 @@ CREATE TABLE t1 (a BIT(11));
 CREATE TABLE t1 (a BIT(12));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES (B'10101');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -90,7 +90,7 @@ CREATE TABLE t1 (a SET('4'));
 CREATE TABLE t1 (a SET('1','2','3','4','5','6','7','8','9'));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('4');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -103,7 +103,7 @@ CREATE TABLE t1 (a CHAR(10));
 CREATE TABLE t1 (a CHAR(20));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -147,7 +147,7 @@ CREATE TABLE t1 (a ENUM(
             ));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('44');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -160,7 +160,7 @@ CREATE TABLE t1 (a VARCHAR(100));
 CREATE TABLE t1 (a VARCHAR(2000));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -172,7 +172,7 @@ CREATE TABLE t1 (a VARCHAR(10));
 CREATE TABLE t1 (a VARCHAR(200));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -184,7 +184,7 @@ CREATE TABLE t1 (a VARCHAR(1000));
 CREATE TABLE t1 (a VARCHAR(2000));
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
@@ -197,14 +197,14 @@ CREATE TABLE t1 (a TINYBLOB);
 CREATE TABLE t1 (a LONGBLOB);
 include/rpl_reset.inc
 INSERT INTO t1 VALUES ('This is a test.');
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 0
 STOP SLAVE;
 include/rpl_reset.inc
-call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 0 ...e mismatch.* Error_code: 1535");
-call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t1. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Table definition on master and slave does not match: Column 0 ...e mismatch.* Error_code: MY-001535");
+call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t1. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 *** Cleanup  ***
 DROP TABLE IF EXISTS t1;

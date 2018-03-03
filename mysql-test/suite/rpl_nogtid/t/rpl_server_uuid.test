@@ -93,7 +93,7 @@ connection slave;
 START SLAVE IO_THREAD;
 
 let $show_statement= SHOW SLAVE STATUS;
---let $slave_io_errno= 1593
+--let $slave_io_errno= 13117
 --source include/wait_for_slave_io_error.inc
 
 connection master;
@@ -262,7 +262,7 @@ eval CHANGE MASTER TO
 # Notice that the other slave has stopped with an error
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 
 --let $assert_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
@@ -283,7 +283,7 @@ eval CHANGE MASTER TO
 # Notice that the other slave has stopped with an error
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --source include/wait_for_slave_io_error.inc
 
 # Grep only after the message that the server_3 has connected to the master

@@ -4,7 +4,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 call mtr.add_suppression("Slave: Unknown table 'test.t6' Error_code: 1051");
-call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: 1677");
+call mtr.add_suppression("Slave SQL.*Column [0-9] of table .test.t[0-9]*. cannot be converted from type.* Error_code: MY-013146");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 **** Diff Table Def Start ****
 *** On Slave ***
@@ -54,7 +54,7 @@ a	b	c
 1	2	Kyle, TEX
 2	1	JOE AUSTIN
 3	4	QA TESTING
-include/wait_for_slave_sql_error.inc [errno=1677]
+include/wait_for_slave_sql_error.inc [errno=13146]
 STOP SLAVE;
 include/rpl_reset.inc
 SELECT * FROM t2 ORDER BY a;
@@ -79,7 +79,7 @@ INSERT INTO t3 () VALUES(@b1,2,'Kyle, TEX'),(@b1,1,'JOE AUSTIN'),(@b1,4,'QA TEST
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t3  ***
 DROP TABLE t3;
 *** Create t4 on slave  ***
@@ -99,7 +99,7 @@ INSERT INTO t4 () VALUES(100.22,2,'Kyle, TEX'),(200.26,1,'JOE AUSTIN'),
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t4  ***
 DROP TABLE t4;
 *** Create t5 on slave  ***
@@ -119,7 +119,7 @@ INSERT INTO t5 () VALUES(1,'Kyle',200.23,1,'b1b1',23.00098),
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t5  ***
 DROP TABLE t5;
 *** Create t6 on slave  ***
@@ -138,7 +138,7 @@ INSERT INTO t6 () VALUES(1,'Kyle',200.23,1),
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t6  ***
 include/rpl_reset.inc
 DROP TABLE t6;
@@ -231,7 +231,7 @@ INSERT INTO t10 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t10  ***
 DROP TABLE t10;
 *** Create t11 on slave  ***
@@ -250,7 +250,7 @@ INSERT INTO t11 () VALUES(1,@b1,'Kyle'),(2,@b1,'JOE'),(3,@b1,'QA');
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 *** Drop t11  ***
 DROP TABLE t11;
 *** Create t12 on slave  ***
@@ -428,7 +428,7 @@ c4 BLOB, c5 CHAR(5)) ENGINE='MyISAM';
 *** Start Slave ***
 include/rpl_reset.inc
 call mtr.add_suppression("Error .Unknown table .t6.. on query.* Error_code: 1051");
-call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: 1060");
+call mtr.add_suppression("Error .Duplicate column name .c6.. on query.* Error_code: MY-001060");
 call mtr.add_suppression("Table definition on master and slave does not match: Column . ...e mismatch.* Error_code: 1535");
 *** Master Data Insert ***
 set @b1 = 'b1b1b1b1';
@@ -543,7 +543,7 @@ INSERT INTO t17 () VALUES(9223372036854775807,2,'Kyle, TEX');
 ******************************************************************
 *** Expect slave to fail with Error ER_SLAVE_CONVERSION_FAILED ***
 ******************************************************************
-include/wait_for_slave_sql_error_and_skip.inc [errno=1677]
+include/wait_for_slave_sql_error_and_skip.inc [errno=13146]
 ** DROP table t17 ***
 DROP TABLE t17;
 include/rpl_end.inc

@@ -124,7 +124,7 @@ MASTER_UUID:1-20
 SET SESSION GTID_NEXT='MASTER_UUID:21';
 ALTER DATABASE db1 DEFAULT CHARACTER SET utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 include/gtid_step_assert.inc [count=1, only_count=0]
 SELECT GTID_EXECUTED_FROM_TABLE();
 GTID_EXECUTED_FROM_TABLE()

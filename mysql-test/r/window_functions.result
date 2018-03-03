@@ -2,7 +2,7 @@
 # ----------------------------------------------------------------------
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 
 Flag unsupported aggregates as window functions
 
@@ -7220,7 +7220,7 @@ pk int(11) NOT NULL AUTO_INCREMENT,
 PRIMARY KEY (pk)
 ) ENGINE=innodb AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO H VALUES('RDDGR','so',1);
 SELECT
 alias1 . col_varchar_10_latin1 AS field1,
@@ -7365,15 +7365,15 @@ DROP TABLE a, b;
 #
 SET SQL_MODE='';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET tmp_table_size= 16384;
 SELECT DISTINCT MAX( table2.`col_varchar_255_utf8` ) AS max1 ,
 MIN( table1.`col_date` ) AS min1 ,
@@ -7437,7 +7437,7 @@ col1 varchar(10) CHARACTER SET utf8 DEFAULT NULL,
 PRIMARY KEY (pk)
 ) ENGINE=Memory;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t2 VALUES (1,'ntdajwwdda');
 SELECT LEAD(t2.col1, 5)
 OVER ( ORDER BY t1.col_int DESC ) as lead1 ,
@@ -8327,10 +8327,10 @@ KEY `col_varchar_255_latin1_key` (`col_varchar_255_latin1_key`),
 KEY `col_int_key` (`col_int_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO `A` VALUES ('nznrrizpfk','znrrizpfkx',66,'2006-07-12','2004-06-08','nrrizpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhh',1,'TWLFR',NULL,'CROGF','the','back','0000-00-00 00:00:00','LHIBY',217),('c','GQPFO',28,NULL,'0000-00-00','well',2,'or',NULL,'rrizpfkxce','rizpfkxceksatef','izpfkxceks','0000-00-00 00:00:00','zpfkxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsx',179),('but','XXDMG',44,'2002-09-18',NULL,'some',3,'come','2004-10-05 00:00:00','pfkxceksat','it','p','2001-02-20 00:00:00','YOTTT',238),('fkxceksate','WVXCD',168,'2009-12-23','2005-04-16','kxceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuj',4,'SJYOI',NULL,'y','xceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwuju','have','0000-00-00 00:00:00','ceksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujul',99),('just','i',0,'2003-11-07','0000-00-00','come',5,'can\'t','2006-03-17 18:41:01','not','eksatefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulp','ksatefqsdk','2000-11-05 22:46:38','k',75);
 CREATE TABLE `AA` (
 `col_datetime` datetime DEFAULT NULL,
@@ -8358,10 +8358,10 @@ KEY `col_varchar_10_latin1_key` (`col_varchar_10_latin1_key`),
 KEY `col_int_key` (`col_int_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO `AA` VALUES (NULL,'0000-00-00','b','r','2003-08-19 23:01:25',154,'zgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijursprnwgrpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabrrifnhuufzasunkrcp','0000-00-00','is','gktbkjrkmq','o',1,'ktbkjrkmqm','tbkjrkmqmk',215),(NULL,'2007-05-17','e','VNIVI','2000-11-03 02:44:07',205,'u','0000-00-00','IXNLZ','bkjrkmqmkn','k',2,'hey','BDYIT',25),('2003-11-09 08:17:05','2000-12-18','DTSDH','ZPWFP','2005-05-15 11:04:35',1,'t','2005-12-07','kjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrge','CHSSV','AILLJ',3,'w','IRGCS',56),('2002-12-28 21:31:59','2006-12-11','jrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijursprnwgrpquarwkazzjeiwvdmdivjqsxmhjwagewclcfykywlcnemiuaabrrifnhuufzasunkrcpvasdqk','c',NULL,55,'c','2009-07-13','w','b','o',4,'were','her',200),('0000-00-00 00:00:00','0000-00-00','e','FBJDG','0000-00-00 00:00:00',52,'WPOMI','2003-09-05','HZSNI','all','know',5,'KQHJW','rkmqmknbto',252);
 CREATE TABLE `B` (
 `pk` int(11) NOT NULL AUTO_INCREMENT,
@@ -8389,10 +8389,10 @@ KEY `col_int_key` (`col_int_key`),
 KEY `col_date_key` (`col_date_key`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=latin1;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO `B` VALUES (1,229,'a','2003-05-12 00:00:00','x','2002-07-16 00:00:00','p','satefqsdks','can\'t','0000-00-00','atefqsdksj','tefqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvt','my',92,NULL),(2,159,'efqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnoz','0000-00-00 00:00:00','fqsdksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxnd','2007-04-08 09:43:38','her','qsdksjijcs','sdksjijcsz','2006-03-26','VXECY','why','JNAFV',70,'0000-00-00'),(3,42,'dksjijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaij','2009-02-12 04:14:15','back','2000-07-26 07:47:30','r','go','ksjijcszxw','0000-00-00','s','o','sjijcszxwb',200,'0000-00-00'),(4,146,'jijcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurs','0000-00-00 00:00:00','EXVCL','0000-00-00 00:00:00','DFVNQ','ijcszxwbjj','NMTOX','2004-12-17','p','jcszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyciakhxptzfpjwrgeozxnbycjzxiecurgmhbubpijrllquntppirzdphpduhwqhnsmujjjbldnkiwsrsxndolpujdnozrhhcxsxwujulpjdzvkpaijurspr','i',104,'2002-03-06'),(5,235,'i','0000-00-00 00:00:00','he\'s','2000-01-06 20:32:48','cszxwbjjvvkymalukqukkoeiwsgpmfyvvuqvtjncdsvqhlhtrovamzqrdcenchyhuoowityzgktbkjrkmqmknbtoervqlzsvasurqdhucjxdoygxqxnvgqmwcidtumxwcftedxqyci','YGVHA','EFEOY','2000-01-18','szxwbjjvvk','oh','not',239,'2001-07-22');
 ALTER TABLE A ADD COLUMN col_varchar_10_latin1_gckey VARCHAR(20) GENERATED ALWAYS AS (CONCAT(col_varchar_10_latin1_key,'x')) VIRTUAL;
 ALTER TABLE B ADD COLUMN col_int_gckey INT GENERATED ALWAYS AS (col_int_key + col_int_key) VIRTUAL;
@@ -8727,10 +8727,10 @@ col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
 col_varchar_10_latin1_key)
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO E (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
 col_varchar_255_utf8, col_varchar_255_latin1)
 VALUES
@@ -8789,10 +8789,10 @@ col_varchar_255_latin1_key DESC, col_varchar_10_utf8_key DESC,
 col_varchar_10_latin1_key)
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO C
 (col_int, col_varchar_10_utf8, pk, col_varchar_10_latin1,
 col_varchar_255_utf8, col_varchar_255_latin1)

@@ -472,7 +472,8 @@ bool filesort(THD *thd, Filesort *filesort, bool sort_positions,
         memory_available = min_sort_memory;
     }
     if (memory_available < min_sort_memory) {
-      my_error(ER_OUT_OF_SORTMEMORY, MYF(ME_ERRORLOG + ME_FATALERROR));
+      my_error(ER_OUT_OF_SORTMEMORY, MYF(ME_FATALERROR));
+      LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
       goto err;
     }
   }

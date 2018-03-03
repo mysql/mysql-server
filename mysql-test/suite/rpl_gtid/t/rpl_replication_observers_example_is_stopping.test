@@ -190,7 +190,7 @@ SET SESSION sql_log_bin= 0;
 # Wait until the plug-in has stated the I/O thread
 SET DEBUG_SYNC='now WAIT_FOR reached_io_thread_started';
 
---let $slave_io_errno= convert_error(ER_MASTER_FATAL_ERROR_READING_BINLOG)
+--let $slave_io_errno= convert_error(ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG)
 --let $rpl_channel_name= 'example_channel'
 --source include/wait_for_slave_io_error.inc
 

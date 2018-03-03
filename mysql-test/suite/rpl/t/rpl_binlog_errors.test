@@ -506,7 +506,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against unique log filename error
 -- let $io_thd_injection_fault_flag= error_unique_log_filename
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -515,7 +515,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against rotate failing
 -- let $io_thd_injection_fault_flag= fault_injection_new_file_rotate_event
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -524,7 +524,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log open failure
 -- let $io_thd_injection_fault_flag= fault_injection_registering_index
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 
@@ -533,7 +533,7 @@ SET GLOBAL binlog_error_action= IGNORE_ERROR;
 
 #### ASSERTION: check against relay log index open failure
 -- let $io_thd_injection_fault_flag= fault_injection_openning_index
--- let $slave_io_errno= 1595
+-- let $slave_io_errno= 13122
 -- let $show_slave_io_error= 1
 -- source include/io_thd_fault_injection.inc
 

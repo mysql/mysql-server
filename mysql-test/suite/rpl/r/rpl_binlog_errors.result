@@ -245,7 +245,7 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,error_unique_log_filename";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,error_unique_log_filename";
 SET GLOBAL debug=@old_debug;
@@ -256,7 +256,7 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_new_file_rotate_event";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_new_file_rotate_event";
 SET GLOBAL debug=@old_debug;
@@ -267,7 +267,7 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_registering_index";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_registering_index";
 SET GLOBAL debug=@old_debug;
@@ -278,7 +278,7 @@ SET @old_debug=@@global.debug;
 include/stop_slave.inc
 SET GLOBAL debug="+d,fault_injection_openning_index";
 START SLAVE io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
+include/wait_for_slave_io_error.inc [errno=13122]
 Last_IO_Error = 'Relay log write failure: could not queue event from master'
 SET GLOBAL debug="-d,fault_injection_openning_index";
 SET GLOBAL debug=@old_debug;

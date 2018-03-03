@@ -888,7 +888,7 @@ DROP PROCEDURE UPDATE_t;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 Warnings:
@@ -897,13 +897,13 @@ ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8, FULLTEXT INDEX(a))ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN b BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD INDEX (b(1)) ;
 DROP TABLE t;
 CREATE TABLE t(a TEXT CHARSET UTF8)ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 ALTER TABLE t ADD COLUMN FTS_DOC_ID BLOB GENERATED ALWAYS AS (a) VIRTUAL ;
 ALTER TABLE t ADD FULLTEXT INDEX (a) ;
 ERROR HY000: Column 'FTS_DOC_ID' is of wrong type for an InnoDB FULLTEXT index
@@ -1631,7 +1631,7 @@ a VARCHAR(45) CHARACTER SET LATIN1,
 b VARCHAR(115) CHARACTER SET UTF8 GENERATED ALWAYS AS ('f1') VIRTUAL,
 UNIQUE KEY (b,a))ENGINE=INNODB;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1(a) VALUES ('');
 ALTER TABLE t1 CHANGE COLUMN a a VARCHAR(85);
 SELECT * FROM t1;

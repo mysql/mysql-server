@@ -95,7 +95,7 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£±`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
  ¡¢£¤¥¦§¨©ª«¬­®¯	 ¡¢£¤¥¦§¨©ª«¬­®¯
@@ -120,7 +120,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£²`;
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£²`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -149,7 +149,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£³`;
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£³`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦
@@ -176,7 +176,7 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£´`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
  ¡¢£¤¥¦§¨©ª«¬­®¯	 ¡¢£¤¥¦§¨©ª«¬­®¯
@@ -201,7 +201,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£µ`;
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£µ`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û	¡È¡É¡Ê¡Ë¡Ì¡Í¡Î¡Ï¡Ğ¡Ñ¡Ò¡Ó¡Ô¡Õ¡Ö¡×¡Ø¡Ù¡Ú¡Û
@@ -230,7 +230,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¶`;
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¶`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦
@@ -257,7 +257,7 @@ PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
 ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ	ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏ
 ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß	ĞÑÒÓÔÕÖ×ØÙÚÛÜİŞß
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£·`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 PQRSTUVWXYZ[\]^_	PQRSTUVWXYZ[\]^_
@@ -282,7 +282,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¸`;
 ¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³	¡¦Ğ¡Ğ¢Ğ£Ğ¤Ğ¥Ğ¦Ğ§Ğ¨Ğ©ĞªĞ«Ğ¬Ğ­Ğ®Ğ¯Ğ°Ğ±Ğ²Ğ³
 ¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³	¡¦ó¡ó¢ó£ó¤ó¥ó¦ó§ó¨ó©óªó«ó¬ó­ó®ó¯ó°ó±ó²ó³
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¸`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç	¡´¡µ¡¶¡·¡¸¡¹¡º¡»¡¼¡½¡¾¡¿\¡Á¡Â¡Ã¡Ä¡Å¡Æ¡Ç
@@ -311,7 +311,7 @@ SELECT `£Ã£±`, CONVERT(`£Ã£±` using utf8) FROM `£Ô£¹`;
 í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ	í´íµí¶í·í¸í¹íºí»í¼í½í¾í¿íÀíÁíÂíÃíÄíÅíÆíÇ
 íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ	íÈíÉíÊíËíÌíÍíÎíÏíĞíÑíÒíÓíÔíÕíÖí×íØíÙíÚíÛ
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT `£Ã£±`, CONVERT(`£Ã£±` using ucs2) FROM `£Ô£¹`;
 £Ã£±	CONVERT(`£Ã£±` using ucs2)
 ¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦	¡¦¢µ¢¶~¢¸¢¹¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¢Â¢Ã¢Ä¡¦¡¦¡¦

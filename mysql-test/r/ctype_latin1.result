@@ -296,7 +296,7 @@ FD	C3BD	FD	1
 FE	C3BE	FE	1
 FF	C3BF	FF	1
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 DROP TABLE t1;
 SELECT 1 as É, 2 as ä, 3 as å, 4 as é, 5 as ö, 6 as ú, 7 as û, 8 as ü;
 É	ä	å	é	ö	ú	û	ü
@@ -376,37 +376,37 @@ SELECT convert(@str collate latin1_bin using utf8);
 convert(@str collate latin1_bin using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_general_ci using utf8);
 convert(@str collate latin1_general_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_german1_ci using utf8);
 convert(@str collate latin1_german1_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_danish_ci using utf8);
 convert(@str collate latin1_danish_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_spanish_ci using utf8);
 convert(@str collate latin1_spanish_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_german2_ci using utf8);
 convert(@str collate latin1_german2_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT convert(@str collate latin1_swedish_ci using utf8);
 convert(@str collate latin1_swedish_ci using utf8)
 ABC Ä∞ßﬂ≤≥µ~ ‰ˆ¸ƒ÷‹ ·ÈÌÛ˙ ¿»Ã“Ÿ @ abc
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET NAMES latin1;
 DROP TABLE IF EXISTS `abcˇdef`;
 CREATE TABLE `abcˇdef` (i int);
@@ -3288,7 +3288,7 @@ SET NAMES latin1;
 SET sql_mode='';
 CREATE TABLE t1(a char(215) CHARACTER SET utf8 NOT NULL DEFAULT '', KEY(a));
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ();
 SELECT maketime(`a`,`a`,`a`) FROM t1 GROUP BY 1;
 maketime(`a`,`a`,`a`)
@@ -3300,19 +3300,19 @@ SET sql_mode=default;
 #
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 EXPLAIN SELECT 'abcd√≥', _latin1'abcd√≥', _utf8'abcd√≥';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select 'abcd√≥' AS `abcd√≥`,_latin1'abcd\xC3\xB3' AS `abcd√É¬≥`,_utf8mb3'abcd\xC3\xB3' AS `abcd√≥`
 SET NAMES latin1;
 EXPLAIN SELECT 'abcd√≥', _latin1'abcd√≥', _utf8'abcd√≥';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Note	1003	/* select#1 */ select 'abcd√≥' AS `abcd√≥`,_latin1'abcd\xC3\xB3' AS `abcd√≥`,_utf8mb3'abcd\xC3\xB3' AS `abcdÛ`
 #
 # End of 5.5 tests

@@ -8,8 +8,8 @@ CALL mtr.add_suppression('Cannot execute statement because it needs to be writte
 CALL mtr.add_suppression('DROP DATABASE failed; some tables may have been dropped but the database directory remains.');
 CALL mtr.add_suppression("Error dropping database");
 CALL mtr.add_suppression("Can't drop database '.*'; database doesn't exist");
-CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: 1756");
-CALL mtr.add_suppression("Slave SQL for channel '': .* Error_code: 1105");
+CALL mtr.add_suppression("Slave SQL for channel '': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state. .* Error_code: MY-001756");
+CALL mtr.add_suppression("Slave SQL for channel '': .* Error_code: MY-001105");
 ==== Case 3: DROP DATABASE ====
 ---- Initialize ----
 # db1, db2, db3: no tables.

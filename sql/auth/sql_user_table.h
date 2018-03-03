@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
+#include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
 #include "sql/derror.h" /* ER_DEFAULT */
 #include "sql/log.h"    /* error_log_printf */
@@ -83,14 +84,38 @@ class Acl_table_intact : public Table_check_intact {
     va_start(args, fmt);
 
     if (code == 0)
-      error_log_printf(WARNING_LEVEL, fmt, args);
+      LogEvent()
+          .prio(WARNING_LEVEL)
+          .errcode(ER_SERVER_TABLE_CHECK_FAILED)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .source_file(MY_BASENAME)
+          .messagev(fmt, args);
     else if (code == ER_CANNOT_LOAD_FROM_TABLE_V2) {
       char *db_name, *table_name;
       db_name = va_arg(args, char *);
       table_name = va_arg(args, char *);
-      my_error(code, MYF(ME_ERRORLOG), db_name, table_name);
-    } else
-      my_printv_error(code, ER_THD(thd, code), MYF(ME_ERRORLOG), args);
+      my_error(code, MYF(0), db_name, table_name);
+      LogErr(ERROR_LEVEL, ER_SERVER_CANNOT_LOAD_FROM_TABLE_V2, db_name,
+             table_name);
+    } else {
+      my_printv_error(code, ER_THD(thd, code), MYF(0), args);
+      va_end(args);
+
+      if (code == ER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2)
+        code = ER_SERVER_COL_COUNT_DOESNT_MATCH_PLEASE_UPDATE_V2;
+      else if (code == ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2)
+        code = ER_SERVER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2;
+      else
+        code = ER_SERVER_ACL_TABLE_ERROR;
+
+      va_start(args, fmt);
+      LogEvent()
+          .prio(ERROR_LEVEL)
+          .errcode(code)
+          .subsys(LOG_SUBSYSTEM_TAG)
+          .source_file(MY_BASENAME)
+          .messagev(fmt, args);
+    }
 
     va_end(args);
   }

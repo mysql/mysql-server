@@ -222,10 +222,10 @@ z	LAT CAPIT Z	2
 я	CYR CAPIT YA	2
 ALTER TABLE t1 ADD utf8_f CHAR(32) CHARACTER SET utf8 NOT NULL default '';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t1 SET utf8_f=CONVERT(koi8_ru_f USING utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET CHARACTER SET koi8r;
 SELECT * FROM t1;
 comment	koi8_ru_f	utf8_f
@@ -1069,7 +1069,7 @@ CYR CAPIT YA	CYR SMALL YA
 CYR SMALL YA	CYR CAPIT YA
 CYR SMALL YA	CYR SMALL YA
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SELECT t11.comment,t12.comment 
 FROM t1 t11,t1 t12 
 WHERE t11.koi8_ru_f=CONVERT(t12.utf8_f USING koi8r)
@@ -1338,8 +1338,8 @@ UPDATE t1 SET greek_f=CONVERT(ucs2_f USING greek) WHERE comment LIKE _latin2'GRE
 UPDATE t1 SET armscii8_f=CONVERT(ucs2_f USING armscii8) WHERE comment LIKE _latin2'ARM%';
 UPDATE t1 SET utf8_f=CONVERT(ucs2_f USING utf8) WHERE utf8_f=_utf8'';
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 UPDATE t1 SET ucs2_f=CONVERT(utf8_f USING ucs2) WHERE ucs2_f=_ucs2'';
 SELECT comment, koi8_ru_f, utf8_f, hex(bin_f), ucs2_f, armscii8_f, greek_f FROM t1;
 comment	koi8_ru_f	utf8_f	hex(bin_f)	ucs2_f	armscii8_f	greek_f
@@ -1703,7 +1703,7 @@ SET NAMES latin1;
 DO CONVERT(CAST(SUBSTRING_INDEX(FORMAT(1,'1111'), FORMAT('','Zpq'),1) 
 AS BINARY(0)) USING utf8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 Warning	1292	Truncated incorrect INTEGER value: 'Zpq'
 Warning	1292	Truncated incorrect BINARY(0) value: '1.'
 #
@@ -1725,7 +1725,7 @@ utf16 CHAR CHARACTER SET utf16,
 utf32 CHAR CHARACTER SET utf32
 );
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('','','','','');
 SELECT CHARSET(CONCAT(utf8, utf8mb4)) FROM t1;
 CHARSET(CONCAT(utf8, utf8mb4))
@@ -1807,7 +1807,7 @@ DROP TABLE t2;
 #
 CREATE TABLE t1 (a CHAR(1) CHARSET UTF8);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
 SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';

@@ -8,7 +8,7 @@ CREATE TABLE t1(f1 INT);
 ERROR 42S01: Таблица 't1' уже существует
 SET NAMES utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t1(f1 INT);
 ERROR 42S01: Таблица 't1' уже существует
 SHOW VARIABLES LIKE 'lc_messages';
@@ -30,7 +30,7 @@ ERROR 42S02: Unknown table 'test.ק'
 SET lc_messages=cs_CZ;
 SET NAMES UTF8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 USE nonexistant;
 ERROR 42000: Neznámá databáze 'nonexistant'
 #

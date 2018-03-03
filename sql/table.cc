@@ -3122,7 +3122,6 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
   int err_no;
   char buff[FN_REFLEN];
   char errbuf[MYSYS_STRERROR_SIZE];
-  myf errortype = ME_ERRORLOG;
   DBUG_ENTER("open_table_error");
 
   switch (error) {
@@ -3142,8 +3141,12 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
         default:
           strxmov(buff, share->normalized_path.str, reg_ext, NullS);
           my_error((db_errno == EMFILE) ? ER_CANT_OPEN_FILE : ER_FILE_NOT_FOUND,
-                   errortype, buff, db_errno,
+                   MYF(0), buff, db_errno,
                    my_strerror(errbuf, sizeof(errbuf), db_errno));
+          LogErr(ERROR_LEVEL,
+                 (db_errno == EMFILE) ? ER_SERVER_CANT_OPEN_FILE
+                                      : ER_SERVER_FILE_NOT_FOUND,
+                 buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
       }
       break;
     case 2: {
@@ -3162,15 +3165,22 @@ static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                    ? ER_FILE_NOT_FOUND
                    : (db_errno == EAGAIN) ? ER_FILE_USED : ER_CANT_OPEN_FILE;
       strxmov(buff, share->normalized_path.str, datext, NullS);
-      my_error(err_no, errortype, buff, db_errno,
+      my_error(err_no, MYF(0), buff, db_errno,
                my_strerror(errbuf, sizeof(errbuf), db_errno));
+      LogErr(ERROR_LEVEL,
+             (db_errno == ENOENT)
+                 ? ER_SERVER_FILE_NOT_FOUND
+                 : (db_errno == EAGAIN) ? ER_SERVER_FILE_USED
+                                        : ER_SERVER_CANT_OPEN_FILE,
+             buff, db_errno, my_strerror(errbuf, sizeof(errbuf), db_errno));
       destroy(file);
       break;
     }
     default: /* Better wrong error than none */
     case 4:
       strxmov(buff, share->normalized_path.str, reg_ext, NullS);
-      my_error(ER_NOT_FORM_FILE, errortype, buff);
+      my_error(ER_NOT_FORM_FILE, MYF(0), buff);
+      LogErr(ERROR_LEVEL, ER_SERVER_NOT_FORM_FILE, buff);
       break;
   }
   DBUG_VOID_RETURN;

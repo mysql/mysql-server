@@ -538,7 +538,7 @@ TABLE_NAME = 'TABLE_NAME text',
 COLUMN_NAME = 'COLUMN_NAME text',
 CURSOR_NAME = 'CURSOR_NAME text',
 MESSAGE_TEXT = 'MESSAGE_TEXT text',
-MYSQL_ERRNO = 54321;
+MYSQL_ERRNO = 9999;
 END|
 CALL p1();
 ERROR 12345: MESSAGE_TEXT text
@@ -581,7 +581,7 @@ SELECT
 @column_name	COLUMN_NAME text
 @cursor_name	CURSOR_NAME text
 @message_text	MESSAGE_TEXT text
-@mysql_errno	54321
+@mysql_errno	9999
 @returned_sqlstate	12345
 DROP PROCEDURE p1;
 #

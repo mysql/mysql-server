@@ -79,8 +79,8 @@ reset slave;
 SET GLOBAL init_slave= "garbage";
 
 start slave;
-# 1064 = ER_PARSE_ERROR
---let $slave_sql_errno= 1064
+# 13145 = ER_SERVER_SLAVE_INIT_QUERY_FAILED
+--let $slave_sql_errno= 13145
 --let $show_slave_sql_error= 1
 --source include/wait_for_slave_sql_error.inc
 

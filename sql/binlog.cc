@@ -1957,11 +1957,10 @@ static void exec_binlog_error_action_abort(const char *err_string) {
   if (thd) {
     if (thd->is_error()) thd->clear_error();
     /*
-      Adding ME_ERRORLOG flag will ensure that the error is sent to both
-      client and to the server error log as well.
+      Send error to both client and to the server error log.
     */
-    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_ERRORLOG + ME_FATALERROR),
-             err_string);
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(ME_FATALERROR), err_string);
+    LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);
     thd->send_statement_status();
   } else
     LogErr(ERROR_LEVEL, ER_BINLOG_LOGGING_NOT_POSSIBLE, err_string);

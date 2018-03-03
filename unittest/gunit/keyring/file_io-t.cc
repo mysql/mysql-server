@@ -82,7 +82,7 @@ TEST_F(File_io_test, OpenNotExistingFile) {
 
   EXPECT_CALL(*logger, log(ERROR_LEVEL,
                            StrEq("File './some_funny_name' not found "
-                                 "(Errcode: 2 - No such file or directory)")));
+                                 "(OS errno 2 - No such file or directory)")));
   File file = file_io.open(keyring::keyring_file_data_key, "./some_funny_name",
                            O_RDONLY, MYF(MY_WME));
   ASSERT_TRUE(file < 0);  // could not open the file

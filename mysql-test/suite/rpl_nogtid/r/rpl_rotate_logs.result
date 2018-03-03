@@ -46,7 +46,7 @@ include/sync_slave_sql_with_master.inc
 insert into t2 values(1234);
 set insert_id=1234;
 insert into t2 values(NULL);
-call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .PRIMARY.. on query.* Error_code: 1062");
+call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .1234. for key .PRIMARY.. on query.* Error_code: MY-001062");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 include/sync_slave_sql_with_master.inc
 purge master logs to 'master-bin.000002';

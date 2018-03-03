@@ -40,8 +40,8 @@ FLUSH BINARY LOGS;
 include/stop_slave.inc
 SET GLOBAL debug= 'd,request_master_log_pos_3';
 START SLAVE IO_THREAD;
-call mtr.add_suppression(".* Got fatal error 1236 from master when reading data from binary log");
-include/wait_for_slave_io_error.inc [errno=1236]
+call mtr.add_suppression(".* Got fatal error 13114 from master when reading data from binary log");
+include/wait_for_slave_io_error.inc [errno=13114]
 SET GLOBAL debug= '$slave_debug';
 #
 # Error: Binary log is not open on master

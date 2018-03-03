@@ -3,7 +3,7 @@ create table t1 (
 a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set utf8 engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (
 a int, b char(10), c char(10), filler char(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = innodb;
@@ -12,24 +12,24 @@ insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
 insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -74,7 +74,7 @@ create table t1 (
 a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set utf8 engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (
 a int, b varchar(10), c varchar(10), filler varchar(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = innodb;
@@ -83,24 +83,24 @@ insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
 insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -145,7 +145,7 @@ create table t1 (
 a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set utf8 engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (
 a int, b text(10), c text(10), filler text(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = innodb;
@@ -154,24 +154,24 @@ insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
 insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bde880bd,_utf8 0xe880bde880bd,'six');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xe880bdD0B1e880bd,_utf8 0xe880bdD0B1e880bd,'seven');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -216,7 +216,7 @@ create table t1 (
 a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set utf8 engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t2 (
 a int, b blob(10), c blob(10), filler blob(10), primary key(a, b(2)), unique key (a, c(2))
 ) character set ucs2 engine = innodb;
@@ -225,16 +225,16 @@ insert into t1 values (2,'ijkilmn','ijkilmn','two');
 insert into t1 values (3,'qrstuvw','qrstuvw','three');
 insert into t1 values (4,_utf8 0xe880bd,_utf8 0xe880bd,'four');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0x5b,_utf8 0x5b,'five');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values (4,_utf8 0xD0B1,_utf8 0xD0B1,'eight');
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'abcdefg','abcdefg','one');
 insert into t2 values (2,'ijkilmn','ijkilmn','two');
 insert into t2 values (3,'qrstuvw','qrstuvw','three');
@@ -276,7 +276,7 @@ string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 ind enum('0','1','2') NOT NULL default '0',
 string1 varchar(250) NOT NULL,
@@ -299,7 +299,7 @@ string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 ind set('0','1','2') NOT NULL default '0',
 string1 varchar(250) NOT NULL,
@@ -322,7 +322,7 @@ string1 varchar(250) NOT NULL,
 PRIMARY KEY  (ind)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 CREATE TABLE t2 (
 ind bit not null,
 string1 varchar(250) NOT NULL,
@@ -343,7 +343,7 @@ create table t2 (
 a int, b char(10), filler char(10), primary key(a, b(2)) 
 ) character set utf8 engine = innodb;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t2 values (1,'abcdefg','one');
 insert into t2 values (2,'ijkilmn','two');
 insert into t2 values (3, 'qrstuvw','three');
@@ -359,14 +359,14 @@ update t2 set a=5, filler='booo' where a=1;
 drop table t2;
 create table t1(a int not null, b char(110),primary key(a,b(100))) engine=innodb default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values(1,'abcdefg'),(2,'defghijk');
 insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select a,hex(b) from t1 order by b;
 a	hex(b)
 1	61626364656667
@@ -377,14 +377,14 @@ update t1 set b = 'three' where a = 6;
 drop table t1;
 create table t1(a int not null, b text(110),primary key(a,b(100))) engine=innodb default charset=utf8;
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values(1,'abcdefg'),(2,'defghijk');
 insert into t1 values(6,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 insert into t1 values(7,_utf8 0xD0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B1D0B2);
 Warnings:
-Warning	11265	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, which will be replaced by UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 select a,hex(b) from t1 order by b;
 a	hex(b)
 1	61626364656667
